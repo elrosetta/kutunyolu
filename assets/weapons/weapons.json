@@ -1,0 +1,406 @@
+{
+ "cell": [
+  64,
+  40
+ ],
+ "materials": [
+  "demir",
+  "tunc",
+  "gumus",
+  "altin",
+  "kemik",
+  "yesim",
+  "kara_tas",
+  "od_tasi",
+  "ayaz",
+  "gok_demiri",
+  "ruh"
+ ],
+ "items": {
+  "alp_kilici": {
+   "row": 0,
+   "pivot": [
+    16,
+    20
+   ]
+  },
+  "pala": {
+   "row": 1,
+   "pivot": [
+    16,
+    20
+   ]
+  },
+  "yatagan": {
+   "row": 2,
+   "pivot": [
+    16,
+    20
+   ]
+  },
+  "gurz": {
+   "row": 3,
+   "pivot": [
+    16,
+    20
+   ]
+  },
+  "teber": {
+   "row": 4,
+   "pivot": [
+    16,
+    20
+   ]
+  },
+  "kargi": {
+   "row": 5,
+   "pivot": [
+    16,
+    20
+   ]
+  },
+  "ikiz_bicak": {
+   "row": 6,
+   "pivot": [
+    16,
+    20
+   ]
+  },
+  "turk_yayi": {
+   "row": 7,
+   "pivot": [
+    16,
+    20
+   ]
+  },
+  "akinci_yayi": {
+   "row": 8,
+   "pivot": [
+    16,
+    20
+   ]
+  },
+  "cirit": {
+   "row": 9,
+   "pivot": [
+    16,
+    20
+   ]
+  },
+  "coban_sapani": {
+   "row": 10,
+   "pivot": [
+    16,
+    20
+   ]
+  },
+  "yuvarlak_kalkan": {
+   "row": 11,
+   "pivot": [
+    32,
+    20
+   ]
+  },
+  "kartal_kalkani": {
+   "row": 12,
+   "pivot": [
+    32,
+    20
+   ]
+  },
+  "ayna_kalkan": {
+   "row": 13,
+   "pivot": [
+    32,
+    20
+   ]
+  },
+  "kara_barut": {
+   "row": 14,
+   "pivot": [
+    32,
+    20
+   ]
+  },
+  "bozkurt_cagrisi": {
+   "row": 15,
+   "pivot": [
+    32,
+    20
+   ]
+  },
+  "nazar_boncugu": {
+   "row": 16,
+   "pivot": [
+    32,
+    20
+   ]
+  },
+  "od_testisi": {
+   "row": 17,
+   "pivot": [
+    32,
+    20
+   ]
+  },
+  "yildirim_kilici": {
+   "row": 18,
+   "pivot": [
+    16,
+    20
+   ]
+  },
+  "savas_baltasi": {
+   "row": 19,
+   "pivot": [
+    16,
+    20
+   ]
+  },
+  "kement": {
+   "row": 20,
+   "pivot": [
+    16,
+    20
+   ]
+  },
+  "od_kamcisi": {
+   "row": 21,
+   "pivot": [
+    16,
+    20
+   ]
+  },
+  "civili_topuz": {
+   "row": 22,
+   "pivot": [
+    16,
+    20
+   ]
+  },
+  "erlik_tirpani": {
+   "row": 23,
+   "pivot": [
+    16,
+    20
+   ]
+  },
+  "kurt_pencesi": {
+   "row": 24,
+   "pivot": [
+    16,
+    20
+   ]
+  },
+  "ayaz_kilici": {
+   "row": 25,
+   "pivot": [
+    16,
+    20
+   ]
+  },
+  "saganak_yayi": {
+   "row": 26,
+   "pivot": [
+    16,
+    20
+   ]
+  },
+  "tufan_yayi": {
+   "row": 27,
+   "pivot": [
+    16,
+    20
+   ]
+  },
+  "od_oklari": {
+   "row": 28,
+   "pivot": [
+    16,
+    20
+   ]
+  },
+  "kam_kopuzu": {
+   "row": 29,
+   "pivot": [
+    16,
+    20
+   ]
+  },
+  "gok_asasi": {
+   "row": 30,
+   "pivot": [
+    16,
+    20
+   ]
+  },
+  "yel_borusu": {
+   "row": 31,
+   "pivot": [
+    16,
+    20
+   ]
+  },
+  "kartal_tuyleri": {
+   "row": 32,
+   "pivot": [
+    32,
+    20
+   ]
+  },
+  "mancinik_tasi": {
+   "row": 33,
+   "pivot": [
+    32,
+    20
+   ]
+  },
+  "dikenli_kalkan": {
+   "row": 34,
+   "pivot": [
+    32,
+    20
+   ]
+  },
+  "kut_kalkani": {
+   "row": 35,
+   "pivot": [
+    32,
+    20
+   ]
+  },
+  "ejder_kalkani": {
+   "row": 36,
+   "pivot": [
+    32,
+    20
+   ]
+  },
+  "ulu_kayin_kalkani": {
+   "row": 37,
+   "pivot": [
+    32,
+    20
+   ]
+  },
+  "tas_kalkan": {
+   "row": 38,
+   "pivot": [
+    32,
+    20
+   ]
+  },
+  "sifa_muskasi": {
+   "row": 39,
+   "pivot": [
+    32,
+    20
+   ]
+  },
+  "ayaz_tilsimi": {
+   "row": 40,
+   "pivot": [
+    32,
+    20
+   ]
+  },
+  "yel_tilsimi": {
+   "row": 41,
+   "pivot": [
+    32,
+    20
+   ]
+  },
+  "davul_totemi": {
+   "row": 42,
+   "pivot": [
+    32,
+    20
+   ]
+  },
+  "ok_yagmuru": {
+   "row": 43,
+   "pivot": [
+    32,
+    20
+   ]
+  },
+  "kartal_cagrisi": {
+   "row": 44,
+   "pivot": [
+    32,
+    20
+   ]
+  },
+  "ruh_kusu": {
+   "row": 45,
+   "pivot": [
+    32,
+    20
+   ]
+  },
+  "umay_tuyu": {
+   "row": 46,
+   "pivot": [
+    32,
+    20
+   ]
+  },
+  "erlik_zinciri": {
+   "row": 47,
+   "pivot": [
+    32,
+    20
+   ]
+  },
+  "ulu_kilic": {
+   "row": 48,
+   "pivot": [
+    16,
+    20
+   ]
+  },
+  "dag_cekici": {
+   "row": 49,
+   "pivot": [
+    16,
+    20
+   ]
+  },
+  "ruh_kilici": {
+   "row": 50,
+   "pivot": [
+    16,
+    20
+   ]
+  },
+  "ay_palasi": {
+   "row": 51,
+   "pivot": [
+    16,
+    20
+   ]
+  },
+  "yilan_kilici": {
+   "row": 52,
+   "pivot": [
+    16,
+    20
+   ]
+  },
+  "kor_cekici": {
+   "row": 53,
+   "pivot": [
+    16,
+    20
+   ]
+  },
+  "ruzgar_kilici": {
+   "row": 54,
+   "pivot": [
+    16,
+    20
+   ]
+  }
+ }
+}

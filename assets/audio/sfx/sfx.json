@@ -1,0 +1,659 @@
+{
+ "savur_hafif_1": {
+  "loop": false,
+  "len": 0.24,
+  "src": "layer"
+ },
+ "savur_hafif_2": {
+  "loop": false,
+  "len": 0.24,
+  "src": "layer"
+ },
+ "savur_hafif_3": {
+  "loop": false,
+  "len": 0.24,
+  "src": "layer"
+ },
+ "savur_agir_1": {
+  "loop": false,
+  "len": 0.58,
+  "src": "layer"
+ },
+ "savur_agir_2": {
+  "loop": false,
+  "len": 0.5,
+  "src": "layer"
+ },
+ "savur_dev": {
+  "loop": false,
+  "len": 0.5,
+  "src": "layer"
+ },
+ "sapla": {
+  "loop": false,
+  "len": 0.096,
+  "src": "layer"
+ },
+ "darbe_et_1": {
+  "loop": false,
+  "len": 0.2,
+  "src": "layer"
+ },
+ "darbe_et_2": {
+  "loop": false,
+  "len": 0.2,
+  "src": "layer"
+ },
+ "darbe_et_3": {
+  "loop": false,
+  "len": 0.2,
+  "src": "layer"
+ },
+ "darbe_agir": {
+  "loop": false,
+  "len": 0.35,
+  "src": "layer"
+ },
+ "darbe_kritik": {
+  "loop": false,
+  "len": 0.47,
+  "src": "layer"
+ },
+ "darbe_metal_1": {
+  "loop": false,
+  "len": 0.272,
+  "src": "layer"
+ },
+ "darbe_metal_2": {
+  "loop": false,
+  "len": 0.117,
+  "src": "layer"
+ },
+ "darbe_kunt": {
+  "loop": false,
+  "len": 0.35,
+  "src": "layer"
+ },
+ "darbe_tas": {
+  "loop": false,
+  "len": 0.35,
+  "src": "layer"
+ },
+ "sarsinti": {
+  "loop": false,
+  "len": 1.7
+ },
+ "kurt_can_1": {
+  "loop": false,
+  "len": 0.354,
+  "src": "layer"
+ },
+ "kurt_can_2": {
+  "loop": false,
+  "len": 0.378,
+  "src": "layer"
+ },
+ "kurt_olum": {
+  "loop": false,
+  "len": 0.9,
+  "src": "layer"
+ },
+ "cor_can_1": {
+  "loop": false,
+  "len": 0.295,
+  "src": "layer"
+ },
+ "cor_can_2": {
+  "loop": false,
+  "len": 0.268,
+  "src": "layer"
+ },
+ "cor_olum": {
+  "loop": false,
+  "len": 0.6,
+  "src": "layer"
+ },
+ "agac_can_1": {
+  "loop": false,
+  "len": 0.6,
+  "src": "layer"
+ },
+ "agac_can_2": {
+  "loop": false,
+  "len": 0.6,
+  "src": "layer"
+ },
+ "agac_olum": {
+  "loop": false,
+  "len": 1.1,
+  "src": "layer"
+ },
+ "tas_can_1": {
+  "loop": false,
+  "len": 0.4
+ },
+ "tas_olum": {
+  "loop": false,
+  "len": 1.0
+ },
+ "hayalet_can_1": {
+  "loop": false,
+  "len": 1.2
+ },
+ "hayalet_can_2": {
+  "loop": false,
+  "len": 1.2
+ },
+ "hayalet_olum": {
+  "loop": false,
+  "len": 1.8
+ },
+ "dusman_hazirlik": {
+  "loop": false,
+  "len": 0.4,
+  "src": "layer"
+ },
+ "bengu_can": {
+  "loop": false,
+  "len": 0.246,
+  "src": "layer"
+ },
+ "bengu_olum": {
+  "loop": false,
+  "len": 2.8,
+  "src": "layer"
+ },
+ "zipla": {
+  "loop": false,
+  "len": 0.15,
+  "src": "layer"
+ },
+ "inis_1": {
+  "loop": false,
+  "len": 0.25,
+  "src": "layer"
+ },
+ "inis_2": {
+  "loop": false,
+  "len": 0.3,
+  "src": "layer"
+ },
+ "yuvarlan": {
+  "loop": false,
+  "len": 0.38,
+  "src": "layer"
+ },
+ "adim_1": {
+  "loop": false,
+  "len": 0.25,
+  "src": "layer"
+ },
+ "adim_2": {
+  "loop": false,
+  "len": 0.25,
+  "src": "layer"
+ },
+ "sise": {
+  "loop": false,
+  "len": 0.45,
+  "src": "layer"
+ },
+ "sarj_dongu": {
+  "loop": true,
+  "len": 1.0
+ },
+ "sarj_dolu": {
+  "loop": false,
+  "len": 0.5
+ },
+ "agir_birak": {
+  "loop": false,
+  "len": 0.6
+ },
+ "kut_donusum": {
+  "loop": false,
+  "len": 2.9
+ },
+ "uluma": {
+  "loop": false,
+  "len": 3.4
+ },
+ "isirik_1": {
+  "loop": false,
+  "len": 0.35,
+  "src": "layer"
+ },
+ "isirik_2": {
+  "loop": false,
+  "len": 0.35,
+  "src": "layer"
+ },
+ "sicrayis": {
+  "loop": false,
+  "len": 0.35
+ },
+ "yay_ger": {
+  "loop": false,
+  "len": 0.4,
+  "src": "layer"
+ },
+ "yay_birak": {
+  "loop": false,
+  "len": 0.25,
+  "src": "layer"
+ },
+ "ok_vurus": {
+  "loop": false,
+  "len": 0.15,
+  "src": "layer"
+ },
+ "patlama": {
+  "loop": false,
+  "len": 2.1
+ },
+ "buyu": {
+  "loop": false,
+  "len": 1.6,
+  "src": "layer"
+ },
+ "yildirim": {
+  "loop": false,
+  "len": 1.6
+ },
+ "donma": {
+  "loop": false,
+  "len": 0.6
+ },
+ "ates_dongu": {
+  "loop": true,
+  "len": 1.5
+ },
+ "zehir": {
+  "loop": false,
+  "len": 0.6
+ },
+ "altin": {
+  "loop": false,
+  "len": 0.3,
+  "src": "layer"
+ },
+ "kut_tane": {
+  "loop": false,
+  "len": 0.95
+ },
+ "esya": {
+  "loop": false,
+  "len": 0.9,
+  "src": "layer"
+ },
+ "tilsim": {
+  "loop": false,
+  "len": 2.1
+ },
+ "ui_sec": {
+  "loop": false,
+  "len": 0.154,
+  "src": "layer"
+ },
+ "ui_onay": {
+  "loop": false,
+  "len": 0.35,
+  "src": "layer"
+ },
+ "acilis": {
+  "loop": false,
+  "len": 2.4
+ },
+ "kapi": {
+  "loop": false,
+  "len": 3.6
+ },
+ "npc_1": {
+  "loop": false,
+  "len": 0.15,
+  "src": "layer"
+ },
+ "npc_2": {
+  "loop": false,
+  "len": 0.15,
+  "src": "layer"
+ },
+ "npc_3": {
+  "loop": false,
+  "len": 0.06
+ },
+ "ors": {
+  "loop": false,
+  "len": 0.6,
+  "src": "layer"
+ },
+ "kut_banka": {
+  "loop": false,
+  "len": 2.6
+ },
+ "savur_kilic_1": {
+  "loop": false,
+  "len": 0.24,
+  "src": "layer"
+ },
+ "savur_kilic_2": {
+  "loop": false,
+  "len": 0.24,
+  "src": "layer"
+ },
+ "savur_kilic_3": {
+  "loop": false,
+  "len": 0.24,
+  "src": "layer"
+ },
+ "savur_kilic_4": {
+  "loop": false,
+  "len": 0.24,
+  "src": "layer"
+ },
+ "savur_katana_1": {
+  "loop": false,
+  "len": 0.3,
+  "src": "layer"
+ },
+ "savur_katana_2": {
+  "loop": false,
+  "len": 0.3,
+  "src": "layer"
+ },
+ "savur_dev_1": {
+  "loop": false,
+  "len": 0.5,
+  "src": "layer"
+ },
+ "savur_dev_2": {
+  "loop": false,
+  "len": 0.5,
+  "src": "layer"
+ },
+ "savur_cekic_1": {
+  "loop": false,
+  "len": 0.58,
+  "src": "layer"
+ },
+ "savur_cekic_2": {
+  "loop": false,
+  "len": 0.58,
+  "src": "layer"
+ },
+ "savur_balta_1": {
+  "loop": false,
+  "len": 0.155,
+  "src": "layer"
+ },
+ "savur_balta_2": {
+  "loop": false,
+  "len": 0.13,
+  "src": "layer"
+ },
+ "savur_sirik_1": {
+  "loop": false,
+  "len": 0.096,
+  "src": "layer"
+ },
+ "savur_sirik_2": {
+  "loop": false,
+  "len": 0.096,
+  "src": "layer"
+ },
+ "savur_bicak_1": {
+  "loop": false,
+  "len": 0.15,
+  "src": "layer"
+ },
+ "savur_bicak_2": {
+  "loop": false,
+  "len": 0.15,
+  "src": "layer"
+ },
+ "savur_bicak_3": {
+  "loop": false,
+  "len": 0.15,
+  "src": "layer"
+ },
+ "savur_kirbac_1": {
+  "loop": false,
+  "len": 0.25,
+  "src": "layer"
+ },
+ "savur_kirbac_2": {
+  "loop": false,
+  "len": 0.25,
+  "src": "layer"
+ },
+ "savur_ruh_1": {
+  "loop": false,
+  "len": 0.43,
+  "src": "layer"
+ },
+ "savur_ruh_2": {
+  "loop": false,
+  "len": 0.43,
+  "src": "layer"
+ },
+ "darbe_kesik_1": {
+  "loop": false,
+  "len": 0.3,
+  "src": "layer"
+ },
+ "darbe_kesik_2": {
+  "loop": false,
+  "len": 0.3,
+  "src": "layer"
+ },
+ "darbe_kesik_3": {
+  "loop": false,
+  "len": 0.3,
+  "src": "layer"
+ },
+ "darbe_kesik_agir_1": {
+  "loop": false,
+  "len": 0.4,
+  "src": "layer"
+ },
+ "darbe_kesik_agir_2": {
+  "loop": false,
+  "len": 0.4,
+  "src": "layer"
+ },
+ "darbe_kunt_1": {
+  "loop": false,
+  "len": 0.35,
+  "src": "layer"
+ },
+ "darbe_kunt_2": {
+  "loop": false,
+  "len": 0.35,
+  "src": "layer"
+ },
+ "darbe_kunt_3": {
+  "loop": false,
+  "len": 0.35,
+  "src": "layer"
+ },
+ "darbe_cekic_1": {
+  "loop": false,
+  "len": 0.6,
+  "src": "layer"
+ },
+ "darbe_cekic_2": {
+  "loop": false,
+  "len": 0.6,
+  "src": "layer"
+ },
+ "darbe_delme_1": {
+  "loop": false,
+  "len": 0.26,
+  "src": "layer"
+ },
+ "darbe_delme_2": {
+  "loop": false,
+  "len": 0.26,
+  "src": "layer"
+ },
+ "darbe_balta_1": {
+  "loop": false,
+  "len": 0.3,
+  "src": "layer"
+ },
+ "darbe_balta_2": {
+  "loop": false,
+  "len": 0.3,
+  "src": "layer"
+ },
+ "darbe_kirbac_1": {
+  "loop": false,
+  "len": 0.26,
+  "src": "layer"
+ },
+ "darbe_tas_1": {
+  "loop": false,
+  "len": 0.35,
+  "src": "layer"
+ },
+ "darbe_tas_2": {
+  "loop": false,
+  "len": 0.35,
+  "src": "layer"
+ },
+ "kurt_can_3": {
+  "loop": false,
+  "len": 0.4,
+  "src": "layer"
+ },
+ "adim_cim_1": {
+  "loop": false,
+  "len": 0.25,
+  "src": "layer"
+ },
+ "adim_cim_2": {
+  "loop": false,
+  "len": 0.25,
+  "src": "layer"
+ },
+ "adim_cim_3": {
+  "loop": false,
+  "len": 0.25,
+  "src": "layer"
+ },
+ "adim_cim_4": {
+  "loop": false,
+  "len": 0.25,
+  "src": "layer"
+ },
+ "adim_cim_5": {
+  "loop": false,
+  "len": 0.25,
+  "src": "layer"
+ },
+ "adim_kar_1": {
+  "loop": false,
+  "len": 0.25,
+  "src": "layer"
+ },
+ "adim_kar_2": {
+  "loop": false,
+  "len": 0.25,
+  "src": "layer"
+ },
+ "adim_kar_3": {
+  "loop": false,
+  "len": 0.25,
+  "src": "layer"
+ },
+ "adim_kar_4": {
+  "loop": false,
+  "len": 0.25,
+  "src": "layer"
+ },
+ "adim_kar_5": {
+  "loop": false,
+  "len": 0.25,
+  "src": "layer"
+ },
+ "adim_tas_1": {
+  "loop": false,
+  "len": 0.106,
+  "src": "layer"
+ },
+ "adim_tas_2": {
+  "loop": false,
+  "len": 0.108,
+  "src": "layer"
+ },
+ "adim_tas_3": {
+  "loop": false,
+  "len": 0.113,
+  "src": "layer"
+ },
+ "adim_tas_4": {
+  "loop": false,
+  "len": 0.11,
+  "src": "layer"
+ },
+ "adim_tas_5": {
+  "loop": false,
+  "len": 0.114,
+  "src": "layer"
+ },
+ "adim_tahta_1": {
+  "loop": false,
+  "len": 0.25,
+  "src": "layer"
+ },
+ "adim_tahta_2": {
+  "loop": false,
+  "len": 0.25,
+  "src": "layer"
+ },
+ "adim_tahta_3": {
+  "loop": false,
+  "len": 0.25,
+  "src": "layer"
+ },
+ "adim_tahta_4": {
+  "loop": false,
+  "len": 0.25,
+  "src": "layer"
+ },
+ "adim_tahta_5": {
+  "loop": false,
+  "len": 0.248,
+  "src": "layer"
+ },
+ "altin_1": {
+  "loop": false,
+  "len": 0.3,
+  "src": "layer"
+ },
+ "altin_2": {
+  "loop": false,
+  "len": 0.3,
+  "src": "layer"
+ },
+ "altin_3": {
+  "loop": false,
+  "len": 0.294,
+  "src": "layer"
+ },
+ "ui_sec_1": {
+  "loop": false,
+  "len": 0.154,
+  "src": "layer"
+ },
+ "ui_sec_2": {
+  "loop": false,
+  "len": 0.2,
+  "src": "layer"
+ },
+ "ui_sec_3": {
+  "loop": false,
+  "len": 0.2,
+  "src": "layer"
+ }
+}

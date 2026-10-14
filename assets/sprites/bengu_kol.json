@@ -1,0 +1,24 @@
+{
+ "cell": [
+  12,
+  16
+ ],
+ "pivot": [
+  6,
+  3
+ ],
+ "fist_pivot": [
+  6,
+  5
+ ],
+ "upper_len": 8.5,
+ "fore_len": 8.0,
+ "parts": [
+  "upper",
+  "fore",
+  "fist",
+  "upper_b",
+  "fore_b",
+  "fist_b"
+ ]
+}

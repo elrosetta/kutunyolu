@@ -1,0 +1,145 @@
+{
+ "dilek_agaci": {
+  "size": [
+   96,
+   120
+  ],
+  "origin": [
+   48,
+   116
+  ],
+  "glow": false
+ },
+ "kam_diregi": {
+  "size": [
+   56,
+   104
+  ],
+  "origin": [
+   28,
+   100
+  ],
+  "glow": false
+ },
+ "mantar_1": {
+  "size": [
+   40,
+   32
+  ],
+  "origin": [
+   20,
+   30
+  ],
+  "glow": false
+ },
+ "mantar_2": {
+  "size": [
+   40,
+   32
+  ],
+  "origin": [
+   20,
+   30
+  ],
+  "glow": false
+ },
+ "cicek_1": {
+  "size": [
+   40,
+   24
+  ],
+  "origin": [
+   20,
+   23
+  ],
+  "glow": false
+ },
+ "cicek_2": {
+  "size": [
+   40,
+   24
+  ],
+  "origin": [
+   20,
+   23
+  ],
+  "glow": false
+ },
+ "cicek_3": {
+  "size": [
+   40,
+   24
+  ],
+  "origin": [
+   20,
+   23
+  ],
+  "glow": false
+ },
+ "kaya_1": {
+  "size": [
+   48,
+   32
+  ],
+  "origin": [
+   24,
+   31
+  ],
+  "glow": false
+ },
+ "kaya_2": {
+  "size": [
+   48,
+   32
+  ],
+  "origin": [
+   24,
+   31
+  ],
+  "glow": false
+ },
+ "cira": {
+  "size": [
+   24,
+   64
+  ],
+  "origin": [
+   12,
+   62
+  ],
+  "glow": true
+ },
+ "ulu_kayin": {
+  "size": [
+   260,
+   300
+  ],
+  "origin": [
+   130,
+   294
+  ],
+  "glow": true
+ },
+ "ocak": {
+  "size": [
+   48,
+   40
+  ],
+  "origin": [
+   24,
+   38
+  ],
+  "glow": true
+ },
+ "cadir": {
+  "size": [
+   96,
+   80
+  ],
+  "origin": [
+   48,
+   78
+  ],
+  "glow": false
+ }
+}

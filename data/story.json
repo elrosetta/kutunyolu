@@ -1,0 +1,74 @@
+{
+  "title": "Kut'un Yolu",
+  "intro": [
+    "Gök Tengri dünyayı üç kat yarattı: Gök, Yer ve Yeraltı.",
+    "Üçünü bir arada tutan Ulu Kayın'dı, Hayat Ağacı. Kökleri Erlik'in karanlığına, dalları Ülgen'in ışığına uzanırdı.",
+    "Her canlıya Gök'ten inen hayat bereketine Kut denirdi. Kut, ağacın damarlarından dünyaya akardı.",
+    "Erlik Han, ağacın köklerine kara bir zincir doladı. Kut çekilmeye başladı. Güneş bir sabah doğmadı; gökte yalnız solgun bir ay kaldı. Yer karardı, iyeler azdı, ölüler dinlenemez oldu.",
+    "Sen Bengü'sün, bozkırın son alplarından biri. Erlik'in ordusuna karşı düştün.",
+    "Ruhun kuş olup Ulu Kayın'ın dalına konacakken Umay Ana seni tuttu: \"Kutun daha tükenmedi.\"",
+    "Seni ağacın özünden yeniden yoğurdu. Her düştüğünde yeniden doğacaksın.",
+    "Ama her doğuş ağaçtan bir yaprak koparır. Erlik'in zincirini kırmadan ağaç kurursa, ne sen kalırsın ne dünya."
+  ],
+  "npcs": {
+    "umay": {
+      "name": "Umay Ana",
+      "role": "Doğumun ve çocukların koruyucusu. Seni her ölümde yeniden doğurur; topladığın Kut'la kalıcı güç verir.",
+      "first": [
+        "Gözlerini aç, yavrum. Ulu Kayın'ın dalındasın.",
+        "Erlik köklere zincir vurdu. Kut çekiliyor; güneş doğmaz oldu, dünya soluyor.",
+        "Seni ağacın özünden yoğurdum. Düşersen yine kalkacaksın; ama her kalkış ağaca bir yaprağa mal olur.",
+        "Ötüken'e in. Ormanın iyelerine ne olduğunu gör. Topladığın Kut'u bana getir."
+      ],
+      "repeat": [
+        "Yine düştün, yine kalktın. Kurt soyu böyledir.",
+        "Kut'u getirdin mi? Ağaç her tanesini hatırlar.",
+        "Erlik'in kızlarına inanma. Tatlı söyler, acı bağlar.",
+        "Yorulursan dalda dinlen. Ama uzun kalma; yapraklar düşüyor."
+      ]
+    },
+    "demirci": {
+      "name": "Demirci Kam Kuzgun",
+      "role": "Ata bilgisi tomarlarından yeni silahlar döver.",
+      "first": [
+        "Bir alp mı, bir hayalet mi? Fark etmez, ikisi de silah ister.",
+        "Düşmanların taşıdığı ata bilgisi tomarlarını getir. Okuyabildiğim her şeyi döverim."
+      ],
+      "repeat": [
+        "Örsün sesi Erlik'i rahatsız eder. İyi.",
+        "Gök demiri bulursan sakla. Yıldızdan düşen demir kimseye eğilmez.",
+        "Kalkansız alp, kınsız kılıca benzer."
+      ]
+    },
+    "ozan": {
+      "name": "Ozan Bilge Kopuz",
+      "role": "Dede Korkut'un yolundan bir ozan. Hikâyeyi anlatır, destan şarkıları çalar.",
+      "first": [
+        "Soyunu sopunu sormam, yiğit; yolunu sorarım.",
+        "Her biyomun bir destanı var. Sen yürüdükçe ben yazacağım."
+      ],
+      "repeat": [
+        "Tepegöz'ü Basat yendi derler. Belki bir gün seni de anlatırlar.",
+        "Şahmeran ölmedi, yiğit. Erlik onu bağladı sadece.",
+        "Ad koymadan ölen yiğidin destanı eksik kalır."
+      ]
+    }
+  },
+  "lore": {
+    "otuken": [
+      "Bir dilek ağacı. Bağlanmış çaputların hepsi kararmış, yalnız biri hâlâ al renkte.",
+      "Bir balbal: \"Burada Kara Han yatar. Kırk düşman öldürdü. Kırk birincisi Erlik oldu.\"",
+      "Sönmüş bir ocak başında ağaç iyesine bırakılmış süt ve ekmek. Küflenmiş; kimse almamış.",
+      "Kurt izleri, sonra hiçbir iz. Sanki sürü yere batmış.",
+      "Bir kam davulu, derisi yırtık. Üstüne kazınmış: \"Ruh kuşu dala konmadı.\"",
+      "Ağaçların arasında süzülen soluk ışıklar. Kamlar bunlara 'yolunu kaybetmiş ruh' der. Ardından gitme.",
+      "Kütüğe kazınmış çetele: kırk üç çentik, sonra bir çizgi. \"Güneş kırk üç gündür doğmadı.\""
+    ]
+  },
+  "death_lines": [
+    "Umay Ana seni yeniden yoğuruyor.",
+    "Ruh kuşun dala konmadı.",
+    "Ulu Kayın'dan bir yaprak düştü.",
+    "Kurt soyu düşer, yine kalkar."
+  ]
+}

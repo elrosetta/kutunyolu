@@ -1,0 +1,42 @@
+; Engine configuration file.
+; Kut'un Yolu — Godot 4.7
+
+config_version=5
+
+[application]
+
+config/name="Kut'un Yolu"
+config/description="Türk mitolojisinde geçen, Dead Cells esinli 2D aksiyon roguelite."
+run/main_scene="res://scenes/Main.tscn"
+config/features=PackedStringArray("4.7", "Forward Plus")
+
+[autoload]
+
+Data="*res://scripts/autoload/Data.gd"
+Game="*res://scripts/autoload/Game.gd"
+ItemGen="*res://scripts/autoload/ItemGen.gd"
+Ses="*res://scripts/autoload/Ses.gd"
+
+[display]
+
+window/size/viewport_width=640
+window/size/viewport_height=360
+window/size/window_width_override=1920
+window/size/window_height_override=1080
+window/stretch/mode="canvas_items"
+window/stretch/aspect="expand"
+window/stretch/scale_mode="integer"
+
+[physics]
+
+2d/default_gravity=1100.0
+common/physics_ticks_per_second=60
+
+[rendering]
+
+renderer/rendering_method="forward_plus"
+textures/canvas_textures/default_texture_filter=0
+viewport/hdr_2d=true
+2d/snap/snap_2d_transforms_to_pixel=false
+2d/snap/snap_2d_vertices_to_pixel=false
+environment/defaults/default_clear_color=Color(0.08, 0.1, 0.16, 1)

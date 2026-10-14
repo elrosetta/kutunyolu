@@ -1,0 +1,100 @@
+{
+ "cell": [
+  64,
+  76
+ ],
+ "origin": [
+  28,
+  70
+ ],
+ "anims": {
+  "idle": {
+   "row": 0,
+   "frames": 6,
+   "fps": 8,
+   "loop": true,
+   "data": [
+    {
+     "mouth": [
+      3.7,
+      -31.0
+     ]
+    },
+    {
+     "mouth": [
+      3.7,
+      -29.27
+     ]
+    },
+    {
+     "mouth": [
+      3.7,
+      -29.27
+     ]
+    },
+    {
+     "mouth": [
+      3.7,
+      -31.0
+     ]
+    },
+    {
+     "mouth": [
+      3.7,
+      -32.73
+     ]
+    },
+    {
+     "mouth": [
+      3.7,
+      -32.73
+     ]
+    }
+   ],
+   "arm": true
+  },
+  "attack": {
+   "row": 1,
+   "frames": 3,
+   "fps": 10,
+   "loop": false,
+   "data": [
+    {
+     "mouth": [
+      4.1,
+      -31.0
+     ]
+    },
+    {
+     "mouth": [
+      5.7,
+      -29.27
+     ]
+    },
+    {
+     "mouth": [
+      4.9,
+      -32.73
+     ]
+    }
+   ],
+   "arm": true
+  },
+  "hurt": {
+   "row": 2,
+   "frames": 1,
+   "fps": 10,
+   "loop": false,
+   "data": [
+    {
+     "mouth": [
+      4.7,
+      -29.1
+     ]
+    }
+   ],
+   "arm": true
+  }
+ },
+ "glow": true
+}
