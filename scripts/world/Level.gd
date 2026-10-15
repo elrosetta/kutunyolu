@@ -48,6 +48,7 @@ const HUB_W := 92
 var red_rect: ColorRect
 var _light_tex: GradientTexture2D
 var _done := false
+var _hub_floor: Node2D
 
 
 func build(seed_value: int) -> void:
@@ -346,10 +347,14 @@ func build_hub(seed_value: int) -> void:
 	rng.seed = seed_value
 	biome = Game.biome_for_depth(1)
 	art = biome.get("art", {}).duplicate()
-	art["ambient"] = [0.5, 0.47, 0.6]
+	art["ambient"] = [0.5, 0.48, 0.62]
 	art["sun_energy"] = 0.3
 	art["particles"] = "ruh"
-	art["decor_tint"] = [0.8, 0.78, 0.84]
+	art["decor_tint"] = [0.86, 0.84, 0.9]
+	# v13: yurda özel paralaks: kutsal gece göğü, dağların ardında Ulu Kayın (Bai-Terek), uzak oba, yakın fenerli sırt
+	art["bg"] = ["yurt_0_sky", "yurt_1_tree", "yurt_2_camp", "yurt_3_mid", "otuken_5_fog"]
+	art["bg_fx"] = [[0.0, 0.0, 0.0], [0.03, 0.02, 0.0], [0.16, 0.08, 0.0], [0.36, 0.16, 0.0], [0.5, 0.22, 7.0]]
+	art["rays"] = [0.55, 0.95, 0.88, 0.05]
 	Game.run["biome"] = "yurt"
 	_generate_hub()
 	_build_tiles()
@@ -359,6 +364,9 @@ func build_hub(seed_value: int) -> void:
 	decal_root = Node2D.new()
 	decal_root.z_index = 1
 	add_child(decal_root)
+	# yere serili kilimler ve taş yol: zeminin üstünde, oyuncu ve NPC'lerin altında (aynı z, ağaç sırası)
+	_hub_floor = Node2D.new()
+	add_child(_hub_floor)
 	actors = Node2D.new()
 	add_child(actors)
 	proj_root = Node2D.new()
@@ -377,6 +385,10 @@ func build_hub(seed_value: int) -> void:
 	_build_particles()
 	_build_overlay_fx()
 	Ses.music("yurt")
+	if OS.get_cmdline_user_args().has("--yurt-tur"):
+		var tour: Node = load("res://tools/tests/yurt_turu.gd").new()
+		tour.set("level", self)
+		add_child(tour)
 
 
 func _generate_hub() -> void:
@@ -401,14 +413,68 @@ func _generate_hub() -> void:
 
 
 func _place_hub() -> void:
-	var sy := surface_y(34)
-	_decor("ulu_kayin", 34, sy, -4)
-	_decor("cadir", 68, surface_y(68), -3)
-	_decor("ocak", 58, surface_y(58), -1, true)
-	for x in [14, 46, 76]:
-		_decor("cira", x, surface_y(x), -2, true)
-	for x in [10, 22, 41, 52, 63, 73]:
-		_decor(["cicek_1", "cicek_2", "kaya_1", "cicek_3"][x % 4], x, surface_y(x), 6)
+	## v13 Ulu Kayın Yurdu: soldan sağa giriş tuğu ve kurgan, kutsal pınar, dilek kayını, Umay sunağı, han otağı,
+	## demirci ocağı, kartal tüneği ve eğerli at, Ozan'ın kilimli köşesi, süslü yurt ve kazan, balballar, taç kapı.
+	## Bütün süsler 1.5x yoğunlukta çizilip 2/3 ölçekle gösterilir (zeminle aynı doku pikseli).
+	# --- zemin: taş yol ve kilimler
+	var xk := 3.0
+	var yi := 0
+	while xk < 90.0:
+		_hub_prop("yh_yol_%d" % (yi % 3 + 1), xk, 0, yi % 2 == 1, _hub_floor, 1.0)
+		xk += 3.15
+		yi += 1
+	# kapı sekisinin basamak yüzleri: toprak yerine yontma taş
+	_hub_prop("yh_seki", 79.5, 0, false, _hub_floor, 0.0)
+	_hub_prop("yh_seki", 89.5, 0, false, _hub_floor, 0.0)
+	for r in [["yh_hali_1", 40.5], ["yh_hali_2", 61.6], ["yh_hali_2", 30.2], ["yh_hali_1", 85.0]]:
+		_hub_prop(r[0], float(r[1]), 1, false, _hub_floor, 1.0)
+		var cx := int(float(r[1]))
+		for x in range(cx - 2, cx + 3):
+			overlay.erase_cell(Vector2i(x, surface_y(x) - 1))
+	# --- giriş: tuğ, kandil, dikili taşlar, balballar
+	_hub_prop("yh_tug_m", 2.6, -3)
+	_hub_prop("yh_kandil", 7.6, -1)
+	_hub_prop("yh_kurgan", 10.5, -4)
+	_hub_prop("yh_balbal_1", 14.2, -2)
+	_hub_prop("yh_balbal_2", 15.6, -3, true)
+	# --- Umay köşesi
+	_hub_prop("yh_kayin", 24.6, -6)
+	_hub_prop("yh_pinar", 19.6, -4)
+	_hub_prop("yh_sunak", 33.0, -3)
+	_hub_prop("yh_mangal", 27.0, -1)
+	_hub_prop("yh_fener", 35.0, -2)
+	# --- han otağı ve iki yanında tuğlar
+	_hub_prop("yh_otag", 40.5, -5)
+	_hub_prop("yh_tug_k", 36.3, -6)
+	_hub_prop("yh_tug_m", 44.9, -6, true)
+	_hub_prop("yh_kandil", 37.7, -1)
+	_hub_prop("yh_kandil", 43.4, -1)
+	# --- demirci
+	_hub_prop("yh_demirhane", 50.4, -4)
+	_hub_prop("yh_ors", 45.6, 1)
+	# --- kartal ve at
+	_hub_prop("yh_kartal", 54.9, -3)
+	_hub_prop("yh_at", 57.6, -2, true)
+	# --- Ozan köşesi
+	_hub_prop("yh_hali_sergi", 62.3, -4)
+	_hub_prop("yh_mangal", 59.2, -1)
+	_hub_prop("yh_fener", 65.4, -2, true)
+	# --- süslü yurt, kazan, balballar
+	_hub_prop("yh_cadir", 69.6, -5)
+	_hub_prop("yh_tug_k", 73.2, -6)
+	_hub_prop("yh_kazan", 75.3, -2)
+	_hub_prop("yh_balbal_2", 77.8, -3)
+	_hub_prop("yh_balbal_1", 79.0, -3, true)
+	# --- taç kapı (Kut Kapısı'nın ardında) ve yanındaki tuğlar
+	var ex := HUB_W - 7
+	_hub_prop("yh_kapi", ex, -6)
+	_hub_prop("yh_tug_m", ex - 4.4, -7)
+	_hub_prop("yh_tug_k", ex + 3.6, -7, true)
+	_hub_prop("yh_kandil", ex - 2.9, -1)
+	_hub_prop("yh_kandil", ex + 3.0, -1)
+	_hub_lights()
+	_hub_strings()
+	_hub_particles()
 	var defs := [["umay", "Umay Ana", 30], ["demirci", "Demirci Kam Kuzgun", 47], ["ozan", "Ozan Bilge Kopuz", 61]]
 	for d in defs:
 		var n := NPC.new()
@@ -419,7 +485,6 @@ func _place_hub() -> void:
 		actors.add_child(n)
 		npcs.append(n)
 	# çıkış: Kut Kapısı
-	var ex := HUB_W - 7
 	exit_pos = Vector2(ex * TS + TS / 2.0, surface_y(ex) * TS)
 	var gate := KutGate.new()
 	gate.position = exit_pos
@@ -429,7 +494,235 @@ func _place_hub() -> void:
 		portal.loop = true
 		portal.z_index = -1
 		portal.reparent(decor_root)
-	add_light(exit_pos + Vector2(0, -40), Color(0.45, 0.9, 1.0), 220.0, 1.4, decor_root)
+	add_light(exit_pos + Vector2(0, -60), Color(0.45, 0.9, 1.0), 260.0, 1.4, decor_root)
+
+
+func _hub_px(tx: float, dy := 0.0) -> Vector2:
+	## Karo x'i (kesirli) → o sütunun yüzeyindeki dünya noktası.
+	return Vector2(tx * TS + TS / 2.0, surface_y(int(floor(tx))) * TS + dy)
+
+
+func _hub_prop(dname: String, tx: float, z := 0, flip := false, parent: Node = null, dy := 2.0, glow := Color(1.5, 1.35, 1.2)) -> Sprite2D:
+	## Yurt süsü: decor.json'daki "k" yoğunluğuna göre ölçeklenir (1.5x çizim → 2/3 ölçek).
+	var d := Data.decor(dname)
+	if d.is_empty() or not d.has("size"):
+		return null
+	var k := float(d.get("k", 1.0))
+	var s := Sprite2D.new()
+	s.texture = d["tex"]
+	s.centered = false
+	s.offset = Vector2(-float(d["origin"][0]), -float(d["origin"][1]))
+	s.scale = Vector2(-1.0 if flip else 1.0, 1.0) / k
+	s.position = _hub_px(tx, dy)
+	var m := ShaderMaterial.new()
+	m.shader = Game.toon_shader
+	var dt: Array = art.get("decor_tint", [0.86, 0.84, 0.9])
+	m.set_shader_parameter("tint", Color(dt[0], dt[1], dt[2]))
+	s.material = m
+	s.z_index = z
+	(parent if parent else decor_root).add_child(s)
+	if d.get("glow_tex") != null:
+		var g := Sprite2D.new()
+		g.texture = d["glow_tex"]
+		g.centered = false
+		g.offset = s.offset
+		var gm := CanvasItemMaterial.new()
+		gm.blend_mode = CanvasItemMaterial.BLEND_MODE_ADD
+		gm.light_mode = CanvasItemMaterial.LIGHT_MODE_UNSHADED
+		g.material = gm
+		g.self_modulate = glow
+		s.add_child(g)
+	return s
+
+
+func _hub_fire(pos: Vector2, col: Color, radius: float, energy: float, embers := true) -> void:
+	## Titreyen sıcak ışık + yukarı süzülen kor.
+	var l := add_light(pos, col, radius, energy, decor_root)
+	var tw := l.create_tween().set_loops()
+	tw.tween_property(l, "energy", energy * 0.82, rng.randf_range(0.14, 0.22))
+	tw.tween_property(l, "energy", energy * 1.08, rng.randf_range(0.16, 0.26))
+	if embers:
+		var p := _hub_emitter(pos + Vector2(0, 4), 7, 1.4, Color(1.6, 0.75, 0.3, 0.9), Vector2(3, 2), true)
+		p.direction = Vector2(0, -1)
+		p.spread = 25.0
+		p.initial_velocity_min = 14.0
+		p.initial_velocity_max = 30.0
+		p.gravity = Vector2(4, -10)
+		p.scale_amount_min = 0.06
+		p.scale_amount_max = 0.12
+
+
+func _hub_emitter(pos: Vector2, amount: int, life: float, col: Color, extents: Vector2, additive: bool, z := 4) -> CPUParticles2D:
+	var p := CPUParticles2D.new()
+	p.position = pos
+	p.amount = amount
+	p.lifetime = life
+	p.preprocess = life
+	p.texture = FX.dot_tex()
+	p.emission_shape = CPUParticles2D.EMISSION_SHAPE_RECTANGLE
+	p.emission_rect_extents = extents
+	p.local_coords = false
+	p.color = col
+	var g := Gradient.new()
+	g.set_color(0, Color(1, 1, 1, 0))
+	g.set_color(1, Color(1, 1, 1, 0))
+	g.add_point(0.2, Color(1, 1, 1, 1))
+	g.add_point(0.7, Color(1, 1, 1, 0.8))
+	p.color_ramp = g
+	if additive:
+		var am := CanvasItemMaterial.new()
+		am.blend_mode = CanvasItemMaterial.BLEND_MODE_ADD
+		am.light_mode = CanvasItemMaterial.LIGHT_MODE_UNSHADED
+		p.material = am
+	p.z_index = z
+	decor_root.add_child(p)
+	return p
+
+
+func _hub_lights() -> void:
+	## Sıcak (ateş, fener) / soğuk (kut, pınar) ışık karşıtlığı. Işık sayısı düşük tutulur: yakın kaynaklar
+	## tek ışıkta birleşir, fenerlerin parıltısı ışık değil ışıma dokusudur.
+	var warm := Color(1.0, 0.6, 0.28)
+	_hub_fire(_hub_px(7.6, -52), warm, 170.0, 1.1)
+	for tx in [27.0, 59.2]:
+		_hub_fire(_hub_px(tx, -24), warm, 190.0, 1.25)
+	# otağ: iki kandil ve kapıdan sızan altın ışık tek ışıkta
+	_hub_fire(_hub_px(40.5, -40), Color(1.0, 0.66, 0.34), 240.0, 1.15)
+	# demirci ocağı: güçlü, nabız gibi atan turuncu
+	var fl := add_light(_hub_px(50.7, -10), Color(1.0, 0.45, 0.16), 230.0, 1.5, decor_root)
+	var tw := fl.create_tween().set_loops()
+	tw.tween_property(fl, "energy", 1.15, 0.5).set_trans(Tween.TRANS_SINE)
+	tw.tween_property(fl, "energy", 1.6, 0.6).set_trans(Tween.TRANS_SINE)
+	# kazan ateşi
+	_hub_fire(_hub_px(75.3, -6), warm, 150.0, 1.0)
+	# kut: pınar ve dilek kayını (soğuk turkuaz)
+	add_light(_hub_px(22.0, -80), Color(0.45, 0.98, 0.95), 270.0, 0.85, decor_root)
+	# taç kapının kandilleri (kapının turkuaz ışığı _place_hub'da)
+	_hub_fire(_hub_px(HUB_W - 7, -60), warm, 230.0, 0.9)
+
+
+func _hub_string(a: Vector2, b: Vector2, sag: float, lanterns: bool, z := -5) -> void:
+	## İki direk arasında sarkık ip: renkli üçgen bayrakçıklar ya da küçük kehribar fenerler.
+	## Bütün bayrakçıklar tek Polygon2D'de (köşe renkli çokgenler): bir çizim çağrısı.
+	var line := Line2D.new()
+	line.width = 1.0
+	line.default_color = Color(0.16, 0.12, 0.1)
+	line.z_index = z
+	var n := 24
+	for i in n + 1:
+		var t := float(i) / n
+		line.add_point(a.lerp(b, t) + Vector2(0, sin(t * PI) * sag))
+	decor_root.add_child(line)
+	var cols := [Color(0.78, 0.18, 0.2), Color(0.95, 0.75, 0.25), Color(0.2, 0.42, 0.8), Color(0.92, 0.9, 0.84), Color(0.2, 0.62, 0.52)]
+	var shape := PackedVector2Array([Vector2(-1.5, 1), Vector2(1.5, 1), Vector2(2, 3), Vector2(1.5, 5), Vector2(-1.5, 5), Vector2(-2, 3)]) if lanterns 		else PackedVector2Array([Vector2(-2.5, 0), Vector2(2.5, 0), Vector2(0, 6)])
+	var verts := PackedVector2Array()
+	var vcols := PackedColorArray()
+	var polys: Array = []
+	var steps := int(a.distance_to(b) / (16.0 if lanterns else 8.0))
+	for i in range(1, steps):
+		var t := float(i) / steps
+		var p := (a.lerp(b, t) + Vector2(0, sin(t * PI) * sag)).round()
+		var col: Color = (Color(2.2, 1.3, 0.5) if i % 2 else Color(2.0, 0.6, 0.4)) if lanterns else cols[i % cols.size()]
+		var rot := 0.0 if lanterns else sin(i * 1.7) * 0.2
+		var idxs := PackedInt32Array()
+		for v in shape:
+			idxs.append(verts.size())
+			verts.append(p + v.rotated(rot))
+			vcols.append(col)
+		polys.append(idxs)
+	if verts.is_empty():
+		return
+	var pg := Polygon2D.new()
+	pg.polygon = verts
+	pg.polygons = polys
+	pg.vertex_colors = vcols
+	pg.z_index = z
+	if lanterns:
+		var um := CanvasItemMaterial.new()
+		um.light_mode = CanvasItemMaterial.LIGHT_MODE_UNSHADED
+		pg.material = um
+	decor_root.add_child(pg)
+
+
+func _hub_strings() -> void:
+	# tuğ tepeleri ↔ otağ tuğu: bayrakçık dizileri
+	var otag_top := _hub_px(40.5, -176)
+	_hub_string(_hub_px(36.3, -150) + Vector2(-8, 0), otag_top, 12.0, false, -7)
+	_hub_string(otag_top, _hub_px(44.9, -150) + Vector2(8, 0), 12.0, false, -7)
+	# otağ ↔ demirhane saçağı, Ozan ↔ yurt: fener dizileri
+	_hub_string(_hub_px(44.9, -120) + Vector2(8, 0), _hub_px(47.5, -86), 6.0, true, -6)
+	_hub_string(_hub_px(59.6, -84), _hub_px(65.4, -94) + Vector2(-8, 0), 10.0, true, -6)
+	_hub_string(_hub_px(65.4, -94), _hub_px(69.6, -100), 8.0, false, -7)
+	_hub_string(_hub_px(69.6, -100), _hub_px(73.2, -150) + Vector2(-8, 0), 10.0, false, -7)
+	# taç kapı: iki tuğ arasında, kemerin üstünden geçen bayrakçıklar
+	var ex := float(HUB_W - 7)
+	_hub_string(_hub_px(ex - 4.4, -150) + Vector2(8, 0), _hub_px(ex, -176), 10.0, false, -8)
+	_hub_string(_hub_px(ex, -176), _hub_px(ex + 3.6, -150) + Vector2(-8, 0), 10.0, false, -8)
+	# dilek kayını ↔ fener: fener dizisi
+	_hub_string(_hub_px(28.0, -120), _hub_px(35.0, -94), 14.0, true, -6)
+
+
+func _hub_particles() -> void:
+	var gy := 30.0 * TS
+	# ateş böcekleri: yurt boyunca yere yakın, sarı-yeşil
+	var ff := _hub_emitter(Vector2(HUB_W * TS / 2.0, gy - 46), 70, 6.0, Color(1.3, 1.5, 0.55, 0.9), Vector2(HUB_W * TS / 2.0, 40), true, 6)
+	ff.direction = Vector2(1, -0.2)
+	ff.spread = 180.0
+	ff.initial_velocity_min = 3.0
+	ff.initial_velocity_max = 10.0
+	ff.gravity = Vector2(0, -1.5)
+	ff.scale_amount_min = 0.1
+	ff.scale_amount_max = 0.17
+	# kut zerreleri: dilek kayınından ve pınardan göğe yükselen turkuaz ruhlar
+	var sp := _hub_emitter(_hub_px(23.0, -60), 26, 7.0, Color(0.6, 1.5, 1.4, 0.9), Vector2(70, 50), true, 6)
+	sp.direction = Vector2(0, -1)
+	sp.spread = 40.0
+	sp.initial_velocity_min = 4.0
+	sp.initial_velocity_max = 12.0
+	sp.gravity = Vector2(0, -3)
+	sp.scale_amount_min = 0.1
+	sp.scale_amount_max = 0.2
+	# taç kapıdan süzülen kut
+	var kp := _hub_emitter(_hub_px(HUB_W - 7, -70), 16, 5.0, Color(0.6, 1.5, 1.5, 0.9), Vector2(40, 60), true, 6)
+	kp.direction = Vector2(0, -1)
+	kp.initial_velocity_min = 3.0
+	kp.initial_velocity_max = 9.0
+	kp.gravity = Vector2(0, -2)
+	kp.scale_amount_min = 0.08
+	kp.scale_amount_max = 0.16
+	# pınar serpintisi
+	var wp := _hub_emitter(_hub_px(19.5, -8), 14, 1.2, Color(0.7, 1.4, 1.5, 0.8), Vector2(8, 2), true, 6)
+	wp.direction = Vector2(0, -1)
+	wp.spread = 60.0
+	wp.initial_velocity_min = 10.0
+	wp.initial_velocity_max = 26.0
+	wp.gravity = Vector2(0, 60)
+	wp.scale_amount_min = 0.06
+	wp.scale_amount_max = 0.1
+	# demirci ocağı kıvılcımları
+	var fs := _hub_emitter(_hub_px(50.7, -12), 14, 0.9, Color(1.8, 0.9, 0.35, 1.0), Vector2(6, 2), true, 6)
+	fs.direction = Vector2(0, -1)
+	fs.spread = 35.0
+	fs.initial_velocity_min = 30.0
+	fs.initial_velocity_max = 80.0
+	fs.gravity = Vector2(0, 120)
+	fs.scale_amount_min = 0.06
+	fs.scale_amount_max = 0.1
+	# örste çekiç vuruşu: aralıklı kıvılcım patlaması
+	var anvil := _hub_px(45.6, -26)
+	var at := create_tween().set_loops()
+	at.tween_interval(1.7)
+	at.tween_callback(func() -> void: FX.sparks(anvil, Vector2(0.4, -1), Color(1.0, 0.75, 0.35), 7, 120.0))
+	# duman: süslü yurdun tünlüğünden, kazandan ve ocak bacasından
+	for spec in [[69.6, -96.0, 10], [75.3, -46.0, 8], [50.9, -138.0, 8]]:
+		var sm := _hub_emitter(_hub_px(float(spec[0]), float(spec[1])), int(spec[2]), 6.0, Color(0.5, 0.5, 0.56, 0.22), Vector2(2, 1), false, -8)
+		sm.direction = Vector2(0.3, -1)
+		sm.spread = 12.0
+		sm.initial_velocity_min = 6.0
+		sm.initial_velocity_max = 12.0
+		sm.gravity = Vector2(2, -2)
+		sm.scale_amount_min = 0.9
+		sm.scale_amount_max = 1.6
 
 
 func nearest_npc() -> NPC:

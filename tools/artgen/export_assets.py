@@ -112,6 +112,11 @@ def export_bg(only=()):
         for nm_, fn in layers:
             fn().save(os.path.join(A, 'bg', '%s_%s.png' % (bid, nm_)))
         print('bg', bid)
+    if not only or 'yurt' in only:
+        import bg_yurt
+        for nm_, fn in bg_yurt.LAYERS.items():
+            fn().save(os.path.join(A, 'bg', nm_ + '.png'))
+        print('bg yurt')
 
 
 def main():
@@ -164,6 +169,9 @@ def main():
             g = np.zeros((c.h, c.w, 4)); g[..., :3] = np.clip(c.emis, 0, 1); g[..., 3] = (c.emis.max(axis=2) > 0)
             save(g, os.path.join(A, 'decor', k + '_e.png'))
         dmeta[k] = {'size': [c.w, c.h], 'origin': [c.ox, c.oy], 'glow': has_glow}
+    # v13 yurt süsleri (1.5x yoğunluk, "k": 1.5)
+    import yurt_hd
+    yurt_hd.export(dmeta)
     json.dump(dmeta, open(os.path.join(A, 'decor', 'decor.json'), 'w', encoding='utf-8'), indent=1)
     print('decor', len(dmeta))
     # paralaks
