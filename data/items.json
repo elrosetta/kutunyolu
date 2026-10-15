@@ -408,7 +408,10 @@
    "id": "gurz",
    "name": "Gürz",
    "kind": "heavy",
-   "ongun": ["kurt", "ayi"],
+   "ongun": [
+    "kurt",
+    "ayi"
+   ],
    "dmg": 26,
    "aps": 0.95,
    "crit": 3,
@@ -449,7 +452,10 @@
    "id": "kargi",
    "name": "Kargı",
    "kind": "thrust",
-   "ongun": ["kurt", "ayi"],
+   "ongun": [
+    "kurt",
+    "ayi"
+   ],
    "dmg": 13,
    "aps": 1.8,
    "crit": 5,
@@ -491,7 +497,10 @@
    "id": "savas_baltasi",
    "name": "Savaş Baltası",
    "kind": "slash",
-   "ongun": ["kurt", "kartal"],
+   "ongun": [
+    "kurt",
+    "kartal"
+   ],
    "dmg": 14,
    "aps": 1.6,
    "crit": 4,
@@ -513,7 +522,10 @@
    "id": "kement",
    "name": "Kement",
    "kind": "whip",
-   "ongun": ["kurt", "kartal"],
+   "ongun": [
+    "kurt",
+    "kartal"
+   ],
    "dmg": 7,
    "aps": 1.6,
    "crit": 5,
@@ -534,7 +546,10 @@
    "id": "civili_topuz",
    "name": "Çivili Topuz",
    "kind": "heavy",
-   "ongun": ["kurt", "ayi"],
+   "ongun": [
+    "kurt",
+    "ayi"
+   ],
    "dmg": 20,
    "aps": 1.1,
    "crit": 3,
@@ -603,7 +618,10 @@
    "id": "od_kamcisi",
    "name": "Od Kamçısı",
    "kind": "whip",
-   "ongun": ["kurt", "kartal"],
+   "ongun": [
+    "kurt",
+    "kartal"
+   ],
    "dmg": 8,
    "aps": 1.9,
    "crit": 5,
@@ -713,7 +731,10 @@
    "id": "cirit",
    "name": "Cirit",
    "kind": "throw",
-   "ongun": ["kartal", "kurt"],
+   "ongun": [
+    "kartal",
+    "kurt"
+   ],
    "dmg": 12,
    "aps": 1.1,
    "crit": 5,
@@ -754,7 +775,10 @@
    "id": "kam_kopuzu",
    "name": "Kam Kopuzu",
    "kind": "magic",
-   "ongun": ["kartal", "ayi"],
+   "ongun": [
+    "kartal",
+    "ayi"
+   ],
    "dmg": 6,
    "aps": 1.3,
    "crit": 4,
@@ -841,7 +865,10 @@
    "id": "yel_borusu",
    "name": "Yel Borusu",
    "kind": "magic",
-   "ongun": ["kartal", "ayi"],
+   "ongun": [
+    "kartal",
+    "ayi"
+   ],
    "dmg": 5,
    "aps": 0.9,
    "crit": 4,
@@ -953,7 +980,10 @@
    "id": "dag_cekici",
    "name": "Dağ Çekici",
    "kind": "heavy",
-   "ongun": ["kurt", "ayi"],
+   "ongun": [
+    "kurt",
+    "ayi"
+   ],
    "dmg": 36,
    "aps": 0.7,
    "crit": 3,
@@ -974,7 +1004,10 @@
    "id": "ruh_kilici",
    "name": "Ruh Kılıcı",
    "kind": "slash",
-   "ongun": ["kurt", "kartal"],
+   "ongun": [
+    "kurt",
+    "kartal"
+   ],
    "dmg": 9,
    "aps": 2.0,
    "crit": 6,
@@ -1077,6 +1110,116 @@
     "int": true
    },
    "crit_desc": "Havadaki düşmana kritik."
+  },
+  {
+   "id": "tulpar_mizragi",
+   "name": "Tulpar Mızrağı",
+   "kind": "thrust",
+   "ongun": "kurt",
+   "dmg": 12,
+   "aps": 1.7,
+   "crit": 6,
+   "crit_mult": 2.0,
+   "impl": true,
+   "min_tier": 1,
+   "mech": {
+    "id": "tulpar",
+    "desc": "Koşarken ya da hücum ederken her saplama kritik; saplamalar seni öne taşır.",
+    "range": [
+     1,
+     1
+    ],
+    "int": true
+   },
+   "crit_desc": "Koşarken / hücumda kritik."
+  },
+  {
+   "id": "bori_hanceri",
+   "name": "Börü Hançeri",
+   "kind": "dual",
+   "ongun": "kurt",
+   "dmg": 6,
+   "aps": 4.8,
+   "crit": 8,
+   "crit_mult": 2.4,
+   "impl": true,
+   "min_tier": 0,
+   "mech": {
+    "id": "arkadan",
+    "desc": "Arkadan, sersemlemiş ya da kalkanı düşmüş düşmana her vuruş kritik; kalkanı aşar.",
+    "range": [
+     1,
+     1
+    ],
+    "int": true
+   },
+   "crit_desc": "Arkadan vuruşta kritik."
+  },
+  {
+   "id": "ikiz_balta",
+   "name": "İkiz Balta",
+   "kind": "slash",
+   "ongun": "kurt",
+   "dmg": 13,
+   "aps": 1.6,
+   "crit": 5,
+   "crit_mult": 2.0,
+   "impl": true,
+   "min_tier": 1,
+   "mech": {
+    "id": "kanli_kesik",
+    "desc": "Her vuruş kanama yükü bırakır (en çok 5); 3 ve üstünde kritik.",
+    "range": [
+     1,
+     1
+    ],
+    "int": true
+   },
+   "crit_desc": "Kanaması 3+ düşmana kritik."
+  },
+  {
+   "id": "kayin_asasi",
+   "name": "Ulu Kayın Asası",
+   "kind": "slash",
+   "ongun": "ayi",
+   "dmg": 9,
+   "aps": 2.0,
+   "crit": 4,
+   "crit_mult": 2.0,
+   "impl": true,
+   "min_tier": 0,
+   "mech": {
+    "id": "itki",
+    "desc": "Geri itme 1,8 kat; düşmanlar duvara çarpar. Sersemlemiş düşmana kritik.",
+    "range": [
+     1,
+     1
+    ],
+    "int": true
+   },
+   "crit_desc": "Sersemlemiş düşmana kritik."
+  },
+  {
+   "id": "bozgun_kilici",
+   "name": "Bozgun Kılıcı",
+   "kind": "slash",
+   "ongun": "kurt",
+   "dmg": 20,
+   "aps": 1.1,
+   "crit": 4,
+   "crit_mult": 2.2,
+   "impl": true,
+   "min_tier": 2,
+   "mech": {
+    "id": "bozgun",
+    "desc": "Öldürdüğün düşmandan üç bozgun kristali yakındakilere fırlar. Canı %35 altındakine kritik.",
+    "range": [
+     1,
+     1
+    ],
+    "int": true
+   },
+   "crit_desc": "Canı az düşmana kritik."
   }
  ],
  "shields": [
@@ -1100,7 +1243,10 @@
   {
    "id": "kartal_kalkani",
    "name": "Kartal Kalkanı",
-   "ongun": ["ayi", "kartal"],
+   "ongun": [
+    "ayi",
+    "kartal"
+   ],
    "block": 0.7,
    "parry_win": 0.2,
    "impl": true,
@@ -1116,7 +1262,10 @@
   {
    "id": "ayna_kalkan",
    "name": "Ayna Kalkan",
-   "ongun": ["ayi", "kartal"],
+   "ongun": [
+    "ayi",
+    "kartal"
+   ],
    "block": 0.6,
    "parry_win": 0.25,
    "impl": true,
@@ -1132,7 +1281,10 @@
   {
    "id": "dikenli_kalkan",
    "name": "Dikenli Kalkan",
-   "ongun": ["ayi", "kurt"],
+   "ongun": [
+    "ayi",
+    "kurt"
+   ],
    "block": 0.8,
    "parry_win": 0.16,
    "impl": true,
@@ -1166,7 +1318,10 @@
   {
    "id": "ejder_kalkani",
    "name": "Ejder Kalkanı",
-   "ongun": ["ayi", "kurt"],
+   "ongun": [
+    "ayi",
+    "kurt"
+   ],
    "block": 0.75,
    "parry_win": 0.18,
    "impl": true,
@@ -1218,7 +1373,10 @@
   {
    "id": "kara_barut",
    "name": "Kara Barut Torbası",
-   "ongun": ["kartal", "kurt"],
+   "ongun": [
+    "kartal",
+    "kurt"
+   ],
    "cd": 8,
    "impl": true,
    "start": true,
@@ -1227,7 +1385,10 @@
   {
    "id": "bozkurt_cagrisi",
    "name": "Bozkurt Çağrısı",
-   "ongun": ["kartal", "kurt"],
+   "ongun": [
+    "kartal",
+    "kurt"
+   ],
    "cd": 18,
    "impl": true,
    "desc": "12 sn boyunca yanında savaşan hayalet bir bozkurt çağırır."
@@ -1243,7 +1404,10 @@
   {
    "id": "nazar_boncugu",
    "name": "Nazar Boncuğu",
-   "ongun": ["ayi", "kartal"],
+   "ongun": [
+    "ayi",
+    "kartal"
+   ],
    "cd": 20,
    "impl": true,
    "desc": "Sonraki darbeyi tamamen engeller ve saldıranı lanetler."
@@ -1332,7 +1496,10 @@
   {
    "id": "erlik_zinciri",
    "name": "Erlik'in Kırık Zinciri",
-   "ongun": ["kartal", "kurt"],
+   "ongun": [
+    "kartal",
+    "kurt"
+   ],
    "cd": 15,
    "impl": true,
    "desc": "Yakındaki düşmanları birbirine zincirleyip toplar.",

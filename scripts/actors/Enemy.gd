@@ -155,6 +155,10 @@ func _ready() -> void:
 		elite_t = randf_range(3.0, 5.0)
 		if level:
 			level.add_light(Vector2(0, -size.y / 2.0), Color(0.85, 0.45, 1.0), 120.0, 0.7, self)
+	if elite:
+		var star := EliteStar.new()
+		star.position = Vector2(0, -size.y * base_scale.y - 18)
+		add_child(star)
 	if elite or is_boss:
 		_label = Label.new()
 		_label.text = elite_name
@@ -308,7 +312,12 @@ func take_hit(d: float, opts: Dictionary) -> bool:
 			Ses.play("darbe_agir", -1.0)
 		else:
 			Ses.play("darbe_et", -2.0)
-	if opts.has("launch") and not heavy and not flying:
+	# hava kombosu: havadaki düşman vuruldukça havada kalır
+	if launch_t > 0.0 and not heavy and not flying and not opts.has("launch"):
+		velocity.y = minf(velocity.y, -190.0)
+		launch_t = maxf(launch_t, 0.45)
+		FX.ring(center(), 14, Color(1.0, 0.95, 0.8), 0.15)
+	if opts.has("launch") and float(opts["launch"]) > 0.0 and not heavy and not flying:
 		velocity.y = -float(opts["launch"])
 		launch_t = 0.5
 		FX.ghost(anim.base, Color(1.0, 0.9, 0.6, 0.4), 0.25)
@@ -1057,6 +1066,41 @@ func _ai_grabber(delta: float, player: Node, to_p: Vector2, dist: float) -> void
 			if st <= 0.0:
 				state = "chase"
 				cd = randf_range(1.5, 2.6)
+
+
+class EliteStar extends Node2D:
+	## Seçkin işareti: başın üstünde dönen, parlayan altın-mor yıldız
+	var _t := 0.0
+
+	func _ready() -> void:
+		z_index = 85
+		var m := CanvasItemMaterial.new()
+		m.light_mode = CanvasItemMaterial.LIGHT_MODE_UNSHADED
+		material = m
+
+	func _process(delta: float) -> void:
+		_t += delta
+		position.y += sin(_t * 3.0) * 0.08
+		queue_redraw()
+
+	func _draw() -> void:
+		var r1 := 7.0 + sin(_t * 5.0) * 0.8
+		var r2 := r1 * 0.42
+		var pts := PackedVector2Array()
+		for i in 10:
+			var a := -PI / 2.0 + i * PI / 5.0 + _t * 0.8
+			var rr := r1 if i % 2 == 0 else r2
+			pts.append(Vector2(cos(a), sin(a)) * rr)
+		var glow := PackedVector2Array()
+		for p in pts:
+			glow.append(p * 1.6)
+		draw_colored_polygon(glow, Color(0.85, 0.45, 1.0, 0.28 + 0.12 * sin(_t * 6.0)))
+		draw_colored_polygon(pts, Color(1.0, 0.86, 0.35))
+		var inner := PackedVector2Array()
+		for p in pts:
+			inner.append(p * 0.5)
+		draw_colored_polygon(inner, Color(1.0, 0.98, 0.8))
+		draw_polyline(pts + PackedVector2Array([pts[0]]), Color(0.45, 0.15, 0.55), 1.0)
 
 
 func _ai_custom(_delta: float, _player: Node, _to_p: Vector2, _dist: float) -> void:

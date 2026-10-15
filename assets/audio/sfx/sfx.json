@@ -636,57 +636,57 @@
  },
  "ok_ucus_1": {
   "loop": false,
-  "len": 0.42,
+  "len": 0.318,
   "hedef_db": -17.0
  },
  "ok_ucus_2": {
   "loop": false,
-  "len": 0.42,
+  "len": 0.318,
   "hedef_db": -17.0
  },
  "ok_ucus_3": {
   "loop": false,
-  "len": 0.42,
+  "len": 0.318,
   "hedef_db": -17.0
  },
  "ok_vurus": {
   "loop": false,
-  "len": 0.18,
+  "len": 0.2,
   "hedef_db": -11.0
  },
  "ok_vurus_1": {
   "loop": false,
-  "len": 0.18,
+  "len": 0.2,
   "hedef_db": -11.0
  },
  "ok_vurus_2": {
   "loop": false,
-  "len": 0.18,
+  "len": 0.2,
   "hedef_db": -11.0
  },
  "ok_vurus_3": {
   "loop": false,
-  "len": 0.18,
+  "len": 0.2,
   "hedef_db": -11.0
  },
  "ok_vurus_tahta_1": {
   "loop": false,
-  "len": 0.51,
+  "len": 0.56,
   "hedef_db": -11.0
  },
  "ok_vurus_tahta_2": {
   "loop": false,
-  "len": 0.51,
+  "len": 0.56,
   "hedef_db": -11.0
  },
  "ok_vurus_tas_1": {
   "loop": false,
-  "len": 0.26,
+  "len": 0.32,
   "hedef_db": -11.0
  },
  "ok_vurus_tas_2": {
   "loop": false,
-  "len": 0.26,
+  "len": 0.32,
   "hedef_db": -11.0
  },
  "ors": {
@@ -1041,37 +1041,52 @@
  },
  "yay_birak": {
   "loop": false,
-  "len": 0.45,
-  "hedef_db": -13.0
+  "len": 0.5,
+  "hedef_db": -12.0
  },
  "yay_birak_1": {
   "loop": false,
-  "len": 0.45,
-  "hedef_db": -13.0
+  "len": 0.5,
+  "hedef_db": -12.0
  },
  "yay_birak_2": {
   "loop": false,
-  "len": 0.45,
-  "hedef_db": -13.0
+  "len": 0.5,
+  "hedef_db": -12.0
  },
  "yay_birak_3": {
   "loop": false,
-  "len": 0.45,
-  "hedef_db": -13.0
+  "len": 0.5,
+  "hedef_db": -12.0
+ },
+ "yay_birak_tam": {
+  "loop": false,
+  "len": 0.5,
+  "hedef_db": -12.0
+ },
+ "yay_dolu": {
+  "loop": false,
+  "len": 0.25,
+  "hedef_db": -15.0
  },
  "yay_ger": {
   "loop": false,
-  "len": 0.55,
+  "len": 0.38,
   "hedef_db": -16.0
  },
  "yay_ger_1": {
   "loop": false,
-  "len": 0.55,
+  "len": 0.38,
   "hedef_db": -16.0
  },
  "yay_ger_2": {
   "loop": false,
-  "len": 0.55,
+  "len": 0.38,
+  "hedef_db": -16.0
+ },
+ "yay_ger_3": {
+  "loop": false,
+  "len": 0.38,
   "hedef_db": -16.0
  },
  "yildirim": {

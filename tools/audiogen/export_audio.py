@@ -34,7 +34,7 @@ TARGETS = [
     (r'^adim_', -20.0), (r'^inis_', -15.0), (r'^(zipla|yuvarlan)$', -16.0),
     (r'^(ui_gez|ui_sec)', -21.0), (r'^npc_', -19.0), (r'^ui_', -17.0), (r'^esya_(kusan|degis)$', -15.0), (r'^(tilsim_sec|seviye)$', -12.0),
     (r'^altin', -16.0), (r'^kut_tane$', -16.0), (r'^(esya|tilsim|sise|acilis|ors|kut_banka|kapi)$', -13.0),
-    (r'^yay_ger', -16.0), (r'^yay_birak', -13.0),
+    (r'^yay_ger', -16.0), (r'^yay_dolu', -15.0), (r'^yay_birak', -12.0),
 ]
 
 
@@ -57,6 +57,8 @@ if do_sfx:
     for fn in (L.swings, L.hits, L.creatures, L.movement_pickups):
         allsfx.update(fn())
     allsfx.update(P.build_all())
+    import bow2
+    allsfx.update(bow2.build_bow())
     amb = P.ambience()
     print('üretildi:', len(allsfx) + len(amb), 'ses', round(time.time() - t0, 1), 's')
     meta = {}

@@ -161,9 +161,10 @@ const SWINGS := {
 ## Silah uzunluğu (kabzadan uca, piksel): iz ve vuruş kutusu buna göre ölçeklenir
 const REACH := {"ulu_kilic": 48.0, "dag_cekici": 40.0, "ruh_kilici": 32.0, "ay_palasi": 20.0, "alp_kilici": 31.0, "yildirim_kilici": 36.0, "pala": 28.0, "yatagan": 27.0, "gurz": 24.0, "teber": 34.0, "kargi": 44.0,
 	"ikiz_bicak": 16.0, "savas_baltasi": 26.0, "erlik_tirpani": 40.0, "kurt_pencesi": 14.0, "ayaz_kilici": 33.0, "civili_topuz": 27.0,
-	"kement": 38.0, "od_kamcisi": 38.0, "yilan_kilici": 30.0, "kor_cekici": 36.0, "ruzgar_kilici": 32.0}
+	"kement": 38.0, "od_kamcisi": 38.0, "yilan_kilici": 30.0, "kor_cekici": 36.0, "ruzgar_kilici": 32.0,
+	"tulpar_mizragi": 48.0, "bori_hanceri": 15.0, "ikiz_balta": 26.0, "kayin_asasi": 40.0, "bozgun_kilici": 42.0}
 ## Ağır silahlar: daha uzun duraklama, daha sert kamera, daha geniş sarsıntı
-const HEAVY := ["gurz", "teber", "civili_topuz", "erlik_tirpani", "savas_baltasi", "ulu_kilic", "dag_cekici", "kor_cekici"]
+const HEAVY := ["gurz", "teber", "civili_topuz", "erlik_tirpani", "savas_baltasi", "ulu_kilic", "dag_cekici", "kor_cekici", "bozgun_kilici"]
 
 ## Kombolar: "chain" art arda basınca, "pause" iki (ya da daha çok) vuruştan sonra kısa bekleyip basınca.
 ## Adım: {"s": savuruş, "mult": hasar, "kb": geri itme, ...bayraklar}. Bayraklar: last, shock, launch, dash,
@@ -230,6 +231,17 @@ const COMBOS := {
 		"pause": {"s": "slam", "mult": 1.7, "kb": 320.0, "shock": true, "slam": true, "name": "Kor Yağmuru"}},
 	"ruzgar_kilici": {"chain": [{"s": "iai", "mult": 1.0, "kb": 70.0}, {"s": "back", "mult": 1.0, "kb": 70.0}, {"s": "horiz", "mult": 1.0, "kb": 80.0}, {"s": "cross_x", "mult": 1.2, "kb": 150.0, "last": true}],
 		"pause": {"s": "helicopter", "mult": 1.2, "kb": 160.0, "name": "Kasırga Dansı"}},
+	# --- v10
+	"tulpar_mizragi": {"chain": [{"s": "pole_thrust", "mult": 1.0, "kb": 140.0, "dash": 30.0}, {"s": "pole_thrust", "mult": 1.05, "kb": 150.0, "dash": 30.0}, {"s": "pole_sweep", "mult": 1.1, "kb": 180.0}, {"s": "stab_heavy", "mult": 1.5, "kb": 260.0, "dash": 90.0, "last": true}],
+		"pause": {"s": "helicopter", "mult": 1.3, "kb": 200.0, "name": "Tulpar Çarkı"}},
+	"bori_hanceri": {"chain": [{"s": "reverse_grip", "mult": 1.0, "kb": 30.0}, {"s": "horiz", "mult": 1.0, "kb": 30.0}, {"s": "reverse_grip", "mult": 1.0, "kb": 30.0}, {"s": "rake", "mult": 1.0, "kb": 40.0}, {"s": "thrust", "mult": 1.5, "kb": 150.0, "double": true, "last": true}],
+		"pause": {"s": "flurry", "mult": 0.9, "kb": 40.0, "name": "Börü Dişleri"}},
+	"ikiz_balta": {"chain": [{"s": "axe_hook", "mult": 1.0, "kb": 120.0}, {"s": "diag_down", "mult": 1.0, "kb": 120.0, "double": true}, {"s": "windmill", "mult": 1.3, "kb": 220.0, "last": true}],
+		"pause": {"s": "helicopter", "mult": 1.4, "kb": 200.0, "name": "Kanlı Çark"}},
+	"kayin_asasi": {"chain": [{"s": "pole_sweep", "mult": 1.0, "kb": 220.0}, {"s": "twirl", "mult": 0.9, "kb": 200.0}, {"s": "overhead_2h", "mult": 1.3, "kb": 300.0, "last": true}],
+		"pause": {"s": "helicopter", "mult": 1.2, "kb": 320.0, "name": "Kayın Fırtınası"}},
+	"bozgun_kilici": {"chain": [{"s": "diag_down", "mult": 1.0, "kb": 180.0}, {"s": "horiz", "mult": 1.1, "kb": 200.0}, {"s": "overhead_2h", "mult": 1.4, "kb": 280.0, "slam": true, "last": true}],
+		"pause": {"s": "cross_x", "mult": 1.3, "kb": 220.0, "name": "Bozgun Çaprazı"}},
 }
 const COMBOS_EXTRA := {}
 const CHAIN_WINDOW := 0.28   # bu süre içinde basarsan zincir sürer
@@ -267,6 +279,11 @@ const HEAVIES := {
 	"yilan_kilici": {"s": "reap", "mult": 1.6, "kb": 200.0, "venom": true, "name": "Zehir Orağı"},
 	"kor_cekici": {"s": "slam_2h", "mult": 1.9, "kb": 360.0, "shock": true, "slam": true, "name": "Cehennem Çakışı"},
 	"ruzgar_kilici": {"s": "cross_x", "mult": 1.5, "kb": 140.0, "name": "Yel Çaprazı"},
+	"tulpar_mizragi": {"s": "stab_heavy", "mult": 2.0, "kb": 300.0, "dash": 160.0, "name": "Tulpar Akını"},
+	"bori_hanceri": {"s": "cross_x", "mult": 1.7, "kb": 120.0, "name": "Gölge Çaprazı"},
+	"ikiz_balta": {"s": "slam_2h", "mult": 1.9, "kb": 320.0, "shock": true, "slam": true, "name": "İkiz Yarık"},
+	"kayin_asasi": {"s": "pole_sweep", "mult": 1.7, "kb": 420.0, "name": "Kayın Savuruşu"},
+	"bozgun_kilici": {"s": "slam_2h", "mult": 2.0, "kb": 340.0, "shock": true, "slam": true, "name": "Bozgun Yarığı"},
 }
 ## Silaha özgü görsel: iz genişliği, iz rengi, darbe animasyonu (PVFX) ve ek parçacık
 const WFX := {
@@ -292,15 +309,21 @@ const WFX := {
 	"yilan_kilici": {"trail": 0.9, "col": Color(0.55, 1.0, 0.45), "hit": "acid_splash", "hit_scale": 0.45, "extra": "poison"},
 	"kor_cekici": {"trail": 1.6, "col": Color(1.0, 0.55, 0.25), "hit": "warm_explosion", "hit_scale": 0.5, "extra": "fire"},
 	"ruzgar_kilici": {"trail": 0.8, "col": Color(0.78, 0.95, 1.0), "hit": "leaf_gust", "hit_scale": 0.5, "extra": "ghost"},
+	"tulpar_mizragi": {"trail": 0.7, "col": Color(1.0, 0.9, 0.6), "hit": "solar_shrapnel", "hit_scale": 0.6, "extra": "ghost"},
+	"bori_hanceri": {"trail": 0.5, "col": Color(0.85, 0.75, 1.0), "hit": "crescent_slash", "hit_scale": 0.4, "extra": "blood"},
+	"ikiz_balta": {"trail": 1.2, "col": Color(1.0, 0.55, 0.45), "hit": "resonant_break", "hit_scale": 0.6, "extra": "blood"},
+	"kayin_asasi": {"trail": 1.4, "col": Color(0.75, 1.0, 0.7), "hit": "leaf_gust", "hit_scale": 0.7, "extra": "dust"},
+	"bozgun_kilici": {"trail": 1.6, "col": Color(1.0, 0.4, 0.8), "hit": "void_implosion", "hit_scale": 0.5, "extra": "soul"},
 }
 ## Silah ses sınıfı: savuruş (savur_<sınıf>) ve darbe (darbe_<...>) sesleri gerçek kayıt katmanlarından seçilir
 const WSND := {"alp_kilici": "kilic", "pala": "kilic", "yatagan": "kilic", "ayaz_kilici": "kilic", "yilan_kilici": "kilic", "ruzgar_kilici": "kilic",
 	"yildirim_kilici": "katana", "ulu_kilic": "dev", "erlik_tirpani": "dev", "gurz": "cekic", "civili_topuz": "cekic", "dag_cekici": "cekic",
 	"kor_cekici": "cekic", "savas_baltasi": "balta", "teber": "balta", "kargi": "sirik", "ikiz_bicak": "bicak", "kurt_pencesi": "bicak",
-	"ay_palasi": "bicak", "kement": "kirbac", "od_kamcisi": "kirbac", "ruh_kilici": "ruh"}
+	"ay_palasi": "bicak", "kement": "kirbac", "od_kamcisi": "kirbac", "ruh_kilici": "ruh",
+	"tulpar_mizragi": "sirik", "bori_hanceri": "bicak", "ikiz_balta": "balta", "kayin_asasi": "sirik", "bozgun_kilici": "dev"}
 ## İki elle tutulan silahlar: arka el kabzanın gerisine (bıçak yönünde negatif ofset) IK ile yerleşir
 const TWO_HANDED := {"ulu_kilic": -7.0, "dag_cekici": -9.0, "kor_cekici": -8.0, "gurz": -6.0, "civili_topuz": -6.0, "teber": -13.0, "kargi": -14.0,
-	"erlik_tirpani": -12.0, "savas_baltasi": -7.0}
+	"erlik_tirpani": -12.0, "savas_baltasi": -7.0, "tulpar_mizragi": -15.0, "kayin_asasi": -14.0, "bozgun_kilici": -8.0}
 
 var anim: SpriteAnim
 var weapon: Sprite2D
@@ -347,6 +370,17 @@ var rolled_t := 0.0
 var level: Node
 var crouched := false
 var crouch_hold := false   # S basılı: isteyerek çömelme (çömelirken saldırı / yay)
+var combo_n := 0            # kesintisiz isabet sayısı (2,4 sn içinde vurmaya devam et)
+var combo_t := 0.0
+var combo_best := 0
+var combo_rank := 0
+var air_hang := 0.0         # havada isabet: kısa asılı kalma (hava kombosu)
+var mantle_t := 0.0         # kenara tutunup çıkma
+var _mantle_a := Vector2.ZERO
+var _mantle_b := Vector2.ZERO
+var _prev_vy := 0.0
+const COMBO_RANKS := [[5, "ER", Color(0.9, 0.9, 0.95)], [12, "ALP", Color(0.6, 0.95, 1.0)], [22, "BAHADIR", Color(1.0, 0.85, 0.4)],
+	[35, "HAN", Color(1.0, 0.55, 0.3)], [55, "DESTAN", Color(1.0, 0.35, 0.6)]]
 var sprint := false        # Shift basılı tutuluyor: koşu
 var _roll_hold := 0.0
 var _haz_t := 0.0          # tehlike karosu hasar sayacı
@@ -722,6 +756,29 @@ func shove(v: Vector2) -> void:
 	vis_scale = Vector2(0.85, 1.12)
 
 
+func _bozgun_shards(e: Node, it: Dictionary) -> void:
+	## Bozgun Kılıcı: öldürülen düşmandan üç bozgun kristali yakındaki düşmanlara fırlar
+	var targets: Array = []
+	for o in get_tree().get_nodes_in_group("dusman"):
+		if o != e and is_instance_valid(o) and not o.dead and o.center().distance_to(e.center()) < 220.0:
+			targets.append(o)
+	FX.anim("void_implosion", e.center(), 0.0, 0.8, Color(1.0, 0.4, 0.8))
+	for k in 3:
+		var p := Projectile.new()
+		p.team = "p"
+		p.kind = "wave"
+		p.position = e.center()
+		var tgt: Vector2 = targets[k % targets.size()].center() if not targets.is_empty() else e.center() + Vector2(cos(k * 2.1) * 80, -60)
+		p.velocity = (tgt - e.center()).normalized() * 300.0
+		p.homing = 2.0
+		p.pierce = 1
+		p.life = 1.2
+		p.trail_col = Color(1.0, 0.4, 0.8)
+		p.on_hit = func(o: Node) -> void:
+			_deal(o, float(it["dmg"]) * 0.6, it, {"kb": 80.0, "dir": signf(p.velocity.x), "sfx_done": true})
+		level.add_projectile(p)
+
+
 func _tengri_chain(e: Node, d: float, it: Dictionary) -> void:
 	## Tengri'nin Yıldırımı: darbe yakındaki bir düşmana şimşekle sıçrar
 	var best: Node = null
@@ -739,6 +796,46 @@ func _tengri_chain(e: Node, d: float, it: Dictionary) -> void:
 	FX.anim("electric_impact", best.center(), 0.0, 0.7, Color(0.7, 0.85, 1.0))
 	Ses.play("yildirim", -8.0, 1.3)
 	best.take_hit(d, {"kb": 60.0, "dir": signf(best.center().x - e.center().x), "stun": 0.3, "zincir": true, "sfx_done": true})
+
+
+func _corner_correct() -> void:
+	## Köşe düzeltme: zıplarken baş bir köşeye takılırsa 1-7 px yana kaydırıp zıplamayı sürdür
+	if _prev_vy >= -40.0 or not is_on_ceiling():
+		return
+	for d in [2, 4, 6, 8]:
+		for sgn in [1, -1]:
+			var xf := global_transform.translated(Vector2(sgn * d, 0))
+			if not test_move(global_transform, Vector2(sgn * d, 0)) and not test_move(xf, Vector2(0, -6)):
+				global_position.x += sgn * d
+				velocity.y = _prev_vy
+				return
+
+
+func _try_mantle(dir: float) -> void:
+	## Kenara tutunma: havada, duvara doğru basılı, eller kenar hizasındaysa otomatik tırmanış
+	if is_on_floor() or mantle_t > 0.0 or roll_t > 0.0 or not atk.is_empty() or aim_t >= 0.0 or level == null:
+		return
+	if dir == 0 or int(signf(dir)) != facing or velocity.y < -80.0:
+		return
+	var fx := global_position.x + facing * 10.0
+	var tx := int(floor(fx / 24.0))
+	var top := -1
+	for ty in range(int(floor((global_position.y - 50.0) / 24.0)), int(floor((global_position.y - 10.0) / 24.0)) + 1):
+		if level.cell(tx, ty) == 1 and level.cell(tx, ty - 1) == 0 and level.cell(tx, ty - 2) == 0:
+			top = ty
+			break
+	if top < 0:
+		return
+	var ledge_y := top * 24.0
+	if ledge_y < global_position.y - 52.0 or ledge_y > global_position.y - 8.0:
+		return
+	if level.solid_at(Vector2(global_position.x, ledge_y - 30.0)):
+		return
+	_mantle_a = global_position
+	_mantle_b = Vector2(tx * 24.0 + 12.0 - facing * 4.0, ledge_y - 0.5)
+	mantle_t = 0.16
+	jumping = false
+	Ses.play("zipla", -12.0, 0.8)
 
 
 func _hazard_check(delta: float) -> void:
@@ -862,6 +959,26 @@ func _physics_process(delta: float) -> void:
 	if wolf_t > 0.0:
 		_wolf_process(delta)
 		return
+	if combo_n > 0:
+		combo_t -= delta
+		if combo_t <= 0.0:
+			combo_break("")
+	if mantle_t > 0.0:
+		# kenara tutunup çık: kısa, kavisli kayma (önce yukarı, sonra öne)
+		mantle_t -= delta
+		var k := 1.0 - clampf(mantle_t / 0.16, 0.0, 1.0)
+		var up := clampf(k * 1.6, 0.0, 1.0)
+		var fw := clampf((k - 0.35) / 0.65, 0.0, 1.0)
+		global_position = Vector2(lerpf(_mantle_a.x, _mantle_b.x, fw), lerpf(_mantle_a.y, _mantle_b.y, up))
+		velocity = Vector2.ZERO
+		anim.show_frame("land", 0 if k < 0.6 else 1)
+		vis_scale = Vector2(0.9, 1.1).lerp(Vector2.ONE, k)
+		_feel(delta, 0.0)
+		if mantle_t <= 0.0:
+			vis_scale = Vector2(1.15, 0.88)
+			FX.dust(global_position, Vector2(-facing, -0.5), 3, 0.24)
+		return
+	air_hang -= delta
 	for k in cd.keys():
 		cd[k] = maxf(0.0, cd[k] - delta)
 	bow_rel_t -= delta
@@ -1036,7 +1153,7 @@ func _physics_process(delta: float) -> void:
 				aim_t += delta
 				if aim_t >= 0.55 and not _bow_full:
 					_bow_full = true
-					Ses.play("sarj_dolu", -12.0, 1.3)
+					Ses.play("yay_dolu", -6.0)
 					anim.set_flash(0.3)
 					get_tree().create_timer(0.05).timeout.connect(func() -> void: anim.set_flash(0.0))
 					if _bow_nock_ok:
@@ -1137,7 +1254,10 @@ func _physics_process(delta: float) -> void:
 		jumping = false
 
 	var gmul := 1.0
-	if not atk.is_empty() and atk["phase"] != "rec" and not is_on_floor():
+	if air_hang > 0.0 and not is_on_floor() and not atk.get("c", {}).get("plunge", false):
+		gmul = 0.08
+		velocity.y = minf(velocity.y, 30.0)
+	elif not atk.is_empty() and atk["phase"] != "rec" and not is_on_floor():
 		gmul = 0.4
 	elif not is_on_floor() and absf(velocity.y) < 60.0 and jumping:
 		gmul = 0.62  # tepe noktasında kısa asılı kalış
@@ -1157,7 +1277,10 @@ func _physics_process(delta: float) -> void:
 	if not atk.is_empty():
 		_update_attack(delta)
 
+	_prev_vy = velocity.y
 	move_and_slide()
+	_corner_correct()
+	_try_mantle(dir)
 	_hazard_check(delta)
 	_update_anim(dir)
 	_update_weapon_visual()
@@ -1332,6 +1455,12 @@ func _start_attack(step: int) -> void:
 	else:
 		step = step % chain.size()
 		c = chain[step]
+	# yön tuşuyla özel hamleler (zinciri bozmaz, araya girer): dalış, göğe savurma, akın kesiği, dönüş kesiği, diz biçen
+	var sp := _special_move(it)
+	if not sp.is_empty():
+		c = sp
+		is_pause = false
+		step = maxi(0, last_step)
 	var sw: Dictionary = SWINGS[c["s"]]
 	var spd_mult := 1.0 + ItemGen.aff(it, "hiz") / 100.0
 	if it.get("mech_id", "") == "ivme":
@@ -1350,6 +1479,11 @@ func _start_attack(step: int) -> void:
 		total *= 1.35
 	if c["s"] in ["spin", "flurry", "slam"]:
 		total *= 1.25
+	if c.get("special", false):
+		total *= float(c.get("tm", 1.0))
+		FX.text(center() + Vector2(0, -40), String(c.get("name", "")), Color(0.75, 0.95, 1.0), 8)
+		if c.get("plunge", false):
+			velocity = Vector2(velocity.x * 0.3, -160.0)
 	atk = {"step": step, "c": c, "sw": sw, "phase": "wind", "t": 0.0, "dur": total, "hit": [], "item": it, "hold": 0.0, "pause": is_pause, "multi_i": 0}
 	combo_step = step
 	melee_buf = 0.0
@@ -1388,6 +1522,57 @@ func _start_attack(step: int) -> void:
 			inv_t = maxf(inv_t, 0.15)
 			for i in 3:
 				FX.ghost(anim.base, Color(0.9, 0.5, 0.4, 0.4), 0.2)
+
+
+func _special_move(it: Dictionary) -> Dictionary:
+	## Bağlam hamleleri (her silahta): havada ↓+J dalış, yerde ↑+J göğe savurma, koşarken J akın kesiği,
+	## yuvarlanmadan hemen sonra J dönüş kesiği, çömelirken J diz biçen.
+	var heavy_w: bool = it.get("id", "") in HEAVY
+	if not is_on_floor() and Input.is_action_pressed("asagi"):
+		return {"s": "slam_2h", "mult": 1.5, "kb": 160.0, "launch": 0.0, "special": true, "plunge": true, "tm": 1.0, "name": "Kartal Dalışı"}
+	if is_on_floor() and Input.is_action_pressed("yukari"):
+		return {"s": "uppercut_2h" if heavy_w else "rise", "mult": 1.1, "kb": 40.0, "launch": 360.0, "special": true, "hop": -330.0, "tm": 1.05, "name": "Göğe Savur"}
+	if crouch_hold and crouched:
+		return {"s": "sweep_low", "mult": 1.1, "kb": 60.0, "special": true, "trip": true, "tm": 0.9, "name": "Diz Biçen"}
+	if sprint and absf(velocity.x) > RUN * 1.2:
+		return {"s": "lunge", "mult": 1.5, "kb": 240.0, "dash": 140.0, "special": true, "tm": 1.0, "name": "Akın Kesiği"}
+	if rolled_t > 1.4 and rolled_t < 1.72:
+		return {"s": "spin", "mult": 1.3, "kb": 180.0, "special": true, "crit": true, "tm": 0.9, "name": "Dönüş Kesiği"}
+	return {}
+
+
+func combo_add(e: Node) -> void:
+	## Kesintisiz isabet: sayaç artar, kademe atlayınca ödül (Kut, ağır çekim, ses)
+	combo_n += 1
+	combo_t = 2.4
+	combo_best = maxi(combo_best, combo_n)
+	var r := 0
+	for i in COMBO_RANKS.size():
+		if combo_n >= int(COMBO_RANKS[i][0]):
+			r = i + 1
+	if r > combo_rank:
+		combo_rank = r
+		var rk: Array = COMBO_RANKS[r - 1]
+		var col: Color = rk[2]
+		FX.text(center() + Vector2(0, -56), "%s!  x%d" % [rk[1], combo_n], col, 10 + r)
+		FX.ring(center(), 30 + 10 * r, col, 0.35)
+		Ses.play("seviye", -6.0 + r, 0.9 + 0.08 * r)
+		add_kut(4.0 * r)
+		if r >= 3:
+			Game.slowmo(0.5, 0.12)
+			Game.zoom_punch(0.03 + 0.01 * r)
+
+
+func combo_break(reason := "") -> void:
+	if combo_n >= 8:
+		FX.text(center() + Vector2(0, -50), "Kombo x%d %s" % [combo_n, reason], Color(0.8, 0.75, 0.85), 8)
+	combo_n = 0
+	combo_rank = 0
+	combo_t = 0.0
+
+
+func combo_mult() -> float:
+	return 1.0 + minf(0.45, 0.015 * float(combo_n))
 
 
 func debug_swing(sw_name: String, item_id := "alp_kilici") -> void:
@@ -1442,6 +1627,23 @@ func _update_attack(delta: float) -> void:
 	if atk["phase"] == "charge":
 		_update_charge(delta)
 		return
+	# ---- v10: dalış (havada ↓+J): bıçak aşağıda, hızla düşer; yere değince şok dalgası
+	if c.get("plunge", false) and not atk.get("plunged", false):
+		var k0: float = atk["t"] / atk["dur"]
+		if k0 >= hit1 - 0.04:
+			if not is_on_floor():
+				atk["t"] = atk["dur"] * (hit1 - 0.04)
+				velocity.y = 820.0
+				velocity.x = move_toward(velocity.x, 0.0, 800 * delta)
+				if Engine.get_physics_frames() % 2 == 0:
+					FX.ghost(anim.base, Color(0.7, 0.9, 1.0, 0.45), 0.18)
+				anim.show_frame(sw["body"], clampi(int(k0 * anim.frame_count(sw["body"])), 0, anim.frame_count(sw["body"]) - 1))
+				_update_weapon_visual()
+				_melee_hits()
+				_sample_trail(it, c, k0)
+				return
+			atk["plunged"] = true
+			_plunge_land(it)
 	# Hazırlık bitince tuş hâlâ basılıysa kısa süre bekle; bırakılırsa normal vuruş, HOLD_T'yi aşarsa ağır saldırı.
 	if atk["phase"] == "wind" and _can_hold_heavy(c) and Input.is_action_pressed(_atk_act()):
 		var wind_end: float = atk["dur"] * (hit0 - 0.02)
@@ -1578,6 +1780,9 @@ func _on_strike_start() -> void:
 	if atk.has("charge_fx") and is_instance_valid(atk["charge_fx"]):
 		atk["charge_fx"].stop()
 	vis_scale = Vector2(1.12, 0.9)
+	if c.has("hop") and is_on_floor():
+		velocity.y = float(c["hop"])
+		air_hang = 0.0
 	if atk.get("heavy", false):
 		# ağır vuruş: sert kamera, ışık patlaması, tam şarjda halka
 		Game.kick(Vector2(facing, 0.3), 5.0 + 4.0 * hold)
@@ -1644,7 +1849,31 @@ func _on_strike_start() -> void:
 
 func _can_hold_heavy(c: Dictionary) -> bool:
 	return not atk.get("pause", false) and not atk.get("heavy", false) and not atk.has("dash_px") \
-		and not c.get("axe", false) and not c.get("charge", false)
+		and not c.get("axe", false) and not c.get("charge", false) and not c.get("special", false)
+
+
+func _plunge_land(it: Dictionary) -> void:
+	## Kartal Dalışı inişi: çevreye şok, fırlatma, krater çatlağı; düşüş yüksekliğiyle güçlenir
+	var power := clampf(_fall_peak / 600.0, 0.5, 1.5)
+	var r := 70.0 * power
+	Game.shake(6.0 * power)
+	Game.kick(Vector2.DOWN, 6.0)
+	Game.hitstop(0.08)
+	vis_scale = Vector2(1.35, 0.7)
+	FX.anim("earth_rupture", global_position, 0.0, 0.9 * power, Color(0.8, 0.9, 1.0), false)
+	FX.ring(global_position + Vector2(0, -4), r, Color(0.75, 0.9, 1.0), 0.3, 0.3)
+	FX.shock_line(global_position, r * 0.8)
+	FX.dust(global_position, Vector2.UP, 10, 0.36)
+	FX.flash_light(global_position + Vector2(0, -10), Color(0.75, 0.9, 1.0), 160.0, 1.6, 0.2)
+	FX.decal("decal_crack_%d" % (randi() % 2), global_position + Vector2(0, 2), 0.0, 10.0, 0.9 * power)
+	Ses.play("darbe_cekic", -1.0, 1.05)
+	Ses.play("sarsinti", -5.0)
+	for e in get_tree().get_nodes_in_group("dusman"):
+		if not is_instance_valid(e) or e.dead:
+			continue
+		if absf(e.global_position.x - global_position.x) < r and absf(e.global_position.y - global_position.y) < 40.0:
+			_deal(e, float(it["dmg"]) * 1.2 * power, it, {"kb": 160.0, "dir": signf(e.global_position.x - global_position.x), "launch": 260.0, "stun": 0.4, "sfx_done": true})
+			combo_add(e)
 
 
 func _heavy_for(it: Dictionary) -> Dictionary:
@@ -1946,6 +2175,13 @@ func _melee_hits() -> void:
 				opts["pounce"] = true
 			if c.get("whip", false):
 				opts["whip"] = true
+			if c.get("crit", false):
+				opts["force_crit"] = true
+			if c.get("trip", false):
+				opts["stun"] = 0.9
+				opts["launch"] = 140.0
+			opts["behind"] = "facing" in e and int(e.facing) == int(signf(float(opts.get("dir", facing))))
+			opts["heavy"] = atk.get("heavy", false)
 			opts["hit_n"] = atk["hit"].size()
 			opts["sfx_done"] = true
 			_deal(e, float(it["dmg"]) * mult, it, opts)
@@ -1968,15 +2204,19 @@ func _melee_hits() -> void:
 				opts2["kb"] = float(c["kb"]) * 0.6
 				_deal(e, float(it["dmg"]) * mult * 0.7, it, opts2)
 				FX.impact(hp + Vector2(facing * 6, -6), hdir, weapon_color(it), 0.8)
+			combo_add(e)
+			if not is_on_floor():
+				air_hang = 0.28
+			var hs_k := 1.0 + minf(0.5, 0.02 * float(combo_n))
 			if atk.get("heavy", false):
-				Game.hitstop(0.09 + 0.04 * hold)
+				Game.hitstop((0.09 + 0.04 * hold) * hs_k)
 				Game.shake(3.0 + 3.0 * hold)
 				if hold > 0.5 and level and level.has_method("flash_white"):
 					level.flash_white()
 			elif heavy_w or float(c["kb"]) > 200.0 or big:
-				Game.hitstop(0.075 if heavy_w else 0.06)
+				Game.hitstop((0.075 if heavy_w else 0.06) * hs_k)
 			else:
-				Game.hitstop(0.035)
+				Game.hitstop(0.04 * hs_k)
 	if level and level.has_method("break_cracks"):
 		level.break_cracks(box)
 
@@ -2002,6 +2242,7 @@ func _deal(e: Node, base: float, it: Dictionary, opts: Dictionary = {}) -> void:
 		d *= 1.0 + ItemGen.aff(it, "boss") / 100.0
 	var mech: String = it.get("mech_id", "")
 	var mv := float(it.get("mech_v", 0.0))
+	d *= combo_mult()
 	# mekanik kritik koşulları
 	var crit := randf() * 100.0 < float(it.get("crit", 0.0)) + ItemGen.aff(it, "krit_sans") + (10.0 if Game.has_lutuf("ay_ata") else 0.0)
 	if Game.has_lutuf("erlik"):
@@ -2133,6 +2374,27 @@ func _deal(e: Node, base: float, it: Dictionary, opts: Dictionary = {}) -> void:
 			opts["poison"] = 1
 			if e.poison >= 3:
 				crit = true
+		"tulpar":
+			if sprint or atk.has("dash") or opts.get("dash", false):
+				crit = true
+			opts["pierce"] = true
+		"arkadan":
+			if opts.get("behind", false) or e.stun_t > 0.0 or e.state == "stagger":
+				crit = true
+				FX.text(e.center() + Vector2(0, -24), "arkadan!", Color(0.85, 0.75, 1.0), 7)
+		"kanli_kesik":
+			e.bleed = mini(5, e.bleed + 1)
+			e.bleed_t = 4.0
+			if e.bleed >= 3:
+				crit = true
+		"itki":
+			opts["kb"] = float(opts.get("kb", 100.0)) * 1.8
+			e._slam_t = 0.45
+			if e.stun_t > 0.0:
+				crit = true
+		"bozgun":
+			if e.max_hp > 0.0 and e.hp / e.max_hp < 0.35:
+				crit = true
 		"kor_izi":
 			if e.burn_t > 0.0:
 				crit = true
@@ -2168,6 +2430,8 @@ func _deal(e: Node, base: float, it: Dictionary, opts: Dictionary = {}) -> void:
 	add_kut(d * 0.22 + ItemGen.aff(it, "kut"))
 	if Game.has_lutuf("tengri") and randf() < 0.22 and not opts.get("zincir", false):
 		_tengri_chain(e, d * 0.5, it)
+	if killed and mech == "bozgun":
+		_bozgun_shards(e, it)
 	if killed and Game.has_lutuf("ulgen"):
 		heal(max_hp() * 0.03)
 		FX.burst(center(), Color(1.0, 0.95, 0.6), 6, 40, 0.5, 0.16, -60, true)
@@ -2237,7 +2501,7 @@ func _hit_sfx(it: Dictionary, big: bool, crit: bool, sname: String) -> void:
 
 
 func _fire_bow(charge: float) -> void:
-	Ses.play("yay_birak", -4.0, 0.9 + 0.2 * charge)
+	Ses.play("yay_birak_tam" if charge >= 0.99 else "yay_birak", -3.0, 0.95 + 0.1 * charge)
 	var it := slot(sec_slot)
 	var full := charge >= 0.98
 	var spd := lerpf(300.0, 560.0, charge)
@@ -2931,6 +3195,7 @@ func take_hit(dmg: float, from: Node, projectile: Node = null, forced := false) 
 	Game.run["hp"] = float(Game.run["hp"]) - dmg
 	inv_t = 0.8
 	hurt_t = 0.25
+	combo_break("kırıldı")
 	Ses.play("bengu_can", -1.0)
 	Ses.play("darbe_et", -4.0)
 	atk = {}

@@ -253,6 +253,23 @@ dönüşüm/uluma/ısırık, yay, patlama, büyü, yıldırım, donma, zehir, to
 kopuz + davul + rüzgâr; biyom başına döngü: otuken, bozkir, sahmeran, kaf, tamu + yurt + baslik). Üretim: `python tools/audiogen/export_audio.py`.
 `Ses.play("savur_hafif")` önekten varyant seçer, perde oynatır; `Ses.loop_start/stop` şarj uğultusu; `Ses.music(biyom)` çapraz geçiş.
 
+## Kombo sistemi, hareket ve çukur onarımı (v10)
+
+- **Çıkmaz çukur onarımı** (`LevelGen.traps / fix_traps`): girişten ulaşılabilen her ayakta durma hücresinin çıkışa ulaşıp
+  ulaşamadığı ters yönlü aramayla bulunur; çıkmazların üstüne zikzak tek yönlü basamak konur, olmazsa taban yükseltilir.
+  Test: `godot --headless --path . --script res://tools/tests/tuzak_testi.gd` (6 stil × 12 tohum, kalan çıkmaz = 0).
+- **Kombo sayacı:** 2,4 sn içinde vurmaya devam ettikçe artar; hasar +%1,5/isabet (en çok +%45), kademeler ER (5), ALP (12),
+  BAHADIR (22), HAN (35), DESTAN (55) — her kademede Kut, ses, (3+) ağır çekim. Hasar alınca kırılır. Vuruş durması kombo ile uzar.
+- **Bağlam hamleleri** (her silahta, zinciri bozmadan araya girer): ↑+J Göğe Savur (düşmanı fırlatır, sen de sıçrarsın), havada
+  ↓+J Kartal Dalışı (dikey iniş, şok dalgası, krater), koşarken J Akın Kesiği, yuvarlanmadan hemen sonra J Dönüş Kesiği (kesin
+  kritik), çömelirken J Diz Biçen (sendeletir). Havada isabet seni kısa süre asılı tutar; havadaki düşman vuruldukça havada kalır.
+- **Hareket:** kenara tutunup tırmanma (havada duvara doğru basılıyken), köşe düzeltme (zıplarken baş köşeye takılırsa kayar).
+- **Seçkin yıldızı:** seçkinlerin başında dönen altın-mor yıldız.
+- **Yeni silahlar:** Tulpar Mızrağı (koşarken kritik), Börü Hançeri (arkadan kritik, kalkanı aşar), İkiz Balta (kanama yükü),
+  Ulu Kayın Asası (1,8× itme, duvara çarptırır), Bozgun Kılıcı (öldürünce üç bozgun kristali).
+- **Ses/müzik:** `bow2.py` yeni yay sesleri (germe, dolu, bırakma/tam, uçuş ıslığı, et/tahta/taş vuruşu); `turku.py` bağlama, zurna,
+  kaval, davul-darbuka ile 9/8 karşılama, 7/8, 5/8 ve halay usullerinde türkü havaları.
+
 ## Bölüm yapısı, boss ve yaratık çeşitliliği (v9)
 
 - **Boss:** `Game.BOSS_AFTER = {2: "kara_boru_han"}` — 2. derinliğin kapısı önce **Kara Börü Han** arenasına (`Level.build_boss`,

@@ -456,7 +456,7 @@ func _showcase(delta: float) -> void:
 	if int(t * 60.0) == 36 * 60:
 		level.spawn_enemy("arcura", Vector2((tx0 + 6) * TSx, level.surface_y(tx0 + 6) * TSx - 1))
 	# silah programı
-	var sched := [[0.0, "ulu_kilic"], [7.0, "dag_cekici"], [12.0, "ruh_kilici"], [17.0, "ay_palasi"], [22.0, "yildirim_kilici"], [27.0, "teber"], [32.0, "erlik_tirpani"], [37.0, "gurz"], [42.0, "alp_kilici"], [47.0, "yilan_kilici"], [52.0, "kor_cekici"], [56.0, "ruzgar_kilici"]]
+	var sched := [[0.0, "ulu_kilic"], [7.0, "dag_cekici"], [12.0, "ruh_kilici"], [17.0, "ay_palasi"], [22.0, "yildirim_kilici"], [27.0, "teber"], [32.0, "erlik_tirpani"], [37.0, "gurz"], [42.0, "alp_kilici"], [47.0, "bozgun_kilici"], [52.0, "bori_hanceri"], [56.0, "tulpar_mizragi"]]
 	for s in sched:
 		if int(t * 60.0) == int(float(s[0]) * 60.0):
 			var mat := "demir"
@@ -489,7 +489,7 @@ func _showcase(delta: float) -> void:
 	var f := int(t * 60.0)
 	if cur != "":
 		# 150 karelik turlar: A zincir (art arda), B bas-bas-bekle-bas (bekleme bitirişi), C basılı tut (ağır saldırı)
-		var cyc := (f / 150) % 3
+		var cyc := (f / 150) % 5
 		var ph := f % 150
 		if cyc == 0 and ph in [0, 16, 32, 48, 64]:
 			_tap("saldiri1")
@@ -498,6 +498,40 @@ func _showcase(delta: float) -> void:
 		elif cyc == 2 and ph < 70:
 			Input.action_press("saldiri1")
 			_auto_pressed.append("saldiri1")
+		elif cyc == 3:
+			# göğe savur -> zıpla -> hava kombosu -> kartal dalışı
+			if ph < 4:
+				Input.action_press("yukari")
+				_auto_pressed.append("yukari")
+				if ph == 1:
+					_tap("saldiri1")
+			if ph == 18:
+				_tap("zipla")
+			if ph in [24, 36, 48]:
+				_tap("saldiri1")
+			if ph >= 62 and ph < 70:
+				Input.action_press("asagi")
+				_auto_pressed.append("asagi")
+				if ph == 64:
+					_tap("saldiri1")
+		elif cyc == 4:
+			# yuvarlan -> dönüş kesiği; koş -> akın kesiği; çömel -> diz biçen
+			if ph == 0:
+				_tap("yuvarlan")
+			if ph == 20:
+				_tap("saldiri1")
+			if ph >= 50 and ph < 95:
+				Input.action_press("yuvarlan")
+				_auto_pressed.append("yuvarlan")
+				Input.action_press("sag" if pl.facing > 0 else "sol")
+				_auto_pressed.append("sag" if pl.facing > 0 else "sol")
+				if ph == 90:
+					_tap("saldiri1")
+			if ph >= 110 and ph < 130:
+				Input.action_press("asagi")
+				_auto_pressed.append("asagi")
+				if ph == 114:
+					_tap("saldiri1")
 	if f % 240 == 200:
 		_tap("yuvarlan")
 	if f % 300 >= 250 and f % 300 < 290:

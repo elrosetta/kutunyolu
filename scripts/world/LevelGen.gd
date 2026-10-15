@@ -118,7 +118,7 @@ const CHUNKS := {
 
 
 static func generate(rng: RandomNumberGenerator, W: int, H: int, depth: int, allowed: Array = []) -> Dictionary:
-	## Döndürür: {grid: PackedByteArray, heights: Array, style: String, chunks: Array}
+	## Döndürür: {grid, heights, style, chunks, carved, trapfix}. Geçilebilirlik + çıkmaz çukur onarımı garantili.
 	var pool: Array = allowed if not allowed.is_empty() else STYLES
 	var style: String = pool[rng.randi_range(0, pool.size() - 1)]
 	if depth == 1 and rng.randf() < 0.5:
@@ -128,14 +128,19 @@ static func generate(rng: RandomNumberGenerator, W: int, H: int, depth: int, all
 		var r := _build(rng, W, H, style)
 		if _reachable(r["grid"], W, H, r["heights"]):
 			r["style"] = style
-			r["carved"] = 0
-			return r
+			best = r
+			break
 		if best.is_empty():
 			best = r
 			best["style"] = style
 		style = pool[rng.randi_range(0, pool.size() - 1)]
-	# hiçbiri doğal olarak geçilemiyorsa: ilk denemeyi al, takılan yerlere koridor aç (kesin yol)
-	best["carved"] = guarantee(best["grid"], W, H, best["heights"])
+	best["carved"] = 0
+	best["trapfix"] = 0
+	for round in 4:
+		best["carved"] = int(best["carved"]) + guarantee(best["grid"], W, H, best["heights"])
+		best["trapfix"] = int(best["trapfix"]) + fix_traps(best["grid"], W, H, best["heights"])
+		if _reachable(best["grid"], W, H, best["heights"]) and traps(_haz_as_air(best["grid"]), W, H, best["heights"]).is_empty():
+			break
 	return best
 
 
@@ -537,88 +542,174 @@ static func _standable(g: PackedByteArray, x: int, y: int, W: int, H: int) -> bo
 	return below == 1 or below == 2
 
 
+static func _moves(g: PackedByteArray, W: int, H: int, cx: int, cy: int) -> Array:
+	## Fizik sadık hamleler (oyuncu 2 karo boy, sürünürken 1): yürüme/sürünme ±1; düşme ±5 sütun / 15 satır;
+	## zıplama en çok 5 karo yukarı (çift zıplama), çıkış sütununda baş boşluğu, yörünge tepesi açık olmalı.
+	var out: Array = []
+	var tall: bool = _cell(g, cx, cy - 1, W, H) == 0
+	var head := 0
+	while head < 5 and _cell(g, cx, cy - 1 - head, W, H) == 0:
+		head += 1
+	var max_up := (head - 1) if tall else 0
+	for dx in range(-5, 6):
+		for dy in range(-5, 16):
+			var nx := cx + dx
+			var ny := cy + dy
+			if nx < 1 or nx >= W - 1 or ny < 1 or ny >= H - 1:
+				continue
+			if dy < 0 and -dy > max_up:
+				continue
+			if dx == 0 and dy == 0:
+				continue
+			if not _standable(g, nx, ny, W, H):
+				continue
+			var crawl_dest: bool = _cell(g, nx, ny - 1, W, H) != 0
+			if crawl_dest and not (dy == 0 and absi(dx) == 1):
+				continue
+			if not (dy == 0 and absi(dx) == 1):
+				if not tall and dy < 0:
+					continue
+				var apex := mini(cy, ny) - 1 - (1 if dy > 2 else 0)
+				if dy < 0:
+					apex = ny - 1
+				var blocked := false
+				var step := 1 if dx > 0 else -1
+				var k := cx
+				while k != nx:
+					k += step
+					if _cell(g, k, apex, W, H) != 0 and _cell(g, k, apex + 1, W, H) != 0:
+						blocked = true
+						break
+				if blocked:
+					continue
+				if dy > 0 and _cell(g, nx, ny - 1, W, H) != 0:
+					continue
+				# düşüş: düşülen sütunda iniş yolu (varışın üstü) boydan boya açık olmalı
+				if dy > 1 and dx != 0:
+					var clear := true
+					for yy in range(mini(cy, ny) - 1, ny):
+						if _cell(g, nx, yy, W, H) == 1:
+							clear = false
+							break
+					if not clear and _cell(g, cx + step, cy, W, H) != 0:
+						continue
+			out.append(_idx(nx, ny, W))
+	return out
+
+
 static func _reach(g: PackedByteArray, W: int, H: int, heights: Array) -> Dictionary:
-	## Fizik sadık erişilebilirlik: oyuncu 2 karo boy (sürünürken 1). Hamleler:
-	##  * yürüme/sürünme: ±1 sütun, aynı satır (varış 1 karo boşluksa sürünme)
-	##  * düşme: aynı sütunda ya da ±1..5 sütun ötede aşağı (yol hücreleri hava olmalı)
-	##  * zıplama: en çok 5 karo yukarı (çift zıplama), ±5 yatay; çıkış sütununda baş boşluğu
-	##    yükseliş kadar açık olmalı; varışta 2 karo boşluk; aradaki sütunlar tepe satırında hava.
-	## Döndürür: {ok, x, y} (x,y: en sağa ulaşılan ayakta durma hücresi)
+	## Girişten sağ uca erişim: {ok, x, y} (x,y: en sağa ulaşılan ayakta durma hücresi)
 	var sx := 5
 	var sy: int = heights[sx] - 1
 	var seen := PackedByteArray()
 	seen.resize(W * H)
 	seen.fill(0)
-	var q: Array = [[sx, sy]]
-	seen[_idx(sx, sy, W)] = 1
+	var q: Array = [_idx(sx, sy, W)]
+	seen[q[0]] = 1
 	var target_x := W - 7
 	var best := [sx, sy]
-	while not q.is_empty():
-		var c: Array = q.pop_front()
-		var cx: int = c[0]
-		var cy: int = c[1]
+	var qi := 0
+	while qi < q.size():
+		var id: int = q[qi]
+		qi += 1
+		var cx := id % W
+		var cy := id / W
 		if cx > best[0]:
 			best = [cx, cy]
 		if cx >= target_x:
 			return {"ok": true, "x": cx, "y": cy}
-		var tall: bool = _cell(g, cx, cy - 1, W, H) == 0  # ayakta mı (zıplayabilir mi)
-		# baş boşluğu: kaç karo yukarı çıkılabilir
-		var head := 0
-		while head < 5 and _cell(g, cx, cy - 1 - head, W, H) == 0:
-			head += 1
-		var max_up := (head - 1) if tall else 0
-		for dx in range(-5, 6):
-			for dy in range(-5, 16):
-				var nx := cx + dx
-				var ny := cy + dy
-				if nx < 1 or nx >= W - 1 or ny < 1 or ny >= H - 1:
-					continue
-				if dy < 0 and -dy > max_up:
-					continue
-				if dx == 0 and dy == 0:
-					continue
-				if not _standable(g, nx, ny, W, H):
-					continue
-				var crawl_dest: bool = _cell(g, nx, ny - 1, W, H) != 0
-				# sürünme hedefi yalnızca yatay komşuya yürüyerek girilir
-				if crawl_dest and not (dy == 0 and absi(dx) == 1):
-					continue
-				if dy == 0 and absi(dx) == 1:
-					pass  # yürüme / sürünme: komşu hücre zaten hava
-				else:
-					if not tall and dy < 0:
-						continue
-					if dy >= 0 and absi(dx) > 5:
-						continue
-					# yörünge: tepe satırı = min(cy, ny) - 1 - (ek yükseklik); ara sütunlarda tepe ve bir altı hava
-					var apex := mini(cy, ny) - 1 - (1 if dy > 2 else 0)
-					if dy < 0:
-						apex = ny - 1
-					var blocked := false
-					var step := 1 if dx > 0 else -1
-					var k := cx
-					while k != nx:
-						k += step
-						if _cell(g, k, apex, W, H) != 0 and _cell(g, k, apex + 1, W, H) != 0:
-							blocked = true
-							break
-						if k == nx:
-							break
-					if blocked:
-						continue
-					# düşüşte varış sütununda iniş yolu açık olmalı
-					if dy > 0:
-						var open := true
-						for yy in range(ny - 1, ny):
-							if _cell(g, nx, yy, W, H) != 0:
-								open = false
-						if not open:
-							continue
-				var id := _idx(nx, ny, W)
-				if seen[id] == 0:
-					seen[id] = 1
-					q.append([nx, ny])
+		for n in _moves(g, W, H, cx, cy):
+			if seen[n] == 0:
+				seen[n] = 1
+				q.append(n)
 	return {"ok": false, "x": best[0], "y": best[1]}
+
+
+static func traps(g: PackedByteArray, W: int, H: int, heights: Array) -> Array:
+	## Tuzaklar: girişten ulaşılabilen ama çıkışa (sağ uç) ulaşamayan ayakta durma hücreleri (düşülen çıkmaz çukurlar).
+	var sx := 5
+	var sy: int = heights[sx] - 1
+	var seen := PackedByteArray()
+	seen.resize(W * H)
+	seen.fill(0)
+	var rev: Dictionary = {}
+	var q: Array = [_idx(sx, sy, W)]
+	seen[q[0]] = 1
+	var qi := 0
+	var goals: Array = []
+	while qi < q.size():
+		var id: int = q[qi]
+		qi += 1
+		if id % W >= W - 7:
+			goals.append(id)
+		for n in _moves(g, W, H, id % W, id / W):
+			if not rev.has(n):
+				rev[n] = []
+			rev[n].append(id)
+			if seen[n] == 0:
+				seen[n] = 1
+				q.append(n)
+	var good := PackedByteArray()
+	good.resize(W * H)
+	good.fill(0)
+	var rq: Array = goals.duplicate()
+	for gq in goals:
+		good[gq] = 1
+	var ri := 0
+	while ri < rq.size():
+		var id2: int = rq[ri]
+		ri += 1
+		for pr in rev.get(id2, []):
+			if good[pr] == 0:
+				good[pr] = 1
+				rq.append(pr)
+	var out: Array = []
+	for id3 in q:
+		if good[id3] == 0:
+			out.append(id3)
+	return out
+
+
+static func fix_traps(g: PackedByteArray, W: int, H: int, heights: Array) -> int:
+	## Çıkmazları kapat: en derindeki tuzak hücresinin üstüne zikzak tek yönlü basamaklar koy (2 karoda bir);
+	## olmazsa çukur tabanını bir karo yükselt. Döndürür: yapılan düzeltme sayısı.
+	var gh := _haz_as_air(g)
+	var fixes := 0
+	if not _reach(gh, W, H, heights)["ok"]:
+		return 0
+	for it in 60:
+		var tr := traps(gh, W, H, heights)
+		if tr.is_empty():
+			break
+		var deep: int = tr[0]
+		for id in tr:
+			if id / W > deep / W:
+				deep = id
+		var x := deep % W
+		var y := deep / W
+		if it < 40:
+			var side := 1
+			var placed := false
+			var py := y - 2
+			while py > y - 14 and py > 2:
+				var px := x + (0 if side > 0 else -2)
+				for k in 3:
+					if _cell(gh, px + k, py, W, H) == 0 and _cell(gh, px + k, py - 1, W, H) == 0:
+						_put(g, px + k, py, W, H, 2)
+						_put(gh, px + k, py, W, H, 2)
+						placed = true
+				side = -side
+				py -= 2
+			if not placed:
+				_put(g, x, y, W, H, 1)
+				_put(gh, x, y, W, H, 1)
+		else:
+			for k in range(-1, 2):
+				if _cell(gh, x + k, y, W, H) == 0:
+					_put(g, x + k, y, W, H, 1)
+					_put(gh, x + k, y, W, H, 1)
+		fixes += 1
+	return fixes
 
 
 static func _carve(g: PackedByteArray, W: int, H: int, heights: Array, x0: int, y0: int) -> void:

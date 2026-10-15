@@ -401,6 +401,41 @@
     16,
     20
    ]
+  },
+  "tulpar_mizragi": {
+   "row": 55,
+   "pivot": [
+    16,
+    20
+   ]
+  },
+  "bori_hanceri": {
+   "row": 56,
+   "pivot": [
+    16,
+    20
+   ]
+  },
+  "ikiz_balta": {
+   "row": 57,
+   "pivot": [
+    16,
+    20
+   ]
+  },
+  "kayin_asasi": {
+   "row": 58,
+   "pivot": [
+    16,
+    20
+   ]
+  },
+  "bozgun_kilici": {
+   "row": 59,
+   "pivot": [
+    16,
+    20
+   ]
   }
  }
 }

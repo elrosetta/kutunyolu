@@ -248,6 +248,21 @@ func _draw_hud(vp: Vector2) -> void:
 		PixUI.text(self, Vector2(wx, 32), "BOZKURT  %.1f" % pl.wolf_t, Color(0.7, 1.0, 1.0), 1, HORIZONTAL_ALIGNMENT_CENTER, 140, 1)
 		PixUI.bar(self, Rect2(wx + 6, 46, 128, 4), clampf(pl.wolf_t / 9.0, 0.0, 1.0), Color(0.6, 0.95, 1.0))
 		PixUI.text(self, Vector2(0, 60), "J ısır  ·  K / Shift sıçra  ·  F ulu", Color(0.6, 0.9, 1.0), 1, HORIZONTAL_ALIGNMENT_CENTER, vp.x)
+	# ---- kombo sayacı (sağ, ortanın biraz üstü)
+	if pl.combo_n >= 3:
+		var rk_name := ""
+		var rk_col := Color(0.95, 0.92, 0.85)
+		for i in pl.COMBO_RANKS.size():
+			if pl.combo_n >= int(pl.COMBO_RANKS[i][0]):
+				rk_name = pl.COMBO_RANKS[i][1]
+				rk_col = pl.COMBO_RANKS[i][2]
+		var cx := vp.x - 70.0
+		var cy := 70.0
+		var pop := 1 + (1 if pl.combo_t > 2.2 else 0)
+		PixUI.text(self, Vector2(cx - 60, cy), "x%d" % pl.combo_n, rk_col, pop + 1, HORIZONTAL_ALIGNMENT_RIGHT, 120, 2)
+		PixUI.text(self, Vector2(cx - 60, cy + 26), "KOMBO" if rk_name == "" else rk_name, rk_col.darkened(0.1), 1, HORIZONTAL_ALIGNMENT_RIGHT, 120, 2)
+		PixUI.bar(self, Rect2(cx - 4, cy + 38, 64, 3), clampf(pl.combo_t / 2.4, 0.0, 1.0), rk_col)
+		PixUI.text(self, Vector2(cx - 60, cy + 43), "+%d%% hasar" % int(round((pl.combo_mult() - 1.0) * 100.0)), PixUI.DIM, 1, HORIZONTAL_ALIGNMENT_RIGHT, 120, 0)
 	# ---- boss can çubuğu
 	if level.boss != null and is_instance_valid(level.boss) and not level.boss.dead and level.boss.state != "intro":
 		var bw2 := 260.0
@@ -295,7 +310,10 @@ func _draw_hud(vp: Vector2) -> void:
 	if p and p.kind == "tilsim":
 		var sp0: Vector2 = p.get_global_transform_with_canvas().origin
 		_world_prompt(sp0 + Vector2(0, -34), "E", "Tılsımı oku")
-	elif p:
+	elif p and p.kind == "lutuf":
+		var sp1: Vector2 = p.get_global_transform_with_canvas().origin
+		_world_prompt(sp1 + Vector2(0, -58), "E", "Tanrı sunağı: lütuf dile")
+	elif p and not p.item.is_empty():
 		var opts: Array = level.slot_options(p.item)
 		var nat: String = level.natural_slot(p.item)
 		var tgt := nat
@@ -600,7 +618,8 @@ func _draw_title(vp: Vector2) -> void:
 	PixUI.panel(self, Rect2(vp.x / 2.0 - 230, vp.y - 62, 460, 46))
 	_hint(vp, rows[0], vp.y - 56)
 	_hint(vp, rows[1], vp.y - 42)
-	PixUI.text(self, Vector2(0, vp.y - 29), "J'ye art arda bas = zincir · iki vuruş, bekle, bas = bitiriş · basılı tut = ağır saldırı", Color(1.0, 0.85, 0.5, 0.85), 1, HORIZONTAL_ALIGNMENT_CENTER, vp.x, 0)
+	PixUI.text(self, Vector2(0, vp.y - 29), "J art arda = zincir · bekle+J = bitiriş · basılı = ağır · ↑J göğe savur · havada ↓J dalış · koşarken J akın · yuvarlan+J dönüş · S+J diz biçen", Color(1.0, 0.85, 0.5, 0.85), 1, HORIZONTAL_ALIGNMENT_CENTER, vp.x, 0)
+	PixUI.text(self, Vector2(0, vp.y - 17), "Shift basılı = koş · S = çömel (çömelirken saldırı ve yay) · duvara doğru zıpla = kenara tutun", Color(0.75, 0.9, 1.0, 0.8), 1, HORIZONTAL_ALIGNMENT_CENTER, vp.x, 0)
 
 
 func _draw_intro(vp: Vector2) -> void:

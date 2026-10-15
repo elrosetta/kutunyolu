@@ -170,6 +170,9 @@ def riff(scale, root, bars, bpm, sr=MSR, seed=4, notes=None, octave=1):
 
 
 def track(biome, sr=MSR):
+    if biome in ('otuken', 'bozkir', 'sahmeran', 'kaf', 'tamu', 'boss', 'baslik'):
+        import turku
+        return turku.track(biome, sr)
     """Hareketli savaş müzikleri: sürücü davul (16'lık tef + dum), kopuz bası, riff kancası, üstte doğaçlama ezgi."""
     if biome == 'otuken':
         bpm, bars, root, scale = 126, 16, 50, HICAZ

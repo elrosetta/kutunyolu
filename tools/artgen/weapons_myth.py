@@ -294,6 +294,49 @@ def draw_item(c, iid, mm):
         for x in (10, 17, 24):
             c.capsule((x, -0.8), (x + 3.5, -1.4), 0.5, 0.4, M['nazar_w'], z=4)
         c.capsule((-8, 0), (-13, 4), 0.5, 0.4, M['bone'], z=2); c.poly([(-12, 3), (-16, 7), (-13, 8), (-10, 5)], M['fur'], z=2, bevel=0.6, height=0.5)
+    elif iid == 'tulpar_mizragi':
+        # Tulpar Mızrağı: uzun akçaağaç sap, kanatlı yaprak uç, uçan at yelesi püskül, altın halkalar
+        c.capsule((-14, 0), (34, 0), 1.2, 1.2, W)
+        for x in (-8, 6, 20):
+            c.capsule((x, -1.5), (x, 1.5), 0.9, 0.9, A, z=2)
+        c.poly([(33, -1.6), (39, -3.6), (46, 0), (39, 3.6), (33, 1.6)], B, z=2, bevel=1.4, height=1.8)
+        c.poly([(34, -2.0), (31, -7.0), (36, -3.0)], A, z=3, bevel=0.8, height=0.8)
+        c.poly([(34, 2.0), (31, 7.0), (36, 3.0)], A, z=3, bevel=0.8, height=0.8)
+        for k in range(6):
+            c.capsule((32, 0), (28 - k * 0.8, 2 + k * 1.4), 0.6, 0.4, M['fur'] if k % 2 else mm['turq'], z=1)
+    elif iid == 'bori_hanceri':
+        # Börü Hançeri: kısa, kıvrık, kurt dişi kabza; bıçakta kanal
+        c.capsule((-5, 0), (0, 0), 1.4, 1.4, M['bone'])
+        c.ellipse((-6, 0), 1.9, 1.6, M['bone'], z=1)
+        c.capsule((0.5, -2.6), (0.5, 2.6), 1.0, 1.0, A, z=2)
+        pts = [(1, -1.6), (7, -2.4), (12, -3.6), (16, -6.0), (13, -1.0), (7, 1.2), (1, 1.5)]
+        c.poly(pts, B, z=1, bevel=1.2, height=1.6, paint=[(lambda lu, lv, px, py: np.abs(py + 0.8 + (px - 1) * 0.1) < 0.35, M['fur_dark'])])
+    elif iid == 'ikiz_balta':
+        # İkiz Balta: iki kısa savaş baltası (biri arkada), kızıl kayış
+        for (ox, oy), z0 in (((2, 5), -6), ((0, 0), 0)):
+            c.capsule((-6 + ox, oy), (12 + ox, oy), 1.2, 1.2, W, z=z0)
+            c.poly([(10 + ox, -1 + oy), (12 + ox, -8 + oy), (19 + ox, -9 + oy), (17 + ox, -2 + oy), (17 + ox, 2 + oy), (19 + ox, 6 + oy), (12 + ox, 5 + oy), (10 + ox, 1 + oy)], B if z0 == 0 else mm['b'], z=z0 + 1, bevel=1.6, height=1.8)
+            c.capsule((-5 + ox, oy - 1), (-3 + ox, oy + 1), 1.5, 1.5, mm['red'], z=z0 + 2)
+    elif iid == 'kayin_asasi':
+        # Ulu Kayın Asası: ak kayın sap, uçta kök düğümü içinde kut taşı, yapraklar
+        bark = Mat(ramp(40, 0.06, 0.92, spread=0.3), name='ak kayın')
+        c.capsule((-14, 0), (30, 0), 1.6, 1.4, bark)
+        for x in (-6, 8, 20):
+            c.capsule((x, -1.2), (x + 1.5, 1.4), 0.5, 0.4, M['black'], z=1)
+        for a in (-0.9, -0.3, 0.3, 0.9):
+            c.capsule((30, 0), (35 + math.cos(a) * 4, math.sin(a) * 5), 1.2, 0.7, M['bark'], z=2)
+        c.ellipse((35, 0), 3.0, 3.0, M['kut'], z=3)
+        for a in (-1.6, 1.6, -2.4, 2.4):
+            c.ellipse((33 + math.cos(a) * 6, math.sin(a) * 6), 2.2, 1.3, M['leaf'], z=1, rot=a)
+    elif iid == 'bozgun_kilici':
+        # Bozgun Kılıcı: Kara Börü Han'ın bozgun kristalinden dövülmüş dev kılıç; kemik siper
+        crys = Mat(ramp(312, 0.75, 0.9, spread=0.4), emissive=0.7, outline='#3a0838', name='bozgun kristali')
+        c.capsule((-13, 0), (0, 0), 1.7, 1.7, G); c.ellipse((-14.5, 0), 2.3, 2.3, M['bone'], z=1)
+        c.poly([(0, -6), (3, -3), (3, 3), (0, 6), (-1, 0)], M['bone'], z=2, bevel=1.0, height=1.2)
+        c.poly([(3, -3.2), (26, -4.2), (36, -2.6), (43, 0), (36, 2.6), (26, 4.2), (3, 3.2)], B, z=1, bevel=2.2, height=2.6,
+               paint=[(lambda lu, lv, px, py: np.abs(py) < 1.2, crys)])
+        for x in (12, 22, 32):
+            c.poly([(x - 1.5, -3.5), (x + 1.5, -3.5), (x, -7)], crys, z=3, bevel=0.6, height=0.6)
     elif iid == 'savas_baltasi':
         c.capsule((-10, 0), (16, 0), 1.3, 1.3, W); c.capsule((-10, 0), (-7, 0), 1.6, 1.6, G, z=1)
         c.poly([(14, -2), (16, -12), (26, -13), (24, -3), (24, 3), (26, 13), (16, 12), (14, 2)], B, z=2, bevel=2, height=2)
@@ -471,7 +514,8 @@ ORDER = ['alp_kilici', 'pala', 'yatagan', 'gurz', 'teber', 'kargi', 'ikiz_bicak'
          'saganak_yayi', 'tufan_yayi', 'od_oklari', 'kam_kopuzu', 'gok_asasi', 'yel_borusu', 'kartal_tuyleri', 'mancinik_tasi',
          'dikenli_kalkan', 'kut_kalkani', 'ejder_kalkani', 'ulu_kayin_kalkani', 'tas_kalkan',
          'sifa_muskasi', 'ayaz_tilsimi', 'yel_tilsimi', 'davul_totemi', 'ok_yagmuru', 'kartal_cagrisi', 'ruh_kusu', 'umay_tuyu', 'erlik_zinciri',
-         'ulu_kilic', 'dag_cekici', 'ruh_kilici', 'ay_palasi', 'yilan_kilici', 'kor_cekici', 'ruzgar_kilici']
+         'ulu_kilic', 'dag_cekici', 'ruh_kilici', 'ay_palasi', 'yilan_kilici', 'kor_cekici', 'ruzgar_kilici',
+         'tulpar_mizragi', 'bori_hanceri', 'ikiz_balta', 'kayin_asasi', 'bozgun_kilici']
 CELL = (64, 40)
 PIVOT = (16, 20)
 
