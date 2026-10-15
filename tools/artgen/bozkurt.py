@@ -17,14 +17,16 @@ import numpy as np
 from raster import Mat, ramp
 from materials import M
 from rig import fk_leg, lerp2, chain
+import wolfkit as wk
+from raster import hx
 
 K = 1.75
 CELL = (160, 112)
 FEET = (72, 104)
 
-SFUR = Mat(ramp(205, 0.10, 0.95, spread=0.32), outline='#16303c', name='kül postu')
-SFUR_D = Mat(ramp(206, 0.30, 0.64, spread=0.36), outline='#16303c', name='kül postu gölgesi')
-SFUR_DD = Mat(ramp(210, 0.40, 0.42, spread=0.36), outline='#16303c', name='kül postu derin')
+SFUR = Mat([hx('#58708a'), hx('#8fa6bb'), hx('#cbd8e3'), hx('#ecf2f6'), hx('#ffffff')], name='kül postu')
+SFUR_D = Mat([hx('#3a4e66'), hx('#5d7690'), hx('#8aa2b8'), hx('#adc0d0'), hx('#cfdbe5')], name='kül postu gölgesi')
+SFUR_DD = Mat([hx('#253448'), hx('#3a4d66'), hx('#56708a'), hx('#7590a8'), hx('#94acc0')], name='kül postu derin')
 SMANE = Mat(ramp(178, 0.78, 0.96, spread=0.25), emissive=0.75, outline='#0b4a52', name='kut yelesi')
 SMANE_CORE = Mat(ramp(184, 0.22, 1.0, spread=0.15), emissive=1.0, outline='#0b4a52', name='kut yelesi göbeği')
 SMANE_OUT = Mat(ramp(196, 0.72, 0.62, spread=0.3), emissive=0.35, outline='#0b3a48', name='kut yelesi dış')
@@ -33,6 +35,8 @@ CLAW = Mat(ramp(214, 0.28, 0.28, spread=0.3), name='pençe tırnağı')
 TORC = Mat(ramp(36, 0.62, 0.70), spec=0.8, name='tunç halka')
 EYE = Mat(ramp(176, 0.60, 1.0, spread=0.15), emissive=1.0, outline='#0b4a52', name='kut gözü')
 SCARF = M['turq']
+SFUR.fur = 0.8; SFUR_D.fur = 0.7; SFUR_DD.fur = 0.5
+SFUR.bias = -0.12
 SCARF_D = Mat(ramp(176, 0.72, 0.5), name='turkuaz gölge')
 
 
@@ -68,34 +72,25 @@ def _flame(c, base, ang, length, width, sway, z, core=True):
 
 
 def _mane(c, a, b, ph, z, howl=0.0):
-    """Yele: a (kafa tepesi) -> b (omuz tümseği) taban çizgisi; geriye-yukarı savrulan alev dilleri.
-    Üç kat: dış (koyu turkuaz), orta (turkuaz), çekirdek (beyaz-cam). Her kat aynı tabandan, daha kısa dillerle."""
-    n = 7
-    lens = [6.5, 9.5, 12.0, 13.0, 12.5, 11.0, 8.5]
-    d = (-0.62, -0.78)  # geri-yukarı
-    dn = math.hypot(*d)
-    d = (d[0] / dn, d[1] / dn)
+    """Yele (v13): a (kafa tepesi) -> b (omuz tümseği) boyunca geriye-yukarı savrulup uçta geriye kıvrılan
+    kut alevi dilleri. Her dil incelen kapsül zinciri; üç kat (dış koyu turkuaz, orta turkuaz, cam-beyaz göbek).
+    Dillerin dalgası gövdeden gecikmeli (faz kayması) — yürüyüşte/koşuda arkadan akar."""
+    n = 6
+    lens = [7.0, 10.0, 12.0, 12.5, 11.0, 8.0]
     ux, uy = b[0] - a[0], b[1] - a[1]
-    layers = ((SMANE_OUT, 1.0, 0.0, 3.5), (SMANE, 0.68, 0.6, 2.0), (SMANE_CORE, 0.34, 1.2, -1.5))
-    for li, (mat, sc, zoff, sink) in enumerate(layers):
-        pts = []
+    ang0 = math.atan2(-0.80, -0.60)
+    layers = ((SMANE_OUT, 1.0, 0.0, 2.5, 0.0), (SMANE, 0.78, 6.0, 1.8, 0.35), (SMANE_CORE, 0.5, 11.0, 1.0, 0.7))
+    for li, (mat, sc, zoff, r0, sink) in enumerate(layers):
         for i in range(n):
             t = i / (n - 1)
-            bx, by = a[0] + ux * t, a[1] + uy * t
-            sway = math.sin(ph * 1.2 + i * 0.8 + li * 0.5) * (1.2 + 0.4 * i) * K * sc
+            bx, by = a[0] + ux * t, a[1] + uy * t + sink * K
             L = lens[i] * K * sc * (1.0 + howl * 0.25)
-            tip = (bx + d[0] * L + sway * 0.9, by + d[1] * L + abs(sway) * 0.2)
-            if i > 0:
-                # dişler arası çukur
-                pt = 0.5 * (t + (i - 1) / (n - 1))
-                vx, vy = a[0] + ux * pt, a[1] + uy * pt
-                Lv = min(lens[i], lens[i - 1]) * K * sc * 0.42
-                pts.append((vx + d[0] * Lv, vy + d[1] * Lv))
-            pts.append(tip)
-        # taban: gövdenin içine 3K gömülü geri dönüş
-        pts.append((b[0] + 1.0 * K, b[1] + sink * K))
-        pts.append((a[0] + 1.5 * K, a[1] + sink * K))
-        c.poly(pts, mat, z=z + zoff, bevel=2.2 * sc + 0.6, height=1.6)
+            pts = chain((bx, by), 4, L / 4, ang0 + 0.12 * t + howl * 0.3, -0.2, ph * 1.2 - i * 0.7 - li * 0.4 - 0.8, 0.32)
+            m = len(pts) - 1
+            for k, (p0, p1) in enumerate(zip(pts, pts[1:])):
+                ra = r0 * K * (1 - k / m * 0.78)
+                rb = r0 * K * (1 - (k + 1) / m * 0.78)
+                c.capsule(p0, p1, ra, max(0.4, rb), mat, z=z + zoff + i * 0.05)
 
 
 def _tamga(c, p, z, scale=1.0, flip=1):
@@ -122,27 +117,19 @@ def draw_bozkurt(c, p):
 
     # ------------------------------------------------------------ bacaklar
     def leg(base, a, z, front):
-        l1 = (9.0 if front else 8.6) * K
-        l2 = (9.6 if front else 10.2) * K
-        k, f = fk_leg(base, a[0], a[1], l1, l2)
+        """v13: üç eklemli bacak (wolfkit): kürek/uyluk kası, dirsek ve topuk geride, geniş tırnaklı pençe."""
         mat = SFUR if z > 0 else SFUR_D
         mat_sh = SFUR_D if z > 0 else SFUR_DD
-        # uyluk: kalın, kalçaya yapışık; ön bacakta omuz kası
-        c.capsule(base, k, (4.4 if not front else 3.8) * K, 2.5 * K, mat, z=z, paint=[(belly_dark, mat_sh)])
-        # kaval + topuk
-        c.capsule(k, f, 2.3 * K, 1.7 * K, mat, z=z + 0.2, paint=[(belly_dark, mat_sh)])
-        c.ellipse(k, 2.7 * K, 2.4 * K, mat, z=z + 0.3)
-        # bacak arkası tüy öbekleri
-        _tufts(c, [lerp2(base, k, 0.45), lerp2(base, k, 0.8)], mat_sh, z - 0.5, 3.2 * K, math.pi * 0.9, jitter=0.2)
-        # pençe: geniş, tırnaklı
-        paw = (f[0] + 1.6 * K, f[1] - 0.9 * K)
-        c.ellipse(paw, 3.0 * K, 1.7 * K, mat, z=z + 0.4)
-        for i in range(3):
-            tx = paw[0] + (1.4 + i * 1.1) * K
-            ty = paw[1] + (0.2 + i * 0.35) * K
-            c.poly([(tx - 0.8 * K, ty - 0.6 * K), (tx - 0.8 * K, ty + 0.6 * K), (tx + 1.6 * K, ty + 0.9 * K)], CLAW, z=z + 1.5, bevel=0.6, height=0.5)
-        # topuk ruh alevi (küçük)
-        _flame(c, (k[0] - 1.2 * K, k[1]), math.pi * 1.05 + math.sin(ph + z) * 0.15, 4.2 * K, 1.3 * K, 0.8, z - 0.2, core=False)
+        if front:
+            j1, j2, f = wk.front_leg(c, base, a, K, mat, z, l_old=(9.0, 9.6), sh_mat=mat_sh, claw=CLAW)
+            wk.tufts(c, [lerp2(j1, j2, 0.12), lerp2(base, j1, 0.75)], mat_sh, z - 0.4, 2.6 * K, math.pi * 0.86, jitter=0.25)
+            fl = j2
+        else:
+            j1, j2, f = wk.hind_leg(c, base, a, K, mat, z, l_old=(8.6, 10.2), thigh_r=4.6, sh_mat=mat_sh, claw=CLAW)
+            wk.tufts(c, [lerp2(base, j1, 0.45), lerp2(base, j1, 0.8)], mat_sh, z - 0.5, 3.0 * K, math.pi * 0.8, jitter=0.25)
+            fl = j2
+        # topuk/bilek ruh alevi (küçük), gövdeden gecikmeli titrer
+        _flame(c, (fl[0] - 0.8 * K, fl[1]), math.pi * 1.05 + math.sin(ph - 0.8 + z) * 0.18, 3.6 * K, 1.1 * K, 0.8, z - 0.2, core=False)
         return f
 
     leg(hipp, p['hb'], -8, False)
@@ -242,8 +229,8 @@ def draw_bozkurt(c, p):
     c.capsule((hx_ - 0.5 * K, hy_ - 2.4 * K), (hx_ - 4.0 * K, hy_ - 3.2 * K), 0.6 * K, 0.2 * K, SMANE, z=29)
     c.capsule((hx_ + 0.5 * K, hy_ - 2.9 * K), (hx_ + 4.6 * K, hy_ - 2.2 * K), 0.55 * K, 0.5 * K, SFUR_DD, z=31)
     # savaş boyası: yanakta üç çizgi
-    for i in range(3):
-        c.capsule((hx_ - 0.5 * K + i * 1.4 * K, hy_ + 0.6 * K), (hx_ + 0.6 * K + i * 1.4 * K, hy_ + 3.0 * K), 0.45 * K, 0.4 * K, M['red_paint'], z=27)
+    for i in range(2):
+        c.capsule((hx_ - 0.8 * K + i * 1.5 * K, hy_ + 1.0 * K), (hx_ + 0.2 * K + i * 1.5 * K, hy_ + 2.6 * K), 0.35 * K, 0.3 * K, M['red_paint'], z=27)
 
     leg(hipp, p['hf'], 8, False)
     leg(shp, p['ff'], 8, True)

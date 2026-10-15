@@ -4,6 +4,7 @@ Kullanım:  python export_assets.py            (proje kökü: bu dosyanın iki �
            python export_assets.py --tiles [biyom ...]   yalnızca zemin karoları + toprak dokuları
            python export_assets.py --bg [biyom ...]      yalnızca paralaks arka planları
            python export_assets.py --creatures [kimlik ...]   yalnızca yaratık sprite'ları (varsayılan: hepsi)
+           python export_assets.py --kurt                yalnızca kurt sprite'ları (Bengü, kol, tazı, Han, Bozkurt)
 Sanatçı çizimleri geldiğinde aynı dosya adlarıyla değiştirmek yeterli: oyun JSON meta'yı okur.
 """
 import json
@@ -125,21 +126,14 @@ def main():
     if '--weapons' in sys.argv:
         _weapons_only()
         return
+    if '--kurt' in sys.argv:
+        _kurt_only()
+        return
     if '--creatures' in sys.argv:
         _creatures_only([a for a in sys.argv[1:] if not a.startswith('-')])
         return
-    # kahraman
-    export_sheet('bengu', bengu.ANIMS, lambda an, i: bengu.render_frame(an, i), (96, 80), (44, 74))
-    # oyunda sürülen ön kol parçaları: üst kol, ön kol, yumruk (her biri aşağıyı gösterir, pivot üstte)
-    parts = bengu.render_arm_parts()
-    cw, ch = bengu.ARM_CELL
-    alb = np.zeros((ch, cw * len(parts), 4))
-    for i, pc in enumerate(parts):
-        alb[:, i * cw:(i + 1) * cw] = pc.shade()
-    save(alb, os.path.join(A, 'sprites', 'bengu_kol.png'))
-    json.dump({'cell': [cw, ch], 'pivot': list(bengu.ARM_PIVOT), 'fist_pivot': [bengu.ARM_PIVOT[0], bengu.ARM_PIVOT[1] + 2],
-               'upper_len': bengu.UPPER_LEN, 'fore_len': bengu.FORE_LEN, 'parts': ['upper', 'fore', 'fist', 'upper_b', 'fore_b', 'fist_b']},
-              open(os.path.join(A, 'sprites', 'bengu_kol.json'), 'w', encoding='utf-8'), indent=1)
+    # kahraman + kol iskeleti
+    _export_player()
     # yaratıklar
     for nm_ in creatures.CREATURES:
         _export_creature(nm_)
@@ -184,6 +178,27 @@ def _export_creature(nm_):
     draw, anims, cell, feet = creatures.CREATURES[nm_]
     an2 = {k: (v[0], v[1], k in ('idle', 'run', 'walk')) for k, v in anims.items()}
     export_sheet(nm_, an2, lambda an, i, nm_=nm_: creatures.render_creature(nm_, an, i), cell, feet)
+
+
+def _export_player():
+    export_sheet('bengu', bengu.ANIMS, lambda an, i: bengu.render_frame(an, i), (96, 80), (44, 74))
+    # oyunda sürülen ön kol parçaları: üst kol, ön kol, yumruk (her biri aşağıyı gösterir, pivot üstte)
+    parts = bengu.render_arm_parts()
+    cw, ch = bengu.ARM_CELL
+    alb = np.zeros((ch, cw * len(parts), 4))
+    for i, pc in enumerate(parts):
+        alb[:, i * cw:(i + 1) * cw] = pc.shade()
+    save(alb, os.path.join(A, 'sprites', 'bengu_kol.png'))
+    json.dump({'cell': [cw, ch], 'pivot': list(bengu.ARM_PIVOT), 'fist_pivot': [bengu.ARM_PIVOT[0], bengu.ARM_PIVOT[1] + 2],
+               'upper_len': bengu.UPPER_LEN, 'fore_len': bengu.FORE_LEN, 'parts': ['upper', 'fore', 'fist', 'upper_b', 'fore_b', 'fist_b']},
+              open(os.path.join(A, 'sprites', 'bengu_kol.json'), 'w', encoding='utf-8'), indent=1)
+
+
+def _kurt_only():
+    """v13: yalnızca kurt sprite'ları (Bengü + kol iskeleti, Erlik Tazısı, Kara Börü Han, Bozkurt)."""
+    _export_player()
+    for nm_ in sorted(creatures.VOLUME):
+        _export_creature(nm_)
 
 
 def _creatures_only(names):

@@ -13,28 +13,48 @@ from raster import Canvas, Mat, ramp
 from materials import M
 from rig import fk_leg, fk_arm, lerp2, chain, Xf
 import bozkurt
+import wolfkit as wk
+from volume import VCanvas, soft
+
+# v13: hacimli gölgelendirme kullanan kurt sprite'ları (bkz. volume.py)
+VOLUME = {'kara_boru', 'kara_boru_han', 'bengu_kurt'}
 
 
 # ------------------------------------------------------------ ortak yardımcılar
 class Sq:
     """Ezilme/uzama: noktaları ayak merkezine göre ölçekler (sx, sy) ve dy kadar kaydırır."""
-    def __init__(self, c, sx=1.0, sy=1.0, dy=0.0):
+    def __init__(self, c, sx=1.0, sy=1.0, dy=0.0, zk=1.0):
         self.c, self.sx, self.sy, self.dy = c, sx, sy, dy
         self.k = (sx + sy) * 0.5
+        self.zk = zk  # büyütülmüş parçaların kabarıklığı küçük ayrıntıları örtmesin diye z de ölçeklenebilir
 
     def P(self, p):
         return (p[0] * self.sx, p[1] * self.sy + self.dy)
 
+    def _z(self, kw):
+        if self.zk != 1.0 and 'z' in kw:
+            kw['z'] = kw['z'] * self.zk
+        return kw
+
     def capsule(self, p0, p1, r0, r1, mat, **kw):
-        self.c.capsule(self.P(p0), self.P(p1), r0 * self.k, r1 * self.k, mat, **kw)
+        self.c.capsule(self.P(p0), self.P(p1), r0 * self.k, r1 * self.k, mat, **self._z(kw))
 
     def ellipse(self, c_, rx, ry, mat, **kw):
-        self.c.ellipse(self.P(c_), rx * self.sx, ry * self.sy, mat, **kw)
+        self.c.ellipse(self.P(c_), rx * self.sx, ry * self.sy, mat, **self._z(kw))
 
     def poly(self, pts, mat, **kw):
-        self.c.poly([self.P(q) for q in pts], mat, **kw)
+        if self.zk != 1.0:
+            kw.setdefault('bevel', 1.6)
+            kw.setdefault('height', 1.5)
+            kw['bevel'] *= self.k
+            kw['height'] *= self.k
+        self.c.poly([self.P(q) for q in pts], mat, **self._z(kw))
 
     def dot(self, p, mat, **kw):
+        if self.zk != 1.0:
+            # büyütülmüş tek piksel: küçük elips (dişler, perçinler)
+            self.c.ellipse(self.P(p), 0.5 * self.k, 0.5 * self.k, mat, **self._z(kw))
+            return
         self.c.dot(self.P(p), mat, **kw)
 
 
@@ -77,123 +97,153 @@ def keyed(t, frames):
 
 
 # ------------------------------------------------------------ ERLİK TAZISI (kimlik: kara_boru)
-HOUND = Mat(ramp(266, 0.22, 0.29, spread=0.45), name='tazı postu')
-HOUND_D = Mat(ramp(270, 0.30, 0.20, spread=0.4), name='tazı sırtı')
+HOUND = Mat(ramp(266, 0.24, 0.31, spread=0.5), name='tazı postu')
+HOUND_D = Mat(ramp(270, 0.30, 0.205, spread=0.45), name='tazı sırtı')
 HOUND_RIB = Mat(ramp(258, 0.14, 0.46, spread=0.4), name='kaburga çıkıntısı')
-SMOKE = Mat(ramp(262, 0.14, 0.26, spread=0.35), name='duman yele')
+SMOKE = Mat(ramp(262, 0.16, 0.24, spread=0.4), name='duman yele')
 BONE_D = Mat(ramp(34, 0.22, 0.68, spread=0.4), name='eski kemik')
 EMBER = Mat(ramp(26, 0.95, 1.0, spread=0.2), emissive=1.0, outline='#3a0c02', name='kor')
 EMBER_D = Mat(ramp(12, 0.90, 0.88, spread=0.25), emissive=0.7, outline='#2a0602', name='sönük kor')
 RUST = Mat(ramp(18, 0.34, 0.52, spread=0.45), spec=0.4, name='paslı zincir')
+CLAW_H = Mat(ramp(30, 0.20, 0.75, spread=0.4), name='tazı tırnağı')
+soft(HOUND, 0.55, 0.45, 1.0); soft(HOUND_D, 0.6, 0.5, 1.0); soft(SMOKE, 0.6, 0.5, 0.7)
 
 
 def draw_hound(c, p):
-    """Erlik Tazısı: yeraltının sıska kara tazısı. Kemik kafa zırhı, sırtta omur plakaları, çıkık kaburgalar,
-    dumanlı yele (uçları kor), kırık zincirli tasma; gözleri ve ağzı kor gibi yanar."""
+    """Erlik Tazısı (v13): yeraltının sıska ama güçlü kara tazısı. Derin göğüs, içe çekik bel, kaslı omuz ve
+    kalça; üç eklemli bacaklar (dirsek geride, topuk geride), geniş pençeler. Kemik alın zırhı, sırtta omur
+    plakaları, çıkık kaburgalar, dumanlı yele (uçları kor), kırık zincirli tasma; gözleri ve ağzı kor gibi yanar.
+    Uzak bacaklar koyu postla ve gövdenin arkasında; kulak, yele ve kuyruk gövdeden gecikmeli salınır."""
     bob, tilt, jaw = p.get('bob', 0.0), p.get('tilt', 0.0), p.get('jaw', 0.0)
     ph = p.get('ph', 0.0)
+    # koşuda ezilme/uzama: yere basışta gövde hafif basılır, uçuşta uzar (ayak merkezine göre)
+    sq = p.get('sq', 0.0)
+    sqx, sqy = 1.0 + 0.06 * sq, 1.0 - 0.07 * sq
+    if sq:
+        c = Sq(c, sqx, sqy, 0.0)
     hipp = (-10.0, -19.0 + bob - tilt * 6)
     shp = (8.5, -20.5 + bob + tilt * 6)
-    back_dark = lambda lu, lv, px, py: lv < -0.45
+    back_dark = lambda lu, lv, px, py: lv < -0.55
+    belly_dark = lambda lu, lv, px, py: lv > 0.6
 
-    def leg(base, a, z, front):
-        l1, l2 = (9.0, 10.0) if front else (9.0, 10.5)
-        k, f = fk_leg(base, a[0], a[1], l1, l2)
-        mat = HOUND if z > 0 else HOUND_D
-        c.capsule(base, k, 3.0 if front else 3.7, 1.6, mat, z=z)
-        c.capsule(k, f, 1.5, 1.1, mat, z=z)
-        c.ellipse(k, 1.2, 1.2, BONE_D if z > 0 else HOUND_D, z=z + 1.5)
-        c.ellipse((f[0] + 1.2, f[1] - 0.9), 2.2, 1.3, mat, z=z + 0.1)
-        for i in range(2):
-            c.dot((f[0] + 2.9, f[1] - 1.6 + i * 1.0), M['bone'], z=z + 3)
+    def legs(near):
+        z = 8 if near else -8
+        mat = HOUND if near else HOUND_D
+        shm = HOUND_D if near else SMOKE
+        hip_j = (hipp[0] + 0.5, hipp[1] + 0.5)
+        sh_j = (shp[0] + 0.8, shp[1] + 1.5)
+        a_h = p['hf'] if near else p['hb']
+        a_f = p['ff'] if near else p['fb']
+        k, hk, f = wk.hind_leg(c, hip_j, a_h, 1.0, mat, z, thigh_r=4.4 if near else 3.8, sh_mat=shm, claw=CLAW_H)
+        # uyluk arkası tüy fırçası (pantolon)
+        wk.tufts(c, [wk.lerp(hip_j, k, 0.35), wk.lerp(hip_j, k, 0.7)], shm, z - 0.4, 3.0, math.pi * 0.72, jitter=0.25)
+        e, w, f2 = wk.front_leg(c, sh_j, a_f, 1.0, mat, z, sh_mat=shm, claw=CLAW_H)
+        wk.tufts(c, [wk.lerp(e, w, 0.15)], shm, z - 0.2, 2.4, math.pi * 0.85, jitter=0.2)
+        if near:
+            c.ellipse(k, 1.1, 1.1, BONE_D, z=z + 4.5)   # dizde kemik çıkıntısı
         return f
 
-    leg(hipp, p['hb'], -8, False)
-    leg(shp, p['fb'], -8, True)
-    # kuyruk: ince, dumanlı, ucu kor
-    tl = chain((hipp[0] - 5, hipp[1] - 3), 4, 3.0, math.pi * 1.1 + p.get('tw', 0.0), -0.1, ph, 0.3)
-    strand(c, tl, 2.2, 1.6, HOUND_D, -6)
-    for k, da in enumerate((-0.35, 0.0, 0.4)):
-        tt = chain(tl[-1], 3, 2.2 - abs(da), math.pi * 1.1 + p.get('tw', 0.0) * 1.3 + da, -0.1, ph + k, 0.4)
-        strand(c, tt, 1.5, 0.5, SMOKE, -6 + k * 0.1, tip=EMBER_D if k == 1 else None)
-    # gövde: dar bel, derin göğüs, kaburgalar
-    ribs = lambda lu, lv, px, py: (np.floor((px - py * 0.35) * 0.5) % 2 == 0) & (lv > -0.15) & (lv < 0.75) & (lu < 0.35) & (lu > -0.95)
-    rib_w = lambda lu, lv, px, py: (np.floor((px - py * 0.35) * 0.5) % 2 == 0) & (lv > -0.1) & (lu > 0.35)
-    c.ellipse((hipp[0], hipp[1] - 0.5), 6.4, 6.6, HOUND, z=0, paint=[(back_dark, HOUND_D)])
-    c.capsule((hipp[0] + 2, hipp[1] - 2.2), (shp[0] - 2, shp[1] + 0.5), 4.0, 6.4, HOUND, z=1, paint=[(back_dark, HOUND_D)])
-    c.ellipse((shp[0] + 0.5, shp[1] + 1.2), 7.0, 8.4, HOUND, z=2, paint=[(back_dark, HOUND_D), (ribs, HOUND_RIB)])
+    legs(False)
+    # kuyruk: kalın kök, dumanlı uç, ucu kor; gövdeden gecikmeli kıvrılır
+    tw = p.get('tw', 0.0)
+    tl = chain((hipp[0] - 4.5, hipp[1] - 3.2), 5, 3.0, math.pi * 1.06 + tw, -0.2, ph - 0.9, 0.32)
+    strand(c, tl, 2.6, 1.5, HOUND_D, -6)
+    wk.tufts(c, tl[1:4], SMOKE, -6.2, 2.6, math.pi * 1.35 + tw, jitter=0.3)
+    for k_, da in enumerate((-0.35, 0.0, 0.4)):
+        tt = chain(tl[-1], 3, 2.2 - abs(da), math.pi * 1.1 + tw * 1.3 + da, -0.1, ph - 1.4 + k_, 0.45)
+        strand(c, tt, 1.5, 0.5, SMOKE, -6 + k_ * 0.1, tip=EMBER_D if k_ == 1 else None)
+    # ------------------------------------------------ gövde: kalça, içe çekik bel, derin göğüs, omuz tümseği
+    ribs = lambda lu, lv, px, py: (np.floor((px - py * 0.35) * 0.5) % 2 == 0) & (lv > 0.0) & (lv < 0.7) & (lu < 0.3) & (lu > -0.75)
+    c.ellipse((hipp[0], hipp[1] - 0.5), 6.0, 6.2, HOUND, z=0, paint=[(back_dark, HOUND_D)])
+    c.capsule((hipp[0] + 1.5, hipp[1] - 2.4), (shp[0] - 3.0, shp[1] - 0.8), 4.3, 6.4, HOUND, z=1, paint=[(back_dark, HOUND_D), (belly_dark, HOUND_D)])
+    c.ellipse((shp[0] + 0.5, shp[1] + 1.8), 7.4, 8.3, HOUND, z=2, rot=-0.18, paint=[(back_dark, HOUND_D), (ribs, HOUND_RIB)])
+    c.ellipse((shp[0] - 2.5, shp[1] - 4.6), 6.0, 3.4, HOUND, z=2.5, paint=[(back_dark, HOUND_D)])
+    # karın saçağı + göğüs tüyü
+    bp = [wk.lerp((hipp[0] + 3.0, hipp[1] + 3.2), (shp[0] - 2.0, shp[1] + 8.6), t) for t in (0.15, 0.45, 0.75)]
+    wk.tufts(c, bp, HOUND_D, 9.6, 2.6, math.pi * 0.7, jitter=0.25)
+    wk.tufts(c, [(shp[0] + 6.5, shp[1] + 2.0), (shp[0] + 6.0, shp[1] + 5.5), (shp[0] + 4.0, shp[1] + 8.4)], HOUND, 9.7, 2.8, math.pi * 0.35, jitter=0.3)
     # leğen kemiği plakası
     hx0, hy0 = hipp
-    c.poly([(hx0 - 4.5, hy0 - 4.5), (hx0 + 2.5, hy0 - 6.8), (hx0 + 4.0, hy0 - 4.2), (hx0 - 2.0, hy0 - 2.2)], BONE_D, z=10, bevel=1.0, height=1.2)
-    # omur plakaları
-    for k in range(6):
-        t = 0.12 + k * 0.155
-        bx, by = lerp2(hipp, shp, t)
-        r_t = 6.6 + 0.8 * t - 6.5 * t * (1 - t)
-        by = by - r_t + 1.6
-        h = 3.0 + (1.2 if k in (2, 3) else 0.0)
-        c.poly([(bx - 2.0, by + 1.2), (bx + 1.4, by + 1.2), (bx - 0.4, by - h), (bx - 1.8, by - h + 1.2)], M['bone'], z=9, bevel=0.9, height=1.0)
-    # dumanlı yele (boyun üstünden geriye taşar, uçları kor)
+    c.poly([(hx0 - 4.0, hy0 - 4.6), (hx0 + 2.5, hy0 - 6.6), (hx0 + 3.8, hy0 - 4.4), (hx0 - 1.8, hy0 - 2.8)], BONE_D, z=10, bevel=1.0, height=1.2)
+    # omur plakaları (sırt çizgisi boyunca, küçülen)
+    for k_ in range(5):
+        t = 0.16 + k_ * 0.17
+        bx, by = wk.lerp(hipp, shp, t)
+        r_t = 6.4 + 0.8 * t - 6.0 * t * (1 - t)
+        by = by - r_t + 1.4
+        h = 2.6 + (1.0 if k_ in (2, 3) else 0.0)
+        c.poly([(bx - 1.7, by + 1.0), (bx + 1.2, by + 1.0), (bx - 0.3, by - h), (bx - 1.5, by - h + 1.0)], M['bone'], z=9, bevel=0.9, height=1.0)
+    # dumanlı yele: boyun üstünden geriye taşar; uçları kor, gövdeden gecikmeli dalgalanır
     hy0_ = p.get('hy', 0.0)
-    for k in range(6):
-        t = k / 5
-        bx, by = lerp2((shp[0] - 5, shp[1] - 6.0), (shp[0] + 8, shp[1] - 9.5 + hy0_), t)
-        ang = math.pi * 1.15 + math.sin(ph + k * 1.3) * 0.16 + p.get('mane', 0.0)
-        L = 8.0 + (k % 2) * 3.0 - t * 2.0
-        st = chain((bx, by), 4, L / 4, ang, 0.16, ph + k, 0.25)
-        strand(c, st, 2.4, 0.6, SMOKE, 11 + k * 0.3, tip=EMBER_D if k % 2 else None)
-    # boyun + baş
+    for k_ in range(6):
+        t = k_ / 5
+        bx, by = wk.lerp((shp[0] - 4, shp[1] - 6.6), (shp[0] + 7, shp[1] - 9.0 + hy0_), t)
+        ang = math.pi * 1.15 + math.sin(ph - 0.8 + k_ * 1.3) * 0.16 + p.get('mane', 0.0)
+        L = 6.5 + (k_ % 2) * 3.0 - t * 2.0
+        st = chain((bx, by), 4, L / 4, ang, 0.16, ph - 0.8 + k_, 0.25)
+        strand(c, st, 1.9, 0.5, SMOKE, 11 + k_ * 0.3, tip=EMBER_D if k_ % 2 else None)
+    # ------------------------------------------------ boyun + baş
     head = (shp[0] + 9.5, shp[1] - 5.5 + hy0_)
     nb = (shp[0] + 2, shp[1] - 3)
-    c.capsule(nb, head, 4.6, 3.8, HOUND, z=4, paint=[(back_dark, HOUND_D)])
+    c.capsule(nb, head, 5.0, 3.9, HOUND, z=4, paint=[(back_dark, HOUND_D), (belly_dark, HOUND_D)])
     hx_, hy_ = head
-    c.ellipse(head, 4.8, 4.0, HOUND, z=6, paint=[(back_dark, HOUND_D)])
-    # yırtık kulak, geriye yatık
-    c.poly([(hx_ - 2.5, hy_ - 2.6), (hx_ + 0.4, hy_ - 3.4), (hx_ - 7.8, hy_ - 7.4), (hx_ - 6.0, hy_ - 5.2), (hx_ - 6.8, hy_ - 4.4)], HOUND_D, z=7, bevel=1.0, height=1.2)
-    sn = (hx_ + 11.0, hy_ + 1.8)
-    c.capsule((hx_ + 2, hy_ + 0.4), sn, 3.0, 1.6, HOUND, z=8)
-    # ağız: içi kor; çene açılınca parlar
+    # boyun altı / yanak tüyü (ruff)
+    wk.tufts(c, [(hx_ - 2.5, hy_ + 2.8), (hx_ - 4.2, hy_ + 1.2), (hx_ - 0.8, hy_ + 3.6)], HOUND, 12.5, 3.0, math.pi * 0.72, jitter=0.35)
+    c.ellipse((hx_ - 0.3, hy_), 5.2, 4.5, HOUND, z=6, rot=-0.1)
+    # kulaklar: uzak kulak koyu; kulaklar başın ardından gecikmeli oynar
+    ear = p.get('ear', 0.0) + math.sin(ph - 1.2) * 0.12
+    for (ox, mat, zz, ln) in ((-2.6, HOUND_D, 5.5, 6.4), (-0.6, HOUND, 13.0, 6.8)):
+        e0 = (hx_ + ox, hy_ - 2.8)
+        a = -math.pi * 0.5 - 0.75 - ear
+        tip = (e0[0] + math.cos(a) * ln, e0[1] + math.sin(a) * ln)
+        c.poly([(e0[0] - 2.0, e0[1] + 1.0), (e0[0] + 2.0, e0[1] + 0.2), tip], mat, z=zz, bevel=1.0, height=1.4)
+        if mat is HOUND:
+            c.poly([(e0[0] - 0.8, e0[1] + 0.4), (e0[0] + 0.9, e0[1]), wk.lerp(e0, tip, 0.65)], EMBER_D, z=zz + 0.4, bevel=0.5, height=0.3)
+    # burun: kama; alt çene ayrı
+    sn = (hx_ + 10.6, hy_ + 1.7)
+    c.capsule((hx_ + 1.8, hy_ + 0.4), sn, 3.4, 1.7, HOUND, z=8, paint=[(belly_dark, HOUND_D)])
     jd = jaw * 3.6
-    j1 = (hx_ + 9.6, hy_ + 3.8 + jd)
+    j1 = (hx_ + 9.4, hy_ + 3.8 + jd)
     c.poly([(hx_ + 2.5, hy_ + 2.0), (sn[0] - 0.5, sn[1] + 0.9), (j1[0], j1[1] - 0.6), (hx_ + 2.5, hy_ + 3.4 + jd * 0.4)], EMBER, z=7.9, bevel=0.5, height=0.3)
-    c.capsule((hx_ + 2, hy_ + 3.2), j1, 1.6, 1.0, HOUND_D, z=7.5)
+    c.capsule((hx_ + 1.6, hy_ + 3.0), j1, 1.9, 1.0, HOUND_D, z=7.5)
     if jaw > 0.15:
         for i in range(3):
             c.dot((hx_ + 4.6 + i * 1.8, hy_ + 2.4), M['bone'], z=30)
             c.dot((hx_ + 4.8 + i * 1.6, hy_ + 2.6 + jd * (0.55 + i * 0.12)), M['bone'], z=30)
-    # kemik kafa zırhı: alın + burun sırtı
-    c.poly([(hx_ - 2.2, hy_ - 3.8), (hx_ + 3.5, hy_ - 4.0), (hx_ + 11.2, hy_ + 0.1), (hx_ + 10.6, hy_ + 1.0), (hx_ + 4.0, hy_ - 0.9), (hx_ - 1.6, hy_ - 1.0)],
+    # kemik kafa zırhı: alın plakası + burun sırtı şeridi (başın hacmi okunsun diye dar)
+    c.poly([(hx_ - 2.8, hy_ - 4.0), (hx_ + 2.8, hy_ - 4.6), (hx_ + 5.0, hy_ - 2.2), (hx_ + 0.4, hy_ - 1.5), (hx_ - 2.2, hy_ - 1.8)],
            M['bone'], z=14, bevel=1.0, height=1.2)
-    c.ellipse((sn[0] + 0.4, sn[1] - 0.2), 1.1, 0.9, M['black'], z=24)
-    c.ellipse((hx_ + 2.2, hy_ - 1.5), 1.9, 1.2, M['black'], z=24)
-    c.capsule((hx_ + 1.4, hy_ - 1.5), (hx_ + 3.2, hy_ - 1.3), 0.75, 0.6, EMBER, z=28)
+    c.poly([(hx_ + 3.4, hy_ - 3.0), (hx_ + 11.0, hy_ + 0.1), (hx_ + 10.6, hy_ + 1.1), (hx_ + 3.6, hy_ - 1.2)], M['bone'], z=14, bevel=0.7, height=0.8)
+    c.ellipse((sn[0] + 0.4, sn[1] - 0.2), 1.15, 0.95, M['black'], z=24)
+    c.ellipse((hx_ + 2.2, hy_ - 1.1), 1.9, 1.2, M['black'], z=24)
+    c.capsule((hx_ + 1.4, hy_ - 1.1), (hx_ + 3.2, hy_ - 0.9), 0.75, 0.6, EMBER, z=28)
     # kırık zincirli tasma
     dx, dy = head[0] - nb[0], head[1] - nb[1]
     ln = math.hypot(dx, dy) + 1e-6
     nx, ny = -dy / ln, dx / ln
-    cc = lerp2(nb, head, 0.55)
-    a0 = (cc[0] - nx * 4.4, cc[1] - ny * 4.4); a1 = (cc[0] + nx * 4.4, cc[1] + ny * 4.4)
-    c.capsule(a0, a1, 1.6, 1.6, RUST, z=16)
-    for s in (-0.25, 0.25, 0.75):
-        c.dot((cc[0] + nx * 4.4 * s, cc[1] + ny * 4.4 * s), M['iron'], z=22)
-    sw = math.sin(ph * 1.0 + 0.8) * 0.35 + tilt * 1.5 + p.get('chain', 0.0)
+    cc = lerp2(nb, head, 0.5)
+    a0 = (cc[0] - nx * 4.6, cc[1] - ny * 4.6); a1 = (cc[0] + nx * 4.6, cc[1] + ny * 4.6)
+    c.capsule(a0, a1, 1.5, 1.5, RUST, z=16)
+    for s_ in (-0.25, 0.25, 0.75):
+        c.dot((cc[0] + nx * 4.6 * s_, cc[1] + ny * 4.6 * s_), M['iron'], z=22)
+    sw = math.sin(ph - 0.6) * 0.35 + tilt * 1.5 + p.get('chain', 0.0)
     q = a1
     for i in range(3):
-        nq = (q[0] + math.sin(sw) * 2.0, q[1] + math.cos(sw) * 2.0)
+        nq = (q[0] + math.sin(sw - i * 0.15) * 2.0, q[1] + math.cos(sw - i * 0.15) * 2.0)
         if i % 2 == 0:
             c.ellipse(lerp2(q, nq, 0.5), 1.0, 1.3, M['iron'], z=17 + i)
         else:
             c.ellipse(lerp2(q, nq, 0.5), 0.8, 1.2, RUST, z=17 + i)
         q = nq
-    leg(hipp, p['hf'], 8, False)
-    leg(shp, p['ff'], 8, True)
-    return {'mouth': (hx_ + 10, hy_ + 2.6 + jd * 0.5)}
+    legs(True)
+    return {'mouth': ((hx_ + 10) * sqx, (hy_ + 2.6 + jd * 0.5) * sqy)}
 
 
 def _hound_run(t):
     ph = t * math.tau
     s, s2 = math.sin(ph), math.sin(ph + 0.6)
-    return dict(bob=-abs(math.cos(ph)) * 1.6 + 0.5, tilt=0.13 * math.sin(ph), hy=1.0 + 0.6 * math.sin(ph),
+    return dict(bob=-abs(math.cos(ph)) * 1.6 + 0.5, tilt=0.13 * math.sin(ph), hy=1.0 + 0.6 * math.sin(ph - 0.5),
+                sq=1.0 - 2.0 * abs(math.cos(ph)), ear=0.25 + 0.15 * math.sin(ph - 1.0),
                 hb=(0.95 * s, 0.9 - 0.4 * s), hf=(0.95 * s2, 0.9 - 0.4 * s2), mane=0.15,
                 fb=(-0.95 * s + 0.1, 0.2 + 0.8 * max(0, s)), ff=(-0.95 * s2 + 0.1, 0.2 + 0.8 * max(0, s2)), tw=-0.25, ph=ph, jaw=0.3)
 
@@ -962,7 +1012,11 @@ def render_creature(name, anim, i):
     n, fn = anims[anim]
     t = i / n
     p = fn(t)
-    c = Canvas(cell[0], cell[1], feet[0], feet[1])
+    c = (VCanvas if name in VOLUME else Canvas)(cell[0], cell[1], feet[0], feet[1])
+    if name == 'kara_boru_han':
+        c.zscale = 2.3
+    if name in ('kara_boru', 'kara_boru_han'):
+        c.shade_kw = {'rim_th': 0.42, 'rim_amt': 0.4}   # koyu post: sırtta ay ışığı kenarı hacmi okutur
     info = draw(c, p)
     rgba = c.shade()
     nm = c.normal_map(rgba[..., 3])
