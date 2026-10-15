@@ -16,6 +16,7 @@ extends RefCounted
 ##   slash / ring      yay izi ve genişleyen halka
 
 static var root: Node2D
+static var dust_col := Color(0.62, 0.58, 0.6, 0.55)  # v11: biyom zemin tozu (Level ayarlar)
 static var level: Node
 static var _label_settings: Dictionary = {}
 static var _dot_tex: Texture2D
@@ -191,9 +192,11 @@ static func blood(pos: Vector2, dir: Vector2, col: Color, amount := 10) -> void:
 
 
 static func dust(pos: Vector2, dir: Vector2, amount := 5, size := 0.32, col := Color(0.62, 0.58, 0.6, 0.55)) -> void:
-	## Toz: yavaş, yukarı süzülen, büyüyerek solan soluk bulut.
+	## Toz: yavaş, yukarı süzülen, büyüyerek solan soluk bulut. Varsayılan renk biyomun zemin tozudur.
 	if root == null:
 		return
+	if col == Color(0.62, 0.58, 0.6, 0.55):
+		col = dust_col
 	var p := _particles(pos, col, amount, 0.55, false, 30, "k_smoke2")
 	p.direction = dir.normalized() if dir.length() > 0.01 else Vector2.UP
 	p.spread = 50.0

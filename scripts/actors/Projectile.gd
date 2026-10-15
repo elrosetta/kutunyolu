@@ -66,6 +66,13 @@ func _ready() -> void:
 		if arrow_variant == "":
 			arrow_variant = "dusman" if team != "p" else {"altin": "altin", "od": "od", "sel": "sel", "kizil": "kizil"}.get(fx_kind, "normal")
 		_set_arrow_frame(velocity.angle())
+	if kind in ["fireball", "ground_wave"]:
+		var gm2 := CanvasItemMaterial.new()
+		gm2.blend_mode = CanvasItemMaterial.BLEND_MODE_ADD
+		gm2.light_mode = CanvasItemMaterial.LIGHT_MODE_UNSHADED
+		material = gm2
+		if level and level.has_method("add_light"):
+			level.add_light(Vector2.ZERO, Color(1.0, 0.55, 0.2) if kind == "fireball" else get_meta("col", Color(1, 0.8, 0.5)), 60.0, 0.8, self)
 	if kind in ["spore", "eagle", "curse"]:
 		var gm := CanvasItemMaterial.new()
 		gm.blend_mode = CanvasItemMaterial.BLEND_MODE_ADD
@@ -166,6 +173,14 @@ func _physics_process(delta: float) -> void:
 				return
 	velocity.y += gravity * delta
 	var next := position + velocity * delta
+	if kind == "ground_wave":
+		# zemine yapışık ilerler: önü duvar ise biter; altı boşsa aşağı iner
+		if level.solid_at(Vector2(next.x + signf(velocity.x) * 8.0, position.y)):
+			FX.dust(position, Vector2(-signf(velocity.x), -0.5), 4, 0.3)
+			queue_free()
+			return
+		if not level.solid_at(Vector2(next.x, position.y + 18.0)):
+			next.y += 6.0
 	if level.solid_at(next) and return_px > 0.0 and not returning:
 		_start_return()
 		return
@@ -219,6 +234,10 @@ func _physics_process(delta: float) -> void:
 		"sel":
 			if int(_t * 60.0) % 3 == 0:
 				FX.burst(global_position, Color(0.55, 0.85, 1.0), 1, 25, 0.4, 0.15, -20, true)
+	if kind == "fireball" and int(_t * 60.0) % 2 == 0:
+		FX.fire(global_position, 1, 0.3, 2.0)
+	if kind == "ground_wave" and int(_t * 60.0) % 3 == 0:
+		FX.dust(global_position + Vector2(0, 14), Vector2(-signf(velocity.x), -0.6), 1, 0.26)
 	if kind in ["bomb", "pot"] and int(_t * 60.0) % 3 == 0:
 		FX.burst(global_position, Color(1.0, 0.6, 0.2) if kind == "bomb" else Color(1.0, 0.45, 0.1), 1, 20, 0.3, 0.14, -40, true)
 	queue_redraw()
@@ -269,6 +288,12 @@ func _physics_process(delta: float) -> void:
 					FX.anim("acid_splash", position, 0.0, 0.8, Color(0.7, 1.0, 0.4))
 					if pl.has_method("apply_poison"):
 						pl.apply_poison(3.0)
+				elif kind == "fireball":
+					FX.fire(position, 10, 0.4, 6.0)
+					FX.anim("warm_explosion", position, 0.0, 0.6, Color(1.0, 0.7, 0.4))
+				elif kind == "ice":
+					FX.frost(position, 6)
+					FX.anim("frost_nova", position, 0.0, 0.5, Color(0.7, 0.9, 1.0))
 				else:
 					FX.burst(position, Color(0.7, 1.0, 0.3), 6, 60, 0.3, 0.2, 100, true)
 				queue_free()
@@ -383,5 +408,33 @@ func _draw() -> void:
 			draw_colored_polygon(PackedVector2Array([Vector2(8, 0), Vector2(-4, -8), Vector2(-1, 0), Vector2(-4, 8)]), Color(0.5, 0.95, 1.2, 0.85))
 		"root":
 			draw_rect(Rect2(-3, -10, 6, 10), Color(0.45, 0.3, 0.2))
+		"stone_big":
+			# kaya: koyu taş, kenarda kristal parıltı (iz rengi)
+			var pts := PackedVector2Array()
+			for i in 7:
+				var a := i * TAU / 7.0
+				pts.append(Vector2(cos(a), sin(a)) * (6.0 + 1.5 * sin(a * 3.0)))
+			draw_colored_polygon(pts, Color(0.38, 0.35, 0.36))
+			draw_colored_polygon(PackedVector2Array([pts[0] * 0.5, pts[2] * 0.5, pts[4] * 0.4]), Color(0.55, 0.52, 0.5))
+			if trail_col.a > 0.0:
+				draw_circle(Vector2(2, -2), 1.5, Color(trail_col, 0.9))
+		"ice":
+			# buz sarkıtı: düşüş yönünde sivri
+			var d := velocity.normalized()
+			var n := Vector2(-d.y, d.x)
+			draw_colored_polygon(PackedVector2Array([d * 9.0, n * 3.5 - d * 4.0, -d * 7.0, -n * 3.5 - d * 4.0]), Color(0.7, 0.92, 1.0))
+			draw_colored_polygon(PackedVector2Array([d * 7.0, n * 1.2, -d * 3.0, -n * 1.2]), Color(0.95, 1.0, 1.0))
+		"fireball":
+			var pulse := 1.0 + sin(_t * 22.0) * 0.2
+			draw_circle(Vector2.ZERO, 8.0 * pulse, Color(1.0, 0.35, 0.05, 0.25))
+			draw_circle(Vector2.ZERO, 5.0 * pulse, Color(1.0, 0.6, 0.15, 0.7))
+			draw_circle(Vector2.ZERO, 2.8, Color(1.0, 0.95, 0.7))
+		"ground_wave":
+			# yerden yükselen dalga: titreşen sütunlar
+			var col: Color = get_meta("col", Color(1.0, 0.8, 0.5))
+			for i in 5:
+				var hh := 10.0 + 14.0 * absf(sin(_t * 14.0 + i * 1.3))
+				draw_rect(Rect2(-10 + i * 4, 14 - hh, 3, hh), Color(col, 0.75 - i * 0.08))
+			draw_rect(Rect2(-12, 12, 24, 2), Color(col.lightened(0.4), 0.9))
 		_:
 			draw_circle(Vector2.ZERO, 3.0, Color(1, 1, 1))

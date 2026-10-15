@@ -69,7 +69,7 @@ var perch := Vector2.ZERO  # pusu: beklediği yer
 var _label: Label
 var _hidden := false     # gölge (stalker): görünmez
 ## Düşmana özgü sıçrantı rengi (tazı: kor; çor: zehir yeşili; iye: Erlik moru özsu; balbal: taş tozu; kam: lanet moru; gulyabani: ölü irin)
-const BLOOD := {"kara_boru": Color(0.95, 0.42, 0.12), "cor": Color(0.55, 0.85, 0.2), "agac_iyesi": Color(0.6, 0.28, 0.72), "balbal": Color(0.6, 0.6, 0.66),
+const BLOOD := {"tepegoz": Color(0.75, 0.25, 0.2), "sahmeran_ana": Color(0.5, 1.0, 0.4), "yelbegen": Color(0.6, 0.9, 1.0), "erlik_han": Color(1.0, 0.45, 0.15), "kara_boru": Color(0.95, 0.42, 0.12), "cor": Color(0.55, 0.85, 0.2), "agac_iyesi": Color(0.6, 0.28, 0.72), "balbal": Color(0.6, 0.6, 0.66),
 		"arcura": Color(0.7, 0.25, 0.9), "surale": Color(0.5, 0.55, 0.42), "bekci": Color(0.55, 0.5, 0.45), "tosbaga": Color(0.45, 0.6, 0.3), "kara_boru_han": Color(0.8, 0.1, 0.2)}
 
 
@@ -104,6 +104,22 @@ func setup(k: String, is_elite: bool, tier: int) -> void:
 			heavy = true
 		"kara_boru_han":
 			size = Vector2(120, 66)
+			heavy = true
+			is_boss = true
+		"tepegoz":
+			size = Vector2(64, 150)
+			heavy = true
+			is_boss = true
+		"sahmeran_ana":
+			size = Vector2(80, 120)
+			heavy = true
+			is_boss = true
+		"yelbegen":
+			size = Vector2(66, 160)
+			heavy = true
+			is_boss = true
+		"erlik_han":
+			size = Vector2(60, 150)
 			heavy = true
 			is_boss = true
 		"kara_boru":
@@ -456,6 +472,52 @@ func _die_sfx() -> String:
 var _hit_tilt := 0.0
 var _slam_t := 0.0
 var _bounced := false
+# v11 doğal hareket: ölçek ve eğilme yaylarla (hafif aşma, salınarak oturur)
+var _sv := Vector2.ZERO
+var _lean := 0.0
+var _lean_v := 0.0
+var _tumble := 0.0
+var _was_floor := true
+var _prev_vy := 0.0
+var _last_facing := 1
+var _breath_ph := randf() * TAU
+
+
+func _motion(delta: float) -> void:
+	## İkincil hareket: squash/stretch yayı, hıza göre öne eğilme, nefes, havada uzama, iniş ezilmesi, dönüş sıkışması.
+	var k := 200.0 if heavy else 320.0
+	var c := 13.0 if heavy else 16.5
+	_sv += ((Vector2.ONE - vis_scale) * k - _sv * c) * delta
+	vis_scale += _sv * delta
+	var fl := is_on_floor()
+	var sy := 1.0
+	if fl and absf(velocity.x) < 20.0:
+		sy += (0.012 if heavy else 0.02) * sin(Time.get_ticks_msec() * (0.0019 if heavy else 0.0026) + _breath_ph)
+	elif not fl and not flying:
+		sy += clampf(absf(velocity.y) / 2600.0, 0.0, 0.14)
+	anim.scale = base_scale * vis_scale * Vector2(1.0 / sqrt(sy), sy)
+	var tgt := clampf(velocity.x / maxf(speed, 60.0), -1.8, 1.8) * (0.15 if flying else (0.045 if heavy else 0.075))
+	if flying:
+		tgt += clampf(velocity.y / 400.0, -0.3, 0.3) * 0.12 * float(facing)
+	_lean_v += ((tgt - _lean) * 170.0 - _lean_v * 17.0) * delta
+	_lean += _lean_v * delta
+	_hit_tilt = lerpf(_hit_tilt, 0.0, clampf(delta * 12.0, 0.0, 1.0))
+	if launch_t <= 0.0:
+		_tumble = lerpf(_tumble, 0.0, clampf(delta * 9.0, 0.0, 1.0))
+	anim.rotation = _hit_tilt + _lean + _tumble
+	if fl and not _was_floor and _prev_vy > 150.0 and not flying:
+		var q := clampf(_prev_vy / 650.0, 0.0, 1.0) * (0.7 if heavy else 1.0)
+		vis_scale = Vector2(1.0 + 0.38 * q, 1.0 - 0.32 * q)
+		_sv = Vector2.ZERO
+		FX.dust(global_position, Vector2.UP, int(2 + 6 * q), 0.24 + 0.14 * q)
+		if heavy and q > 0.4:
+			Game.shake(1.5 + 3.0 * q)
+	_was_floor = fl
+	_prev_vy = velocity.y
+	if facing != _last_facing:
+		_last_facing = facing
+		vis_scale.x *= 0.8
+		vis_scale.y *= 1.06
 
 
 func _wall_slam() -> void:
@@ -487,10 +549,7 @@ func _physics_process(delta: float) -> void:
 	_tick_status(delta)
 	if dead:
 		return
-	vis_scale = vis_scale.lerp(Vector2.ONE, clampf(delta * 12.0, 0.0, 1.0))
-	anim.scale = base_scale * vis_scale
-	_hit_tilt = lerpf(_hit_tilt, 0.0, clampf(delta * 14.0, 0.0, 1.0))
-	anim.rotation = _hit_tilt
+	_motion(delta)
 	if _slam_t > 0.0:
 		_slam_t -= delta
 		if is_on_wall() and absf(velocity.x) > 40.0:
@@ -500,7 +559,7 @@ func _physics_process(delta: float) -> void:
 		launch_t -= delta
 		velocity.x = move_toward(velocity.x, 0.0, 300 * delta)
 		velocity.y = minf(velocity.y + 1100.0 * delta, 540.0)
-		anim.rotation = lerpf(anim.rotation, -0.6 * signf(anim.scale.x), clampf(delta * 6.0, 0.0, 1.0))
+		_tumble = lerpf(_tumble, -0.7 * float(facing), clampf(delta * 5.0, 0.0, 1.0))
 		var vy := velocity.y
 		move_and_slide()
 		if is_on_floor() and vy >= 0.0:
@@ -523,7 +582,6 @@ func _physics_process(delta: float) -> void:
 		if Engine.get_physics_frames() % 3 == 0:
 			FX.ghost(anim.base, Color(1.0, 0.85, 0.6, 0.3), 0.2)
 		return
-	anim.rotation = lerpf(anim.rotation, 0.0, clampf(delta * 10.0, 0.0, 1.0))
 	flash_t -= delta
 	anim.set_flash(1.0 if flash_t > 0.0 else (0.35 if stun_t > 0.0 and int(Time.get_ticks_msec() / 80) % 2 == 0 else 0.0))
 	if freeze_t > 0.0 or stun_t > 0.0 or root_t > 0.0:

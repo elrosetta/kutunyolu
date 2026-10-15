@@ -952,6 +952,8 @@ CREATURES = {
 }
 import creatures2
 CREATURES.update(creatures2.CREATURES2)
+import creatures3
+CREATURES.update(creatures3.CREATURES3)
 
 
 

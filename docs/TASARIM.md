@@ -413,3 +413,17 @@ Otomatik test: `godot --path . -- --otomatik` komutu oyunu kendi kendine oynatı
   titrer ve yay geri teper. Oklar piksel iz bırakır, duvara saplanıp titrer, düşmana saplanıp bir süre kalır.
 * **Savuruş izi:** `WeaponTrail` artık tarama çizgisiyle doldurulan üç katı bant (koyu iç, silah rengi, beyaz çekirdek) ve üç kademeli
   sönüş çizer; büyük hilal yalnızca bitiriş/ağır/özel savuruşlarda. Vuruş sonrası toparlanma hareket ya da zıplamayla iptal edilir.
+
+## v11: biyom sonu bosları, sakin müzik, doğal hareket
+
+* **Her biyomun sonunda boss:** `Game.BOSS_AFTER` derinlik 2/4/6/8/10 için Kara Börü Han, Tepegöz, Şahmeran Ana, Yelbegen, Erlik Han.
+  Yeni dört boss ortak motoru kullanır (`Boss.gd` → `CFG`, `_ai_gen`): üç evre (%66/%33), hamleler savuruş, sıçrayıp ezme,
+  yelpaze mermi, iki yana yer dalgası, işaretli gök yağmuru, yardımcı çağırma, hücum (duvara çarpınca sersemler).
+  Mermiler: `stone_big`, `ice`, `fireball`, `ground_wave` (`Projectile.gd`). Sanat: `tools/artgen/creatures3.py`.
+  Test: `-- --boss=tepegoz|sahmeran|yelbegen|erlik_han --bossfaz=1..3 --bosslog --otomatik`.
+* **Sakin ama hareketli müzik:** zurna yerine mey (buğulu), kaval yerine ney; bendir, parmak tek'i, kısık def zilleri;
+  hareketi alçak sesli bağlama arpeji taşır, ezgi daha uzun notalı (`calm_melody`). Tiz bölge yarıya indi, seviye RMS'e göre
+  (`music.RMS_DB`), eskisinden 4–5 dB kısık.
+* **Doğal hareket:** düşman ve oyuncu gövdesi yaylı (hafif aşmalı) squash/stretch, hıza ve ivmeye göre eğilme, nefes,
+  havada hızla uzama, inişte düşüş hızına göre ezilme, dönüşte toplanma. Ceset darbe yönüne göre döner, yere çarpıp sürtünmeyle
+  kayar ve yan yatar, sonra kor kenarlı çözülme gölgelendiricisiyle küle dönüşür (`Corpse.gd`). Toz rengi biyoma göre (`FX.dust_col`).

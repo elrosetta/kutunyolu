@@ -88,6 +88,13 @@ if do_music:
             continue
         t0 = time.time()
         x = Mu.track(biome)
-        x = master(x, Mu.TARGET_DB.get(biome, -15.0), ceiling=0.85, sr=Mu.MSR, loop=True)
+        if biome in Mu.RMS_DB:
+            # v11: müzik ortalama seviyeye (RMS) göre; tek bir davul vuruşu tüm parçayı kısmasın
+            import numpy as _np
+            from synth import soft_limit
+            x = x - _np.mean(x)
+            x = soft_limit(x * 10 ** ((Mu.RMS_DB[biome] - 20 * _np.log10(_np.sqrt(_np.mean(x ** 2)) + 1e-9)) / 20), 0.85)
+        else:
+            x = master(x, Mu.TARGET_DB.get(biome, -15.0), ceiling=0.85, sr=Mu.MSR, loop=True)
         write_wav(os.path.join(A, 'music', biome + '.wav'), x, Mu.MSR, None)
         print('music', biome, round(len(x) / Mu.MSR, 1), 's', round(time.time() - t0, 1))

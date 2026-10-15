@@ -412,6 +412,12 @@ var _prev_pos := Vector2.ZERO
 # his (feel) durumu
 var vis_scale := Vector2.ONE
 var vis_lean := 0.0
+var _vs_v := Vector2.ZERO  # v11: ölçek yayının hızı
+var _lean_v := 0.0
+var _feel_face := 1
+var _feel_floor := true
+var _feel_vy := 0.0
+var _feel_vx := 0.0
 var _was_floor := true
 var _fall_peak := 0.0
 var _dust_t := 0.0
@@ -1316,12 +1322,34 @@ func _safety(delta: float) -> void:
 
 func _feel(delta: float, _dir: float) -> void:
 	## Squash & stretch ve eğilme: ölçek hedefe yaylanır, gövde hız yönünde yatar.
-	vis_scale = vis_scale.lerp(Vector2.ONE, clampf(delta * 11.0, 0.0, 1.0))
-	anim.scale = vis_scale
+	# v11: kritik altı sönümlü yay — vurgu anında ezilir/uzar, bir kez hafifçe aşıp oturur (kukla gibi kesik değil)
+	_vs_v += ((Vector2.ONE - vis_scale) * 360.0 - _vs_v * 19.0) * delta
+	vis_scale += _vs_v * delta
+	var fl := is_on_floor()
+	var sy := 1.0
+	if fl and absf(velocity.x) < 15.0 and atk.is_empty():
+		sy += 0.016 * sin(Time.get_ticks_msec() * 0.0028)  # nefes
+	elif not fl:
+		sy += clampf(absf(velocity.y) / 3000.0, 0.0, 0.1)  # havada hızla uzama
+	anim.scale = vis_scale * Vector2(1.0 / sqrt(sy), sy)
+	if facing != _feel_face:
+		_feel_face = facing
+		if fl and absf(velocity.x) > 40.0:
+			vis_scale *= Vector2(0.84, 1.05)  # dönüşte gövde toplanır
+			FX.dust(global_position + Vector2(facing * 6, 0), Vector2(facing, -0.4), 2, 0.22)
+	if fl and not _feel_floor and _feel_vy > 520.0:
+		FX.dust(global_position + Vector2(-8, 0), Vector2(-1, -0.3), 2, 0.26)
+		FX.dust(global_position + Vector2(8, 0), Vector2(1, -0.3), 2, 0.26)
+	_feel_floor = fl
+	_feel_vy = velocity.y
 	var lean_target := 0.0
 	if atk.is_empty() and roll_t <= 0.0 and hurt_t <= 0.0:
-		lean_target = clampf(velocity.x / RUN, -1.0, 1.0) * (0.11 if is_on_floor() else 0.07)
-	vis_lean = lerpf(vis_lean, lean_target, clampf(delta * 10.0, 0.0, 1.0))
+		lean_target = clampf(velocity.x / RUN, -1.3, 1.3) * (0.1 if fl else 0.06)
+		# ivmelenme: hız değişirken biraz daha yatar (kalkışta öne, frende geriye)
+		lean_target += clampf((velocity.x - _feel_vx) * 0.0016, -0.06, 0.06)
+	_feel_vx = velocity.x
+	_lean_v += ((lean_target - vis_lean) * 260.0 - _lean_v * 22.0) * delta
+	vis_lean += _lean_v * delta
 	anim.rotation = vis_lean
 
 
@@ -1481,7 +1509,7 @@ func _start_attack(step: int) -> void:
 		total *= 1.25
 	if c.get("special", false):
 		total *= float(c.get("tm", 1.0))
-		FX.text(center() + Vector2(0, -40), String(c.get("name", "")), Color(0.75, 0.95, 1.0), 8)
+		_move_label(String(c.get("name", "")), Color(0.75, 0.95, 1.0), 8)
 		if c.get("plunge", false):
 			velocity = Vector2(velocity.x * 0.3, -160.0)
 	atk = {"step": step, "c": c, "sw": sw, "phase": "wind", "t": 0.0, "dur": total, "hit": [], "item": it, "hold": 0.0, "pause": is_pause, "multi_i": 0}
@@ -1494,7 +1522,7 @@ func _start_attack(step: int) -> void:
 		# bekleme bitirişi: kısa parlama ve yükselen kıvılcımlar; adı ekranda belirir
 		anim.set_flash(0.6)
 		get_tree().create_timer(0.07).timeout.connect(func() -> void: anim.set_flash(0.0))
-		FX.text(center() + Vector2(0, -40), String(c.get("name", "")), Color(1.0, 0.85, 0.45), 9)
+		_move_label(String(c.get("name", "")), Color(1.0, 0.85, 0.45), 9)
 		FX.burst(center(), Color(1.0, 0.85, 0.45), 14, 90, 0.4, 0.2, -60, true)
 		if c["s"] == "slam" and is_on_floor():
 			velocity.y = -330.0  # sıçra, sonra çak
@@ -1942,7 +1970,7 @@ func _update_charge(delta: float) -> void:
 		get_tree().create_timer(0.08).timeout.connect(func() -> void: anim.set_flash(0.0))
 		FX.ring(hand, 26, col, 0.3)
 		FX.flash_light(hand, col, 110.0, 1.6, 0.2)
-		FX.text(center() + Vector2(0, -40), String(c.get("name", "AĞIR")), col.lerp(Color.WHITE, 0.3), 9)
+		_move_label(String(c.get("name", "AĞIR")), col.lerp(Color.WHITE, 0.3), 9)
 		Game.kick(Vector2.UP, 2.0)
 	if not Input.is_action_pressed(_atk_act()) or ch >= HEAVY_MAX + 0.5:
 		if _heavy_fx and is_instance_valid(_heavy_fx):
@@ -2961,8 +2989,11 @@ func _wolf_process(delta: float) -> void:
 		else:
 			wolf_anim.play("idle")
 			wolf_anim.speed = 1.0
-	vis_scale = vis_scale.lerp(Vector2.ONE, clampf(delta * 11.0, 0.0, 1.0))
+	_vs_v += ((Vector2.ONE - vis_scale) * 300.0 - _vs_v * 17.0) * delta
+	vis_scale += _vs_v * delta
 	wolf_anim.scale = vis_scale
+	_lean_v += ((clampf(velocity.y / 900.0, -0.25, 0.25) * float(facing) - wolf_anim.rotation) * 200.0 - _lean_v * 20.0) * delta
+	wolf_anim.rotation += _lean_v * delta
 	if Engine.get_physics_frames() % 10 == 0 and is_on_floor() and absf(velocity.x) > 100.0:
 		FX.dust(global_position + Vector2(-facing * 10, 0), Vector2(-facing, -0.3), 2, 0.24)
 	_safety(delta)
@@ -3417,3 +3448,17 @@ func _die() -> void:
 	FX.flash_light(center(), Color(0.55, 0.95, 1.0), 220.0, 2.0, 0.8)
 	if level:
 		level.on_player_died()
+
+
+var _label_last := ""
+var _label_ms := 0
+
+
+func _move_label(txt: String, col: Color, sz: int) -> void:
+	## Hamle adı: aynı ad kısa sürede yinelenirse üst üste basılmaz
+	var now := Time.get_ticks_msec()
+	if txt == "" or (txt == _label_last and now - _label_ms < 700):
+		return
+	_label_last = txt
+	_label_ms = now
+	FX.text(center() + Vector2(0, -40), txt, col, sz)

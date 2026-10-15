@@ -133,8 +133,11 @@ func build_boss(seed_value: int, bid_boss: String) -> void:
 	var bx := 64
 	boss = Boss.new()
 	boss.setup(String(bdef.get("enemy", bid_boss)), false, int(Game.run.get("tier", 0)))
-	boss.max_hp = float(bdef.get("hp", 900)) * (1.0 + 0.35 * float(Game.run.get("tier", 0)))
+	boss.max_hp = float(bdef.get("hp", boss.def.get("hp", 900))) * (1.0 + 0.35 * float(Game.run.get("tier", 0)))
 	boss.hp = boss.max_hp
+	for arg in OS.get_cmdline_user_args():
+		if String(arg).begins_with("--bossfaz="):
+			boss.hp = boss.max_hp * (1.0 - 0.34 * (int(String(arg).trim_prefix("--bossfaz=")) - 1))
 	boss.level = self
 	boss.position = Vector2(bx * TS, surface_y(bx) * TS - 1)
 	actors.add_child(boss)
@@ -707,6 +710,8 @@ func _build_background() -> void:
 
 func _build_particles() -> void:
 	var kind: String = art.get("particles", "ruh")
+	FX.dust_col = {"otuken": Color(0.55, 0.5, 0.42, 0.55), "bozkir": Color(0.8, 0.7, 0.48, 0.55), "sahmeran": Color(0.46, 0.56, 0.46, 0.5),
+		"kaf": Color(0.92, 0.95, 1.0, 0.65), "tamu": Color(0.36, 0.28, 0.28, 0.6), "cini_saray": Color(0.7, 0.65, 0.72, 0.5)}.get(String(biome.get("id", "")), Color(0.62, 0.58, 0.6, 0.55))
 	# havada süzülen zerreler: biyoma göre ruh kıvılcımı / polen / spor / kar / kor
 	var pollen := CPUParticles2D.new()
 	pollen.amount = 30
@@ -1264,7 +1269,11 @@ func _on_boss_died(e: Enemy) -> void:
 	var bd: Array = Game.run.get("boss_done", [])
 	bd.append(boss_id)
 	Game.run["boss_done"] = bd
-	FX.text(e.center() + Vector2(0, -80), "KARA BÖRÜ HAN DEVRİLDİ", Color(1.0, 0.85, 0.5), 14)
+	FX.text(e.center() + Vector2(0, -e.size.y - 20), "%s DEVRİLDİ" % String(e.def.get("name", "")).to_upper(), Color(1.0, 0.85, 0.5), 14)
+	if boss_id == "erlik_han":
+		Game.meta["wins"] = int(Game.meta.get("wins", 0)) + 1
+		Game.save_meta()
+		FX.text(e.center() + Vector2(0, -e.size.y - 44), "GÜNEŞ YENİDEN DOĞUYOR", Color(1.0, 0.95, 0.6), 16)
 	boss = null
 	boss_died.emit()
 	get_tree().create_timer(1.6).timeout.connect(open_boss_gate)

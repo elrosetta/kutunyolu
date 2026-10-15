@@ -1230,6 +1230,50 @@
     0.6
    ],
    "desc": "Kor çukurlarından fırlar."
+  },
+  {
+   "id": "tepegoz",
+   "name": "Tepegöz",
+   "biome": "bozkir",
+   "hp": 1600,
+   "dmg": 24,
+   "speed": 70,
+   "ai": "boss_gen",
+   "impl": true,
+   "desc": "Tek gözlü dev"
+  },
+  {
+   "id": "sahmeran_ana",
+   "name": "Şahmeran Ana",
+   "biome": "sahmeran",
+   "hp": 1700,
+   "dmg": 22,
+   "speed": 90,
+   "ai": "boss_gen",
+   "impl": true,
+   "desc": "Yılanların kraliçesi"
+  },
+  {
+   "id": "yelbegen",
+   "name": "Yelbegen",
+   "biome": "kaf",
+   "hp": 2000,
+   "dmg": 26,
+   "speed": 70,
+   "ai": "boss_gen",
+   "impl": true,
+   "desc": "Üç başlı buz devi"
+  },
+  {
+   "id": "erlik_han",
+   "name": "Erlik Han",
+   "biome": "tamu",
+   "hp": 2600,
+   "dmg": 30,
+   "speed": 75,
+   "ai": "boss_gen",
+   "impl": true,
+   "desc": "Yeraltının hükümdarı"
   }
  ],
  "bosses": [
@@ -1252,13 +1296,14 @@
    "name": "TEPEGÖZ",
    "sub": "Dede Korkut'un anlattığı tek gözlü dev",
    "biome": "bozkir",
-   "hp": 1800,
-   "impl": false,
+   "hp": 1600,
+   "impl": true,
    "phases": [
     "Kaya fırlatır, yere vurur",
     "Gözü kızarır: göz ışını süpürür",
     "Kör edilince sesi takip eder: sessiz ol"
-   ]
+   ],
+   "enemy": "tepegoz"
   },
   {
    "id": "albasti_ana",
@@ -1278,39 +1323,42 @@
    "name": "ŞAHMERAN",
    "sub": "Yılanların kraliçesi, sırların bekçisi",
    "biome": "sahmeran",
-   "hp": 2600,
-   "impl": false,
+   "hp": 1700,
+   "impl": true,
    "phases": [
     "Yılan sürüleri, zehir göletleri",
     "Kuyruğuyla mağarayı yıkar",
     "Erlik'in zinciri kopar: gerçek yüzü ve bir seçim"
-   ]
+   ],
+   "enemy": "sahmeran_ana"
   },
   {
    "id": "yelbegen",
    "name": "YELBEGEN",
    "sub": "Yedi başlı dev",
    "biome": "kaf",
-   "hp": 3200,
-   "impl": false,
+   "hp": 2000,
+   "impl": true,
    "phases": [
     "Her baş ayrı bir saldırı yapar",
     "Kesilen başlar yeniden çıkar: hepsini aynı anda düşür",
     "Son baş: buz fırtınası"
-   ]
+   ],
+   "enemy": "yelbegen"
   },
   {
    "id": "erlik_han",
    "name": "ERLİK HAN",
    "sub": "Yeraltının efendisi",
    "biome": "tamu",
-   "hp": 4500,
-   "impl": false,
+   "hp": 2600,
+   "impl": true,
    "phases": [
     "Kara zincirler ve ateş dalgaları",
     "Ulu Kayın'ın köklerini kurutur: arena daralır",
     "Gök ile yeraltı yer değiştirir: ters yerçekimi"
-   ]
+   ],
+   "enemy": "erlik_han"
   }
  ]
 }

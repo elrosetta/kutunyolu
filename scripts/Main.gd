@@ -33,8 +33,11 @@ func _ready() -> void:
 	_new_run()
 	if OS.get_cmdline_user_args().has("--yurt"):
 		_build_hub()  # yurt testi: doğrudan Ulu Kayın'da başla
-	if OS.get_cmdline_user_args().has("--boss"):
-		_build_boss("kara_boru_han")
+	for arg in OS.get_cmdline_user_args():
+		if String(arg) == "--boss":
+			_build_boss("kara_boru_han")
+		elif String(arg).begins_with("--boss="):
+			_build_boss(String(arg).trim_prefix("--boss="))
 	if auto_test or showcase or _ekran != "":
 		hud.mode = "play"
 		get_tree().paused = false

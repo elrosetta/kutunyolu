@@ -23,7 +23,7 @@ const LUTUF := {
 	"gun_ana": ["Gün Ana'nın Közü", "Darbeler %25 şansla tutuşturur.", [1.0, 0.6, 0.3]],
 }
 ## Boss arenaları: bu derinlik bitince (Kut Kapısı) önce boss, sonra yurt
-const BOSS_AFTER := {2: "kara_boru_han"}
+const BOSS_AFTER := {2: "kara_boru_han", 4: "tepegoz", 6: "sahmeran", 8: "yelbegen", 10: "erlik_han"}
 
 ## Umay Ana'nın kalıcı armağanları: Kut bankasıyla alınır (Dead Cells "Collector" mantığı).
 ## id: [ad, açıklama, [seviye maliyetleri...]]

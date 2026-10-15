@@ -6,7 +6,8 @@ from synth import SR, t_axis, env, exp_env, noise, fft_filter, sine, sweep, pluc
 
 MSR = 22050  # müzik örnekleme hızı (dosya boyutu)
 # biyom başına hedef yükseklik (synth.loudness, dB): savaş biyomları biraz önde, yurt/başlık sakin
-TARGET_DB = {'otuken': -14.5, 'bozkir': -14.0, 'sahmeran': -15.0, 'kaf': -14.5, 'tamu': -14.0, 'boss': -13.5, 'yurt': -16.5, 'baslik': -16.0}
+RMS_DB = {'otuken': -17.5, 'bozkir': -17.5, 'sahmeran': -18.0, 'kaf': -18.0, 'tamu': -17.0, 'boss': -16.0, 'baslik': -19.5}  # v11 sakin müzik
+TARGET_DB = {'otuken': -17.0, 'bozkir': -16.5, 'sahmeran': -17.5, 'kaf': -17.0, 'tamu': -16.5, 'boss': -15.5, 'yurt': -18.0, 'baslik': -18.0}
 
 HICAZ = [0, 1, 4, 5, 7, 8, 10]
 HUSEYNI = [0, 2, 3, 5, 7, 9, 10]
