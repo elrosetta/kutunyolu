@@ -69,12 +69,22 @@ var perch := Vector2.ZERO  # pusu: beklediği yer
 var _label: Label
 var _hidden := false     # gölge (stalker): görünmez
 ## Düşmana özgü sıçrantı rengi (tazı: kor; çor: zehir yeşili; iye: Erlik moru özsu; balbal: taş tozu; kam: lanet moru; gulyabani: ölü irin)
-const BLOOD := {"tepegoz": Color(0.75, 0.25, 0.2), "sahmeran_ana": Color(0.5, 1.0, 0.4), "yelbegen": Color(0.6, 0.9, 1.0), "erlik_han": Color(1.0, 0.45, 0.15), "kara_boru": Color(0.95, 0.42, 0.12), "cor": Color(0.55, 0.85, 0.2), "agac_iyesi": Color(0.6, 0.28, 0.72), "balbal": Color(0.6, 0.6, 0.66),
-		"arcura": Color(0.7, 0.25, 0.9), "surale": Color(0.5, 0.55, 0.42), "bekci": Color(0.55, 0.5, 0.45), "tosbaga": Color(0.45, 0.6, 0.3), "kara_boru_han": Color(0.8, 0.1, 0.2)}
+const BLOOD := {"tepegoz": Color(0.75, 0.25, 0.2), "sahmeran_ana": Color(0.5, 1.0, 0.4), "yelbegen": Color(0.6, 0.9, 1.0), "erlik_han": Color(1.0, 0.45, 0.15), "kara_boru": Color(0.6, 0.05, 0.05), "kayip_ruh": Color(0.55, 0.85, 1.0), "buz_balbali": Color(0.75, 0.9, 1.0), "cini_golemi": Color(0.5, 0.7, 0.85), "cor": Color(0.55, 0.85, 0.2), "agac_iyesi": Color(0.6, 0.28, 0.72), "balbal": Color(0.6, 0.6, 0.66),
+		"arcura": Color(0.7, 0.25, 0.9), "surale": Color(0.5, 0.55, 0.42), "bekci": Color(0.55, 0.5, 0.45), "tosbaga": Color(0.45, 0.6, 0.3), "kara_boru_han": Color(0.5, 0.03, 0.06)}
+
+
+const NOT_FLESH := ["balbal", "bekci", "buz_balbali", "cini_golemi", "arcura", "kayip_ruh", "agac_iyesi", "cor", "yelbegen", "sihirli_kandil", "isilti_bocegi"]
 
 
 func blood_col() -> Color:
-	return BLOOD.get(sprite_kind, Color(0.45, 0.12, 0.5))
+	## v13: etten yaratıkların kanı koyu kırmızı; ruh/taş/bitki yaratıklarının kendi rengi
+	if BLOOD.has(sprite_kind):
+		return BLOOD[sprite_kind]
+	return Color(0.55, 0.04, 0.06)
+
+
+func is_flesh() -> bool:
+	return not (sprite_kind in NOT_FLESH or kind in NOT_FLESH)
 
 
 func setup(k: String, is_elite: bool, tier: int) -> void:
@@ -305,7 +315,12 @@ func take_hit(d: float, opts: Dictionary) -> bool:
 	# darbe tepkisi: gövde darbe yönünde ezilir ve yatar, düşmana özgü sıçrantı, kritikte ağır çekim ve ışık
 	vis_scale = (Vector2(1.34, 0.72) if big else Vector2(1.28, 0.78)) if not heavy else Vector2(1.12, 0.9)
 	_hit_tilt = -dir * (0.22 if big else 0.12) * (0.4 if heavy else 1.0)
-	FX.blood(center() + Vector2(dir * 4, 0), Vector2(dir, -0.4), blood_col(), 12 if crit else 7)
+	# v13 kan: her vuruşta hasara göre sıçrantı (çıkış yönünde koni + az geri sıçrama), kritikte fışkırma
+	var hk := clampf(d / maxf(1.0, max_hp), 0.0, 1.0)
+	var hitp := center() + Vector2(dir * 4, randf_range(-6, 4))
+	Blood.spray(hitp, Vector2(dir, -0.35), blood_col(), 10 + int(hk * 45.0) + (14 if crit else 0) + (8 if big else 0), 1.0 + (0.35 if big else 0.0))
+	if crit and is_flesh():
+		Blood.spray(hitp, Vector2(dir, -1.0), blood_col(), 10, 1.4, false)
 	# darbe çizgileri: büyük vuruşlarda darbe noktasından dışarı kısa ışınlar
 	if big:
 		for k in 5:
@@ -398,6 +413,7 @@ func _die(dir := 1.0, kb := 100.0, crit := false) -> void:
 	# gövde savrulur, ruh zerreleri göğe yükselir, sıçrantı yere düşer
 	FX.corpse(anim.base, Vector2(dir * maxf(140.0, kb * 1.3), -220.0 - kb * 0.4), blood_col())
 	FX.blood(center(), Vector2(dir, -0.8), blood_col(), 16)
+	Blood.burst(center(), Vector2(dir, -0.6), blood_col(), 45 + (40 if elite else 0) + (90 if is_boss else 0), (randi_range(4, 6) + (4 if elite else 0) + (10 if is_boss else 0)), is_flesh())
 	FX.anim("smoke_puff", center(), 0.0, 0.9 + (0.5 if elite else 0.0), Color(blood_col(), 0.9).lerp(Color(0.3, 0.25, 0.35), 0.5), false)
 	FX.smoke(center(), 4, 0.45, Color(blood_col().darkened(0.5), 0.6))
 	FX.soul(center(), Color(0.55, 0.95, 1.0), 22 if not elite else 40)
@@ -692,12 +708,14 @@ func _tick_status(delta: float) -> void:
 			FX.fire(center() + Vector2(randf_range(-5, 5), randf_range(-4, 4)), 2, 0.28, 3.0)
 		if Engine.get_physics_frames() % 20 == 0:
 			FX.smoke(center() + Vector2(0, -8), 1, 0.3)
+	if hp < max_hp * 0.35 and Engine.get_physics_frames() % 11 == 0 and randf() < 0.6:
+		Blood.drip(center() + Vector2(0, 4), blood_col())
 	if bleed_t > 0.0:
 		bleed_t -= delta
 		if bleed_t <= 0.0:
 			bleed = 0
 		elif Engine.get_physics_frames() % 16 == 0:
-			FX.blood(center() + Vector2(randf_range(-4, 4), 0), Vector2.DOWN, blood_col(), 2)
+			Blood.drip(center() + Vector2(randf_range(-4, 4), 0), blood_col(), 3)
 	if poison_t > 0.0:
 		poison_t -= delta
 		if poison_t <= 0.0:

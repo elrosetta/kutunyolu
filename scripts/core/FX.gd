@@ -178,9 +178,12 @@ static func sparks(pos: Vector2, dir: Vector2, col: Color, amount := 8, speed :=
 
 
 static func blood(pos: Vector2, dir: Vector2, col: Color, amount := 10) -> void:
-	## Düşmana özgü renkte sıçrantı: ağır damlalar, geniş koni, yere düşünce söner.
+	## Düşmana özgü renkte sıçrantı. v13: damlalar gerçek kan sistemine gider (yere/duvara yapışır, süzülür);
+	## burada yalnızca ince, hızla sönen bir çekirdek sıçrama kalır.
 	if root == null:
 		return
+	Blood.spray(pos, dir, col, amount * 2)
+	amount = maxi(2, amount / 3)
 	var p := _particles(pos, col, amount, 0.55, false, 45)
 	p.direction = (dir.normalized() + Vector2(0, -0.5)).normalized() if dir.length() > 0.01 else Vector2.UP
 	p.spread = 55.0
