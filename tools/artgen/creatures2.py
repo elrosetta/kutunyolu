@@ -200,12 +200,14 @@ KBH_RIB = Mat(ramp(262, 0.2, 0.3, spread=0.4), name='han kaburga')
 KBH_SMOKE = Mat(ramp(300, 0.3, 0.3, spread=0.35), name='kara yele')
 KBH_EMBER = Mat(ramp(350, 0.95, 1.0, spread=0.2), emissive=1.0, outline='#3a0210', name='kan kor')
 CORRUPT = M['corrupt']
+from volume import soft as _soft
+_soft(KBH, 0.85, 0.6, 1.0); _soft(KBH_D, 0.85, 0.6, 1.0); _soft(KBH_SMOKE, 0.6, 0.5, 0.7)
 
 
 def draw_kara_boru_han(c, p):
     """Kara Börü Han: Erlik Tazısı'nın 2.3 katı; kara post, kan rengi kor gözler, sırtından fışkıran bozgun kristalleri,
     omuzlarda kemik zırh plakaları, boynunda kırık dev zincir, tacı (kafatası tacı)."""
-    S = C1.Sq(c, 2.3, 2.3, 0.0)
+    S = C1.Sq(c, 2.3, 2.3, 0.0, zk=2.3)
     old = (C1.HOUND, C1.HOUND_D, C1.HOUND_RIB, C1.SMOKE, C1.EMBER, C1.EMBER_D)
     C1.HOUND, C1.HOUND_D, C1.HOUND_RIB, C1.SMOKE, C1.EMBER, C1.EMBER_D = KBH, KBH_D, KBH_RIB, KBH_SMOKE, KBH_EMBER, KBH_EMBER
     try:
@@ -215,16 +217,22 @@ def draw_kara_boru_han(c, p):
     # bozgun kristalleri: sırt boyunca büyük, ph ile titreşir; rage > 0 iken daha uzun
     rage = p.get('rage', 0.0)
     bob, tilt = p.get('bob', 0.0), p.get('tilt', 0.0)
-    hipp = (-10.0 * 2.3, (-19.0 + bob - tilt * 6) * 2.3)
-    shp = (8.5 * 2.3, (-20.5 + bob + tilt * 6) * 2.3)
+    sq = p.get('sq', 0.0)   # tazı koşusundaki ezilme/uzama (draw_hound ile aynı)
+    sqx, sqy = 1.0 + 0.06 * sq, 1.0 - 0.07 * sq
+    hipp = (-10.0 * 2.3 * sqx, (-19.0 + bob - tilt * 6) * 2.3 * sqy)
+    shp = (8.5 * 2.3 * sqx, (-20.5 + bob + tilt * 6) * 2.3 * sqy)
     for k, (t, h) in enumerate(((0.05, 14), (0.25, 22), (0.45, 26), (0.65, 20), (0.85, 15))):
         bx, by = lerp2(hipp, shp, t)
         by -= 15 + 4 * t
         hh = h * (1 + 0.5 * rage) + math.sin(p.get('ph', 0.0) + k) * 1.5
         c.poly([(bx - 5, by + 4), (bx + 5, by + 4), (bx + 1.5, by - hh), (bx - 2.5, by - hh + 4)], CORRUPT, z=40 + k, bevel=2.0, height=2.5)
     # omuz kemik plakası + kafatası tacı
-    c.poly([(shp[0] - 12, shp[1] - 18), (shp[0] + 10, shp[1] - 22), (shp[0] + 14, shp[1] - 8), (shp[0] - 10, shp[1] - 4)], C1.BONE_D, z=42, bevel=2.5, height=2.5)
-    head = (shp[0] + 9.5 * 2.3, shp[1] - (5.5 - p.get('hy', 0.0)) * 2.3)
+    # omuz kemik plakası: kavisli (elips) — düz yapıştırma gibi değil, omzun üstünü saran bir kabuk
+    c.ellipse((shp[0] + 1, shp[1] - 13), 13.5, 7.5, C1.BONE_D, z=42, rot=-0.18, depth=0.45)
+    c.ellipse((shp[0] + 3, shp[1] - 15), 9.0, 3.6, M['bone'], z=44.5, rot=-0.18, depth=0.4)
+    for k in range(3):
+        c.ellipse((shp[0] - 8 + k * 8, shp[1] - 9 - k * 1.5), 1.2, 1.2, M['iron'], z=47)
+    head = (shp[0] + 9.5 * 2.3 * sqx, shp[1] - (5.5 - p.get('hy', 0.0)) * 2.3 * sqy)
     for k in range(3):
         ox = head[0] - 10 + k * 7
         c.poly([(ox - 2, head[1] - 10), (ox + 2, head[1] - 10), (ox, head[1] - 20 - (3 if k == 1 else 0))], M['bone'], z=44, bevel=1.0, height=1.2)
