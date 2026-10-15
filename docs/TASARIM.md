@@ -427,3 +427,23 @@ Otomatik test: `godot --path . -- --otomatik` komutu oyunu kendi kendine oynatı
 * **Doğal hareket:** düşman ve oyuncu gövdesi yaylı (hafif aşmalı) squash/stretch, hıza ve ivmeye göre eğilme, nefes,
   havada hızla uzama, inişte düşüş hızına göre ezilme, dönüşte toplanma. Ceset darbe yönüne göre döner, yere çarpıp sürtünmeyle
   kayar ve yan yatar, sonra kor kenarlı çözülme gölgelendiricisiyle küle dönüşür (`Corpse.gd`). Toz rengi biyoma göre (`FX.dust_col`).
+
+## v12: dört özgün mekanik
+
+* **Üç Âlem (R / S+R, gamepad sol tetik):** kam transıyla aynı bölümün gök âlemine (Ülgen) ya da yeraltına (Erlik) geçilir.
+  Kam gücü 100'den tükenir (sn'de 15), bu dünyada dolar (sn'de 4, öldürme başı 8). Gökte altın bulut basamakları basılır
+  (`Game.LAYER_GOK`, tek yönlü), ruh kuşları yakalanır (Kut + kam gücü), bir bulut zincirinin tepesinde Ülgen sunağı eşyası durur;
+  yerçekimi hafifler. Yeraltında ruh taşı kapaklar (`Game.LAYER_HAYALET`, ızgarada 4) çözülür, altındaki gizli odalara inilir
+  (eşya + şifa + altın); Erlik'in gölge ruhları belirir (yalnızca yeraltında vurulur, 3 Kut). Öbür âlemdeyken bu dünyanın
+  yaratıkları soluk görünür, sana dokunamaz, sen de onlara. Odada dönülürsen ruhlar seni kapağın üstüne taşır; taşın içinden dönülmez.
+  Boss arenası ve yurtta kapalı. Kod: `scripts/world/Alem.gd`, `shaders/alem.gdshader`, `Player._v12_tick/_enter_realm/_exit_realm`.
+* **Don Değiştirme (G, sağ tetik):** her seçkin ölünce mor bir ruh bırakır; dokununca emilir, G ile 10 sn onun kılığına girilir.
+  Hamle takımı yaratığın yapay zekâ türünden: kurt (atılış zinciri, sıçrayış), kalkan (vuruş, siper), kabuk (yuvarlanma, çekilme),
+  hücum, dev (yere çakma, sarsıntı dalgası), kanat (uçuş, pike, tüy), büyücü (üçlü büyü, ışınlanma). `scripts/actors/DonForm.gd`.
+* **Usul Vuruşu:** müzik aksak usullerde (9/8, 7/8, 5/8, halay). Saldırı tuşu usulün vuruşuna ±85 ms içinde basılırsa
+  vuruş güçlenir (%15 + seri başı %2,5, ölçünün ilk vuruşu "düm" +%15), seri sayılır; 8'lik seride Kut. Müzik dosyaları tam ölçü
+  katı uzunlukta döngülenir, ızgara `assets/audio/music/usul.json` (`turku.META`), `Ses.usul_now()`. Sağda usul ölçeri.
+* **Ad Koyma Töreni (Dede Korkut):** 11 destan (Basat: Tepegöz'ü devir, Boğaç, Deli Dumrul, Bamsı Beyrek, Kanturalı, Salur Kazan,
+  Segrek, Kam Ata, Kopuzcu, Dönen, Alp Er Tunga). Destan koşu boyunca bekler; yurtta Ozan Bilge Kopuz'a anlatılınca ad konur,
+  o koşu için güç verir ve Ad Defteri'ne (meta) yazılır. Yurda varmadan ölürsen destan unutulur. `scripts/core/Adlar.gd`.
+* Sesler `tools/audiogen/v12.py` (bendir, zil, ney, mey, bağlama). Test: `-- --mekanik [--derinlik=N]` (`tools/tests/mekanik_testi.gd`).

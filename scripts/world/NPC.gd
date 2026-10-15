@@ -45,6 +45,9 @@ func _process(delta: float) -> void:
 
 func _draw() -> void:
 	PixUI.text(self, Vector2(-80, -101), display_name, PixUI.TEXT, 1, HORIZONTAL_ALIGNMENT_CENTER, 160, 2)
+	if id == "ozan" and not Adlar.pending().is_empty():
+		var by := roundf(-132.0 + sin(_t * 4.0) * 2.0)
+		PixUI.text(self, Vector2(-80, by), "! destan: %d" % Adlar.pending().size(), PixUI.GOLD, 1, HORIZONTAL_ALIGNMENT_CENTER, 160, 2)
 	if near:
 		var y := roundf(-116.0 + sin(_t * 5.0) * 2.0)
 		PixUI.key_cap(self, Vector2(-5, y), "E")

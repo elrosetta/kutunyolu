@@ -33,6 +33,10 @@ func _ready() -> void:
 		light = level.add_light(Vector2(0, -10), Color(1.0, 0.85, 0.5), 90.0, 1.0, self)
 	elif kind == "parsomen":
 		light = level.add_light(Vector2(0, -6), Color(0.6, 0.9, 1.0), 70.0, 0.9, self)
+	elif kind == "don":
+		light = level.add_light(Vector2.ZERO, Color(0.75, 0.55, 1.0), 90.0, 1.0, self)
+	elif kind == "ruh_kusu":
+		light = level.add_light(Vector2.ZERO, Color(1.0, 0.85, 0.5), 50.0, 0.6, self)
 
 
 func reset_ground() -> void:
@@ -55,12 +59,39 @@ func _refresh() -> void:
 func _physics_process(delta: float) -> void:
 	_t += delta
 	var pl: Node = level.player if level else null
+	if kind == "don":
+		# seçkinin ruhu: süzülür, dönen zerreler; dokununca emilir
+		if int(_t * 60.0) % 4 == 0:
+			FX.burst(global_position + Vector2(randf_range(-8, 8), randf_range(-8, 8)), Color(0.75, 0.55, 1.0), 1, 20, 0.6, 0.16, -40, true)
+		if pl and not pl.dead and _t > 0.5 and pl.center().distance_to(global_position) < 26.0:
+			pl.gain_don(item_id)
+			level.pickups.erase(self)
+			queue_free()
+			return
+		queue_redraw()
+		return
+	if kind == "ruh_kusu":
+		# Ülgen'in ruh kuşu: yalnızca gök âleminde yakalanır
+		position.y += sin(_t * 3.0) * 0.25
+		if pl and not pl.dead and String(pl.realm) == "gok" and pl.center().distance_to(global_position) < 22.0:
+			Game.run["kut"] = int(Game.run["kut"]) + 3
+			pl.add_kut(6.0)
+			pl.kam = minf(100.0, pl.kam + 18.0)
+			FX.burst(global_position, Color(1.0, 0.9, 0.55), 12, 70, 0.5, 0.18, -40, true)
+			FX.ring(global_position, 18, Color(1.0, 0.9, 0.55), 0.3)
+			FX.text(global_position + Vector2(0, -16), "ruh kuşu", Color(1.0, 0.9, 0.6), 7)
+			Ses.play("ruh_kusu", -2.0)
+			level.pickups.erase(self)
+			queue_free()
+			return
+		queue_redraw()
+		return
 	if kind == "lutuf":
 		if int(_t * 60.0) % 8 == 0:
 			FX.burst(global_position + Vector2(randf_range(-10, 10), -24), Color(1.0, 0.9, 0.6), 1, 24, 0.8, 0.14, -50, true)
 		return
 	if kind == "item" or kind == "tilsim" or kind == "parsomen":
-		if not pedestal and not _grounded:
+		if not pedestal and not _grounded and not has_meta("alem"):
 			velocity.y = minf(velocity.y + 900.0 * delta, 400.0)
 			var nxt := position + velocity * delta
 			if level.ground_at(nxt + Vector2(0, 12)):
@@ -138,6 +169,23 @@ func _collect_blueprint(pl: Node) -> void:
 
 func _draw() -> void:
 	match kind:
+		"don":
+			# mor ruh: iç içe halkalar, yörüngede dönen üç zerre
+			var p2 := 1.0 + sin(_t * 5.0) * 0.15
+			draw_circle(Vector2.ZERO, 9.0 * p2, Color(0.55, 0.3, 0.9, 0.25))
+			draw_circle(Vector2.ZERO, 5.5 * p2, Color(0.8, 0.6, 1.0, 0.6))
+			draw_circle(Vector2.ZERO, 2.5, Color(1.0, 0.95, 1.0))
+			for k in 3:
+				var a := _t * 3.0 + k * TAU / 3.0
+				draw_circle(Vector2(cos(a), sin(a) * 0.6) * 12.0, 1.4, Color(0.9, 0.75, 1.0))
+		"ruh_kusu":
+			# altın kuş: kanat çırpar
+			var fl := sin(_t * 14.0)
+			var c := Color(1.0, 0.88, 0.5)
+			draw_line(Vector2(0, 0), Vector2(-6, -3 - fl * 3.0), c, 1.5)
+			draw_line(Vector2(0, 0), Vector2(6, -3 - fl * 3.0), c, 1.5)
+			draw_circle(Vector2(0, 0), 1.8, Color(1.0, 0.97, 0.8))
+			draw_circle(Vector2(0, 0), 5.0, Color(1.0, 0.85, 0.4, 0.18))
 		"gold":
 			var w := 2.0 + absf(sin(_t * 6.0)) * 1.5
 			draw_rect(Rect2(-w / 2.0, -5, w, 5), Color(1.0, 0.82, 0.3))

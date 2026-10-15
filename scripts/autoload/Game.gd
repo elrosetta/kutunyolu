@@ -7,6 +7,8 @@ const LAYER_WORLD := 1
 const LAYER_PLAYER := 2
 const LAYER_ENEMY := 4
 const LAYER_PLATFORM := 8
+const LAYER_GOK := 16      # v12: gök âleminin bulut basamakları (yalnızca gökte basılır)
+const LAYER_HAYALET := 32  # v12: ruh taşı kapaklar (yeraltında içinden geçilir)
 
 ## Her koşuda açık olan eşyalar; diğerleri parşömenle Demirci'de açılır.
 const BASE_UNLOCKED := ["alp_kilici", "turk_yayi", "kara_barut", "yuvarlak_kalkan", "pala", "coban_sapani"]
@@ -116,6 +118,7 @@ func new_run() -> void:
 		"ongun": {"kurt": 0, "kartal": 0, "ayi": 0},
 		"slots": {"melee": start_melee, "second": start_bow, "g1": start_bomb, "g2": {}},
 		"kills": 0, "time": 0.0, "tier": 0, "depth": 1, "scrolls": 0, "lutuf": [], "boss_done": [],
+		"adlar": [], "destan": [], "dstat": {},
 	}
 
 
@@ -335,4 +338,6 @@ func _setup_input() -> void:
 	_bind("kut", [KEY_F], -1, [JOY_BUTTON_RIGHT_STICK])
 	_bind("sise", [KEY_Q], -1, [JOY_BUTTON_LEFT_STICK])
 	_bind("etkiles", [KEY_E], -1, [JOY_BUTTON_BACK])
+	_bind("alem", [KEY_R], -1, [], [[JOY_AXIS_TRIGGER_LEFT, 1.0]])
+	_bind("don", [KEY_G], -1, [], [[JOY_AXIS_TRIGGER_RIGHT, 1.0]])
 	_bind("duraklat", [KEY_ESCAPE, KEY_P], -1, [JOY_BUTTON_START])

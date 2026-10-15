@@ -402,6 +402,15 @@ var wolf_since := 9.0
 var howl_cd := 0.0
 var pounce_t := 0.0
 var wolf_hit: Array = []
+# v12: Üç Âlem (kam transı), Don Değiştirme, Usul Vuruşu
+var realm := ""
+var kam := 100.0
+var don: DonForm
+var don_on := false
+var don_kind := ""
+var usul_streak := 0
+var usul_buff_t := 0.0
+var usul_strong := false
 var poison_t := 0.0
 var _poison_tick := 0.0
 var last_safe := Vector2.ZERO
@@ -495,7 +504,7 @@ var cast_t := 0.0
 func _ready() -> void:
 	add_to_group("oyuncu")
 	collision_layer = Game.LAYER_PLAYER
-	collision_mask = Game.LAYER_WORLD | Game.LAYER_PLATFORM
+	collision_mask = Game.LAYER_WORLD | Game.LAYER_PLATFORM | Game.LAYER_HAYALET
 	floor_snap_length = 6.0
 	floor_max_angle = deg_to_rad(50)
 	var shape := RectangleShape2D.new()
@@ -513,6 +522,10 @@ func _ready() -> void:
 	wolf_anim.setup("bengu_kurt")
 	wolf_anim.visible = false
 	wolf_anim.z_index = 3
+	don = DonForm.new()
+	don.visible = false
+	don.z_index = 3
+	add_child(don)
 	# Ön kol iskeleti: üst kol -> ön kol -> silah -> yumruk (yumruk silahın kabzasını örter).
 	# anim düğümünün çocuğu: gövdenin ezilme/esneme ve eğilmesini birebir izler.
 	arm_meta = Data.load_json("res://assets/sprites/bengu_kol.json")
@@ -927,6 +940,7 @@ func _physics_process(delta: float) -> void:
 		move_and_slide()
 		_feel(delta, 0.0)
 		return
+	_v12_tick(delta)
 	if grabbed_by != null:
 		if not is_instance_valid(grabbed_by) or grabbed_by.dead:
 			release_grab(Vector2(-facing * 120.0, -120.0))
@@ -964,6 +978,9 @@ func _physics_process(delta: float) -> void:
 			anim.set_tint(Color(1, 1, 1))
 	if wolf_t > 0.0:
 		_wolf_process(delta)
+		return
+	if don_on:
+		don.process(delta)
 		return
 	if combo_n > 0:
 		combo_t -= delta
@@ -1008,6 +1025,7 @@ func _physics_process(delta: float) -> void:
 		if Engine.get_physics_frames() % 3 == 0 and absf(velocity.x) > 40.0:
 			FX.ghost(anim.base, Color(0.45, 0.9, 1.0, 0.35), 0.2)
 	set_collision_mask_value(4, drop_t <= 0.0)
+	set_collision_mask_value(5, realm == "gok" and drop_t <= 0.0)
 
 	var dir := Input.get_axis("sol", "sag")
 	_resolve_roles()
@@ -1513,6 +1531,7 @@ func _start_attack(step: int) -> void:
 		if c.get("plunge", false):
 			velocity = Vector2(velocity.x * 0.3, -160.0)
 	atk = {"step": step, "c": c, "sw": sw, "phase": "wind", "t": 0.0, "dur": total, "hit": [], "item": it, "hold": 0.0, "pause": is_pause, "multi_i": 0}
+	_usul_press()
 	combo_step = step
 	melee_buf = 0.0
 	_pause_ready_fx = false
@@ -1572,7 +1591,7 @@ func _special_move(it: Dictionary) -> Dictionary:
 func combo_add(e: Node) -> void:
 	## Kesintisiz isabet: sayaç artar, kademe atlayınca ödül (Kut, ağır çekim, ses)
 	combo_n += 1
-	combo_t = 2.4
+	combo_t = 2.4 * (1.5 if Adlar.earned("kanturali") else 1.0)
 	combo_best = maxi(combo_best, combo_n)
 	var r := 0
 	for i in COMBO_RANKS.size():
@@ -1580,6 +1599,8 @@ func combo_add(e: Node) -> void:
 			r = i + 1
 	if r > combo_rank:
 		combo_rank = r
+		if r >= COMBO_RANKS.size():
+			Adlar.deed("kanturali", center())
 		var rk: Array = COMBO_RANKS[r - 1]
 		var col: Color = rk[2]
 		FX.text(center() + Vector2(0, -56), "%s!  x%d" % [rk[1], combo_n], col, 10 + r)
@@ -2271,8 +2292,23 @@ func _deal(e: Node, base: float, it: Dictionary, opts: Dictionary = {}) -> void:
 	var mech: String = it.get("mech_id", "")
 	var mv := float(it.get("mech_v", 0.0))
 	d *= combo_mult()
+	# v12: usul, ad güçleri, yeraltı ruhları
+	var on_beat: bool = bool(opts.get("usul_ok", false)) if opts.get("ok", false) else usul_buff_t > 0.0
+	if on_beat:
+		d *= usul_mult()
+		FX.burst(e.center(), Color(1.0, 0.85, 0.45), 4, 60, 0.3, 0.14, 0, true)
+	if e.is_boss and Adlar.earned("basat"):
+		d *= 1.25
+	if e.elite and Adlar.earned("bogac"):
+		d *= 1.3
+	if Adlar.earned("alp_er_tunga"):
+		d *= 1.15
+	if opts.get("ok", false) and Adlar.earned("bamsi_beyrek"):
+		d *= 1.25
+	if realm == "yer" and e.realm == "yer":
+		d *= 1.2
 	# mekanik kritik koşulları
-	var crit := randf() * 100.0 < float(it.get("crit", 0.0)) + ItemGen.aff(it, "krit_sans") + (10.0 if Game.has_lutuf("ay_ata") else 0.0)
+	var crit := randf() * 100.0 < float(it.get("crit", 0.0)) + ItemGen.aff(it, "krit_sans") + (10.0 if Game.has_lutuf("ay_ata") else 0.0) + (10.0 if Adlar.earned("segrek") else 0.0)
 	if Game.has_lutuf("erlik"):
 		d *= 1.35
 	match mech:
@@ -2455,6 +2491,15 @@ func _deal(e: Node, base: float, it: Dictionary, opts: Dictionary = {}) -> void:
 	if Game.has_lutuf("gun_ana") and randf() < 0.25:
 		opts["burn"] = maxf(float(opts.get("burn", 0.0)), 3.0)
 	var killed: bool = e.take_hit(d, opts)
+	if killed:
+		# v12 destanlar: yayla kesilenler, tek savuruşta üç
+		if opts.get("ok", false):
+			if Adlar.add_stat("bow_level") >= 10.0:
+				Adlar.deed("bamsi_beyrek", center())
+		elif not atk.is_empty() and not opts.get("don", false):
+			atk["kills"] = int(atk.get("kills", 0)) + 1
+			if int(atk["kills"]) >= 3:
+				Adlar.deed("segrek", center())
 	add_kut(d * 0.22 + ItemGen.aff(it, "kut"))
 	if Game.has_lutuf("tengri") and randf() < 0.22 and not opts.get("zincir", false):
 		_tengri_chain(e, d * 0.5, it)
@@ -2529,6 +2574,7 @@ func _hit_sfx(it: Dictionary, big: bool, crit: bool, sname: String) -> void:
 
 
 func _fire_bow(charge: float) -> void:
+	var on_beat := _usul_press()
 	Ses.play("yay_birak_tam" if charge >= 0.99 else "yay_birak", -3.0, 0.95 + 0.1 * charge)
 	var it := slot(sec_slot)
 	var full := charge >= 0.98
@@ -2546,6 +2592,8 @@ func _fire_bow(charge: float) -> void:
 		p.velocity = Vector2(facing * spd, -20.0 * (1.0 - charge)).rotated(ang * facing)
 		p.gravity = 260.0 * (1.0 - charge)
 		p.pierce = int(it.get("mech_v", 1)) if (full and mech == "kemankes") else (1 if (full and mech == "yelpaze") else 0)
+		if Adlar.earned("bamsi_beyrek"):
+			p.pierce += 1
 		# her yayın kendi iz rengi ve uçuş efekti
 		match String(it.get("id", "")):
 			"akinci_yayi":
@@ -2563,7 +2611,7 @@ func _fire_bow(charge: float) -> void:
 			p.fx_kind = "altin"
 		var dmg_k := lerpf(0.6, 1.6, charge) * (0.75 if n_arrows > 1 else 1.0)
 		p.on_hit = func(e: Node) -> void:
-			_deal(e, float(it["dmg"]) * dmg_k, it, {"full": full, "kb": 60.0, "dir": facing})
+			_deal(e, float(it["dmg"]) * dmg_k, it, {"full": full, "kb": 60.0, "dir": facing, "ok": true, "usul_ok": on_beat})
 			if mech == "alev_oku":
 				level.fire_pool(e.global_position, 22.0, float(it.get("mech_v", 2.0)), 2.0)
 		level.add_projectile(p)
@@ -3188,6 +3236,9 @@ func take_hit(dmg: float, from: Node, projectile: Node = null, forced := false) 
 	## true: hasar alındı; "parry" durumunda saldıran sersemletilir. forced: yakalanmışken gıdıklama (dokunulmazlık yok)
 	if dead or (not forced and (inv_t > 0.0 or roll_t > 0.0)):
 		return false
+	# v12 Üç Âlem: öbür âlemin yaratıkları (ve mermileri) dokunamaz
+	if from != null and "realm" in from and String(from.realm) != realm:
+		return false
 	if ward:
 		ward = false
 		FX.ring(center(), 26, Color(0.35, 0.6, 1.0), 0.35)
@@ -3223,6 +3274,19 @@ func take_hit(dmg: float, from: Node, projectile: Node = null, forced := false) 
 		dmg *= 0.6
 		wolf_atk = {}
 		pounce_t = 0.0
+	if don_on:
+		dmg *= don.dmg_mult()
+		if dmg <= 0.0:
+			FX.sparks(center() + Vector2(facing * 10, -4), Vector2(facing, -0.5), Color(0.85, 0.8, 1.0), 6, 150.0)
+			inv_t = 0.2
+			return false
+	if Adlar.earned("deli_dumrul") and not Game.run.get("dumrul_used", false) and float(Game.run["hp"]) - dmg < 1.0:
+		# Deli Dumrul: Azrail'e meydan okur; bölümde bir kez ölümden 1 canla döner
+		dmg = maxf(0.0, float(Game.run["hp"]) - 1.0)
+		Game.run["dumrul_used"] = true
+		FX.text(center() + Vector2(0, -56), "DELİ DUMRUL AZRAİL'E DİRENDİ!", Color(1.0, 0.5, 0.4), 10)
+		FX.ring(center(), 64, Color(1.0, 0.45, 0.35), 0.5)
+		Game.slowmo(0.25, 0.6)
 	Game.run["hp"] = float(Game.run["hp"]) - dmg
 	inv_t = 0.8
 	hurt_t = 0.25
@@ -3462,3 +3526,167 @@ func _move_label(txt: String, col: Color, sz: int) -> void:
 	_label_last = txt
 	_label_ms = now
 	FX.text(center() + Vector2(0, -40), txt, col, sz)
+
+
+
+# ================================================================== v12: Üç Âlem, Don, Usul
+func _v12_tick(delta: float) -> void:
+	usul_buff_t -= delta
+	if realm == "":
+		kam = minf(100.0, kam + 4.0 * delta)
+	else:
+		kam -= 15.0 * delta * (0.6 if Adlar.earned("kam_ata") else 1.0)
+		if Adlar.add_stat("alem", delta) >= 30.0:
+			Adlar.deed("kam_ata", center())
+		if realm == "gok" and velocity.y > 0.0:
+			velocity.y -= GRAV * 0.35 * delta  # göğün hafifliği
+		if Engine.get_physics_frames() % 5 == 0:
+			FX.burst(center() + Vector2(randf_range(-10, 10), randf_range(-16, 12)), Alem.GOK_COL if realm == "gok" else Alem.YER_COL, 1, 20, 0.6, 0.16, -40, true)
+		if kam <= 0.0:
+			kam = 0.0
+			_exit_realm(true, delta)
+	if Input.is_action_just_pressed("alem"):
+		if realm == "":
+			_enter_realm("yer" if Input.is_action_pressed("asagi") else "gok")
+		else:
+			_exit_realm(false, delta)
+	if Input.is_action_just_pressed("don") and not don_on and wolf_t <= 0.0:
+		if don_kind != "":
+			_begin_don()
+		else:
+			FX.text(center() + Vector2(0, -44), "Emilecek ruh yok: bir seçkin devir", Color(0.8, 0.7, 0.95), 7)
+
+
+func _enter_realm(r: String) -> void:
+	if level == null or level.hub or level.boss_id != "" or level.alem == null:
+		FX.text(center() + Vector2(0, -44), "Burada âlem kapısı kapalı", Color(0.8, 0.75, 0.9), 7)
+		return
+	if kam < 30.0:
+		FX.text(center() + Vector2(0, -44), "Kam gücü yetmiyor", Color(0.8, 0.75, 0.9), 7)
+		Ses.play("ui_sec", -6.0, 0.7)
+		return
+	_set_realm(r)
+	var col: Color = Alem.GOK_COL if r == "gok" else Alem.YER_COL
+	Ses.play("alem_" + r, 0.0)
+	Game.slowmo(0.4, 0.25)
+	Game.shake(4.0)
+	FX.ring(center(), 90, col, 0.5)
+	FX.ring(center(), 50, col.lightened(0.3), 0.35)
+	FX.anim("spectral_bloom", global_position, 0.0, 1.6, col)
+	FX.flash_light(center(), col, 280.0, 2.0, 0.5)
+	FX.text(center() + Vector2(0, -50), "ÜLGEN'İN GÖĞÜ" if r == "gok" else "ERLİK'İN YERALTI", col, 11)
+	if r == "gok":
+		velocity.y = minf(velocity.y, -160.0)
+
+
+func _exit_realm(forced: bool, delta: float) -> void:
+	if realm == "yer" and level.alem.player_in_slab(hurt_rect()):
+		# ruh taşının içindeyken bu dünyaya dönülmez; kam tükendiyse can erir
+		if forced:
+			Game.run["hp"] = maxf(1.0, float(Game.run["hp"]) - 6.0 * delta)
+		elif Engine.get_physics_frames() % 20 == 0:
+			FX.text(center() + Vector2(0, -44), "Taşın içinden dönülmez", Color(0.8, 0.6, 0.95), 7)
+		return
+	var room: Dictionary = level.alem.room_of(global_position) if realm == "yer" else {}
+	var col: Color = Alem.GOK_COL if realm == "gok" else Alem.YER_COL
+	_set_realm("")
+	Ses.play("alem_cikis", -2.0)
+	FX.ring(center(), 60, col, 0.35)
+	FX.ghost(anim.base, Color(col, 0.5), 0.3)
+	if not room.is_empty():
+		global_position = Vector2(float(room["x"]) * level.TS + level.TS / 2.0, (float(room["y"]) + 1.0) * level.TS - 1.0)
+		velocity = Vector2.ZERO
+		FX.soul(center(), col, 16)
+		FX.text(center() + Vector2(0, -44), "Ruhlar seni yukarı taşıdı", col, 7)
+
+
+func _set_realm(r: String) -> void:
+	realm = r
+	set_collision_mask_value(6, r != "yer")
+	set_collision_mask_value(5, r == "gok")
+	if level and level.alem:
+		level.alem.set_realm(r)
+	Ses.alem_mix = r
+
+
+func _usul_press() -> bool:
+	## Saldırı tuşu usulün vuruşuna denk geldi mi? (müziğin aksak usulü: 9/8, 7/8, 5/8, halay)
+	var u := Ses.usul_now()
+	if u.is_empty():
+		return false
+	var win := 0.085 + (0.035 if Adlar.earned("kopuzcu") else 0.0)
+	if absf(float(u["d"])) <= win:
+		usul_streak += 1
+		usul_buff_t = 0.5
+		usul_strong = bool(u["strong"])
+		var col := Color(1.0, 0.85, 0.45)
+		FX.ring(center(), 18.0 + (10.0 if usul_strong else 0.0), col, 0.22)
+		Ses.play("usul_dum" if usul_strong else "usul_vurus", -3.0, 1.0, 0.02, 0.05)
+		if usul_streak >= 2:
+			FX.text(center() + Vector2(0, -52), ("DÜM!  " if usul_strong else "") + "USUL x%d" % usul_streak, col, 7 + mini(3, usul_streak / 4))
+		if usul_streak % 8 == 0:
+			Ses.play("usul_seri", -2.0)
+			add_kut(6.0)
+			FX.ring(center(), 60, col, 0.4)
+			FX.burst(center(), col, 16, 80, 0.5, 0.18, -40, true)
+		if usul_streak >= 12:
+			Adlar.deed("kopuzcu", center())
+		return true
+	usul_streak = 0
+	usul_buff_t = 0.0
+	return false
+
+
+func usul_mult() -> float:
+	return 1.15 + 0.025 * minf(usul_streak, 12) + (0.15 if usul_strong else 0.0) + (0.1 if Adlar.earned("kopuzcu") else 0.0)
+
+
+func gain_don(k: String) -> void:
+	don_kind = k
+	var nm := String(Data.enemy_def(k).get("name", k))
+	FX.text(center() + Vector2(0, -46), "DON: %s  [G]" % nm, DonForm.COL, 9)
+	FX.soul(center(), DonForm.COL, 20)
+	FX.ring(center(), 30, DonForm.COL, 0.3)
+	Ses.play("don_al", -1.0)
+
+
+func _begin_don() -> void:
+	atk = {}
+	_end_trail()
+	charge_t = -1.0
+	if charge_fx and is_instance_valid(charge_fx):
+		charge_fx.stop()
+	charge_fx = null
+	aim_t = -1.0
+	block_t = -1.0
+	throw_t = -1.0
+	roll_t = 0.0
+	_set_crouch(false)
+	anim.visible = false
+	arm_root.visible = false
+	weapon.visible = false
+	shield_spr.visible = false
+	don_on = true
+	don.begin(self, don_kind)
+	don_kind = ""
+	Ses.play("don_donus", 0.0)
+	Game.shake(4.0)
+	Game.slowmo(0.3, 0.25)
+	FX.anim("void_implosion", center(), 0.0, 1.2, DonForm.COL)
+	FX.ring(center(), 70, DonForm.COL, 0.45)
+	FX.soul(center(), DonForm.COL, 24)
+	FX.text(center() + Vector2(0, -50), "DON: " + don.display_name().to_upper(), DonForm.COL, 11)
+	if Adlar.add_stat("don") >= 3.0:
+		Adlar.deed("donen", center())
+
+
+func _end_don() -> void:
+	don_on = false
+	don.visible = false
+	anim.visible = true
+	anim.set_facing(facing)
+	inv_t = maxf(inv_t, 0.5)
+	FX.anim("smoke_puff", center(), 0.0, 1.0, DonForm.COL, true)
+	if don.anim:
+		FX.ghost(don.anim.base, Color(DonForm.COL, 0.5), 0.35)
+	Ses.play("don_bitis", -2.0)

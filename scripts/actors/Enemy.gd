@@ -143,7 +143,7 @@ func setup(k: String, is_elite: bool, tier: int) -> void:
 func _ready() -> void:
 	add_to_group("dusman")
 	collision_layer = Game.LAYER_ENEMY
-	collision_mask = Game.LAYER_WORLD | Game.LAYER_PLATFORM
+	collision_mask = Game.LAYER_WORLD | Game.LAYER_PLATFORM | Game.LAYER_HAYALET
 	floor_snap_length = 6.0
 	var shape := RectangleShape2D.new()
 	shape.size = size
@@ -238,6 +238,9 @@ func apply_curse() -> void:
 # ------------------------------------------------------------------ hasar
 func take_hit(d: float, opts: Dictionary) -> bool:
 	if dead:
+		return false
+	# v12 Üç Âlem: başka âlemdeki yaratığa vurulamaz
+	if level and level.player and String(level.player.realm) != realm:
 		return false
 	if cursed_t > 0.0:
 		d *= 1.25
@@ -469,6 +472,7 @@ func _die_sfx() -> String:
 	return "kurt_olum"
 
 
+var realm := ""  # v12: "" bu dünya, "yer" Erlik'in gölge ruhu (yalnızca yeraltında var)
 var _hit_tilt := 0.0
 var _slam_t := 0.0
 var _bounced := false

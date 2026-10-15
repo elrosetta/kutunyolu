@@ -43,6 +43,7 @@ var _haz_t := 0.0
 var boss_id := ""
 var boss: Enemy
 var boss_gate_open := false
+var alem: Alem  # v12 Üç Âlem
 const HUB_W := 92
 var red_rect: ColorRect
 var _light_tex: GradientTexture2D
@@ -55,6 +56,14 @@ func build(seed_value: int) -> void:
 	art = biome.get("art", {})
 	Game.run["biome"] = biome.get("id", "otuken")
 	_generate()
+	# v12: gizli yeraltı odaları karolar kurulmadan oyulur; bölüm başı destan sayaçları
+	alem = Alem.new()
+	alem.level = self
+	alem.carve()
+	Game.run["dumrul_used"] = false
+	for k in ["kills_level", "bow_level", "low_kills"]:
+		Adlar.set_stat(k, 0.0)
+	Ses.alem_mix = ""
 	_build_tiles()
 	decor_root = Node2D.new()
 	decor_root.z_index = -2
@@ -81,6 +90,8 @@ func build(seed_value: int) -> void:
 	_spawn_items()
 	_spawn_scrolls()
 	_place_rooms()
+	add_child(alem)
+	alem.populate()
 	_build_particles()
 	_build_overlay_fx()
 	Ses.music(biome.get("id", "otuken"))
@@ -1232,6 +1243,7 @@ func on_enemy_died(e: Enemy) -> void:
 	if e == boss and e != null:
 		_on_boss_died(e)
 		return
+	_v12_on_kill(e)
 	for i in randi_range(2, 4) + (6 if e.elite else 0):
 		drop_orb("gold", e.center())
 
@@ -1251,7 +1263,39 @@ func on_enemy_died(e: Enemy) -> void:
 
 
 
+func _v12_on_kill(e: Enemy) -> void:
+	## Destanlar, don ruhu, âlem ödülleri
+	var pl := player
+	var at := e.center()
+	if Adlar.add_stat("kills_level") >= 40.0:
+		Adlar.deed("salur_kazan", pl.center() if pl else at)
+	if pl and float(Game.run["hp"]) < float(Game.run["max_hp"]) * 0.15:
+		if Adlar.add_stat("low_kills") >= 5.0:
+			Adlar.deed("deli_dumrul", pl.center())
+	if e.elite:
+		if pl and float(Game.run["hp"]) >= float(Game.run["max_hp"]) * 0.999:
+			Adlar.deed("bogac", pl.center())
+		# Don: seçkinin ruhu kalır; dokununca emilir, G ile onun kılığına girilir
+		var d := Pickup.new()
+		d.kind = "don"
+		d.item_id = e.kind
+		d.level = self
+		d.position = at + Vector2(0, -18)
+		add_child(d)
+		pickups.append(d)
+	if e.realm == "yer":
+		for i in 3:
+			drop_orb("kut", at)
+		FX.soul(at, Color(0.75, 0.4, 0.95), 16)
+	if pl:
+		pl.kam = minf(100.0, pl.kam + 8.0)
+
+
 func _on_boss_died(e: Enemy) -> void:
+	if boss_id == "tepegoz":
+		Adlar.deed("basat", e.center())
+	elif boss_id == "erlik_han":
+		Adlar.deed("alp_er_tunga", e.center())
 	Game.slowmo(0.25, 1.2)
 	Game.shake(10.0)
 	Game.zoom_punch(0.1)

@@ -396,6 +396,19 @@ def render_soft(notes, scale, root, step, total, sr, inst, seed=0, ornament=0.15
 
 
 # ------------------------------------------------------------ parçalar (v11: sakin ama hareketli)
+META = {}  # v12: parça adı -> {step, groups, bars} (Usul Vuruşu)
+
+
+def loop_exact(x, L, sr):
+    """Döngü tam ölçü katı uzunlukta: yankı kuyruğu başa sarılır (dikişsiz, vuruş ızgarası kaymaz)."""
+    y = np.array(x[:L], dtype=float)
+    if len(y) < L:
+        y = np.concatenate([y, np.zeros(L - len(y))])
+    tail = np.asarray(x[L:L + int(sr * 2.5)], dtype=float)
+    y[:len(tail)] += tail
+    return y
+
+
 def track(name, sr):
     rng = np.random.default_rng({'otuken': 11, 'bozkir': 22, 'sahmeran': 33, 'kaf': 44, 'tamu': 55, 'boss': 66, 'baslik': 77}.get(name, 1))
     if name == 'otuken':
@@ -481,6 +494,9 @@ def track(name, sr):
         x = mix(reverb(lead, 2.4, 0.4, sr), sz, dr)
     # mastering: yumuşak tavan, tizleri törpüle (kulak yormasın)
     x = fft_filter(x, lo=45, hi=6500, sr=sr, slope=1.3)
+    L = int(round(total * sr))
+    x = loop_exact(x, L, sr)
     rms = np.sqrt(np.mean(x ** 2)) + 1e-9
     x = np.tanh(x / (rms * 4.5))  # ortalamaya göre: tepe vuruşlar yumuşakça kırpılır, ezgi öne çıkar
-    return loopify(x, sr)
+    META[name] = {'step': step, 'groups': [int(g) * 2 for g in meter], 'bars': bars, 'samples': L, 'sr': sr}
+    return x

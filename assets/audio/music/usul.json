@@ -1,0 +1,83 @@
+{
+ "otuken": {
+  "step": 0.125,
+  "groups": [
+   4,
+   4,
+   4,
+   6
+  ],
+  "bars": 16,
+  "samples": 793800,
+  "sr": 22050
+ },
+ "bozkir": {
+  "step": 0.13,
+  "groups": [
+   4,
+   4,
+   4,
+   4
+  ],
+  "bars": 16,
+  "samples": 733824,
+  "sr": 22050
+ },
+ "sahmeran": {
+  "step": 0.125,
+  "groups": [
+   6,
+   4,
+   4
+  ],
+  "bars": 16,
+  "samples": 617400,
+  "sr": 22050
+ },
+ "kaf": {
+  "step": 0.12,
+  "groups": [
+   4,
+   6
+  ],
+  "bars": 24,
+  "samples": 635040,
+  "sr": 22050
+ },
+ "tamu": {
+  "step": 0.11,
+  "groups": [
+   4,
+   4,
+   4,
+   6
+  ],
+  "bars": 16,
+  "samples": 698544,
+  "sr": 22050
+ },
+ "boss": {
+  "step": 0.11,
+  "groups": [
+   4,
+   4,
+   4,
+   4
+  ],
+  "bars": 16,
+  "samples": 620928,
+  "sr": 22050
+ },
+ "baslik": {
+  "step": 0.17,
+  "groups": [
+   4,
+   4,
+   4,
+   6
+  ],
+  "bars": 8,
+  "samples": 539784,
+  "sr": 22050
+ }
+}

@@ -33,12 +33,16 @@ func _ready() -> void:
 	_new_run()
 	if OS.get_cmdline_user_args().has("--yurt"):
 		_build_hub()  # yurt testi: doğrudan Ulu Kayın'da başla
+	if OS.get_cmdline_user_args().has("--mekanik"):
+		var mt: Node = load("res://tools/tests/mekanik_testi.gd").new()
+		mt.set("main", self)
+		add_child(mt)
 	for arg in OS.get_cmdline_user_args():
 		if String(arg) == "--boss":
 			_build_boss("kara_boru_han")
 		elif String(arg).begins_with("--boss="):
 			_build_boss(String(arg).trim_prefix("--boss="))
-	if auto_test or showcase or _ekran != "":
+	if auto_test or showcase or _ekran != "" or OS.get_cmdline_user_args().has("--mekanik"):
 		hud.mode = "play"
 		get_tree().paused = false
 	else:
@@ -195,6 +199,9 @@ func _on_npc(id: String) -> void:
 			Ses.play("ors")
 			hud.mode = "demirci"
 		"ozan":
+			if not Adlar.pending().is_empty():
+				_ad_toreni()
+				return
 			Ses.play("npc_1")
 			hud.ozan_i = randi() % 4
 			hud.mode = "ozan"
@@ -354,6 +361,12 @@ func _unhandled_input(event: InputEvent) -> void:
 				hud.flash_t = 2.0
 			elif go or event.is_action_pressed("duraklat"):
 				_start_play()
+		"ad":
+			if (go or event.is_action_pressed("etkiles") or event.is_action_pressed("duraklat")) and hud.ad_t > 1.2:
+				if not Adlar.pending().is_empty():
+					_ad_toreni()
+				else:
+					_start_play()
 		"ozan":
 			if go or event.is_action_pressed("etkiles"):
 				hud.ozan_i += 1
@@ -365,6 +378,19 @@ func _unhandled_input(event: InputEvent) -> void:
 		"play":
 			if event.is_action_pressed("duraklat"):
 				get_tree().paused = not get_tree().paused
+
+
+func _ad_toreni() -> void:
+	## Ozan kopuzunu alır, destanı anlatır, yiğide adını koyar
+	var id: String = Adlar.pending()[0]
+	Adlar.grant(id)
+	hud.ad_id = id
+	hud.ad_t = 0.0
+	hud.mode = "ad"
+	get_tree().paused = true
+	Ses.play("ad_toren", 0.0)
+	if level and level.player:
+		FX.soul(level.player.center(), Color(1.0, 0.85, 0.45), 30)
 
 
 func _after_intro() -> void:

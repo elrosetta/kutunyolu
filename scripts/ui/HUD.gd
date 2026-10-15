@@ -14,6 +14,10 @@ var sel := 0
 var flash_msg := ""
 var flash_t := 0.0
 var ozan_i := 0
+var ad_id := ""
+var ad_t := 0.0
+var _usul_flash := 0.0
+var _last_streak := 0
 var slot_opts: Array = []
 var _open_t := 1.0
 var _hp_lag := -1.0
@@ -40,8 +44,10 @@ func _process(delta: float) -> void:
 	flash_t -= delta
 	_open_t = minf(1.0, _open_t + delta * 6.0)
 	_kut_pulse = maxf(0.0, _kut_pulse - delta)
+	ad_t += delta
+	_usul_flash = maxf(0.0, _usul_flash - delta * 3.0)
 	if mode != _last_mode:
-		if mode in ["tilsim", "slot", "umay", "demirci", "ozan", "dead", "done"]:
+		if mode in ["tilsim", "slot", "umay", "demirci", "ozan", "dead", "done", "ad"]:
 			_open_t = 0.0
 		_last_mode = mode
 	# menülerde ses kısılır (Ses.menu_duck varsa)
@@ -122,6 +128,9 @@ func _draw() -> void:
 			return
 		"ozan":
 			_draw_ozan(vp)
+			return
+		"ad":
+			_draw_ad(vp)
 			return
 	if Game.run.is_empty() or level == null or level.player == null:
 		return
@@ -263,6 +272,7 @@ func _draw_hud(vp: Vector2) -> void:
 		PixUI.text(self, Vector2(cx - 60, cy + 26), "KOMBO" if rk_name == "" else rk_name, rk_col.darkened(0.1), 1, HORIZONTAL_ALIGNMENT_RIGHT, 120, 2)
 		PixUI.bar(self, Rect2(cx - 4, cy + 38, 64, 3), clampf(pl.combo_t / 2.4, 0.0, 1.0), rk_col)
 		PixUI.text(self, Vector2(cx - 60, cy + 43), "+%d%% hasar" % int(round((pl.combo_mult() - 1.0) * 100.0)), PixUI.DIM, 1, HORIZONTAL_ALIGNMENT_RIGHT, 120, 0)
+	_draw_v12(vp, pl, kx, y0)
 	# ---- boss can çubuğu
 	if level.boss != null and is_instance_valid(level.boss) and not level.boss.dead and level.boss.state != "intro":
 		var bw2 := 260.0
@@ -615,9 +625,10 @@ func _draw_title(vp: Vector2) -> void:
 		[["A/D", "hareket"], ["Boşluk", "zıpla"], ["J", "1. silah"], ["K", "2. silah"], ["L", "yuvarlan"]],
 		[["U/I", "teçhizat"], ["Q", "şişe"], ["F", "Kut gücü"], ["E", "al / konuş"], ["Esc", "duraklat"]],
 	]
-	PixUI.panel(self, Rect2(vp.x / 2.0 - 230, vp.y - 62, 460, 46))
-	_hint(vp, rows[0], vp.y - 56)
-	_hint(vp, rows[1], vp.y - 42)
+	PixUI.panel(self, Rect2(vp.x / 2.0 - 230, vp.y - 76, 460, 46))
+	_hint(vp, rows[0], vp.y - 70)
+	_hint(vp, rows[1], vp.y - 56)
+	PixUI.text(self, Vector2(0, vp.y - 42), "R kam transı: göğe geç (S+R yeraltı) · G don: seçkin ruhunun kılığı · müziğin usulüne denk vuruş güçlü · destanını Ozan'a anlat, adın konsun", Color(0.85, 0.75, 1.0, 0.9), 1, HORIZONTAL_ALIGNMENT_CENTER, vp.x, 0)
 	PixUI.text(self, Vector2(0, vp.y - 29), "J art arda = zincir · bekle+J = bitiriş · basılı = ağır · ↑J göğe savur · havada ↓J dalış · koşarken J akın · yuvarlan+J dönüş · S+J diz biçen", Color(1.0, 0.85, 0.5, 0.85), 1, HORIZONTAL_ALIGNMENT_CENTER, vp.x, 0)
 	PixUI.text(self, Vector2(0, vp.y - 17), "Shift basılı = koş · S = çömel (çömelirken saldırı ve yay) · duvara doğru zıpla = kenara tutun", Color(0.75, 0.9, 1.0, 0.8), 1, HORIZONTAL_ALIGNMENT_CENTER, vp.x, 0)
 
@@ -826,3 +837,112 @@ func _draw_demirci(vp: Vector2) -> void:
 		PixUI.text(self, Vector2(0, 256), flash_msg, Color(PixUI.GOLD, clampf(flash_t, 0.0, 1.0)), 1, HORIZONTAL_ALIGNMENT_CENTER, vp.x, 2)
 	PixUI.text(self, Vector2(0, vp.y - 36), "Açılan eşyalar bundan sonraki koşularda düşer.", PixUI.DIM, 1, HORIZONTAL_ALIGNMENT_CENTER, vp.x)
 	_hint(vp, [["A/D", "seç"], ["E", "parşömeni aç"], ["Boşluk", "yola çık"]])
+
+
+
+# ================================================================== v12 göstergeleri
+func _draw_v12(vp: Vector2, pl: Node, kx: float, y0: float) -> void:
+	# ---- kam gücü (R): öbür âleme geçiş
+	var ax := kx + 36.0
+	var ay := y0 + 15.0
+	var kk: float = pl.kam / 100.0
+	var rcol: Color = Alem.GOK_COL if pl.realm == "gok" else (Alem.YER_COL if pl.realm == "yer" else Color(0.95, 0.8, 0.55))
+	draw_circle(Vector2(ax, ay), 15.0, PixUI.SHADOW)
+	draw_circle(Vector2(ax, ay), 14.0, PixUI.INK)
+	draw_arc(Vector2(ax, ay), 14.0, 0.0, TAU, 28, PixUI.EDGE, 1.0)
+	var ok: bool = kk >= 0.3 or pl.realm != ""
+	draw_arc(Vector2(ax, ay), 11.0, -PI / 2.0, -PI / 2.0 + TAU * clampf(kk, 0.0, 1.0), 32, rcol if ok else Color(rcol, 0.35), 3.0)
+	# kam davulu simgesi
+	draw_circle(Vector2(ax, ay), 4.5, Color(rcol, 0.8 if ok else 0.35))
+	draw_line(Vector2(ax - 4, ay), Vector2(ax + 4, ay), PixUI.INK, 1.0)
+	draw_line(Vector2(ax, ay - 4), Vector2(ax, ay + 4), PixUI.INK, 1.0)
+	PixUI.key_cap(self, Vector2(ax - 4, y0 + 25), "R", rcol, ok)
+	# ---- don (G): emilmiş seçkin ruhu
+	var dx := ax + 36.0
+	var has_don: bool = pl.don_kind != ""
+	var dcol := DonForm.COL
+	draw_circle(Vector2(dx, ay), 15.0, PixUI.SHADOW)
+	draw_circle(Vector2(dx, ay), 14.0, PixUI.INK)
+	draw_arc(Vector2(dx, ay), 14.0, 0.0, TAU, 28, PixUI.EDGE, 1.0)
+	if has_don:
+		draw_arc(Vector2(dx, ay), 11.0, 0.0, TAU, 32, Color(dcol, 0.6 + 0.4 * sin(_t * 6.0)), 3.0)
+		draw_circle(Vector2(dx, ay), 4.0, dcol)
+		var nm := String(Data.enemy_def(pl.don_kind).get("name", ""))
+		PixUI.text(self, Vector2(dx - 60, y0 - 11), nm, dcol, 1, HORIZONTAL_ALIGNMENT_CENTER, 120, 2)
+	else:
+		draw_circle(Vector2(dx, ay), 4.0, Color(dcol, 0.25))
+	PixUI.key_cap(self, Vector2(dx - 4, y0 + 25), "G", dcol, has_don)
+	# ---- âlem başlığı ve süre
+	var py := 30.0
+	if pl.realm != "":
+		var wx := vp.x / 2.0 - 80.0
+		PixUI.panel(self, Rect2(wx, py, 160, 26), rcol)
+		PixUI.text(self, Vector2(wx, py + 2), "ÜLGEN'İN GÖĞÜ" if pl.realm == "gok" else "ERLİK'İN YERALTI", rcol.lightened(0.2), 1, HORIZONTAL_ALIGNMENT_CENTER, 160, 1)
+		PixUI.bar(self, Rect2(wx + 6, py + 16, 148, 4), kk, rcol)
+		var hint := "bulutlara bas · ruh kuşlarını yakala · R dön" if pl.realm == "gok" else "ruh taşlarından geç · gölgeleri avla · R dön"
+		PixUI.text(self, Vector2(0, py + 30), hint, Color(rcol, 0.85), 1, HORIZONTAL_ALIGNMENT_CENTER, vp.x)
+		py += 44.0
+	if pl.don_on:
+		var wx2 := vp.x / 2.0 - 80.0
+		PixUI.panel(self, Rect2(wx2, py, 160, 26), dcol)
+		PixUI.text(self, Vector2(wx2, py + 2), "DON: %s  %.1f" % [pl.don.display_name().to_upper(), pl.don.t], dcol.lightened(0.3), 1, HORIZONTAL_ALIGNMENT_CENTER, 160, 1)
+		PixUI.bar(self, Rect2(wx2 + 6, py + 16, 148, 4), clampf(pl.don.t / pl.don.dur, 0.0, 1.0), dcol)
+		var moves := {"kurt": "J atılış · K sıçrayış", "kalkan": "J kalkan vuruşu · K siper", "kabuk": "J yuvarlan · K kabuğa çekil",
+			"hucum": "J hücum · K ezme", "dev": "J yere çak · K sarsıntı", "kanat": "Boşluk uç · J pike · K tüy", "buyucu": "J büyü · K ışınlan"}
+		PixUI.text(self, Vector2(0, py + 30), String(moves.get(pl.don.arch, "")), Color(dcol, 0.85), 1, HORIZONTAL_ALIGNMENT_CENTER, vp.x)
+	# ---- usul ölçeri (sağ): müziğin aksak usulü; vuruşlar çizgi, imleç akar
+	if not level.hub:
+		var u := Ses.usul_now()
+		if not u.is_empty():
+			var mw := 128.0
+			var mx := vp.x - 8.0 - mw
+			var my := 128.0
+			if pl.usul_streak != _last_streak:
+				if pl.usul_streak > _last_streak:
+					_usul_flash = 1.0
+				_last_streak = pl.usul_streak
+			var gold := Color(1.0, 0.85, 0.45)
+			PixUI.panel(self, Rect2(mx - 4, my - 4, mw + 8, 14), Color(gold, 0.4 + 0.6 * _usul_flash))
+			for i in (u["starts"] as Array).size():
+				var sx := roundf(mx + float(u["starts"][i]) * mw)
+				var hh := 8.0 if i == 0 else 5.0
+				draw_rect(Rect2(sx, my + 3 - hh / 2.0, 2 if i == 0 else 1, hh), Color(gold, 0.9 if i == 0 else 0.6))
+			var cxm := roundf(mx + float(u["k"]) * mw)
+			var near := absf(float(u["d"])) <= 0.085
+			draw_rect(Rect2(cxm - 1, my - 2, 2, 10), Color(1, 1, 1, 0.95) if near else Color(0.85, 0.8, 0.7, 0.7))
+			var lbl := "usul" if pl.usul_streak < 2 else "USUL x%d" % pl.usul_streak
+			PixUI.text(self, Vector2(mx - 60, my + 12), lbl, gold.lerp(Color.WHITE, _usul_flash * 0.6), 1, HORIZONTAL_ALIGNMENT_RIGHT, mw + 60, 2)
+	# ---- ad ve bekleyen destan (can çubuğunun yanında)
+	var tt := Adlar.title()
+	var tx := 186.0
+	if tt != "":
+		PixUI.text(self, Vector2(tx, 10), "Bengü «%s»" % tt, PixUI.GOLD, 1, HORIZONTAL_ALIGNMENT_LEFT, -1.0, 2)
+	var pend := Adlar.pending().size()
+	if pend > 0:
+		PixUI.text(self, Vector2(tx, 22), "destan: %d · Ozan'a anlat" % pend, Color(PixUI.GOLD, 0.6 + 0.4 * sin(_t * 4.0)), 1, HORIZONTAL_ALIGNMENT_LEFT, -1.0, 2)
+
+
+func _draw_ad(vp: Vector2) -> void:
+	## Ad Koyma Töreni: Ozan destanı anlatır, yiğide adını koyar
+	_dim(vp, 0.86, Color(0.06, 0.035, 0.02))
+	if not Adlar.ADLAR.has(ad_id):
+		return
+	var a: Array = Adlar.ADLAR[ad_id]
+	_title(vp, 34, "AD KOYMA TÖRENİ", PixUI.GOLD)
+	var k := clampf(ad_t / 0.9, 0.0, 1.0)
+	var l1 := "«Ozan kopuzunu eline aldı, boy boylayıp soy soylayıp şöyle dedi:»"
+	PixUI.text(self, Vector2(0, 78), l1, Color(0.9, 0.85, 0.75, k), 1, HORIZONTAL_ALIGNMENT_CENTER, vp.x)
+	var l2 := "«Bu yiğit %s. Adını ben koyayım:»" % String(a[1]).to_lower()
+	PixUI.text(self, Vector2(0, 94), l2, Color(0.95, 0.9, 0.8, clampf((ad_t - 0.4) / 0.6, 0.0, 1.0)), 1, HORIZONTAL_ALIGNMENT_CENTER, vp.x)
+	var kn := clampf((ad_t - 0.9) / 0.5, 0.0, 1.0)
+	if kn > 0.0:
+		var glow := Color(1.0, 0.85, 0.45, 0.25 * kn)
+		draw_rect(Rect2(vp.x / 2.0 - 120, 120, 240, 44), glow)
+		PixUI.text(self, Vector2(0, 124), String(a[0]).to_upper(), Color(1.0, 0.88, 0.5, kn), 3, HORIZONTAL_ALIGNMENT_CENTER, vp.x, 2)
+		PixUI.text(self, Vector2(0, 176), "«Adın %s olsun!»" % String(a[0]), Color(1.0, 0.95, 0.85, kn), 1, HORIZONTAL_ALIGNMENT_CENTER, vp.x)
+		PixUI.text(self, Vector2(0, 200), "Ad gücü: " + String(a[2]), Color(0.7, 1.0, 0.85, kn), 1, HORIZONTAL_ALIGNMENT_CENTER, vp.x)
+		var book: Dictionary = Game.meta.get("adlar", {})
+		PixUI.text(self, Vector2(0, 220), "Ad Defteri: %d / %d ad" % [book.size(), Adlar.ADLAR.size()], PixUI.DIM, 1, HORIZONTAL_ALIGNMENT_CENTER, vp.x)
+	if ad_t > 1.2:
+		var more := not Adlar.pending().is_empty()
+		_hint(vp, [["E", "sıradaki destan" if more else "devam"]])

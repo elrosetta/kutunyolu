@@ -360,6 +360,53 @@ func loop_stop(id: String) -> void:
 
 
 # ------------------------------------------------------------------ müzik ve ortam
+var alem_mix := ""  # v12: "yer" -> müzik boğuklaşır
+var _usul: Dictionary = {}
+var _usul_loaded := false
+
+
+func usul_now() -> Dictionary:
+	## Usul Vuruşu: çalan parçanın usul ızgarasında şu an. d = en yakın usul vuruşuna uzaklık (sn, + geç / - erken),
+	## strong = ölçünün ilk vuruşu (düm), k = ölçü içindeki konum 0..1, starts = vuruşların ölçü içi konumları.
+	if not _usul_loaded:
+		_usul_loaded = true
+		var f := FileAccess.open("res://assets/audio/music/usul.json", FileAccess.READ)
+		if f:
+			var v: Variant = JSON.parse_string(f.get_as_text())
+			if v is Dictionary:
+				_usul = v
+	if _music_cur == "" or not _usul.has(_music_cur) or _music_cur == "baslik":
+		return {}
+	var p: AudioStreamPlayer = null
+	for m in [_music_a, _music_b]:
+		if m.playing and (p == null or m.volume_db > p.volume_db):
+			p = m
+	if p == null:
+		return {}
+	var u: Dictionary = _usul[_music_cur]
+	var step := float(u["step"])
+	var groups: Array = u["groups"]
+	var bar := 0.0
+	var starts: Array = []
+	for g in groups:
+		starts.append(bar)
+		bar += float(g) * step
+	var pos := p.get_playback_position() + AudioServer.get_time_since_last_mix() - AudioServer.get_output_latency()
+	var t := fposmod(pos, bar)
+	var best := 1e9
+	var strong := false
+	for i in starts.size() + 1:
+		var s: float = bar if i == starts.size() else float(starts[i])
+		var d := t - s
+		if absf(d) < absf(best):
+			best = d
+			strong = (i == 0 or i == starts.size())
+	var ks: Array = []
+	for s in starts:
+		ks.append(float(s) / bar)
+	return {"d": best, "strong": strong, "k": t / bar, "starts": ks, "bar": bar}
+
+
 func music(track: String, fade := 1.5) -> void:
 	## Çapraz geçişli müzik; aynı parça çalıyorsa dokunmaz. Parça bir biyom adıysa yankı ve ortam da ona geçer.
 	if BIOME_FX.has(track):
@@ -470,6 +517,8 @@ func _apply_mix() -> void:
 	var hp := _hp_s * _hp_s
 	var c_sfx := minf(_cut(_pduck, 1100.0), _cut(hp, 1800.0))
 	var c_mus := minf(_cut(_duck, 900.0), _cut(hp, 3500.0))
+	if alem_mix == "yer":
+		c_mus = minf(c_mus, 1300.0)
 	_set_lp(BUS_SFX, _fx_lp_sfx, c_sfx)
 	_set_lp(BUS_AMB, _fx_lp_amb, c_sfx)
 	_set_lp(BUS_MUSIC, _fx_lp_music, c_mus)

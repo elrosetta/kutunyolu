@@ -34,6 +34,7 @@ TARGETS = [
     (r'^adim_', -20.0), (r'^inis_', -15.0), (r'^(zipla|yuvarlan)$', -16.0),
     (r'^(ui_gez|ui_sec)', -21.0), (r'^npc_', -19.0), (r'^ui_', -17.0), (r'^esya_(kusan|degis)$', -15.0), (r'^(tilsim_sec|seviye)$', -12.0),
     (r'^altin', -16.0), (r'^kut_tane$', -16.0), (r'^(esya|tilsim|sise|acilis|ors|kut_banka|kapi)$', -13.0),
+    (r'^usul_vurus$', -17.0), (r'^usul_', -14.0), (r'^alem_', -12.0), (r'^ruh_kusu$', -16.0), (r'^ruh_tasi$', -12.0), (r'^don_', -12.0), (r'^(destan|ad_toren)$', -12.0),
     (r'^yay_ger', -16.0), (r'^yay_dolu', -15.0), (r'^yay_birak', -12.0),
 ]
 
@@ -59,6 +60,8 @@ if do_sfx:
     allsfx.update(P.build_all())
     import bow2
     allsfx.update(bow2.build_bow())
+    import v12
+    allsfx.update(v12.build())
     amb = P.ambience()
     print('üretildi:', len(allsfx) + len(amb), 'ses', round(time.time() - t0, 1), 's')
     meta = {}
@@ -98,3 +101,14 @@ if do_music:
             x = master(x, Mu.TARGET_DB.get(biome, -15.0), ceiling=0.85, sr=Mu.MSR, loop=True)
         write_wav(os.path.join(A, 'music', biome + '.wav'), x, Mu.MSR, None)
         print('music', biome, round(len(x) / Mu.MSR, 1), 's', round(time.time() - t0, 1))
+    # v12: Usul Vuruşu için vuruş ızgarası (türkü parçaları)
+    try:
+        import turku as _tk
+        if _tk.META:
+            up = os.path.join(A, 'music', 'usul.json')
+            old = json.load(open(up, encoding='utf-8')) if os.path.exists(up) else {}
+            old.update(_tk.META)
+            json.dump(old, open(up, 'w', encoding='utf-8'), indent=1)
+            print('usul.json', sorted(old.keys()))
+    except ImportError:
+        pass
