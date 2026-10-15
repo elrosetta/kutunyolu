@@ -1,0 +1,4 @@
+Godot Engine 4.7.2 (Windows 64 bit), resmi sürüm: https://godotengine.org
+Godot, MIT lisanslı özgür bir oyun motorudur (Copyright (c) 2014-present Godot Engine contributors).
+Bu zip resmi indirmedir; SHA-512 özeti SHA512.txt içindedir.
+Oyunu_Baslat.bat ilk çalıştırmada zip'i bu klasöre açar; açılan .exe dosyaları depoya eklenmez.
