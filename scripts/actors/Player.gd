@@ -445,6 +445,7 @@ var arm_fore_b: Sprite2D
 var arm_fist_b: Sprite2D
 var wind_n := 0  # Rüzgâr Kılıcı: üçüncü kesik sayacı
 var arm_meta: Dictionary = {}
+var arm_inv := 1.0  # kol parçası doku yoğunluğunun tersi (bengu_kol.json "texel")
 var _hand_local := Vector2.ZERO
 ## Yay: kiriş + yaydaki ok çizimi (kol iskeletinin içinde, silahın üstünde)
 var bow_str: BowString
@@ -529,6 +530,7 @@ func _ready() -> void:
 	# Ön kol iskeleti: üst kol -> ön kol -> silah -> yumruk (yumruk silahın kabzasını örter).
 	# anim düğümünün çocuğu: gövdenin ezilme/esneme ve eğilmesini birebir izler.
 	arm_meta = Data.load_json("res://assets/sprites/bengu_kol.json")
+	arm_inv = 1.0 / float(arm_meta.get("texel", 1.0))  # 1.5x yoğunluklu kol parçaları 2/3 ölçekle çizilir
 	var arm_tex := Data.canvas_tex("res://assets/sprites/bengu_kol.png", "")
 	var am := ShaderMaterial.new()
 	am.shader = Game.toon_shader
@@ -577,6 +579,7 @@ func _arm_piece_in(root_n: Node2D, tex: Texture2D, region: Rect2, pivot: Vector2
 	sp.region_rect = region
 	sp.centered = false
 	sp.offset = -pivot
+	sp.scale = Vector2.ONE * arm_inv
 	sp.material = mat
 	root_n.add_child(sp)
 	return sp
@@ -648,6 +651,7 @@ func _arm_piece(tex: Texture2D, region: Rect2, pivot: Vector2, mat: Material) ->
 	sp.region_rect = region
 	sp.centered = false
 	sp.offset = -pivot
+	sp.scale = Vector2.ONE * arm_inv
 	sp.material = mat
 	arm_root.add_child(sp)
 	return sp
@@ -3200,7 +3204,7 @@ func _place_bone(sp: Sprite2D, a: Vector2, b: Vector2, rest_len: float) -> void:
 	var d := b - a
 	sp.position = a
 	sp.rotation = atan2(-d.x, d.y)
-	sp.scale = Vector2(1.0, maxf(0.2, d.length() / rest_len))
+	sp.scale = Vector2(1.0, maxf(0.2, d.length() / rest_len)) * arm_inv
 
 
 func _on_anim_finished(_n: String) -> void:

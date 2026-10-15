@@ -41,12 +41,14 @@ def ang_of(a):
     return math.atan2(math.cos(a), math.sin(a))
 
 
-def export_sheet(name, anims, render, cell, origin):
+def export_sheet(name, anims, render, cell, origin, texel=1.0):
     names = list(anims.keys())
     cols = max(anims[a][0] for a in names)
     W, H = cols * cell[0], len(names) * cell[1]
     alb = np.zeros((H, W, 4)); nrm = np.zeros((H, W, 4)); glo = np.zeros((H, W, 4))
     meta = {'cell': list(cell), 'origin': list(origin), 'anims': {}}
+    if texel != 1.0:
+        meta['texel'] = texel   # doku pikseli / dünya birimi; çapalar dünya biriminde
     for r, an in enumerate(names):
         n = anims[an][0]
         loop = anims[an][2] if len(anims[an]) > 2 else an in ('idle', 'run', 'walk')
@@ -189,7 +191,7 @@ def _export_creature(nm_):
 
 
 def _export_player():
-    export_sheet('bengu', bengu.ANIMS, lambda an, i: bengu.render_frame(an, i), (96, 80), (44, 74))
+    export_sheet('bengu', bengu.ANIMS, lambda an, i: bengu.render_frame(an, i), bengu.CELL, bengu.FEET, bengu.TEX)
     # oyunda sürülen ön kol parçaları: üst kol, ön kol, yumruk (her biri aşağıyı gösterir, pivot üstte)
     parts = bengu.render_arm_parts()
     cw, ch = bengu.ARM_CELL
@@ -197,8 +199,8 @@ def _export_player():
     for i, pc in enumerate(parts):
         alb[:, i * cw:(i + 1) * cw] = pc.shade()
     save(alb, os.path.join(A, 'sprites', 'bengu_kol.png'))
-    json.dump({'cell': [cw, ch], 'pivot': list(bengu.ARM_PIVOT), 'fist_pivot': [bengu.ARM_PIVOT[0], bengu.ARM_PIVOT[1] + 2],
-               'upper_len': bengu.UPPER_LEN, 'fore_len': bengu.FORE_LEN, 'parts': ['upper', 'fore', 'fist', 'upper_b', 'fore_b', 'fist_b']},
+    json.dump({'cell': [cw, ch], 'pivot': list(bengu.ARM_PIVOT), 'fist_pivot': [bengu.ARM_PIVOT[0], bengu.ARM_PIVOT[1] + 3],
+               'texel': bengu.TEX, 'upper_len': bengu.UPPER_LEN, 'fore_len': bengu.FORE_LEN, 'parts': ['upper', 'fore', 'fist', 'upper_b', 'fore_b', 'fist_b']},
               open(os.path.join(A, 'sprites', 'bengu_kol.json'), 'w', encoding='utf-8'), indent=1)
 
 

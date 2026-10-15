@@ -110,7 +110,7 @@ class VCanvas(Canvas):
         return self._shade(**kw)
 
     def _shade(self, light=(-0.55, -0.72, 0.42), rim=(0.62, -0.78), rim_col='#cfe6ff', rim_amt=0.28,
-              ao=0.75, cast=0.42, form=0.55, fur_amp=0.11, bands=(-0.30, 0.10, 0.52, 0.86), cleanup=2, grad=0.32, rim_th=0.68, **_):
+              ao=0.75, cast=0.42, form=0.55, fur_amp=0.11, bands=(-0.30, 0.10, 0.52, 0.86), cleanup=2, grad=0.32, rim_th=0.68, lit_outline=1.0, **_):
         L = np.array(light, float); L /= np.linalg.norm(L)
         Hh, Ww = self.h, self.w
         zs = self.zscale
@@ -265,6 +265,12 @@ class VCanvas(Canvas):
                 oc = base[None, :] * mul[:, None]
             out[e, :3] = oc
             out[e, 3] = 1
+            if lit_outline < 1.0 and not m.outline:
+                # ışıklı kenarda kontur yok/yarı saydam: siluet "çıkartma" gibi kesik durmaz, ışık kenarda erir
+                ee = np.zeros_like(e)
+                ee[e] = lit[e] > 0.35
+                out[ee, :3] = np.array(m.ramp[1])
+                out[ee, 3] = lit_outline
         self.emis = emis
         self.outline_mask = nb
         return out

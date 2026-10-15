@@ -14,11 +14,13 @@ var frame := 0
 var speed := 1.0
 var manual := false
 var facing := 1
+var texel := 1.0  # doku yoğunluğu (meta "texel"): 1.5 = 1.5x piksel; sprite 1/texel ölçekle çizilir, dünya boyu aynı
 var _t := 0.0
 
 
 func setup(sprite_name: String) -> void:
 	meta = Data.sprite(sprite_name)
+	texel = float(meta.get("texel", 1.0))
 	base = Sprite2D.new()
 	base.texture = meta["tex"]
 	base.region_enabled = true
@@ -78,9 +80,11 @@ func set_facing(dir: int) -> void:
 	var org: Array = meta["origin"]
 	var x := -float(org[0]) if facing > 0 else -(float(cell[0]) - float(org[0]))
 	base.flip_h = facing < 0
-	base.position = Vector2(x, -float(org[1]))
+	base.scale = Vector2.ONE / texel
+	base.position = Vector2(x, -float(org[1])) / texel
 	if glow:
 		glow.flip_h = base.flip_h
+		glow.scale = base.scale
 		glow.position = base.position
 
 

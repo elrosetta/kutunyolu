@@ -18,147 +18,268 @@ from volume import VCanvas
 from materials import M
 from rig import fk_leg, fk_arm, lerp2, chain, Xf
 
-BOOT = Mat(ramp(24, 0.45, 0.30, spread=0.4), name='koyu çizme')
+# ------------------------------------------------------------ v13: 1.5x doku yoğunluğu
+# Bengü 1.5 kat piksel yoğunluğunda çizilir (yeni karolar/arka planlar gibi): oyunda 2/3 ölçekle gösterilir,
+# dünya boyutu aynı kalır, her doku pikseli 1080p'de 2x2 ekran pikseli olur. Çizim kodu DÜNYA birimindedir;
+# TexScale sarmalayıcısı koordinat, yarıçap, eğim ve z'yi TEX ile çarpar. Çapalar (el, omuz, baş) dünya
+# biriminde kalır: oyun kodu (Player.gd kol iskeleti) aynen çalışır.
+TEX = 1.5
+CELL = (144, 120)      # = (96, 80) * 1.5
+FEET = (66, 111)       # = (44, 74) * 1.5
+
+
+class TexScale:
+    """Dünya biriminde çizimi doku pikseline ölçekler (orijin: ayak merkezi / pivot)."""
+    def __init__(self, c, k=TEX):
+        self.c, self.k = c, k
+
+    def P(self, p):
+        return (p[0] * self.k, p[1] * self.k)
+
+    def capsule(self, p0, p1, r0, r1, mat, z=0.0, **kw):
+        self.c.capsule(self.P(p0), self.P(p1), r0 * self.k, r1 * self.k, mat, z=z * self.k, **kw)
+
+    def ellipse(self, c_, rx, ry, mat, z=0.0, **kw):
+        self.c.ellipse(self.P(c_), rx * self.k, ry * self.k, mat, z=z * self.k, **kw)
+
+    def poly(self, pts, mat, z=0.0, bevel=1.6, height=1.5, **kw):
+        self.c.poly([self.P(q) for q in pts], mat, z=z * self.k, bevel=bevel * self.k, height=height * self.k, **kw)
+
+    def dot(self, p, mat, z=50.0, size=1):
+        self.c.dot(self.P(p), mat, z=z * self.k, size=size)
+
+
+# ------------------------------------------------------------ malzemeler
+BOOT = Mat(ramp(22, 0.50, 0.36, spread=0.45), name='kızıl-kahve çizme')
+BOOT_D = Mat(ramp(20, 0.50, 0.24, spread=0.4), name='uzak çizme')
+CUFF = Mat(ramp(30, 0.48, 0.52, spread=0.45), name='çizme konçu')
+SOLE = Mat(ramp(250, 0.25, 0.13, spread=0.3), name='taban')
 TUNIC = M['kaftan']
 TUNIC_IN = M['kaftan_in']
+LINING = Mat(ramp(340, 0.62, 0.30, spread=0.35), name='kaftan astarı (koyu)')
 PANTS = M['indigo']
-PANTS_D = Mat(ramp(238, 0.50, 0.30), name='uzak şalvar')
+PANTS_D = Mat(ramp(238, 0.50, 0.28), name='uzak şalvar')
 SCARF = M['turq']
 SCARF_D = Mat(ramp(178, 0.74, 0.50), name='turkuaz kıvrım')
-# v13: ak kurt postu — gölgeleri soğuk arduvaz mavisine iner (beyaz post hacimli okunsun)
+SASH = Mat(ramp(186, 0.62, 0.38, spread=0.45), name='koyu turkuaz kuşak')
+LEATHER = M['leather']
+LEATHER_D = Mat(ramp(18, 0.55, 0.30, spread=0.4), name='koyu deri')
+GOLD = M['gold']
+# ak kurt postu — gölgeleri soğuk arduvaz mavisine iner (beyaz post hacimli okunsun)
 FUR = Mat([hx('#56647f'), hx('#8e9cb4'), hx('#c8d1df'), hx('#eaeff5'), hx('#ffffff')], name='ak kurt postu')
 FUR_D = Mat([hx('#353c55'), hx('#56607c'), hx('#8590a8'), hx('#aab4c6'), hx('#cdd5e1')], name='kurt postu gölgesi')
 EAR_IN = Mat(ramp(350, 0.35, 0.55, spread=0.4), name='kulak içi')
+NOSE = Mat(ramp(250, 0.35, 0.16, spread=0.3), spec=0.9, name='burun')
 FUR.fur = 0.8
-FUR.bias = -0.14
+FUR.bias = -0.12
 FUR_D.fur = 0.6
+for _m in (PANTS, PANTS_D):
+    _m.fur = 0.25   # şalvar kumaşının hafif dokusu (aynı mekanizma, düşük genlik)
+
+
+def _T(hip, axis, perp):
+    """Gövde yerel koordinatı: u gövde ekseni boyunca (kalçadan yukarı), v öne."""
+    def f(u, v):
+        return (hip[0] + axis[0] * u + perp[0] * v, hip[1] + axis[1] * u + perp[1] * v)
+    return f
 
 
 def draw_bengu(c, p, front_arm=True, back_arm=True):
     bob, lean = p['bob'], p['lean']
     sk, pk, bp = p.get('sk', 0.0), p.get('pk', 0.0), p.get('bp', 0.0)
+    br = p.get('br', 0.0)          # nefes (göğüs/omuz)
+    tw = p.get('tw', 0.0)          # koşuda gövde burulması: arka omuz ileri-geri
     hip = (p.get('hx', 0.0), -20 + bob)
-    neck = (hip[0] + math.sin(lean) * 14, hip[1] - math.cos(lean) * 14)
+    neck = (hip[0] + math.sin(lean) * (14 + br * 0.35), hip[1] - math.cos(lean) * (14 + br * 0.35))
     sx = p.get('sx', 0.0)
-    sh_f = (neck[0] + 1.5 + sx, neck[1] + 2.4)
-    sh_b = (neck[0] - 2.2 - sx * 0.5, neck[1] + 2.2)
+    sh_f = (neck[0] + 1.5 + sx + tw * 0.6, neck[1] + 2.4)
+    sh_b = (neck[0] - 2.2 - sx * 0.5 - tw * 0.6, neck[1] + 2.2)
     head = (neck[0] + 1.8 + math.sin(lean) * 1.5 + p.get('hdx', 0.0), neck[1] - 6.2 + p.get('hdy', 0.0))
     out = {'sh_f': sh_f}
     nx_, ny_ = neck
-    # ------------------------------------------------ atkı: düğümden geriye, uca doğru incelir; kıvrımlar koyu-açık
-    # gövdeden gecikmeli dalgalanır (bp fazı), durunca yerçekimiyle sarkar
-    # pk < 0: koşu (yatay savrulur); ~0: duruş (yerçekimiyle sarkar); > 0: düşüş/geri savrulma (havaya kalkar)
+    ax = (math.sin(lean), -math.cos(lean))
+    pe = (math.cos(lean), math.sin(lean))
+    T = _T(hip, ax, pe)
+
+    # ------------------------------------------------ atkı kuyrukları (kumaş: incelir, kıvrımları koyu/açık)
     if pk <= 0:
-        u = max(0.0, min(1.0, 1.0 + pk)) * 0.5
-        a0, bend = math.pi * (0.95 - 0.12 * u), -(0.03 + 0.12 * u)
+        u_ = max(0.0, min(1.0, 1.0 + pk)) * 0.5
+        a0, bend = math.pi * (0.95 - 0.12 * u_), -(0.03 + 0.12 * u_)
     else:
-        r = min(1.0, pk / 1.1)
-        a0, bend = math.pi * (0.89 + 0.17 * r), -0.09 + 0.15 * r
-    sc = chain((neck[0] - 2.0, neck[1] + 0.8), 7, 3.1, a0, bend, bp * 6.28 - 0.9, 0.45)
-    for i, (a, b) in enumerate(zip(sc, sc[1:])):
-        r = 2.5 - i * 0.2
-        c.capsule(a, b, r, r - 0.18, SCARF if i % 2 == 0 else SCARF_D, z=8.5 - i * 0.3 if i < 2 else -14 + i * 0.1)
-    ex, ey = sc[-1]
-    c.ellipse((ex, ey), 1.3, 1.7, M['red_paint'], z=-13)
-    c.capsule((ex, ey + 1.0), (ex - 0.6, ey + 3.2), 0.6, 0.4, M['red_paint'], z=-13)
-    # ------------------------------------------------ arka kol
+        r_ = min(1.0, pk / 1.1)
+        a0, bend = math.pi * (0.89 + 0.17 * r_), -0.09 + 0.15 * r_
+    # hareketsizken (|pk| küçük) atkı sırttan aşağı sarkar; hız arttıkça yataya açılır
+    dr = max(0.0, min(1.0, 1.0 - abs(pk) / 0.7))
+    a0 = a0 + (math.pi * 0.66 - a0) * dr * 0.85
+    bend = bend + (-0.07 - bend) * dr * 0.85
+    root = (nx_ - 1.8, ny_ + 0.9)
+    for k, (n, seg, r0, z0, dph, da) in enumerate(((7, 3.1, 2.7, -14.0, 0.0, 0.0),)):
+        sc = chain(root, n, seg, a0 + da, bend * (1.0 + 0.4 * k), bp * 6.28 - 0.9 - dph, 0.45 + 0.1 * k)
+        # kumaş şerit: boyunca burulur — geniş (yüzü dönük, açık) / dar (kenarı dönük, koyu) dönüşümlü
+        for i, (a, b) in enumerate(zip(sc, sc[1:])):
+            tw_ = abs(math.cos(i * 1.15 + bp * 6.28 * 0.5))
+            r = r0 * (1 - i / n * 0.45) * (0.55 + 0.45 * tw_)
+            c.capsule(a, b, r, r * 0.92, SCARF if tw_ > 0.5 else SCARF_D, z=(8.5 - i * 0.3) if (i < 2 and k == 0) else z0 + i * 0.1)
+        ex, ey = sc[-1]
+        if k == 0:
+            for j in range(3):   # kırmızı püskül
+                c.capsule((ex, ey), (ex - 1.6 + j * 0.5, ey + 2.2 + j * 0.3), 0.45, 0.3, M['red_paint'], z=z0 + 1)
+            c.ellipse((ex, ey), 1.2, 1.3, M['red_paint'], z=z0 + 1.2)
+
+    # ------------------------------------------------ arka kol (gövdenin arkasında, koyu astar rengi)
     e, h = fk_arm(sh_b, p['ab'][0], p['ab'][1])
     if back_arm:
         c.capsule(sh_b, e, 2.7, 2.3, TUNIC_IN, z=-12)
         c.capsule(e, h, 2.3, 2.0, TUNIC_IN, z=-12)
-        c.capsule(lerp2(e, h, 0.7), lerp2(e, h, 0.95), 2.4, 2.4, M['leather'], z=-11.5)
-        c.ellipse(h, 2.1, 2.1, FUR_D, z=-11)
+        c.capsule(lerp2(e, h, 0.66), lerp2(e, h, 0.95), 2.4, 2.4, LEATHER_D, z=-11.5)
+        c.ellipse(h, 2.0, 2.0, FUR_D, z=-11)
     out['hand_b'] = h
     out['ang_b'] = p['ab'][0] + p['ab'][1]
     out['sh_b'] = sh_b
     out['arm_b'] = (p['ab'][0], p['ab'][1])
-    # ------------------------------------------------ arka bacak (uzak: daha koyu çivit)
-    k, f = fk_leg(hip, p['lb'][0], p['lb'][1])
-    c.capsule(hip, k, 3.6, 3.0, PANTS_D, z=-10)
-    c.capsule(k, f, 3.0, 2.5, PANTS_D, z=-10)
-    c.capsule(lerp2(k, f, 0.45), f, 3.0, 2.7, BOOT, z=-9.6)
-    c.capsule(f, (f[0] + 4.0, f[1] - 0.3), 2.3, 1.5, BOOT, z=-9.5)
-    # ------------------------------------------------ gövde: göğüs + sırt kütlesi, omuz, etek (kıvrımlı)
-    mid = lerp2(hip, neck, 0.5)
-    collar = lambda lu, lv, px, py: (np.abs(py - (ny_ + 1.5)) < 0.8)
-    c.ellipse((mid[0], mid[1] + 0.5), 6.9, 8.8, TUNIC, z=0, rot=lean, paint=[(collar, M['gold'])])
-    # göğüs öne çıkık (kaftanın önü), sırt kası arkada
-    chest = lerp2(hip, neck, 0.68)
-    c.ellipse((chest[0] + 2.2, chest[1] + 0.5), 4.4, 5.0, TUNIC, z=1.5, rot=lean)
-    bot = hip[1] + 9.8
-    hem = lambda lu, lv, px, py: py > bot - 1.4
-    fold = lambda lu, lv, px, py: (np.floor(px - hip[0] + 0.6 * (py - hip[1]) * (sk * 0.25) + 40) % 4 == 0) & (py > hip[1] + 1.0)
-    c.poly([(hip[0] - 6.4, hip[1] - 1.5), (hip[0] + 6.6, hip[1] - 1.5), (hip[0] + 7.9 + sk * 1.6, bot), (hip[0] - 7.4 + sk * 2.4, bot - 0.5)],
-           TUNIC, z=2, bevel=3.4, height=2, paint=[(hem, M['gold']), (fold, TUNIC_IN)])
-    c.capsule((hip[0] - 6.6, hip[1] - 2.2), (hip[0] + 6.8, hip[1] - 2.2), 1.9, 1.9, M['leather'], z=4)
-    c.ellipse((hip[0] + 2.4, hip[1] - 2.2), 1.7, 1.6, M['gold'], z=5)
-    # ------------------------------------------------ ön bacak
-    k, f = fk_leg(hip, p['lf'][0], p['lf'][1])
-    c.capsule((hip[0] + 1, hip[1]), k, 3.7, 3.1, PANTS, z=6)
-    c.capsule(k, f, 3.1, 2.6, PANTS, z=6)
-    c.capsule(lerp2(k, f, 0.45), f, 3.1, 2.8, BOOT, z=6.5)
-    c.capsule(lerp2(k, f, 0.42), lerp2(k, f, 0.5), 3.4, 3.3, BOOT, z=6.6)   # çizme ağzı
-    c.capsule(f, (f[0] + 4.3, f[1] - 0.3), 2.4, 1.5, BOOT, z=6.6)
+
+    # ------------------------------------------------ kaftan arka eteği (astar görünür), arka bacak
+    bot = hip[1] + 10.2
+    flap = sk * 1.8
+    c.poly([(hip[0] - 5.6, hip[1] - 1.0), (hip[0] - 1.0, hip[1] - 1.0), (hip[0] - 2.0 + flap * 0.6, bot + 0.4), (hip[0] - 8.0 + flap * 1.5, bot - 0.6)],
+           LINING, z=-11, bevel=1.6, height=1.5)
+
+    def leg(base, a, z, near):
+        k, f = fk_leg(base, a[0], a[1])
+        pm = PANTS if near else PANTS_D
+        bm = BOOT if near else BOOT_D
+        fold = lambda lu, lv, px, py: (np.floor(lu * 5.0 + lv * 1.2) % 3 == 0) & (lv > -0.2)
+        # bol şalvar: uyluk kalın, dizde kırışık, baldır çizmeye girer
+        c.capsule(base, k, 4.2, 3.3, pm, z=z, paint=[(fold, PANTS_D if near else LINING)])
+        c.ellipse(k, 3.1, 3.0, pm, z=z + 0.2)
+        c.capsule(k, lerp2(k, f, 0.52), 3.2, 2.6, pm, z=z + 0.1)
+        # çizme: konç (ağız bandı), saya, taban, kalkık burun
+        cuff_p = [(lambda lu, lv, px, py: lu < 0.035, GOLD), (lambda lu, lv, px, py: lu < 0.2, CUFF), (lambda lu, lv, px, py: lu < 0.25, LEATHER_D)] if near else [(lambda lu, lv, px, py: lu < 0.2, BOOT)]
+        c.capsule(lerp2(k, f, 0.46), f, 3.4, 2.6, bm, z=z + 1.2, paint=cuff_p)
+        toe = (f[0] + 4.4, f[1] - 0.9)
+        c.capsule(f, (f[0] + 3.4, f[1] - 0.2), 2.4, 1.6, bm, z=z + 0.6)
+        c.capsule((f[0] + 3.0, f[1] - 0.3), toe, 1.3, 0.7, bm, z=z + 0.7)   # Türk çizmesi: kalkık uç
+        c.capsule((f[0] - 1.6, f[1] + 1.7), (f[0] + 3.6, f[1] + 1.3), 0.75, 0.6, SOLE, z=z + 0.8)
+        c.capsule((f[0] - 1.8, f[1] + 0.6), (f[0] - 1.6, f[1] + 1.6), 1.0, 1.0, SOLE, z=z + 0.85)  # topuk
+        return k, f
+
+    leg(hip, p['lb'], -10, False)
+
+    # ------------------------------------------------ gövde: fıçı göğüs + sırt kütlesi + karın (kaftan)
+    collar = lambda lu, lv, px, py: np.zeros_like(px, bool)
+    c.ellipse(sh_b, 3.0, 2.8, TUNIC_IN, z=-0.6)                                             # uzak omuz (arkada)
+    c.ellipse(T(9.4, -2.0 - tw * 0.3), 5.6, 6.6 + br * 0.15, TUNIC, z=0, rot=lean)          # sırt / kürek
+    c.ellipse(T(4.2, 0.2), 6.1, 5.2, TUNIC, z=0.4, rot=lean)                                # karın
+    c.ellipse(T(9.0 + br * 0.1, 1.8 + br * 0.25), 6.1 + br * 0.2, 6.2 + br * 0.2, TUNIC, z=1.0, rot=lean)  # göğüs
+    # sağ (ön) yaka: kaftanın sarma ağzı — altın şerit + altında astar kalınlığı
+    lap = [T(13.4, 2.4), T(10.0, 4.2), T(6.0, 5.0), T(2.6, 5.4)]
+    for a, b in zip(lap, lap[1:]):
+        c.capsule((a[0] - 0.5, a[1] + 0.3), (b[0] - 0.5, b[1] + 0.3), 0.55, 0.55, LINING, z=6.2)
+        c.capsule(a, b, 0.5, 0.5, GOLD, z=6.6)
+    # dik yaka
+    c.capsule(T(13.4, -3.2), T(14.0, 2.6), 1.5, 1.4, TUNIC, z=5.5)
+    c.capsule(T(14.4, -3.0), T(14.9, 2.6), 0.5, 0.5, GOLD, z=6.0)
+
+    # ------------------------------------------------ etek: ana etek (kıvrımlı), altın etek bandı
+    hem = lambda lu, lv, px, py: py > bot - 1.3
+    fold = lambda lu, lv, px, py: (np.floor(px - hip[0] + 0.5 * (py - hip[1]) * (sk * 0.3) + 40) % 5 == 0) & (py > hip[1] + 1.5) & (py < bot - 1.3)
+    fx0, fx1 = hip[0] + 6.6, hip[0] + 7.6 + sk * 1.6
+    fedge = lambda lu, lv, px, py: px > fx0 - 0.5 + (fx1 - fx0) * np.clip((py - hip[1] + 1.6) / (bot - hip[1] + 1.6), 0, 1)
+    c.poly([(hip[0] - 6.9, hip[1] - 1.6), (hip[0] + 7.0, hip[1] - 1.6), (hip[0] + 8.2 + sk * 1.6, bot), (hip[0] + 1.0 + sk * 2.0, bot + 0.6),
+            (hip[0] - 8.0 + sk * 2.4, bot - 0.5)], TUNIC, z=2, bevel=3.4, height=2, paint=[(hem, GOLD), (fold, TUNIC_IN)])
+
+    # ------------------------------------------------ kuşak + kemer + toka + kese
+    # 3/4 görünüş: yatay bantlar (kuşak, kemer) gövdenin fıçı biçimini izleyerek ortada aşağı kavislenir
+    def band(u0, w, r, mat, z, sag=0.7):
+        pts = [T(u0 - sag * math.cos(math.pi * 0.5 * v / w) ** 2, v) for v in np.linspace(-w, w, 6)]
+        for a, b in zip(pts, pts[1:]):
+            c.capsule(a, b, r, r, mat, z=z)
+    band(0.6, 6.7, 1.6, SASH, 3.8)
+    band(2.3, 6.7, 1.05, LEATHER, 4.4)
+    c.ellipse(T(2.0, 4.6), 1.35, 1.55, GOLD, z=5.6, rot=lean)
+    c.ellipse(T(2.0, 4.6), 0.55, 0.75, LEATHER_D, z=6.4, rot=lean)
+    pc = T(-0.6, -4.2)
+    c.ellipse(pc, 1.6, 2.0, LEATHER_D, z=5.0, rot=lean)                # kese
+    c.ellipse((pc[0] + 0.1, pc[1] - 1.0), 1.7, 0.9, LEATHER, z=5.4, rot=lean)   # kapak
+    c.dot((pc[0] + 0.2, pc[1] - 0.4), GOLD, z=8.0, size=1)
+
+    # ------------------------------------------------ ön bacak, ön etek kanadı (bacağın üstüne biner)
+    k, f = leg((hip[0] + 1, hip[1]), p['lf'], 6, True)
     out['foot_f'] = f
+
     # ------------------------------------------------ kurt başı
     hx_, hy_ = head
     jaw = p.get('jaw', 0.0)
-    # yele (boyun yakası): yakanın üstüne taşan, geriye-aşağı tüy öbekleri
+    # boyun yelesi: yakanın üstüne, omuzlara taşan tüy öbekleri
     c.ellipse((nx_ - 0.6, ny_ - 1.0), 5.6, 4.0, FUR, z=9, rot=lean * 0.6)
-    wk.tufts(c, [(nx_ - 4.6, ny_ - 0.2), (nx_ - 3.2, ny_ + 1.6), (nx_ - 0.8, ny_ + 2.4), (nx_ + 1.6, ny_ + 2.0)], FUR, 9.3, 2.8,
+    wk.tufts(c, [(nx_ - 4.8, ny_ - 0.2), (nx_ - 3.4, ny_ + 1.6), (nx_ - 1.0, ny_ + 2.5), (nx_ + 1.4, ny_ + 2.2)], FUR, 9.3, 2.9,
              math.pi * 0.62, jitter=0.35)
-    wk.tufts(c, [(nx_ - 4.0, ny_ - 2.6), (nx_ - 5.2, ny_ - 0.8)], FUR, 9.2, 2.6, math.pi * 0.95, jitter=0.3)
-    # kafatası
-    c.ellipse((hx_ - 0.6, hy_), 5.2, 4.8, FUR, z=10)
+    wk.tufts(c, [(nx_ - 4.2, ny_ - 2.6), (nx_ - 5.4, ny_ - 0.8)], FUR, 9.2, 2.7, math.pi * 0.95, jitter=0.3)
+    # kafatası + alın
+    c.ellipse((hx_ - 0.7, hy_), 5.1, 4.8, FUR, z=10)
+    c.ellipse((hx_ + 0.6, hy_ - 1.8), 3.6, 2.6, FUR, z=11.2)
     # yanak tüyü (ruff): başın arkasından aşağı sarkan öbekler
-    wk.tufts(c, [(hx_ - 2.6, hy_ + 2.6), (hx_ - 4.0, hy_ + 1.0), (hx_ - 0.6, hy_ + 3.4)], FUR, 10.6, 2.8, math.pi * 0.68, jitter=0.3)
-    c.ellipse((hx_ + 0.6, hy_ + 1.8), 3.0, 2.4, FUR, z=10.8)   # yanak/burun kökü hacmi
-    # burun: üst hat düz, uca doğru incelir; alt çene ayrı ve koyu
+    wk.tufts(c, [(hx_ - 2.6, hy_ + 2.7), (hx_ - 4.1, hy_ + 1.0), (hx_ - 0.6, hy_ + 3.5)], FUR, 10.6, 2.9, math.pi * 0.68, jitter=0.3)
+    c.ellipse((hx_ + 0.6, hy_ + 1.8), 3.0, 2.4, FUR, z=10.8)                  # yanak / burun kökü
+    # burun: üst düzlem (ışık alır) + yan düzlem; alt çene ayrı ve koyu
     c.capsule((hx_ + 1.5, hy_ + 0.7), (hx_ + 10.0, hy_ + 1.6), 2.9, 1.8, FUR, z=11)
+    c.capsule((hx_ + 3.0, hy_ - 0.5), (hx_ + 9.3, hy_ + 0.5), 1.1, 0.8, FUR, z=13.4)   # burun sırtı
     c.capsule((hx_ + 2.0, hy_ + 3.4), (hx_ + 8.4, hy_ + 3.7 + jaw * 2.5), 1.5, 1.0, FUR_D, z=10.5)
-    c.ellipse((hx_ + 10.4, hy_ + 1.1), 1.35, 1.15, M['black'], z=13)
-    c.capsule((hx_ + 5.0, hy_ + 3.0), (hx_ + 8.6, hy_ + 2.9 + jaw * 1.2), 0.3, 0.3, M['black'], z=12.5)  # dudak çizgisi
+    c.ellipse((hx_ + 10.3, hy_ + 1.1), 1.45, 1.2, NOSE, z=15)
+    c.capsule((hx_ + 5.0, hy_ + 3.0), (hx_ + 8.6, hy_ + 2.9 + jaw * 1.2), 0.3, 0.3, M['black'], z=12.5)  # dudak
     if jaw > 0.3:
         for tx in (4.5, 6.5):
-            c.dot((hx_ + tx, hy_ + 3.3), M['bone'], z=14)
-    # kulaklar: geniş tabanlı üçgen, hafif geriye yatık; koşuda/darbede geriye yatar (gecikmeli)
+            c.dot((hx_ + tx, hy_ + 3.3), M['bone'], z=14, size=2)
+    # kulaklar: kalın (arka kenar koyu), geniş tabanlı, hafif geriye yatık; koşuda/darbede geriye yatar (gecikmeli)
     ear = p.get('ear', 0.0) + max(0.0, lean - 0.1) * 0.7 + math.sin(bp * 6.28 - 1.4) * 0.05
-    for (ox, mat, zz, ln, inner) in ((-3.2, FUR_D, 13.0, 6.8, False), (-0.2, FUR, 16.0, 7.4, True)):
+    for (ox, mat, zz, ln, near) in ((-3.2, FUR_D, 13.0, 6.8, False), (-0.2, FUR, 16.0, 7.4, True)):
         b0 = (hx_ + ox - 2.4, hy_ - 2.8)
         b1 = (hx_ + ox + 2.4, hy_ - 4.0)
         a = -math.pi * 0.5 - 0.32 - ear
         tip = (hx_ + ox + math.cos(a) * ln, hy_ - 3.8 + math.sin(a) * ln)
+        c.poly([(b0[0] - 0.5, b0[1] + 0.3), b1, (tip[0] - 0.5, tip[1] + 0.3)], FUR_D, z=zz - 0.6, bevel=1.0, height=1.2)  # arka kenar
         c.poly([b0, b1, tip], mat, z=zz, bevel=1.0, height=1.4)
-        if inner:
+        if near:
             c.poly([lerp2(b0, b1, 0.25), lerp2(b0, b1, 0.85), lerp2(lerp2(b0, b1, 0.5), tip, 0.78)], EAR_IN, z=zz + 2.5, bevel=0.6, height=0.4)
-    # kaş çıkıntısı + göz yuvası gölgesi, kut ışığı göz, savaş boyası
-    c.capsule((hx_ + 0.8, hy_ - 2.2), (hx_ + 4.4, hy_ - 1.6), 0.8, 0.6, FUR_D, z=14)
-    c.ellipse((hx_ + 3.0, hy_ - 0.5), 1.8, 1.3, FUR_D, z=13.5)   # göz yuvası
-    c.dot((hx_ + 2.8, hy_ - 0.9), M['kut'], z=30, size=2)
-    c.capsule((hx_ + 0.4, hy_ + 1.4), (hx_ + 2.6, hy_ + 2.0), 0.5, 0.5, M['red_paint'], z=14)
+    # kaş çıkıntısı + göz yuvası gölgesi, kut ışığı göz (yarık), savaş boyası
+    c.capsule((hx_ + 0.7, hy_ - 2.3), (hx_ + 4.5, hy_ - 1.6), 0.85, 0.6, FUR, z=15.5)
+    c.ellipse((hx_ + 3.0, hy_ - 0.5), 1.8, 1.3, FUR_D, z=13.5)
+    c.capsule((hx_ + 2.2, hy_ - 0.8), (hx_ + 3.8, hy_ - 1.1), 0.5, 0.42, M['kut'], z=30)
+    c.capsule((hx_ + 0.4, hy_ + 1.4), (hx_ + 2.6, hy_ + 2.0), 0.45, 0.45, M['red_paint'], z=14)
+    c.capsule((hx_ + 0.9, hy_ + 2.5), (hx_ + 2.8, hy_ + 3.0), 0.35, 0.35, M['red_paint'], z=14)
     out['head'] = head
-    # atkı düğümü (önde)
-    c.ellipse((nx_ + 2.0, ny_ + 1.0), 2.2, 1.7, SCARF, z=15)
-    c.capsule((nx_ + 2.6, ny_ + 1.8), (nx_ + 3.4, ny_ + 4.4), 1.1, 0.7, SCARF_D, z=15.2)
+    # atkı düğümü (önde, boynu saran hacimli düğüm)
+    c.capsule((nx_ - 1.6, ny_ + 0.2), (nx_ + 2.6, ny_ + 1.4), 1.9, 1.9, SCARF, z=14.6)
+    c.ellipse((nx_ + 2.2, ny_ + 1.2), 2.2, 1.8, SCARF, z=15)
+    c.capsule((nx_ + 2.6, ny_ + 2.0), (nx_ + 3.6 + sk * 0.4, ny_ + 4.8), 1.2, 0.8, SCARF_D, z=15.2)
+
     # ------------------------------------------------ ön kol (yalnızca hareket animasyonlarında)
     a1, a2 = p['af']
     e, h = fk_arm(sh_f, a1, a2, 8.5, 8.0 * p.get('ext', 1.0))
     if front_arm:
-        c.ellipse(sh_f, 3.4, 3.0, TUNIC, z=16.5)   # omuz kütlesi
-        c.capsule(sh_f, e, 2.9, 2.5, TUNIC, z=17)
-        c.capsule(e, h, 2.5, 2.1, TUNIC, z=17)
-        c.capsule(lerp2(e, h, 0.68), lerp2(e, h, 0.95), 2.6, 2.6, M['leather'], z=18)
-        c.ellipse(h, 2.2, 2.2, FUR_D, z=19)
+        _front_arm(c, sh_f, e, h, z=16.5)
     out['hand_f'] = h
     out['ang_f'] = a1 + a2
     out['arm'] = (a1, a2)
     return out
 
 
-# ------------------------------------------------------------ kol parçaları (oyunda sürülür)
-ARM_CELL = (12, 16)
-ARM_PIVOT = (6, 3)
-UPPER_LEN = 8.5
+def _front_arm(c, sh, e, h, z=16.5, mat=None, cuff=None, fist=None):
+    """Ön kol: omuz kütlesi + altın dikiş halkası, kıvrımlı yen, deri bilek siperi + altın bant, pençe yumruk."""
+    mat = mat or TUNIC
+    c.ellipse(sh, 3.7, 3.4, mat, z=z)
+    c.capsule(sh, e, 3.1, 2.6, mat, z=z + 0.5, paint=[(lambda lu, lv, px, py: (np.floor(lu * 4.0) % 2 == 1) & (lv > 0.35), TUNIC_IN)])
+    c.ellipse(e, 2.5, 2.5, mat, z=z + 0.6)
+    c.capsule(e, h, 2.6, 2.2, mat, z=z + 0.5)
+    c.capsule(lerp2(e, h, 0.62), lerp2(e, h, 0.95), 2.65, 2.55, cuff or LEATHER, z=z + 1.5,
+              paint=[(lambda lu, lv, px, py: (lu > 0.08) & (lu < 0.2), GOLD)])
+    c.ellipse(h, 2.2, 2.2, fist or FUR_D, z=z + 2.5)
+
+
+# ------------------------------------------------------------ kol parçaları (oyunda sürülür, 1.5x yoğunluk)
+ARM_CELL = (18, 24)      # doku pikseli (dünya: 12 x 16)
+ARM_PIVOT = (9, 5)       # doku pikseli
+UPPER_LEN = 8.5          # dünya birimi (Player.gd geometri için kullanır)
 FORE_LEN = 8.0
 
 
@@ -173,34 +294,29 @@ class ArmCanvas(VCanvas):
 
 
 def render_arm_parts():
-    """Üst kol, ön kol (bilezikli) ve yumruk: aşağıyı gösteren (0,0) pivotlu küçük sprite'lar.
-    Normal map düz bırakılır (döndürülen parçalarda ışık tutarlı kalsın)."""
+    """Üst kol, ön kol (bilezikli) ve yumruk: aşağıyı gösteren (0,0) pivotlu küçük sprite'lar (1.5x).
+    Sonra arka kol için koyu astar renginde aynı üçlü."""
     parts = []
-    c = ArmCanvas(ARM_CELL[0], ARM_CELL[1], ARM_PIVOT[0], ARM_PIVOT[1])
-    c.capsule((0, 0), (0, UPPER_LEN), 2.9, 2.4, TUNIC, z=0, paint=[(lambda lu, lv, px, py: np.abs(px + 0.6) < 0.35, TUNIC_IN)])
-    c.ellipse((0, 0.6), 3.2, 3.0, TUNIC, z=0.5)   # omuz kütlesi (deltoid)
-    parts.append(c)
-    c = ArmCanvas(ARM_CELL[0], ARM_CELL[1], ARM_PIVOT[0], ARM_PIVOT[1])
-    c.capsule((0, 0), (0, FORE_LEN), 2.4, 2.0, TUNIC, z=0)
-    c.capsule((0, FORE_LEN * 0.66), (0, FORE_LEN * 0.95), 2.5, 2.5, M['leather'], z=1)
-    c.capsule((0, FORE_LEN * 0.7), (0, FORE_LEN * 0.72), 2.6, 2.6, M['gold'], z=2)
-    parts.append(c)
-    c = ArmCanvas(ARM_CELL[0], ARM_CELL[1], ARM_PIVOT[0], ARM_PIVOT[1] + 2)
-    c.ellipse((0, 0), 2.3, 2.3, FUR_D, z=0)
-    c.capsule((-1.2, -0.6), (1.2, -0.6), 0.4, 0.4, M['black'], z=3)
-    parts.append(c)
-    # arka kol: astar rengi, biraz ince (gövdenin arkasında)
-    c = ArmCanvas(ARM_CELL[0], ARM_CELL[1], ARM_PIVOT[0], ARM_PIVOT[1])
-    c.capsule((0, 0), (0, UPPER_LEN), 2.7, 2.2, TUNIC_IN, z=0)
-    c.ellipse((0, 0.6), 2.9, 2.8, TUNIC_IN, z=0.5)
-    parts.append(c)
-    c = ArmCanvas(ARM_CELL[0], ARM_CELL[1], ARM_PIVOT[0], ARM_PIVOT[1])
-    c.capsule((0, 0), (0, FORE_LEN), 2.2, 1.9, TUNIC_IN, z=0)
-    c.capsule((0, FORE_LEN * 0.66), (0, FORE_LEN * 0.95), 2.3, 2.3, M['leather'], z=1)
-    parts.append(c)
-    c = ArmCanvas(ARM_CELL[0], ARM_CELL[1], ARM_PIVOT[0], ARM_PIVOT[1] + 2)
-    c.ellipse((0, 0), 2.1, 2.1, FUR_D, z=0)
-    parts.append(c)
+    seam = lambda lu, lv, px, py: (np.floor(lu * 4.0) % 2 == 1) & (lv > 0.35)
+    for (mat, cuff, fist, back) in ((TUNIC, LEATHER, FUR_D, False), (TUNIC_IN, LEATHER_D, FUR_D, True)):
+        c = ArmCanvas(ARM_CELL[0], ARM_CELL[1], ARM_PIVOT[0], ARM_PIVOT[1]); c.zscale = TEX
+        s = TexScale(c)
+        s.capsule((0, 0), (0, UPPER_LEN), 2.9 - back * 0.2, 2.4 - back * 0.2, mat, z=0, paint=[(seam, TUNIC_IN if not back else LINING)])
+        s.ellipse((0, 0.6), 3.1 - back * 0.2, 2.9 - back * 0.2, mat, z=0.5)
+        parts.append(c)
+        c = ArmCanvas(ARM_CELL[0], ARM_CELL[1], ARM_PIVOT[0], ARM_PIVOT[1]); c.zscale = TEX
+        s = TexScale(c)
+        s.capsule((0, 0), (0, FORE_LEN), 2.4 - back * 0.2, 2.0 - back * 0.1, mat, z=0)
+        s.capsule((0, FORE_LEN * 0.62), (0, FORE_LEN * 0.95), 2.55, 2.5, cuff, z=1,
+                  paint=[(lambda lu, lv, px, py: (lu > 0.08) & (lu < 0.2), GOLD if not back else LEATHER_D)])
+        parts.append(c)
+        c = ArmCanvas(ARM_CELL[0], ARM_CELL[1], ARM_PIVOT[0], ARM_PIVOT[1] + 3); c.zscale = TEX
+        s = TexScale(c)
+        s.ellipse((0, 0), 2.3 - back * 0.2, 2.3 - back * 0.2, fist, z=0)
+        if not back:
+            for i in range(3):   # parmak boğumları
+                s.ellipse((-1.1 + i * 1.1, -0.9), 0.65, 0.55, FUR, z=2.4)
+        parts.append(c)
     return parts
 
 
@@ -236,14 +352,20 @@ def keyed(*keys):
 
 def _run(t):
     s = math.sin(t * 6.28)
+    ph = t * 6.28
+    # gövde burulması (omuzlar kalçaya karşı), baş ve etek gecikmeli; atkı fazı bp ile akar
     return P(bob=-abs(math.sin(t * 6.28)) * 2.4 + 1.2, lean=0.28, lb=(0.95 * s, 0.3 + 0.95 * max(0, -s) + 0.15),
-             lf=(-0.95 * s, 0.3 + 0.95 * max(0, s) + 0.15), ab=(-0.95 * s, 1.1), af=(0.95 * s, 1.1), sk=-0.7, pk=-1.0, bp=t * 2)
+             lf=(-0.95 * s, 0.3 + 0.95 * max(0, s) + 0.15), ab=(-0.95 * s, 1.1), af=(0.95 * s, 1.1),
+             sk=-0.7 + 0.25 * math.sin(2 * ph - 1.2), pk=-1.0, bp=t * 2, tw=0.8 * s, hdy=0.5 * math.sin(2 * ph - 0.9))
 
 
 def _idle(t):
     s = math.sin(t * 6.28)
-    return P(bob=0.6 * s, lean=0.05 + 0.02 * s, af=(-0.12 + 0.05 * s, 0.55 + 0.08 * s), ab=(0.2 - 0.04 * s, 0.45 + 0.06 * s),
-             sk=0.25 * s, pk=0.35 * s, bp=t, jaw=0.0)
+    # savaşçı duruşu: yakın bacak önde, uzak bacak geride (3/4 derinlik); nefesle göğüs/omuz kalkar,
+    # baş ve etek nefesin ardından gecikmeli oynar
+    return P(bob=-0.3 + 0.45 * s, lean=0.08 + 0.02 * s, lf=(0.25, 0.35), lb=(-0.25, 0.05),
+             af=(0.02 + 0.05 * s, 0.7 + 0.08 * s), ab=(-0.12 - 0.04 * s, 0.55 + 0.06 * s),
+             sk=0.25 * math.sin(t * 6.28 - 0.6), pk=0.35 * s, bp=t, jaw=0.0, br=s, hdy=0.35 * math.sin(t * 6.28 - 0.8))
 
 
 # Saldırı gövdeleri (kolsuz): 8 kare. 0-1 hazırlık, 2-4 vuruş (3 = darbe), 5 aşma, 6-7 toparlanma.
@@ -320,20 +442,23 @@ ANIMS = {
 
 
 # hacimli gölgelendirme ayarları (volume.VCanvas.shade): daha geniş ışık bandı, güçlü büyük form
-SHADE = dict(form=0.68, bands=(-0.28, 0.14, 0.46, 0.84))
+SHADE = dict(form=0.7, bands=(-0.12, 0.3, 0.56, 0.8), grad=0.45, rim_amt=0.3, rim_th=0.6, lit_outline=0.0)
 
 
-def render_frame(anim, i, cell=(96, 80), feet=(44, 74)):
+def render_frame(anim, i, cell=CELL, feet=FEET):
+    """Tek kare (1.5x doku yoğunluğu). Dönen çapalar dünya birimindedir."""
     n, fn, loop, arm = ANIMS[anim]
     t = (i / n) if loop else (min(0.999, i / n + 0.5 / n) if n > 1 else 0.0)
     p = fn(t)
     c = VCanvas(cell[0], cell[1], feet[0], feet[1])
+    c.zscale = TEX
+    s = TexScale(c)
     if 'roll' in p:
         ang = p['roll'] * math.tau
-        xf = Xf(c, 0, -16, ang, pivot=(0, -19))
+        xf = Xf(s, 0, -16, ang, pivot=(0, -19))
         info = draw_bengu(xf, p, True)
     else:
-        info = draw_bengu(c, p, arm, arm)
+        info = draw_bengu(s, p, arm, arm)
     rgba = c.shade(**SHADE)
     nm = c.normal_map(rgba[..., 3])
     return c, rgba, nm, info

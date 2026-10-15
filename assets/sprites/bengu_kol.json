@@ -1,16 +1,17 @@
 {
  "cell": [
-  12,
-  16
+  18,
+  24
  ],
  "pivot": [
-  6,
-  3
- ],
- "fist_pivot": [
-  6,
+  9,
   5
  ],
+ "fist_pivot": [
+  9,
+  8
+ ],
+ "texel": 1.5,
  "upper_len": 8.5,
  "fore_len": 8.0,
  "parts": [
