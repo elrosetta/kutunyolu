@@ -62,6 +62,7 @@ func _ready() -> void:
 		arrow_spr.hframes = ARROW_DIRS
 		arrow_spr.vframes = ARROW_VARIANTS.size()
 		arrow_spr.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+		arrow_spr.material = Game.hd_material()
 		add_child(arrow_spr)
 		if arrow_variant == "":
 			arrow_variant = "dusman" if team != "p" else {"altin": "altin", "od": "od", "sel": "sel", "kizil": "kizil"}.get(fx_kind, "normal")

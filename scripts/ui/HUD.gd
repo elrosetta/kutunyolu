@@ -24,6 +24,7 @@ var _hp_lag := -1.0
 var _kut_pulse := 0.0
 var _last_mode := ""
 var _ducked := false
+var back_mode := "title"   # ayarlar ekranı kapanınca dönülecek mod
 
 const SLOT_KEYS := {"melee": "J", "second": "K", "g1": "U", "g2": "I"}
 const SLOT_NAMES := {"melee": "1. silah", "second": "2. silah", "g1": "1. teçhizat", "g2": "2. teçhizat"}
@@ -36,6 +37,7 @@ func _ready() -> void:
 	set_anchors_preset(Control.PRESET_FULL_RECT)
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	material = Game.hd_material()  # 2K/4K: yazı ve simgeler de Scale2x/4x ile yumuşar
 
 
 func _process(delta: float) -> void:
@@ -113,6 +115,13 @@ func _hint(vp: Vector2, items: Array, y := -1.0) -> void:
 
 func _draw() -> void:
 	var vp := get_viewport_rect().size
+	if mode == "ayarlar":
+		if back_mode == "title" or Game.run.is_empty() or level == null or level.player == null:
+			_draw_title(vp)
+		else:
+			_draw_hud(vp)
+		_draw_settings(vp)
+		return
 	match mode:
 		"title":
 			_draw_title(vp)
@@ -620,6 +629,8 @@ func _draw_title(vp: Vector2) -> void:
 	var pw := 180.0
 	PixUI.panel(self, Rect2((vp.x - pw) / 2.0, 176, pw, 18), Color(PixUI.GOLD, a))
 	PixUI.text(self, Vector2(0, 179), "Başlamak için Boşluk / Enter", Color(PixUI.TEXT, a), 1, HORIZONTAL_ALIGNMENT_CENTER, vp.x)
+	if mode == "title":
+		_hint(vp, [["Tab", "ayarlar"]], 200.0)
 	# kontroller
 	var rows := [
 		[["A/D", "hareket"], ["Boşluk", "zıpla"], ["J", "1. silah"], ["K", "2. silah"], ["L", "yuvarlan"]],
@@ -717,7 +728,48 @@ func _draw_pause(vp: Vector2) -> void:
 			PixUI.text(self, Vector2(x + 28, yy), String(it["name"]), rc)
 			PixUI.ongun_stripe(self, Rect2(x + pw - 40, yy + 4, 26, 3), Game.item_onguns(it), Game.item_best_ongun(it))
 		yy += 14.0
-	_hint(vp, [["Esc", "devam et"]])
+	_hint(vp, [["Esc", "devam et"], ["Tab", "ayarlar"]])
+
+
+func _draw_settings(vp: Vector2) -> void:
+	## Görüntü ayarları: pencere modu, çözünürlük, ölçekleme, doku kalitesi (2K / 4K HD paketleri), dikey eşitleme
+	_dim(vp, 0.93)
+	_title(vp, 40, "AYARLAR", PixUI.GOLD, "Görüntü ve çözünürlük")
+	var rows: Array = Ayarlar.rows()
+	var pw := 380.0
+	var x := roundf((vp.x - pw) / 2.0)
+	var y := 96.0
+	PixUI.fancy_panel(self, Rect2(x, y - 8, pw, rows.size() * 22.0 + 14), PixUI.EDGE, PixUI.INK2)
+	for i in rows.size():
+		var r: Array = rows[i]
+		var is_sel := i == sel
+		var on: bool = r[2]
+		var col := PixUI.GOLD if is_sel else (PixUI.TEXT if on else PixUI.DIM)
+		if is_sel:
+			draw_rect(Rect2(x + 4, y - 2, pw - 8, 18), Color(PixUI.GOLD, 0.12))
+			PixUI.text(self, Vector2(x - 10 + sin(_t * 8.0) * 2.0, y + 1), "→", PixUI.GOLD, 1, HORIZONTAL_ALIGNMENT_LEFT, -1.0, 2)
+		PixUI.text(self, Vector2(x + 12, y + 1), r[0], col)
+		var v: String = r[1]
+		var vx := x + pw - 150.0
+		PixUI.text(self, Vector2(vx, y + 1), "<" if on else "", col, 1, HORIZONTAL_ALIGNMENT_LEFT, -1.0, 0)
+		PixUI.text(self, Vector2(vx + 8, y + 1), v, col if on else PixUI.DIM, 1, HORIZONTAL_ALIGNMENT_CENTER, 124)
+		PixUI.text(self, Vector2(vx + 136, y + 1), ">" if on else "", col, 1, HORIZONTAL_ALIGNMENT_LEFT, -1.0, 0)
+		y += 22.0
+	var tips := [
+		"Pencereli, tam ekran (kenarsız) ya da özel tam ekran.",
+		"Pencereli modda pencere boyutu. Tam ekranda ekranın kendi çözünürlüğü kullanılır.",
+		"Ekranı doldur: her çözünürlükte boşluksuz. Keskin piksel: tam sayı ölçek, kenarlarda siyah pay kalabilir.",
+		"2K / 4K: piksel sanatı Scale2x / Scale4x ile büyütülür; köşegenler yumuşar, ayrıntı keskin kalır. Otomatik: 1440p'de 2K, 2160p'de 4K.",
+		"Kare hızını ekran yenilemesine kilitler (yırtılmayı önler).",
+	]
+	var tl := PixUI.wrap(tips[clampi(sel, 0, tips.size() - 1)], 420)
+	var ty := y + 14.0
+	for l in tl:
+		PixUI.text(self, Vector2(0, ty), l, PixUI.DIM, 1, HORIZONTAL_ALIGNMENT_CENTER, vp.x)
+		ty += 11.0
+	var ws := get_tree().root.size
+	PixUI.text(self, Vector2(0, ty + 6), "Pencere: %dx%d  ·  ölçek ×%s" % [ws.x, ws.y, ItemGen.fmt(float(ws.y) / 360.0)], Color(PixUI.KUT, 0.8), 1, HORIZONTAL_ALIGNMENT_CENTER, vp.x, 0)
+	_hint(vp, [["W/S", "seç"], ["A/D", "değiştir"], ["Esc", "geri"]])
 
 
 func _draw_umay(vp: Vector2) -> void:

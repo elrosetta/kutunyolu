@@ -16,16 +16,17 @@ Data="*res://scripts/autoload/Data.gd"
 Game="*res://scripts/autoload/Game.gd"
 ItemGen="*res://scripts/autoload/ItemGen.gd"
 Ses="*res://scripts/autoload/Ses.gd"
+Ayarlar="*res://scripts/autoload/Ayarlar.gd"
 
 [display]
 
 window/size/viewport_width=640
 window/size/viewport_height=360
-window/size/window_width_override=1920
-window/size/window_height_override=1080
+window/size/window_width_override=1280
+window/size/window_height_override=720
 window/stretch/mode="canvas_items"
 window/stretch/aspect="expand"
-window/stretch/scale_mode="integer"
+window/stretch/scale_mode="fractional"
 
 [physics]
 
@@ -40,3 +41,10 @@ viewport/hdr_2d=true
 2d/snap/snap_2d_transforms_to_pixel=false
 2d/snap/snap_2d_vertices_to_pixel=false
 environment/defaults/default_clear_color=Color(0.08, 0.1, 0.16, 1)
+
+[shader_globals]
+
+hd_level={
+"type": "int",
+"value": 0
+}

@@ -18,9 +18,8 @@ if not exist "%GODOT%" (
   set GODOT=godot
   set GODOTC=godot
 )
-rem 2) Ilk calistirma: gorseller ve sesler ice aktarilir (bir iki dakika surer)
-if not exist "%~dp0.godot\imported" (
-  echo Oyun dosyalari ilk kez hazirlaniyor, bir iki dakika surebilir...
-  "%GODOTC%" --headless --path . --import
-)
+rem 2) Gorseller ve sesler ice aktarilir: ilk calistirmada bir iki dakika surer; sonra yalnizca
+rem    degisen dosyalar (or. GitHub'dan cekilen yeni surum) islenir. Bu adim atlanirsa oyun bos ekranda kalir.
+echo Oyun dosyalari denetleniyor...
+"%GODOTC%" --headless --path . --import
 start "" "%GODOT%" --path .

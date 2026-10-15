@@ -447,3 +447,17 @@ Otomatik test: `godot --path . -- --otomatik` komutu oyunu kendi kendine oynatı
   Segrek, Kam Ata, Kopuzcu, Dönen, Alp Er Tunga). Destan koşu boyunca bekler; yurtta Ozan Bilge Kopuz'a anlatılınca ad konur,
   o koşu için güç verir ve Ad Defteri'ne (meta) yazılır. Yurda varmadan ölürsen destan unutulur. `scripts/core/Adlar.gd`.
 * Sesler `tools/audiogen/v12.py` (bendir, zil, ney, mey, bağlama). Test: `-- --mekanik [--derinlik=N]` (`tools/tests/mekanik_testi.gd`).
+
+## Görüntü ayarları ve HD doku paketleri (2K / 4K)
+
+* **Ayarlar** (`scripts/autoload/Ayarlar.gd`, başlıkta ya da duraklatmada **Tab**): Pencereli / Tam ekran / Özel tam ekran,
+  pencereli çözünürlük (720p … 2160p, ekrana sığanlar), ölçekleme (Ekranı doldur = kesirli, Keskin piksel = tam sayı),
+  doku kalitesi (Otomatik / Standart / 2K / 4K), dikey eşitleme. `user://ayarlar.cfg` içinde saklanır.
+  Oyun 640x360 mantıksal çözünürlükte çizilir; her pencere boyutuna boşluksuz ölçeklenir.
+* **HD paketleri:** `shaders/hdpix.gdshaderinc` piksel sanatını çizim anında Scale2x (2K) ya da Scale4x (4K) kurallarıyla
+  büyütür: köşegen merdivenler yumuşar, palet korunur, bulanıklık olmaz. Önceden büyütülmüş dosyalarla aynı sonuç, ama
+  ek disk / VRAM yok (100 Mpx'lik doku seti 4x'te 1,6 Gpx olurdu). Genel gölgelendirici parametresi `hd_level`;
+  `toon_light`, `ground` (karolar + toprak dokusu) ve `hd_canvas` (arka plan, ok, arayüz) kullanır. Otomatik: 1440p → 2K, 2160p → 4K.
+* **Test:** `-- --doku=0..3 --pencere=2560x1440 --goruntu=cikti.png` (6 sn sonra ekranı kaydeder ve çıkar).
+* **Başlatıcı:** `Oyunu_Baslat.bat` artık her açılışta içe aktarma yapar (değişmeyen dosyalar hızlı geçilir); GitHub'dan çekilen
+  yeni dosyalar içe aktarılmazsa oyun boş ekranda kalıyordu.

@@ -2,15 +2,29 @@
 // Normal map CanvasTexture'dan otomatik gelir; burada sadece renk ve ışık işlenir.
 shader_type canvas_item;
 
+#include "res://shaders/hdpix.gdshaderinc"
+
 uniform float band_hi : hint_range(0.0, 1.0) = 0.62;
 uniform float band_lo : hint_range(0.0, 1.0) = 0.20;
 uniform float flash : hint_range(0.0, 1.0) = 0.0;
 uniform vec4 flash_color : source_color = vec4(1.0, 0.97, 0.9, 1.0);
 uniform vec4 tint : source_color = vec4(1.0, 1.0, 1.0, 1.0);
 
+varying vec4 vcol;
+
+void vertex() {
+	vcol = COLOR;
+}
+
 void fragment() {
-	// Godot 4'te COLOR zaten doku × köşe rengi (modulate) olarak gelir.
-	vec4 c = COLOR * tint;
+	// HD paketi açıksa doku Scale2x/Scale4x ile örneklenir; kapalıyken COLOR = doku × köşe rengi ile aynıdır.
+	vec4 c = COLOR;
+	if (hd_level > 0) {
+		vec4 h = vec4(0.0);
+		HD_SAMPLE(h, TEXTURE, UV, TEXTURE_PIXEL_SIZE);
+		c = h * vcol;
+	}
+	c *= tint;
 	c.rgb = mix(c.rgb, flash_color.rgb, flash);
 	COLOR = c;
 }

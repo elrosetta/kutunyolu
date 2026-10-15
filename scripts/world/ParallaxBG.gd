@@ -39,6 +39,7 @@ func _ready() -> void:
 			s.texture = tex
 			s.centered = false
 			s.scale = Vector2(k_px, k_px)
+			s.material = Game.hd_material()
 			holder.add_child(s)
 			copies.append(s)
 		_layers.append({"holder": holder, "copies": copies, "w": float(tex.get_width()) * k_px, "k": k_px, "fx": spec[1], "fy": spec[2], "drift": spec[3]})

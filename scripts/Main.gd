@@ -271,8 +271,27 @@ func _apply_scroll(sel: int) -> void:
 func _unhandled_input(event: InputEvent) -> void:
 	var go: bool = event.is_action_pressed("zipla") or (event is InputEventKey and event.pressed and event.physical_keycode == KEY_ENTER)
 	match hud.mode:
+		"ayarlar":
+			var n: int = Ayarlar.rows().size()
+			if event.is_action_pressed("yukari"):
+				hud.sel = (hud.sel + n - 1) % n
+				Ses.play("ui_gez")
+			elif event.is_action_pressed("asagi"):
+				hud.sel = (hud.sel + 1) % n
+				Ses.play("ui_gez")
+			elif event.is_action_pressed("sol") or event.is_action_pressed("sag"):
+				Ayarlar.change(hud.sel, -1 if event.is_action_pressed("sol") else 1)
+				Ses.play("ui_onay")
+			elif event.is_action_pressed("etkiles") or go:
+				Ayarlar.change(hud.sel, 1)
+				Ses.play("ui_onay")
+			elif event.is_action_pressed("duraklat") or event.is_action_pressed("ayarlar"):
+				hud.mode = hud.back_mode
+				Ses.play("ui_iptal")
 		"title":
-			if go:
+			if event.is_action_pressed("ayarlar"):
+				_open_settings()
+			elif go:
 				hud.mode = "intro"
 				hud.intro_i = 0
 				Ses.play("ui_onay")
@@ -378,6 +397,16 @@ func _unhandled_input(event: InputEvent) -> void:
 		"play":
 			if event.is_action_pressed("duraklat"):
 				get_tree().paused = not get_tree().paused
+			elif event.is_action_pressed("ayarlar") and get_tree().paused:
+				_open_settings()
+
+
+func _open_settings() -> void:
+	hud.back_mode = hud.mode
+	hud.mode = "ayarlar"
+	hud.sel = 0
+	hud.open_anim()
+	Ses.play("ui_ac")
 
 
 func _ad_toreni() -> void:
@@ -652,6 +681,10 @@ func _debug_screen() -> void:
 			_on_npc("demirci")
 		"baslik":
 			hud.mode = "title"
+		"ayarlar":
+			hud.mode = "title"
+			_open_settings()
+			hud.sel = 3
 
 
 func _physics_process(delta: float) -> void:

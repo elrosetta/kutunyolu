@@ -39,6 +39,15 @@ const UMAY := {
 }
 
 var toon_shader: Shader = preload("res://shaders/toon_light.gdshader")
+var _hd_mat: ShaderMaterial
+
+
+func hd_material() -> ShaderMaterial:
+	## Gölgelendiricisi olmayan sprite'lar için HD doku malzemesi (2K/4K paketleri; Ayarlar.gd)
+	if _hd_mat == null:
+		_hd_mat = ShaderMaterial.new()
+		_hd_mat.shader = load("res://shaders/hd_canvas.gdshader")
+	return _hd_mat
 var meta: Dictionary = {}
 var run: Dictionary = {}
 var camera: Camera2D
@@ -341,3 +350,4 @@ func _setup_input() -> void:
 	_bind("alem", [KEY_R], -1, [], [[JOY_AXIS_TRIGGER_LEFT, 1.0]])
 	_bind("don", [KEY_G], -1, [], [[JOY_AXIS_TRIGGER_RIGHT, 1.0]])
 	_bind("duraklat", [KEY_ESCAPE, KEY_P], -1, [JOY_BUTTON_START])
+	_bind("ayarlar", [KEY_TAB, KEY_O], -1, [JOY_BUTTON_GUIDE])

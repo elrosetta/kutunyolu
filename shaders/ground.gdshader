@@ -5,6 +5,8 @@
 // karo atlası da aynı yoğunlukta üretilir, böylece iki ızgara üst üste oturur.
 shader_type canvas_item;
 
+#include "res://shaders/hdpix.gdshaderinc"
+
 uniform sampler2D soil_tex : filter_nearest, repeat_enable;
 uniform sampler2D soil_n : filter_nearest, repeat_enable;
 // isteğe bağlı ışıma dokusu (lav damarları, kristaller): siyah = ışımaz
@@ -30,6 +32,9 @@ void vertex() {
 
 void fragment() {
 	vec4 c = texture(TEXTURE, UV);
+	if (hd_level > 0) {
+		HD_SAMPLE(c, TEXTURE, UV, TEXTURE_PIXEL_SIZE);
+	}
 	vec3 k_soil = vec3(1.0, 0.0, 1.0);
 	// Anahtarlar yalnızca 0/1 bileşenli: HDR'de sRGB→doğrusal dönüşümünden etkilenmez.
 	vec3 k_shade = vec3(0.0, 1.0, 1.0);
@@ -46,7 +51,14 @@ void fragment() {
 	float any_soil = max(max(is_soil, is_edge), max(is_shade, is_lit));
 	vec2 suv = (floor(world_pos * soil_density) + 0.5) / vec2(textureSize(soil_tex, 0));
 	if (any_soil > 0.5 && c.a > 0.5) {
+		// toprak dokusu da HD pakette dünya ızgarasında Scale2x/4x ile örneklenir
 		vec3 s = texture(soil_tex, suv).rgb;
+		if (hd_level > 0) {
+			vec2 spx = 1.0 / vec2(textureSize(soil_tex, 0));
+			vec4 sh = vec4(0.0);
+			HD_SAMPLE(sh, soil_tex, (world_pos * soil_density) * spx, spx);
+			s = sh.rgb;
+		}
 		vec3 e = texture(soil_e, suv).rgb;
 		s *= mix(1.0, 0.6, is_shade);
 		s *= mix(1.0, 0.38, is_edge);
