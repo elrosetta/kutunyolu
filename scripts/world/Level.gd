@@ -477,9 +477,17 @@ func _generate() -> void:
 
 
 # ------------------------------------------------------------------ karolar
+func _art_cell() -> int:
+	## Atlas hücresi (doku pikseli). Zemin dokuları 1.5 kat yoğun üretilir (36 px) ve karo katmanları
+	## TS / hücre oranında küçültülür: dünya ölçüleri (TS = 24) ve fizik değişmez, 1080p'de her doku
+	## pikseli 2x2 ekran pikseline düşer.
+	return int(Data.tile_meta.get("tile", TS))
+
+
 func _make_tileset() -> TileSet:
+	var ac := _art_cell()
 	var ts := TileSet.new()
-	ts.tile_size = Vector2i(TS, TS)
+	ts.tile_size = Vector2i(ac, ac)
 	ts.add_physics_layer()
 	ts.set_physics_layer_collision_layer(0, Game.LAYER_WORLD)
 	ts.set_physics_layer_collision_mask(0, 0)
@@ -489,12 +497,14 @@ func _make_tileset() -> TileSet:
 	var src := TileSetAtlasSource.new()
 	var bid: String = biome.get("id", "otuken")
 	src.texture = Data.canvas_tex("res://assets/tiles/%s.png" % bid, "res://assets/tiles/%s_n.png" % bid)
-	src.texture_region_size = Vector2i(TS, TS)
+	src.texture_region_size = Vector2i(ac, ac)
 	ts.add_source(src, 0)
 	var meta := Data.tile_meta
 	var cols := int(meta["cols"])
-	var full := PackedVector2Array([Vector2(-12, -12), Vector2(12, -12), Vector2(12, 12), Vector2(-12, 12)])
-	var top := PackedVector2Array([Vector2(-12, -12), Vector2(12, -12), Vector2(12, -6), Vector2(-12, -6)])
+	# çarpışma çokgenleri karo yerelinde (hücre pikseli); katman ölçeğiyle tam olarak TS'ye iner
+	var h := ac * 0.5
+	var full := PackedVector2Array([Vector2(-h, -h), Vector2(h, -h), Vector2(h, h), Vector2(-h, h)])
+	var top := PackedVector2Array([Vector2(-h, -h), Vector2(h, -h), Vector2(h, -h * 0.5), Vector2(-h, -h * 0.5)])
 	for r in int(meta["ground_rows"]):
 		for c in cols:
 			_tile(src, Vector2i(c, r), 0, full, false)
@@ -516,6 +526,8 @@ func _tile(src: TileSetAtlasSource, coords: Vector2i, phys: int, poly: PackedVec
 	td.set_collision_polygon_points(phys, 0, poly)
 	if one_way:
 		td.set_collision_polygon_one_way(phys, 0, true)
+		# tek yönlü pay: katman ölçeğinden sonra da 1 dünya pikseli kalsın
+		td.set_collision_polygon_one_way_margin(phys, 0, float(_art_cell()) / TS)
 
 
 func _depth_texture() -> ImageTexture:
@@ -560,15 +572,26 @@ func _build_tiles() -> void:
 	gmat.set_shader_parameter("deep_color", Color(dc[0], dc[1], dc[2]))
 	gmat.set_shader_parameter("depth_tex", _depth_texture())
 	gmat.set_shader_parameter("map_size_px", Vector2(W * TS, H * TS))
+	gmat.set_shader_parameter("soil_density", float(_art_cell()) / TS)
+	var emis_path := "res://assets/tiles/%s_soil_e.png" % bid2
+	if ResourceLoader.exists(emis_path):
+		gmat.set_shader_parameter("soil_e", load(emis_path))
+	var bmeta: Dictionary = Data.load_json("res://assets/tiles/%s.json" % bid2)
+	var gc = bmeta.get("glow")
+	if gc is Array and (gc as Array).size() >= 3:
+		gmat.set_shader_parameter("glow_col", Color(gc[0], gc[1], gc[2]))
 	var tmat := ShaderMaterial.new()
 	tmat.shader = Game.toon_shader
+	var art_scale := Vector2.ONE * (float(TS) / _art_cell())
 	ground = TileMapLayer.new()
 	ground.tile_set = ts
 	ground.material = gmat
 	ground.z_index = 0
+	ground.scale = art_scale
 	add_child(ground)
 	overlay = TileMapLayer.new()
 	overlay.tile_set = ts
+	overlay.scale = art_scale
 	overlay.material = tmat
 	overlay.collision_enabled = false
 	overlay.z_index = 5

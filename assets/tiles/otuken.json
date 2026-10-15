@@ -1,5 +1,7 @@
 {
- "tile": 24,
+ "tile": 36,
+ "world_tile": 24,
+ "density": 1.5,
  "cols": 16,
  "ground_rows": 3,
  "overlay_row": 3,
@@ -25,7 +27,18 @@
    1.0,
    1.0,
    0.0
+  ],
+  "edge": [
+   0.0,
+   0.0,
+   1.0
+  ],
+  "glow": [
+   1.0,
+   0.0,
+   0.0
   ]
  },
- "soil_size": 256
+ "glow": null,
+ "soil_size": 768
 }

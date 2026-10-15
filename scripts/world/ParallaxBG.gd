@@ -31,13 +31,17 @@ func _ready() -> void:
 		add_child(holder)
 		var copies: Array = []
 		var n := 1 if spec[1] == 0.0 else 3
+		# katmanlar 360 piksellik ekrana göre değil, daha yoğun (ör. 540 px) üretilebilir: yükseklik
+		# 360'a inecek şekilde küçültülür; 1080p'de her doku pikseli 2x2 ekran pikseline düşer.
+		var k_px := 360.0 / float(tex.get_height())
 		for k in n:
 			var s := Sprite2D.new()
 			s.texture = tex
 			s.centered = false
+			s.scale = Vector2(k_px, k_px)
 			holder.add_child(s)
 			copies.append(s)
-		_layers.append({"holder": holder, "copies": copies, "w": float(tex.get_width()), "fx": spec[1], "fy": spec[2], "drift": spec[3]})
+		_layers.append({"holder": holder, "copies": copies, "w": float(tex.get_width()) * k_px, "k": k_px, "fx": spec[1], "fy": spec[2], "drift": spec[3]})
 		if i == layers.size() - 3:
 			_add_rays()
 
@@ -73,7 +77,8 @@ func _process(_delta: float) -> void:
 		var y := clampf((_base_y - c.y) * float(L["fy"]), -50.0, 60.0) + (vp.y - 360.0)
 		if fx == 0.0:
 			L["copies"][0].position = Vector2(0, 0)
-			L["copies"][0].scale = Vector2(maxf(1.0, vp.x / w), maxf(1.0, vp.y / 360.0))
+			var kp: float = L["k"]
+			L["copies"][0].scale = Vector2(maxf(kp, kp * vp.x / w), maxf(kp, vp.y / 360.0 * kp))
 			continue
 		var off := -fposmod(c.x * fx + t * float(L["drift"]), w)
 		for k in L["copies"].size():
