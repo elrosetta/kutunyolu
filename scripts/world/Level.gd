@@ -8,6 +8,8 @@ signal player_died
 signal scroll_requested(p: Pickup)
 signal npc_requested(id: String)
 signal slot_requested(p: Pickup)
+signal lutuf_requested(p: Pickup)
+signal boss_died
 
 const TS := 24
 const W := 230
@@ -34,6 +36,13 @@ var exit_pos := Vector2.ZERO
 var hub := false
 var npcs: Array = []
 var decal_root: Node2D
+var hazard: TileMapLayer
+var haz_kind := ""
+var _haz_frame := 0
+var _haz_t := 0.0
+var boss_id := ""
+var boss: Enemy
+var boss_gate_open := false
 const HUB_W := 92
 var red_rect: ColorRect
 var _light_tex: GradientTexture2D
@@ -65,14 +74,256 @@ func build(seed_value: int) -> void:
 	FX.level = self
 	_build_lighting()
 	_build_background()
+	_build_hazards()
 	_place_decor()
 	_spawn_player()
 	_spawn_enemies()
 	_spawn_items()
 	_spawn_scrolls()
+	_place_rooms()
 	_build_particles()
 	_build_overlay_fx()
 	Ses.music(biome.get("id", "otuken"))
+
+
+func build_boss(seed_value: int, bid_boss: String) -> void:
+	## Boss arenası: düz, geniş, iki yanı duvarlı; ortada birkaç platform; boss sağdan gelir
+	rng.seed = seed_value
+	boss_id = bid_boss
+	var bdef: Dictionary = {}
+	for b in Data.world["bosses"]:
+		if b["id"] == bid_boss:
+			bdef = b
+	biome = Game.biome_for_depth(int(Game.run.get("depth", 1)))
+	for b in Data.world["biomes"]:
+		if b["id"] == bdef.get("biome", biome.get("id", "otuken")):
+			biome = b
+	art = biome.get("art", {}).duplicate()
+	art["ambient"] = [0.36, 0.3, 0.42]
+	art["decor"] = ["kaya", "cira", "kam_diregi"]
+	Game.run["biome"] = biome.get("id", "otuken")
+	_generate_arena()
+	_build_tiles()
+	decor_root = Node2D.new()
+	decor_root.z_index = -2
+	add_child(decor_root)
+	decal_root = Node2D.new()
+	decal_root.z_index = 1
+	add_child(decal_root)
+	actors = Node2D.new()
+	add_child(actors)
+	proj_root = Node2D.new()
+	proj_root.z_index = 20
+	add_child(proj_root)
+	fx_root = Node2D.new()
+	fx_root.z_index = 50
+	add_child(fx_root)
+	FX.root = fx_root
+	FX.level = self
+	_build_lighting()
+	_build_background()
+	for x in [12, 30, 50, 70]:
+		_decor("cira", x, surface_y(x), -2, true)
+	for x in [20, 40, 60]:
+		_decor("kam_diregi", x, surface_y(x), -3)
+	_spawn_player()
+	camera.limit_right = 84 * TS
+	# boss: sağdan, uzak
+	var en := Enemy.new()
+	var bx := 64
+	boss = Boss.new()
+	boss.setup(String(bdef.get("enemy", bid_boss)), false, int(Game.run.get("tier", 0)))
+	boss.max_hp = float(bdef.get("hp", 900)) * (1.0 + 0.35 * float(Game.run.get("tier", 0)))
+	boss.hp = boss.max_hp
+	boss.level = self
+	boss.position = Vector2(bx * TS, surface_y(bx) * TS - 1)
+	actors.add_child(boss)
+	exit_pos = Vector2(78 * TS, surface_y(78) * TS)
+	_build_particles()
+	_build_overlay_fx()
+	Ses.music("boss")
+
+
+func _generate_arena() -> void:
+	style = "arena"
+	grid.resize(W * H)
+	grid.fill(0)
+	heights = []
+	var top := 30
+	for x in W:
+		heights.append(top)
+		for y in range(top, H):
+			grid[idx(x, y)] = 1
+		if x >= 84 or x <= 1:
+			for y in H:
+				grid[idx(x, y)] = 1
+	# üç platform
+	for px in [22, 42, 62]:
+		for k in 4:
+			grid[idx(px + k, top - 5)] = 2
+	for y in range(top - 16, top):
+		grid[idx(2, y)] = 1
+		grid[idx(83, y)] = 1
+
+
+func open_boss_gate() -> void:
+	if boss_gate_open:
+		return
+	boss_gate_open = true
+	var gate := KutGate.new()
+	gate.position = exit_pos
+	decor_root.add_child(gate)
+	var portal := FX.anim("rift_portal", exit_pos + Vector2(0, -34), 0.0, 1.0, Color(0.6, 1.0, 1.0, 0.85))
+	if portal:
+		portal.loop = true
+		portal.z_index = -1
+		portal.reparent(decor_root)
+	add_light(exit_pos + Vector2(0, -40), Color(0.45, 0.9, 1.0), 220.0, 1.4, decor_root)
+	FX.ring(exit_pos + Vector2(0, -30), 60, Color(0.6, 1.0, 1.0), 0.6)
+	Ses.play("kapi")
+
+
+func _build_hazards() -> void:
+	## Tehlike karoları (grid 3): biyoma göre diken / zehir / lav / buz; iki kare animasyon
+	haz_kind = {"otuken": "diken", "bozkir": "diken", "sahmeran": "zehir", "kaf": "buz", "tamu": "lav"}.get(biome.get("id", "otuken"), "diken")
+	var ts := TileSet.new()
+	ts.tile_size = Vector2i(TS, TS)
+	var src := TileSetAtlasSource.new()
+	src.texture = Data.canvas_tex("res://assets/tiles/hazards.png", "res://assets/tiles/hazards_n.png")
+	src.texture_region_size = Vector2i(TS, TS)
+	ts.add_source(src, 0)
+	for r in 4:
+		for c in 2:
+			src.create_tile(Vector2i(c, r))
+	hazard = TileMapLayer.new()
+	hazard.tile_set = ts
+	var m := ShaderMaterial.new()
+	m.shader = Game.toon_shader
+	hazard.material = m
+	hazard.z_index = 2
+	add_child(hazard)
+	var hm: Dictionary = Data.load_json("res://assets/tiles/hazards.json")
+	var row := int(hm["rows"].get(haz_kind, 0))
+	var n := 0
+	for y in H:
+		for x in W:
+			if cell(x, y) == 3:
+				hazard.set_cell(Vector2i(x, y), 0, Vector2i(0, row))
+				n += 1
+				if haz_kind == "lav" and n % 2 == 0:
+					add_light(Vector2(x * TS + 12, y * TS + 6), Color(1.0, 0.5, 0.2), 70.0, 0.9, hazard)
+	# glow katmanı (lav / zehir)
+	if haz_kind in ["lav", "zehir"]:
+		var glow := TileMapLayer.new()
+		var ts2 := TileSet.new()
+		ts2.tile_size = Vector2i(TS, TS)
+		var src2 := TileSetAtlasSource.new()
+		src2.texture = load("res://assets/tiles/hazards_e.png")
+		src2.texture_region_size = Vector2i(TS, TS)
+		ts2.add_source(src2, 0)
+		for r in 4:
+			for c in 2:
+				src2.create_tile(Vector2i(c, r))
+		glow.tile_set = ts2
+		var gm := CanvasItemMaterial.new()
+		gm.blend_mode = CanvasItemMaterial.BLEND_MODE_ADD
+		gm.light_mode = CanvasItemMaterial.LIGHT_MODE_UNSHADED
+		glow.material = gm
+		glow.z_index = 3
+		glow.modulate = Color(1.6, 1.4, 1.2)
+		hazard.add_child(glow)
+		for y in H:
+			for x in W:
+				if cell(x, y) == 3:
+					glow.set_cell(Vector2i(x, y), 0, Vector2i(0, row))
+
+
+func hazard_at(p: Vector2) -> String:
+	var x := int(floor(p.x / TS))
+	var y := int(floor(p.y / TS))
+	if x < 0 or x >= W or y < 0 or y >= H:
+		return ""
+	return haz_kind if grid[idx(x, y)] == 3 else ""
+
+
+func ice_at(p: Vector2) -> bool:
+	return haz_kind == "buz" and hazard_at(p) == "buz"
+
+
+func _place_rooms() -> void:
+	## Oda işaretleri: sunak (lütuf), hazine kaidesi, seçkin, kurgan ganimeti
+	for ch in chunks:
+		var nm: String = ch["name"]
+		var x0: int = ch["x"]
+		var rows: Array = LevelGen.CHUNKS.get(nm, [])
+		var base: int = heights[clampi(x0 + 6, 0, W - 1)] if nm != "zehir_cukuru" else 0
+		for r in rows.size():
+			var line: String = rows[r]
+			for cidx in line.length():
+				var chr := line[cidx]
+				if chr in ["S", "T", "E"]:
+					var tx := x0 + cidx
+					var ty := _ground_tile_y(tx)
+					match chr:
+						"S":
+							_decor("sunak", tx, ty, -1, true)
+							var p := Pickup.new()
+							p.kind = "lutuf"
+							p.level = self
+							p.position = Vector2(tx * TS + TS / 2.0, ty * TS)
+							add_child(p)
+							pickups.append(p)
+						"T":
+							var it := ItemGen.random_drop(int(Game.run.get("tier", 0)) + 1)
+							drop_item(it, Vector2(tx * TS + 12, ty * TS - 30), true)
+							for g in 6:
+								drop_orb("gold", Vector2(tx * TS + 12 + randf_range(-20, 20), ty * TS - 20))
+						"E":
+							var pool := _biome_pool()
+							var kind: String = pool[rng.randi_range(0, pool.size() - 1)]
+							spawn_enemy(kind, Vector2(tx * TS + TS / 2.0, ty * TS - 1), true)
+
+
+func _ground_tile_y(tx: int) -> int:
+	## Sütunda yukarıdan aşağı ilk "üstü hava" katı/platform karosu (oda içi dahil)
+	for y in range(2, H - 1):
+		if cell(tx, y) != 0 and cell(tx, y) != 3 and cell(tx, y - 1) == 0:
+			return y
+	return surface_y(tx)
+
+
+func _biome_pool() -> Array:
+	var bid: String = biome.get("id", "otuken")
+	var pool: Array = []
+	for e in Data.world["enemies"]:
+		if e.get("biome", "") == bid and e.get("impl", false) and not String(e.get("ai", "")).begins_with("boss"):
+			pool.append(e["id"])
+	if pool.is_empty():
+		pool = ["kara_boru", "cor", "balbal"]
+	return pool
+
+
+func _hazard_tick(delta: float) -> void:
+	if hazard == null:
+		return
+	_haz_t += delta
+	if _haz_t > 0.45:
+		_haz_t = 0.0
+		_haz_frame = 1 - _haz_frame
+		var hm: Dictionary = Data.load_json("res://assets/tiles/hazards.json")
+		var row := int(hm["rows"].get(haz_kind, 0))
+		for c in hazard.get_used_cells():
+			hazard.set_cell(c, 0, Vector2i(_haz_frame, row))
+		if haz_kind == "lav" and randf() < 0.6:
+			var cells := hazard.get_used_cells()
+			if not cells.is_empty():
+				var c2: Vector2i = cells[randi() % cells.size()]
+				FX.fire(Vector2(c2.x * TS + 12, c2.y * TS + 4), 2, 0.3, 6.0)
+		elif haz_kind == "zehir" and randf() < 0.5:
+			var cells := hazard.get_used_cells()
+			if not cells.is_empty():
+				var c3: Vector2i = cells[randi() % cells.size()]
+				FX.bubbles(Vector2(c3.x * TS + 12, c3.y * TS + 6), 1)
 
 
 func build_hub(seed_value: int) -> void:
@@ -697,43 +948,47 @@ func _spawn_player() -> void:
 
 
 func _spawn_enemies() -> void:
+	## Biyomun tüm türleri: yakın dövüşçüler yüzeye, pusucular yüksek adalara, uçanlar havaya; derinlikle yoğunluk artar
 	var x := 26
 	var elite_done := false
+	var pool := _biome_pool()
+	var depth := int(Game.run.get("depth", 1))
+	var perches: Array = []
+	for px in range(24, W - 24):
+		for py in range(6, 34):
+			if cell(px, py) != 0 and cell(px, py) != 3 and cell(px, py - 1) == 0 and py < surface_y(px) - 3:
+				perches.append(Vector2i(px, py))
 	while x < W - 18:
-		var pool: Array = ["kara_boru", "kara_boru", "cor", "agac_iyesi", "balbal", "balbal", "cor", "arcura", "surale"]
-		match style:
-			"magara":
-				pool = ["kara_boru", "cor", "cor", "balbal", "balbal", "balbal", "kara_boru", "surale", "arcura"]
-			"harabe":
-				pool = ["balbal", "balbal", "balbal", "cor", "kara_boru", "agac_iyesi", "balbal", "arcura", "arcura"]
-			"ucurum":
-				pool = ["kara_boru", "kara_boru", "kara_boru", "cor", "cor", "agac_iyesi", "balbal", "surale", "arcura"]
 		var kind: String = pool[rng.randi_range(0, pool.size() - 1)]
-		# biyomun kendi düşmanları: aynı yapay zekâ rolündeki yerel tür
-		var bid: String = biome.get("id", "otuken")
-		if bid != "otuken":
-			var base_ai: String = Data.enemy_def(kind).get("ai", "lunger")
-			var locals: Array = []
-			for e in Data.world["enemies"]:
-				if e.get("biome", "") == bid and e.get("impl", false) and Data.enemy_def(String(e.get("sprite", ""))).get("ai", "") == base_ai:
-					locals.append(e["id"])
-			if not locals.is_empty():
-				kind = locals[rng.randi_range(0, locals.size() - 1)]
-		var count := 2 if Data.enemy_def(kind).get("sprite", kind) == "kara_boru" and rng.randf() < 0.5 else 1
+		var ai: String = Data.enemy_def(kind).get("ai", Data.enemy_def(String(Data.enemy_def(kind).get("sprite", kind))).get("ai", "lunger"))
+		var count := 1
+		if Data.enemy_def(kind).get("sprite", kind) == "kara_boru" and ai == "lunger" and rng.randf() < 0.5:
+			count = 2
 		for k in count:
 			var tx := x + k * 2
 			var is_elite := not elite_done and x > 100 and rng.randf() < 0.3
 			if is_elite:
 				elite_done = true
-			var sy := surface_y(tx)
-			var en := spawn_enemy(kind, Vector2(tx * TS + TS / 2.0, sy * TS - 1), is_elite)
+			var pos := Vector2(tx * TS + TS / 2.0, surface_y(tx) * TS - 1)
+			if ai == "pouncer" and not perches.is_empty():
+				# en yakın yüksek yer
+				var best: Vector2i = perches[0]
+				var bd := 9999.0
+				for pc in perches:
+					var dd := absf(float(pc.x - tx))
+					if dd < bd:
+						bd = dd
+						best = pc
+				if bd < 30.0:
+					pos = Vector2(best.x * TS + TS / 2.0, best.y * TS - 1)
+			var en := spawn_enemy(kind, pos, is_elite)
 			if en.sprite_kind == "kara_boru" and k == 1:
 				en.flank = 1  # ikinci kurt arkadan dolaşır
-		x += rng.randi_range(14, 22)
+		x += rng.randi_range(13, 20) - mini(4, depth / 2)
 
 
 func spawn_enemy(kind: String, pos: Vector2, is_elite := false) -> Enemy:
-	var e := Enemy.new()
+	var e: Enemy = Boss.new() if String(Data.enemy_def(kind).get("ai", "")).begins_with("boss") else Enemy.new()
 	e.setup(kind, is_elite, int(Game.run.get("tier", 0)))
 	e.level = self
 	e.position = pos
@@ -812,7 +1067,7 @@ func nearest_item(pos: Vector2) -> Pickup:
 	var best: Pickup = null
 	var bd := 28.0
 	for p in pickups:
-		if not is_instance_valid(p) or (p.kind != "item" and p.kind != "tilsim"):
+		if not is_instance_valid(p) or (p.kind != "item" and p.kind != "tilsim" and p.kind != "lutuf"):
 			continue
 		var d: float = p.global_position.distance_to(pos)
 		if d < bd:
@@ -969,17 +1224,50 @@ func break_cracks(_rect: Rect2) -> void:
 
 
 func on_enemy_died(e: Enemy) -> void:
+	if e == boss and e != null:
+		_on_boss_died(e)
+		return
 	for i in randi_range(2, 4) + (6 if e.elite else 0):
 		drop_orb("gold", e.center())
+
+
 	# Kut taneleri (Dead Cells hücreleri): her düşman en az bir tane; seçkinler dört; şans eseri fazladan
 	for i in (4 if e.elite else 1) + (1 if randf() < 0.3 else 0):
 		drop_orb("kut", e.center())
 	if e.elite or randf() < 0.04:
 		drop_item(ItemGen.random_drop(int(Game.run.get("tier", 0)) + (1 if e.elite else 0)), e.center() + Vector2(0, -10))
+	if e.elite or randf() < 0.05:
+		drop_orb("sifa", e.center() + Vector2(0, -6))
 	# parşömen: açılmamış bir eşyanın tarifi (seçkinlerden kesin, diğerlerinden seyrek)
 	var locked := ItemGen.locked_implemented()
 	if not locked.is_empty() and (e.elite or randf() < 0.07):
 		drop_blueprint(locked[randi_range(0, locked.size() - 1)], e.center() + Vector2(0, -6))
+
+
+
+
+func _on_boss_died(e: Enemy) -> void:
+	Game.slowmo(0.25, 1.2)
+	Game.shake(10.0)
+	Game.zoom_punch(0.1)
+	if has_method("flash_white"):
+		flash_white(0.5)
+	for i in 16:
+		drop_orb("gold", e.center())
+	for i in 10:
+		drop_orb("kut", e.center())
+	drop_orb("sifa", e.center() + Vector2(-20, -10))
+	drop_item(ItemGen.random_drop(int(Game.run.get("tier", 0)) + 2), e.center() + Vector2(30, -10))
+	var locked := ItemGen.locked_implemented()
+	if not locked.is_empty():
+		drop_blueprint(locked[randi_range(0, locked.size() - 1)], e.center() + Vector2(0, -16))
+	var bd: Array = Game.run.get("boss_done", [])
+	bd.append(boss_id)
+	Game.run["boss_done"] = bd
+	FX.text(e.center() + Vector2(0, -80), "KARA BÖRÜ HAN DEVRİLDİ", Color(1.0, 0.85, 0.5), 14)
+	boss = null
+	boss_died.emit()
+	get_tree().create_timer(1.6).timeout.connect(open_boss_gate)
 
 
 func on_player_died() -> void:
@@ -988,7 +1276,7 @@ func on_player_died() -> void:
 
 
 func _process(_delta: float) -> void:
-	if player and not _done and player.global_position.distance_to(exit_pos) < 30.0:
+	if player and not _done and player.global_position.distance_to(exit_pos) < 30.0 and (boss_id == "" or boss_gate_open):
 		_done = true
 		Ses.play("kapi")
 		finished.emit()
@@ -1004,5 +1292,8 @@ func _process(_delta: float) -> void:
 		if p and Input.is_action_just_pressed("etkiles"):
 			if p.kind == "tilsim":
 				scroll_requested.emit(p)
+			elif p.kind == "lutuf":
+				lutuf_requested.emit(p)
 			else:
 				try_equip(p)
+	_hazard_tick(_delta)

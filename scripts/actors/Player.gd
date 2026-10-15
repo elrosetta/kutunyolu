@@ -170,37 +170,37 @@ const HEAVY := ["gurz", "teber", "civili_topuz", "erlik_tirpani", "savas_baltasi
 ## double, slam, whip, axe, wave. Her silahın zinciri, bekleme bitirişi ve ağır saldırısı (HEAVIES) kendine özgüdür.
 const COMBOS := {
 	# --- tür varsayılanları
-	"slash": {"chain": [{"s": "horiz", "mult": 1.0, "kb": 110.0}, {"s": "down", "mult": 1.0, "kb": 110.0}, {"s": "up", "mult": 1.3, "kb": 220.0, "last": true}],
+	"slash": {"chain": [{"s": "horiz", "mult": 1.0, "kb": 110.0}, {"s": "down", "mult": 1.0, "kb": 110.0}, {"s": "back", "mult": 1.3, "kb": 220.0, "last": true}],
 		"pause": {"s": "spin", "mult": 1.25, "kb": 160.0, "name": "Kasırga"}},
 	"dual": {"chain": [{"s": "horiz", "mult": 1.0, "kb": 45.0}, {"s": "back", "mult": 1.0, "kb": 45.0}, {"s": "horiz", "mult": 1.0, "kb": 45.0}, {"s": "thrust", "mult": 1.3, "kb": 170.0, "double": true, "last": true}],
 		"pause": {"s": "flurry", "mult": 0.8, "kb": 60.0, "name": "Bıçak Yağmuru"}},
-	"heavy": {"chain": [{"s": "windmill", "mult": 1.0, "kb": 280.0, "shock": true}, {"s": "up", "mult": 1.1, "kb": 200.0, "last": true}],
+	"heavy": {"chain": [{"s": "windmill", "mult": 1.0, "kb": 280.0, "shock": true}, {"s": "overhead_2h", "mult": 1.1, "kb": 200.0, "last": true}],
 		"pause": {"s": "slam", "mult": 1.6, "kb": 300.0, "shock": true, "slam": true, "name": "Yer Yaran"}},
 	"thrust": {"chain": [{"s": "thrust", "mult": 1.0, "kb": 150.0}, {"s": "thrust", "mult": 1.1, "kb": 170.0}, {"s": "horiz", "mult": 1.3, "kb": 230.0, "last": true}],
 		"pause": {"s": "lunge", "mult": 1.6, "kb": 220.0, "dash": 90.0, "name": "Akın"}},
 	"whip": {"chain": [{"s": "whip_crack", "mult": 1.0, "kb": 40.0, "whip": true}, {"s": "horiz", "mult": 1.1, "kb": 60.0, "whip": true, "last": true}],
 		"pause": {"s": "spin", "mult": 1.2, "kb": 120.0, "whip": true, "name": "Kement Halkası"}},
 	# --- kılıçlar
-	"alp_kilici": {"chain": [{"s": "diag_down", "mult": 1.0, "kb": 110.0}, {"s": "diag_up", "mult": 1.0, "kb": 110.0}, {"s": "horiz", "mult": 1.35, "kb": 240.0, "last": true}],
+	"alp_kilici": {"chain": [{"s": "diag_down", "mult": 1.0, "kb": 110.0}, {"s": "horiz", "mult": 1.0, "kb": 110.0}, {"s": "down", "mult": 1.35, "kb": 240.0, "last": true}],
 		"pause": {"s": "cross_x", "mult": 1.1, "kb": 150.0, "name": "Alp Çaprazı"}},
 	"yildirim_kilici": {"chain": [{"s": "iai", "mult": 1.0, "kb": 100.0}, {"s": "back", "mult": 1.0, "kb": 110.0}, {"s": "thrust", "mult": 1.3, "kb": 180.0, "last": true}],
 		"pause": {"s": "flurry", "mult": 0.8, "kb": 70.0, "name": "Şimşek Dişleri"}},
-	"pala": {"chain": [{"s": "diag_up", "mult": 1.0, "kb": 100.0}, {"s": "diag_down", "mult": 1.05, "kb": 110.0}, {"s": "sweep_low", "mult": 1.3, "kb": 160.0, "last": true}],
+	"pala": {"chain": [{"s": "diag_down", "mult": 1.0, "kb": 100.0}, {"s": "back", "mult": 1.05, "kb": 110.0}, {"s": "sweep_low", "mult": 1.3, "kb": 160.0, "last": true}],
 		"pause": {"s": "lunge", "mult": 1.5, "kb": 200.0, "dash": 70.0, "name": "Pala Akını"}},
 	"yatagan": {"chain": [{"s": "reverse_grip", "mult": 0.9, "kb": 70.0}, {"s": "horiz", "mult": 0.9, "kb": 70.0}, {"s": "reverse_grip", "mult": 0.9, "kb": 70.0}, {"s": "lunge", "mult": 1.4, "kb": 160.0, "dash": 70.0, "last": true}],
 		"pause": {"s": "flurry", "mult": 0.85, "kb": 60.0, "name": "Yatağan Fırtınası"}},
 	"ayaz_kilici": {"chain": [{"s": "sweep_low", "mult": 1.0, "kb": 100.0}, {"s": "diag_down", "mult": 1.0, "kb": 110.0}, {"s": "thrust", "mult": 1.3, "kb": 200.0, "last": true}],
 		"pause": {"s": "spin", "mult": 1.3, "kb": 160.0, "name": "Ayaz Halkası"}},
-	"ulu_kilic": {"chain": [{"s": "ground_drag", "mult": 1.0, "kb": 200.0}, {"s": "overhead_2h", "mult": 1.15, "kb": 240.0, "slam": true, "last": true}],
+	"ulu_kilic": {"chain": [{"s": "horiz", "mult": 1.0, "kb": 200.0}, {"s": "overhead_2h", "mult": 1.15, "kb": 240.0, "slam": true, "last": true}],
 		"pause": {"s": "helicopter", "mult": 1.5, "kb": 260.0, "name": "Ulu Çark"}},
-	"ruh_kilici": {"chain": [{"s": "diag_down", "mult": 1.0, "kb": 80.0, "wave": true}, {"s": "diag_up", "mult": 1.0, "kb": 80.0, "wave": true}, {"s": "twirl", "mult": 1.2, "kb": 140.0, "wave": true, "last": true}],
+	"ruh_kilici": {"chain": [{"s": "diag_down", "mult": 1.0, "kb": 80.0, "wave": true}, {"s": "back", "mult": 1.0, "kb": 80.0, "wave": true}, {"s": "twirl", "mult": 1.2, "kb": 140.0, "wave": true, "last": true}],
 		"pause": {"s": "spin", "mult": 1.2, "kb": 120.0, "wave": true, "name": "Ruh Fırtınası"}},
-	"ay_palasi": {"chain": [{"s": "twirl", "mult": 1.0, "kb": 40.0}, {"s": "back", "mult": 1.0, "kb": 40.0}, {"s": "diag_up", "mult": 1.0, "kb": 40.0}, {"s": "reverse_grip", "mult": 1.0, "kb": 40.0}, {"s": "thrust", "mult": 1.4, "kb": 150.0, "double": true, "last": true}],
+	"ay_palasi": {"chain": [{"s": "twirl", "mult": 1.0, "kb": 40.0}, {"s": "back", "mult": 1.0, "kb": 40.0}, {"s": "diag_down", "mult": 1.0, "kb": 40.0}, {"s": "reverse_grip", "mult": 1.0, "kb": 40.0}, {"s": "thrust", "mult": 1.4, "kb": 150.0, "double": true, "last": true}],
 		"pause": {"s": "flurry", "mult": 0.85, "kb": 50.0, "name": "Ay Dansı"}},
 	# --- ağır silahlar
-	"gurz": {"chain": [{"s": "windmill", "mult": 1.0, "kb": 280.0, "shock": true}, {"s": "up", "mult": 1.1, "kb": 220.0, "last": true}],
+	"gurz": {"chain": [{"s": "windmill", "mult": 1.0, "kb": 280.0, "shock": true}, {"s": "down", "mult": 1.1, "kb": 220.0, "last": true}],
 		"pause": {"s": "slam", "mult": 1.7, "kb": 320.0, "shock": true, "slam": true, "name": "Dağ Devirici"}},
-	"civili_topuz": {"chain": [{"s": "windmill", "mult": 1.0, "kb": 260.0, "shock": true}, {"s": "up", "mult": 1.1, "kb": 200.0, "last": true}],
+	"civili_topuz": {"chain": [{"s": "windmill", "mult": 1.0, "kb": 260.0, "shock": true}, {"s": "down", "mult": 1.1, "kb": 200.0, "last": true}],
 		"pause": {"s": "slam", "mult": 1.6, "kb": 300.0, "shock": true, "slam": true, "name": "Çivi Yağmuru"}},
 	"dag_cekici": {"chain": [{"s": "windmill", "mult": 1.0, "kb": 320.0, "shock": true}, {"s": "uppercut_2h", "mult": 1.2, "kb": 240.0, "launch": 320.0, "last": true}],
 		"pause": {"s": "slam", "mult": 1.9, "kb": 360.0, "shock": true, "slam": true, "name": "Dağ Yıkan"}},
@@ -224,11 +224,11 @@ const COMBOS := {
 	"od_kamcisi": {"chain": [{"s": "whip_crack", "mult": 1.0, "kb": 40.0, "whip": true}, {"s": "sweep_low", "mult": 1.1, "kb": 60.0, "whip": true, "last": true}],
 		"pause": {"s": "spin", "mult": 1.2, "kb": 120.0, "whip": true, "name": "Od Halkası"}},
 	# --- v7
-	"yilan_kilici": {"chain": [{"s": "diag_up", "mult": 1.0, "kb": 90.0}, {"s": "reverse_grip", "mult": 1.0, "kb": 90.0}, {"s": "thrust", "mult": 1.3, "kb": 170.0, "last": true}],
+	"yilan_kilici": {"chain": [{"s": "diag_down", "mult": 1.0, "kb": 90.0}, {"s": "reverse_grip", "mult": 1.0, "kb": 90.0}, {"s": "thrust", "mult": 1.3, "kb": 170.0, "last": true}],
 		"pause": {"s": "twirl", "mult": 1.1, "kb": 100.0, "venom": true, "name": "Yılan Dansı"}},
 	"kor_cekici": {"chain": [{"s": "windmill", "mult": 1.0, "kb": 280.0, "shock": true}, {"s": "overhead_2h", "mult": 1.2, "kb": 240.0, "slam": true, "last": true}],
 		"pause": {"s": "slam", "mult": 1.7, "kb": 320.0, "shock": true, "slam": true, "name": "Kor Yağmuru"}},
-	"ruzgar_kilici": {"chain": [{"s": "iai", "mult": 1.0, "kb": 70.0}, {"s": "diag_up", "mult": 1.0, "kb": 70.0}, {"s": "horiz", "mult": 1.0, "kb": 80.0}, {"s": "cross_x", "mult": 1.2, "kb": 150.0, "last": true}],
+	"ruzgar_kilici": {"chain": [{"s": "iai", "mult": 1.0, "kb": 70.0}, {"s": "back", "mult": 1.0, "kb": 70.0}, {"s": "horiz", "mult": 1.0, "kb": 80.0}, {"s": "cross_x", "mult": 1.2, "kb": 150.0, "last": true}],
 		"pause": {"s": "helicopter", "mult": 1.2, "kb": 160.0, "name": "Kasırga Dansı"}},
 }
 const COMBOS_EXTRA := {}
@@ -249,7 +249,7 @@ const HEAVIES := {
 	"yildirim_kilici": {"s": "iai", "mult": 1.4, "kb": 60.0, "lightning": true, "name": "Yıldırım Hamlesi"},
 	"pala": {"s": "reap", "mult": 1.6, "kb": 200.0, "name": "Kanlı Kanca"},
 	"yatagan": {"s": "iai", "mult": 1.9, "kb": 180.0, "dash": 50.0, "name": "Yatağan Çekişi"},
-	"ayaz_kilici": {"s": "ground_drag", "mult": 1.6, "kb": 220.0, "launch": 200.0, "name": "Buz Yarığı"},
+	"ayaz_kilici": {"s": "overhead_2h", "mult": 1.6, "kb": 220.0, "slam": true, "name": "Buz Yarığı"},
 	"ulu_kilic": {"s": "slam_2h", "mult": 2.0, "kb": 380.0, "shock": true, "slam": true, "name": "Ulu Yıkım"},
 	"ruh_kilici": {"s": "cross_x", "mult": 1.5, "kb": 120.0, "wave": true, "name": "Ruh Çaprazı"},
 	"ay_palasi": {"s": "helicopter", "mult": 1.5, "kb": 160.0, "name": "Dolunay"},
@@ -264,7 +264,7 @@ const HEAVIES := {
 	"kurt_pencesi": {"s": "rake", "mult": 1.7, "kb": 120.0, "name": "Kurt Tırmığı"},
 	"kement": {"s": "whip_crack", "mult": 1.6, "kb": 150.0, "whip": true, "name": "Kement Şaklaması"},
 	"od_kamcisi": {"s": "whip_crack", "mult": 1.6, "kb": 150.0, "whip": true, "name": "Od Şaklaması"},
-	"yilan_kilici": {"s": "ground_drag", "mult": 1.6, "kb": 200.0, "launch": 180.0, "venom": true, "name": "Zehir Oluğu"},
+	"yilan_kilici": {"s": "reap", "mult": 1.6, "kb": 200.0, "venom": true, "name": "Zehir Orağı"},
 	"kor_cekici": {"s": "slam_2h", "mult": 1.9, "kb": 360.0, "shock": true, "slam": true, "name": "Cehennem Çakışı"},
 	"ruzgar_kilici": {"s": "cross_x", "mult": 1.5, "kb": 140.0, "name": "Yel Çaprazı"},
 }
@@ -346,6 +346,11 @@ var sure_crits := 0
 var rolled_t := 0.0
 var level: Node
 var crouched := false
+var crouch_hold := false   # S basılı: isteyerek çömelme (çömelirken saldırı / yay)
+var sprint := false        # Shift basılı tutuluyor: koşu
+var _roll_hold := 0.0
+var _haz_t := 0.0          # tehlike karosu hasar sayacı
+var on_ice := false
 var charge_t := -1.0  # Yıldırım Kılıcı: basılı tutma süresi
 var charge_fx: AnimFX
 var _heavy_fx: AnimFX  # ağır saldırı şarj halkası
@@ -703,7 +708,67 @@ func heal(v: float) -> void:
 
 
 func add_kut(v: float) -> void:
-	kut = minf(100.0, kut + v * (1.12 if slot(mel_slot).get("material", "") == "tunc" else 1.0))
+	var m := 1.12 if slot(mel_slot).get("material", "") == "tunc" else 1.0
+	if Game.has_lutuf("kayra"):
+		m *= 2.0
+	m *= 1.0 + 0.2 * Game.umay_level("kut_hizi")
+	kut = minf(100.0, kut + v * m)
+
+
+func shove(v: Vector2) -> void:
+	## Düşman itişi (kalkan darbesi, hücum): hız verilir, kısa sendeleme
+	velocity = v
+	hurt_t = maxf(hurt_t, 0.18)
+	vis_scale = Vector2(0.85, 1.12)
+
+
+func _tengri_chain(e: Node, d: float, it: Dictionary) -> void:
+	## Tengri'nin Yıldırımı: darbe yakındaki bir düşmana şimşekle sıçrar
+	var best: Node = null
+	var bd := 130.0
+	for o in get_tree().get_nodes_in_group("dusman"):
+		if o == e or not is_instance_valid(o) or o.dead:
+			continue
+		var dd: float = o.center().distance_to(e.center())
+		if dd < bd:
+			bd = dd
+			best = o
+	if best == null:
+		return
+	FX.lightning(e.center(), best.center(), Color(0.7, 0.85, 1.0))
+	FX.anim("electric_impact", best.center(), 0.0, 0.7, Color(0.7, 0.85, 1.0))
+	Ses.play("yildirim", -8.0, 1.3)
+	best.take_hit(d, {"kb": 60.0, "dir": signf(best.center().x - e.center().x), "stun": 0.3, "zincir": true, "sfx_done": true})
+
+
+func _hazard_check(delta: float) -> void:
+	## Tehlike karoları: diken/zehir/lav üstünde durunca hasar + durum; 0,7 sn'de bir
+	_haz_t -= delta
+	if level == null or not level.has_method("hazard_at") or dead or roll_t > 0.0:
+		return
+	var hz: String = level.hazard_at(global_position + Vector2(0, -4))
+	if hz == "":
+		hz = level.hazard_at(global_position + Vector2(0, 2))
+	if hz == "" or hz == "buz":
+		return
+	if _haz_t > 0.0:
+		return
+	_haz_t = 0.7
+	var frac := 0.14 if hz == "lav" else (0.08 if hz == "diken" else 0.06)
+	if take_hit(max_hp() * frac, null, null, true):
+		velocity.y = -300.0
+		velocity.x = -facing * 120.0
+		match hz:
+			"lav":
+				FX.fire(global_position, 10, 0.4, 8.0)
+				FX.anim("ember_jet", global_position, -PI / 2.0, 0.9, Color(1.0, 0.6, 0.25))
+				FX.text(center() + Vector2(0, -34), "LAV!", Color(1.0, 0.6, 0.3), 9)
+			"zehir":
+				apply_poison(3.0)
+				FX.anim("acid_splash", global_position, 0.0, 0.9, Color(0.6, 1.0, 0.4))
+			"diken":
+				FX.blood(global_position, Vector2.UP, Color(0.75, 0.1, 0.12), 8)
+				FX.text(center() + Vector2(0, -34), "diken", Color(1.0, 0.5, 0.5), 8)
 
 
 func weapon_color(it: Dictionary) -> Color:
@@ -829,15 +894,32 @@ func _physics_process(delta: float) -> void:
 		_fall_peak = maxf(_fall_peak, velocity.y)
 	if is_on_floor():
 		coyote = 0.09
-		air_jumps = 1
+		air_jumps = 2 if Game.has_lutuf("umay") else 1
 		jumping = false
 		if not _was_floor:
 			_on_land()
 	_was_floor = is_on_floor()
 
-	# yuvarlanma (alçak geçitlerde kendiliğinden sürer)
+	# yuvarlanma (alçak geçitlerde kendiliğinden sürer); Shift basılı tutulursa yuvarlanma biter bitmez koşuya geçer
 	if Input.is_action_just_pressed("yuvarlan") and roll_cd <= 0.0 and roll_t <= 0.0 and drink_t <= 0.0:
 		_start_roll(dir)
+	if Input.is_action_pressed("yuvarlan"):
+		_roll_hold += delta
+	else:
+		_roll_hold = 0.0
+		sprint = false
+	if _roll_hold > 0.3 and roll_t <= 0.0 and atk.is_empty() and aim_t < 0.0 and block_t < 0.0 and not crouch_hold:
+		sprint = true
+	# çömelme: yerde S basılıyken; çömelirken saldırı ve yay serbest, yürüme yavaş
+	var want_crouch := is_on_floor() and Input.is_action_pressed("asagi") and roll_t <= 0.0 and drink_t <= 0.0 and jump_buf <= 0.0 and wolf_t <= 0.0
+	if want_crouch and not crouched:
+		_set_crouch(true)
+		crouch_hold = true
+		sprint = false
+	elif crouch_hold and (not Input.is_action_pressed("asagi") or not is_on_floor()):
+		if not _head_blocked():
+			crouch_hold = false
+			_set_crouch(false)
 	if roll_t > 0.0:
 		roll_t -= delta
 		_set_crouch(true)
@@ -869,7 +951,7 @@ func _physics_process(delta: float) -> void:
 		if sec_act != "" and slot(sec_slot).get("id", "") == "akinci_yayi" and Input.is_action_just_pressed(sec_act) and cd[sec_slot] <= 0.0:
 			_fire_bow(0.5)
 		return
-	if crouched:
+	if crouched and not crouch_hold:
 		# yuvarlanma bitti ama hâlâ alçak yerdeyiz: sürün
 		if _head_blocked():
 			velocity.x = move_toward(velocity.x, dir * RUN * 0.45, ACC_GROUND * delta)
@@ -1000,11 +1082,15 @@ func _physics_process(delta: float) -> void:
 
 	# yatay hareket
 	var spd := RUN * (1.15 if spirit_t > 0.0 else 1.0)
+	if sprint and dir != 0:
+		spd *= 1.55
 	var target := dir * spd
 	if busy:
 		target = 0.0
 	elif not atk.is_empty():
 		target *= 0.45
+	if crouch_hold:
+		target *= 0.35
 	if aim_t >= 0.0 or block_t >= 0.0:
 		target *= 0.3
 		if block_t >= 0.0 and sec.get("mech_id", "") == "agir_blok":
@@ -1018,6 +1104,11 @@ func _physics_process(delta: float) -> void:
 	var acc := ACC_GROUND if is_on_floor() else ACC_AIR
 	if is_on_floor() and (dir == 0 or signf(dir) != signf(velocity.x)):
 		acc = DEC_GROUND
+	if sprint and dir != 0:
+		acc = 1300.0  # koşuya yumuşak geçiş
+	on_ice = is_on_floor() and level != null and level.has_method("ice_at") and level.ice_at(global_position + Vector2(0, 3))
+	if on_ice:
+		acc *= 0.22
 	if hurt_t <= 0.0:
 		velocity.x = move_toward(velocity.x, target, acc * delta)
 	if dir != 0 and not busy and aim_t < 0.0 and block_t < 0.0 and hurt_t <= 0.0:
@@ -1067,6 +1158,7 @@ func _physics_process(delta: float) -> void:
 		_update_attack(delta)
 
 	move_and_slide()
+	_hazard_check(delta)
 	_update_anim(dir)
 	_update_weapon_visual()
 	_feel(delta, dir)
@@ -1112,8 +1204,10 @@ func _feel(delta: float, _dir: float) -> void:
 
 func _run_dust(delta: float) -> void:
 	_dust_t -= delta
+	if sprint and is_on_floor() and absf(velocity.x) > RUN * 1.2 and Engine.get_physics_frames() % 4 == 0:
+		FX.ghost(anim.base, Color(0.9, 0.85, 0.7, 0.3), 0.16)
 	if is_on_floor() and absf(velocity.x) > 70.0 and roll_t <= 0.0 and _dust_t <= 0.0:
-		_dust_t = 0.17
+		_dust_t = 0.17 if not sprint else 0.11
 		FX.dust(global_position + Vector2(-facing * 5, 0), Vector2(-facing, -0.35), 2, 0.22)
 		var bid: String = level.biome.get("id", "otuken") if level else "otuken"
 		var surf := "cim"
@@ -1188,15 +1282,22 @@ func _update_anim(dir: float) -> void:
 	elif cast_t > 0.0:
 		anim.show_frame("cast", 1 if cast_t < 0.2 else 0)
 	elif aim_t >= 0.0:
-		anim.show_frame("bow", 1 if aim_t > 0.12 else 0)
+		if crouch_hold and crouched:
+			anim.show_frame("crouch_atk", 0)
+		else:
+			anim.show_frame("bow", 1 if aim_t > 0.12 else 0)
 	elif bow_rel_t > 0.0 and slot(sec_slot).get("kind", "") == "bow":
 		anim.show_frame("bow", 1)
 	elif block_t >= 0.0:
 		anim.show_frame("block", 0)
+	elif crouch_hold and crouched:
+		anim.play("crouch")
 	elif not is_on_floor():
 		anim.play("jump" if velocity.y < 0 else "fall")
 	elif land_t > 0.0:
 		anim.play("land")
+	elif sprint and absf(velocity.x) > RUN * 1.15:
+		anim.play("sprint")
 	elif absf(velocity.x) > 12.0:
 		anim.play("run")
 	else:
@@ -1369,7 +1470,10 @@ func _update_attack(delta: float) -> void:
 		atk["t"] += delta
 	var k: float = atk["t"] / atk["dur"]
 	var body: String = sw["body"]
-	anim.show_frame(body, clampi(int(k * anim.frame_count(body)), 0, anim.frame_count(body) - 1))
+	if crouch_hold and crouched and anim.has_anim("crouch_atk"):
+		anim.show_frame("crouch_atk", 0)
+	else:
+		anim.show_frame(body, clampi(int(k * anim.frame_count(body)), 0, anim.frame_count(body) - 1))
 	if k < hit0:
 		atk["phase"] = "wind"
 		_wind_fx(it, sw, k)
@@ -1899,7 +2003,9 @@ func _deal(e: Node, base: float, it: Dictionary, opts: Dictionary = {}) -> void:
 	var mech: String = it.get("mech_id", "")
 	var mv := float(it.get("mech_v", 0.0))
 	# mekanik kritik koşulları
-	var crit := randf() * 100.0 < float(it.get("crit", 0.0)) + ItemGen.aff(it, "krit_sans")
+	var crit := randf() * 100.0 < float(it.get("crit", 0.0)) + ItemGen.aff(it, "krit_sans") + (10.0 if Game.has_lutuf("ay_ata") else 0.0)
+	if Game.has_lutuf("erlik"):
+		d *= 1.35
 	match mech:
 		"ucuncu_vurus":
 			if opts.get("last", false):
@@ -2056,8 +2162,15 @@ func _deal(e: Node, base: float, it: Dictionary, opts: Dictionary = {}) -> void:
 		opts["freeze"] = maxf(float(opts.get("freeze", 0.0)), 0.8)
 	if it["material"] == "kara_tas":
 		opts["stagger"] = true
+	if Game.has_lutuf("gun_ana") and randf() < 0.25:
+		opts["burn"] = maxf(float(opts.get("burn", 0.0)), 3.0)
 	var killed: bool = e.take_hit(d, opts)
 	add_kut(d * 0.22 + ItemGen.aff(it, "kut"))
+	if Game.has_lutuf("tengri") and randf() < 0.22 and not opts.get("zincir", false):
+		_tengri_chain(e, d * 0.5, it)
+	if killed and Game.has_lutuf("ulgen"):
+		heal(max_hp() * 0.03)
+		FX.burst(center(), Color(1.0, 0.95, 0.6), 6, 40, 0.5, 0.16, -60, true)
 	if crit and it["material"] == "yesim":
 		heal(2)
 	if killed:
@@ -2809,6 +2922,8 @@ func take_hit(dmg: float, from: Node, projectile: Node = null, forced := false) 
 		FX.impact(center() + Vector2(facing * 12, 0), Vector2(facing, 0), Color(1, 0.9, 0.6), 0.8)
 		vis_scale = Vector2(0.9, 1.08)
 	dmg *= 1.0 - minf(0.3, 0.03 * float(Game.run["ongun"]["ayi"]))
+	if Game.has_lutuf("yer_sub"):
+		dmg *= 0.75
 	if wolf_t > 0.0:
 		dmg *= 0.6
 		wolf_atk = {}

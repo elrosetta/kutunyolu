@@ -11,6 +11,20 @@ const LAYER_PLATFORM := 8
 ## Her koşuda açık olan eşyalar; diğerleri parşömenle Demirci'de açılır.
 const BASE_UNLOCKED := ["alp_kilici", "turk_yayi", "kara_barut", "yuvarlak_kalkan", "pala", "coban_sapani"]
 
+## Tanrı lütufları (sunaktan alınır; yurda dönene dek sürer, en çok 3)
+const LUTUF := {
+	"tengri": ["Tengri'nin Yıldırımı", "Darbeler %22 şansla yakındaki düşmana şimşekle sıçrar.", [0.7, 0.85, 1.0]],
+	"ulgen": ["Ülgen'in Işığı", "Her öldürmede %3 can.", [1.0, 0.95, 0.6]],
+	"umay": ["Umay'ın Kanadı", "Havada iki kez daha zıpla.", [0.6, 1.0, 1.0]],
+	"erlik": ["Erlik'in Gölgesi", "Hasar +%35; en yüksek can -%20.", [0.7, 0.3, 0.9]],
+	"kayra": ["Kayra'nın Kutu", "Kut iki kat hızlı dolar.", [0.45, 0.93, 1.0]],
+	"yer_sub": ["Yer-Sub Zırhı", "Alınan hasar -%25.", [0.55, 0.85, 0.45]],
+	"ay_ata": ["Ay Ata'nın Gözü", "Kritik şansı +%10.", [0.85, 0.9, 1.0]],
+	"gun_ana": ["Gün Ana'nın Közü", "Darbeler %25 şansla tutuşturur.", [1.0, 0.6, 0.3]],
+}
+## Boss arenaları: bu derinlik bitince (Kut Kapısı) önce boss, sonra yurt
+const BOSS_AFTER := {2: "kara_boru_han"}
+
 ## Umay Ana'nın kalıcı armağanları: Kut bankasıyla alınır (Dead Cells "Collector" mantığı).
 ## id: [ad, açıklama, [seviye maliyetleri...]]
 const UMAY := {
@@ -101,7 +115,7 @@ func new_run() -> void:
 		"hp": mhp, "max_hp": mhp, "gold": 60 * umay_level("altin"), "kut": 0, "flasks": 2 + umay_level("sise"), "max_flasks": 2 + umay_level("sise"),
 		"ongun": {"kurt": 0, "kartal": 0, "ayi": 0},
 		"slots": {"melee": start_melee, "second": start_bow, "g1": start_bomb, "g2": {}},
-		"kills": 0, "time": 0.0, "tier": 0, "depth": 1, "scrolls": 0,
+		"kills": 0, "time": 0.0, "tier": 0, "depth": 1, "scrolls": 0, "lutuf": [], "boss_done": [],
 	}
 
 
@@ -161,6 +175,21 @@ func next_depth() -> void:
 	run["tier"] = mini(5, int(run.get("tier", 0)) + 1)
 	run["flasks"] = int(run["max_flasks"])
 	run["hp"] = minf(float(run["max_hp"]), float(run["hp"]) + float(run["max_hp"]) * 0.25)
+
+
+func has_lutuf(id: String) -> bool:
+	return not run.is_empty() and id in run.get("lutuf", [])
+
+
+func grant_lutuf(id: String) -> void:
+	var l: Array = run.get("lutuf", [])
+	if id in l:
+		return
+	l.append(id)
+	run["lutuf"] = l
+	if id == "erlik":
+		run["max_hp"] = float(run["max_hp"]) * 0.8
+		run["hp"] = minf(float(run["hp"]), float(run["max_hp"]))
 
 
 func ongun_mult(ongun: String) -> float:

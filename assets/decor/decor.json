@@ -141,5 +141,16 @@
    78
   ],
   "glow": false
+ },
+ "sunak": {
+  "size": [
+   64,
+   72
+  ],
+  "origin": [
+   32,
+   70
+  ],
+  "glow": true
  }
 }

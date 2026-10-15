@@ -25,7 +25,7 @@ import soil
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 A = os.path.join(ROOT, 'assets')
 
-FPS = {'idle': 8, 'run': 14, 'jump': 8, 'fall': 8, 'roll': 18, 'land': 14, 'slash1': 16, 'slash2': 16, 'thrust': 14, 'heavy': 11, 'bow': 10,
+FPS = {'crouch': 6, 'crouch_atk': 8, 'sprint': 18, 'walk': 10, 'guard': 6, 'bash': 12, 'charge': 16, 'stagger': 8, 'shell': 8, 'spin': 16, 'bite': 10, 'howl': 8, 'slam': 10, 'rage': 10, 'strike': 12, 'idle': 8, 'run': 14, 'jump': 8, 'fall': 8, 'roll': 18, 'land': 14, 'slash1': 16, 'slash2': 16, 'thrust': 14, 'heavy': 11, 'bow': 10,
        'atk_down': 16, 'atk_up': 16, 'atk_horiz': 16, 'atk_thrust': 16, 'atk_heavy': 12, 'atk_spin': 16, 'atk_lunge': 16, 'grab': 10,
        'throw': 14, 'block': 1, 'cast': 10, 'hurt': 10, 'drink': 6, 'walk': 8, 'windup': 8, 'leap': 10, 'attack': 10, 'slam': 10,
        'hop': 10, 'strike': 10, 'dormant': 1}

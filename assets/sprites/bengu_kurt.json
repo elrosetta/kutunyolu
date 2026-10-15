@@ -277,7 +277,7 @@
   "howl": {
    "row": 4,
    "frames": 4,
-   "fps": 10,
+   "fps": 8,
    "loop": false,
    "data": [
     {

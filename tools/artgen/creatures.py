@@ -950,6 +950,9 @@ CREATURES = {
     'surale': (draw_gul, GUL_ANIMS, (128, 104), (50, 100)),          # Gulyabani
     'bengu_kurt': (bozkurt.draw_bozkurt, bozkurt.BOZKURT_ANIMS, bozkurt.CELL, bozkurt.FEET),
 }
+import creatures2
+CREATURES.update(creatures2.CREATURES2)
+
 
 
 def render_creature(name, anim, i):

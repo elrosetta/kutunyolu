@@ -248,6 +248,28 @@ func _draw_hud(vp: Vector2) -> void:
 		PixUI.text(self, Vector2(wx, 32), "BOZKURT  %.1f" % pl.wolf_t, Color(0.7, 1.0, 1.0), 1, HORIZONTAL_ALIGNMENT_CENTER, 140, 1)
 		PixUI.bar(self, Rect2(wx + 6, 46, 128, 4), clampf(pl.wolf_t / 9.0, 0.0, 1.0), Color(0.6, 0.95, 1.0))
 		PixUI.text(self, Vector2(0, 60), "J ısır  ·  K / Shift sıçra  ·  F ulu", Color(0.6, 0.9, 1.0), 1, HORIZONTAL_ALIGNMENT_CENTER, vp.x)
+	# ---- boss can çubuğu
+	if level.boss != null and is_instance_valid(level.boss) and not level.boss.dead and level.boss.state != "intro":
+		var bw2 := 260.0
+		var bx2 := (vp.x - bw2) / 2.0
+		PixUI.panel(self, Rect2(bx2 - 6, vp.y - 72, bw2 + 12, 24), Color(0.9, 0.3, 0.4))
+		PixUI.text(self, Vector2(bx2, vp.y - 71), level.boss._label.text, Color(1.0, 0.6, 0.65), 1, HORIZONTAL_ALIGNMENT_CENTER, bw2)
+		PixUI.bar(self, Rect2(bx2, vp.y - 58, bw2, 6), clampf(level.boss.hp / level.boss.max_hp, 0.0, 1.0), Color(0.9, 0.2, 0.3))
+		for i in range(1, 3):
+			draw_rect(Rect2(roundf(bx2 + bw2 * i / 3.0), vp.y - 58, 1, 6), Color(0, 0, 0, 0.5))
+	# ---- lütuflar
+	var lut: Array = R.get("lutuf", [])
+	if not lut.is_empty():
+		var lx := bx
+		var ly := y3 + 17.0
+		for id in lut:
+			var l: Array = Game.LUTUF[id]
+			var lc := Color(l[2][0], l[2][1], l[2][2])
+			var w2 := PixUI.width(String(l[0])) + 10.0
+			PixUI.panel(self, Rect2(lx, ly, w2, 12), lc.darkened(0.2), PixUI.INK)
+			draw_circle(Vector2(lx + 5, ly + 6), 2.0, lc)
+			PixUI.text(self, Vector2(lx + 9, ly + 1), String(l[0]), lc.lightened(0.2), 1, HORIZONTAL_ALIGNMENT_LEFT, -1.0, 0)
+			lx += w2 + 3.0
 	# ---- sağ üst: biyom, derinlik, süre
 	var place: String = ("Ulu Kayın Yurdu") if level.hub else String(level.biome.get("name", "Kararan Ötüken"))
 	var ptxt := "%s" % place

@@ -61,8 +61,8 @@
     ],
     "styles": [
      "orman",
-     "ucurum",
      "magara",
+     "ucurum",
      "harabe"
     ],
     "sky_scale": 1,
@@ -170,8 +170,9 @@
      0.5
     ],
     "styles": [
+     "bozkir",
+     "bozkir",
      "orman",
-     "ucurum",
      "harabe"
     ],
     "sky_scale": 1,
@@ -285,7 +286,8 @@
     ],
     "styles": [
      "magara",
-     "magara",
+     "kuyu",
+     "kuyu",
      "harabe"
     ],
     "sky_scale": 1,
@@ -389,7 +391,7 @@
      "ucurum",
      "ucurum",
      "orman",
-     "harabe"
+     "kuyu"
     ],
     "sky_scale": 1,
     "bg": [
@@ -490,8 +492,9 @@
     ],
     "styles": [
      "harabe",
-     "ucurum",
-     "magara"
+     "kuyu",
+     "magara",
+     "ucurum"
     ],
     "sky_scale": 1,
     "bg": [
@@ -609,10 +612,10 @@
    "hp": 60,
    "dmg": 16,
    "speed": 50,
-   "ai": "walker",
+   "ai": "shield",
    "impl": true,
    "desc": "Kurganında dinlenemeyen kadim savaşçı. Uzun mızrağıyla dürter.",
-   "sprite": "balbal",
+   "sprite": "bekci",
    "tint": [
     1.1,
     1.0,
@@ -697,7 +700,7 @@
    "ai": "charger",
    "impl": true,
    "desc": "Kurganları eşen kızıl derili gul. Bozkırı yararak saldırır.",
-   "sprite": "surale",
+   "sprite": "bekci",
    "tint": [
     1.2,
     0.6,
@@ -777,10 +780,10 @@
    "hp": 70,
    "dmg": 16,
    "speed": 70,
-   "ai": "walker",
+   "ai": "shield",
    "impl": true,
    "desc": "Şahmeran'ın yarı yılan bekçisi. Zehirli mızrak taşır.",
-   "sprite": "balbal",
+   "sprite": "bekci",
    "tint": [
     0.6,
     1.1,
@@ -862,10 +865,10 @@
    "hp": 65,
    "dmg": 14,
    "speed": 90,
-   "ai": "lunger",
+   "ai": "turtle",
    "impl": true,
    "desc": "Taşa bürünüp pusu kuran gul. Uzun kollarıyla yakalar.",
-   "sprite": "surale",
+   "sprite": "tosbaga",
    "tint": [
     0.7,
     0.9,
@@ -967,7 +970,7 @@
    "ai": "shield",
    "impl": true,
    "desc": "Simurg tüyleri takınmış sapkın kam. Büyüsüyle okları savurur.",
-   "sprite": "arcura",
+   "sprite": "bekci",
    "tint": [
     1.0,
     0.85,
@@ -1001,7 +1004,7 @@
    "ai": "shield",
    "impl": true,
    "desc": "Erlik'in zindanının zincirli bekçisi.",
-   "sprite": "balbal",
+   "sprite": "bekci",
    "tint": [
     0.9,
     0.5,
@@ -1035,7 +1038,7 @@
    "ai": "diver",
    "impl": true,
    "desc": "Erlik'in demir dişli tazısı. Zırhı deler.",
-   "sprite": "kara_boru",
+   "sprite": "cor",
    "tint": [
     1.2,
     0.5,
@@ -1069,12 +1072,164 @@
    "ai": "charger",
    "impl": true,
    "desc": "Erlik'in ülkesinde kül içinde dolaşan gul. Ardında ateş izi bırakır.",
-   "sprite": "surale",
+   "sprite": "bekci",
    "tint": [
     0.7,
     0.5,
     0.6
    ]
+  },
+  {
+   "id": "bekci",
+   "name": "Kurgan Bekçisi",
+   "biome": "bozkir",
+   "hp": 75,
+   "dmg": 16,
+   "speed": 55,
+   "ai": "shield",
+   "impl": true,
+   "desc": "Kalkanını önüne alır; önden vurulmaz. Arkasından ya da ağır vuruşla."
+  },
+  {
+   "id": "tosbaga",
+   "name": "Taş Tosbağa",
+   "biome": "sahmeran",
+   "hp": 90,
+   "dmg": 14,
+   "speed": 40,
+   "ai": "turtle",
+   "impl": true,
+   "desc": "Vurulunca kabuğuna çekilir, sonra kabuğuyla yuvarlanarak ezer."
+  },
+  {
+   "id": "kara_boru_han",
+   "name": "Kara Börü Han",
+   "biome": "otuken",
+   "hp": 900,
+   "dmg": 18,
+   "speed": 120,
+   "ai": "boss_kbh",
+   "impl": true,
+   "desc": "Asena'nın unutulmuş kardeşi."
+  },
+  {
+   "id": "sicrayan_tazi",
+   "name": "Pusu Tazısı",
+   "biome": "otuken",
+   "hp": 28,
+   "dmg": 12,
+   "speed": 110,
+   "ai": "pouncer",
+   "impl": true,
+   "sprite": "kara_boru",
+   "tint": [
+    0.8,
+    0.9,
+    1.2
+   ],
+   "desc": "Yüksekten üstüne atlar."
+  },
+  {
+   "id": "kurgan_atlisi",
+   "name": "Kurgan Akıncısı",
+   "biome": "bozkir",
+   "hp": 80,
+   "dmg": 20,
+   "speed": 60,
+   "ai": "charger",
+   "impl": true,
+   "sprite": "bekci",
+   "tint": [
+    1.2,
+    0.8,
+    0.7
+   ],
+   "desc": "Kalkanıyla bozkırı yararak üstüne koşar."
+  },
+  {
+   "id": "buz_tosbagasi",
+   "name": "Buz Tosbağası",
+   "biome": "kaf",
+   "hp": 110,
+   "dmg": 16,
+   "speed": 40,
+   "ai": "turtle",
+   "impl": true,
+   "sprite": "tosbaga",
+   "tint": [
+    0.8,
+    0.95,
+    1.25
+   ],
+   "desc": "Kabuğu buz; yuvarlanınca kayar."
+  },
+  {
+   "id": "tamu_muhafizi",
+   "name": "Tamu Muhafızı",
+   "biome": "tamu",
+   "hp": 150,
+   "dmg": 26,
+   "speed": 55,
+   "ai": "shield",
+   "impl": true,
+   "sprite": "bekci",
+   "tint": [
+    1.1,
+    0.6,
+    0.6
+   ],
+   "desc": "Kor kalkanlı bekçi."
+  },
+  {
+   "id": "kaf_bekcisi",
+   "name": "Kaf Bekçisi",
+   "biome": "kaf",
+   "hp": 100,
+   "dmg": 18,
+   "speed": 55,
+   "ai": "shield",
+   "impl": true,
+   "sprite": "bekci",
+   "tint": [
+    0.85,
+    0.95,
+    1.25
+   ],
+   "desc": "Buz kalkanlı dağ bekçisi."
+  },
+  {
+   "id": "magara_pususu",
+   "name": "Mağara Pususu",
+   "biome": "sahmeran",
+   "hp": 36,
+   "dmg": 13,
+   "speed": 110,
+   "ai": "pouncer",
+   "impl": true,
+   "sprite": "kara_boru",
+   "tint": [
+    0.7,
+    1.1,
+    0.9
+   ],
+   "desc": "Tavandan atlar."
+  },
+  {
+   "id": "kor_pususu",
+   "name": "Kor Pususu",
+   "biome": "tamu",
+   "hp": 48,
+   "dmg": 18,
+   "speed": 120,
+   "ai": "pouncer",
+   "impl": true,
+   "sprite": "kara_boru",
+   "tint": [
+    1.3,
+    0.7,
+    0.6
+   ],
+   "desc": "Kor çukurlarından fırlar."
   }
  ],
  "bosses": [
@@ -1083,13 +1238,14 @@
    "name": "KARA BÖRÜ HAN",
    "sub": "Asena'nın unutulmuş kardeşi",
    "biome": "otuken",
-   "hp": 1100,
-   "impl": false,
+   "hp": 1400,
+   "impl": true,
    "phases": [
     "Sürü çağırır, ulumasıyla sersemletir",
     "Bozgun kristalleri sırtından fırlar, ağaçlardan atlar",
     "Gölgesi ayrılır: iki kurt birden"
-   ]
+   ],
+   "enemy": "kara_boru_han"
   },
   {
    "id": "tepegoz",

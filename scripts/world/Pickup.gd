@@ -55,6 +55,10 @@ func _refresh() -> void:
 func _physics_process(delta: float) -> void:
 	_t += delta
 	var pl: Node = level.player if level else null
+	if kind == "lutuf":
+		if int(_t * 60.0) % 8 == 0:
+			FX.burst(global_position + Vector2(randf_range(-10, 10), -24), Color(1.0, 0.9, 0.6), 1, 24, 0.8, 0.14, -50, true)
+		return
 	if kind == "item" or kind == "tilsim" or kind == "parsomen":
 		if not pedestal and not _grounded:
 			velocity.y = minf(velocity.y + 900.0 * delta, 400.0)
@@ -84,6 +88,15 @@ func _physics_process(delta: float) -> void:
 	if pl and not pl.dead and _t > 0.45 and pl.center().distance_to(global_position) < 90.0:
 		global_position = global_position.move_toward(pl.center(), (220.0 + 600.0 * _t) * delta)
 		if pl.center().distance_to(global_position) < 10.0:
+			if kind == "sifa":
+				var h: float = float(Game.run["max_hp"]) * 0.35
+				pl.heal(h)
+				FX.anim("radiant_heal", pl.center(), 0.0, 1.0, Color(0.6, 1.0, 0.6))
+				FX.ring(pl.center(), 26, Color(0.6, 1.0, 0.6), 0.3)
+				FX.text(pl.center() + Vector2(0, -34), "Şifa Otu", Color(0.6, 1.0, 0.6), 8)
+				Ses.play("sise", -4.0, 1.2)
+				queue_free()
+				return
 			if kind == "gold":
 				Game.run["gold"] = int(Game.run["gold"]) + randi_range(1, 3)
 				FX.burst(global_position, Color(1.0, 0.85, 0.4), 3, 40, 0.25, 0.14, 0, true)
@@ -129,6 +142,14 @@ func _draw() -> void:
 			var w := 2.0 + absf(sin(_t * 6.0)) * 1.5
 			draw_rect(Rect2(-w / 2.0, -5, w, 5), Color(1.0, 0.82, 0.3))
 			draw_rect(Rect2(-w / 2.0, -5, w, 1), Color(1.0, 0.96, 0.7))
+		"sifa":
+			# şifa otu: yeşil yaprak demeti, ortada ışıyan tohum
+			var bb := sin(_t * 3.0) * 1.5
+			for k in 3:
+				var a := -PI / 2.0 + (k - 1) * 0.7
+				draw_line(Vector2(0, -2 + bb), Vector2(cos(a) * 7.0, -2 + bb + sin(a) * 7.0), Color(0.35, 0.8, 0.35), 2.0)
+			draw_circle(Vector2(0, -6 + bb), 3.0, Color(0.6, 1.0, 0.6, 0.35 + 0.15 * sin(_t * 6.0)))
+			draw_circle(Vector2(0, -6 + bb), 1.6, Color(0.9, 1.0, 0.8))
 		"kut":
 			var pulse := 1.0 + sin(_t * 8.0) * 0.25
 			draw_circle(Vector2(0, -3), 4.0 * pulse, Color(0.4, 0.95, 1.0, 0.3))

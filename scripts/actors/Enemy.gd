@@ -61,9 +61,16 @@ var base_tint := Color(1, 1, 1)
 var poison := 0       # zehir yığını (en çok 5)
 var poison_t := 0.0
 var overlay: StatusOverlay
+var guard_hp := 0       # kalkanlı: kaç darbe daha siper tutar (0 -> sersemler)
+var shell_t := 0.0      # tosbağa: kabukta geçen süre (dokunulmaz)
+var elite_t := 0.0      # seçkin: kükreme sayacı
+var elite_name := ""
+var perch := Vector2.ZERO  # pusu: beklediği yer
+var _label: Label
+var _hidden := false     # gölge (stalker): görünmez
 ## Düşmana özgü sıçrantı rengi (tazı: kor; çor: zehir yeşili; iye: Erlik moru özsu; balbal: taş tozu; kam: lanet moru; gulyabani: ölü irin)
 const BLOOD := {"kara_boru": Color(0.95, 0.42, 0.12), "cor": Color(0.55, 0.85, 0.2), "agac_iyesi": Color(0.6, 0.28, 0.72), "balbal": Color(0.6, 0.6, 0.66),
-		"arcura": Color(0.7, 0.25, 0.9), "surale": Color(0.5, 0.55, 0.42)}
+		"arcura": Color(0.7, 0.25, 0.9), "surale": Color(0.5, 0.55, 0.42), "bekci": Color(0.55, 0.5, 0.45), "tosbaga": Color(0.45, 0.6, 0.3), "kara_boru_han": Color(0.8, 0.1, 0.2)}
 
 
 func blood_col() -> Color:
@@ -82,8 +89,23 @@ func setup(k: String, is_elite: bool, tier: int) -> void:
 	hp = max_hp
 	dmg = float(def.get("dmg", 10)) * (1.0 + 0.5 * tier) * (1.25 if elite else 1.0)
 	speed = float(def.get("speed", 80))
-	ai = Data.enemy_def(sprite_kind).get("ai", def.get("ai", "lunger"))
+	ai = String(def.get("ai", Data.enemy_def(sprite_kind).get("ai", "lunger")))
+	if not (ai in ["lunger", "flyer_ranged", "brute", "hopper", "illusionist", "grabber", "pouncer", "shield", "charger", "turtle", "archer", "stalker", "diver", "walker"]) and not ai.begins_with("boss"):
+		ai = String(Data.enemy_def(sprite_kind).get("ai", "lunger"))
+	if ai == "walker":
+		ai = "shield"
 	match sprite_kind:
+		"bekci":
+			size = Vector2(26, 58)
+			heavy = true
+			guard_hp = 3
+		"tosbaga":
+			size = Vector2(58, 30)
+			heavy = true
+		"kara_boru_han":
+			size = Vector2(120, 66)
+			heavy = true
+			is_boss = true
 		"kara_boru":
 			size = Vector2(34, 22)
 		"cor":
@@ -126,9 +148,35 @@ func _ready() -> void:
 	else:
 		anim.play("idle")
 	if elite:
-		base_scale = Vector2(1.15, 1.15)
+		base_scale = Vector2(1.3, 1.3)
 		anim.scale = base_scale
-		anim.set_tint(Color(1.15, 0.92, 1.25))
+		anim.set_tint(Color(1.2, 0.9, 1.3))
+		elite_name = "SEÇKİN " + String(def.get("name", kind)).to_upper()
+		elite_t = randf_range(3.0, 5.0)
+		if level:
+			level.add_light(Vector2(0, -size.y / 2.0), Color(0.85, 0.45, 1.0), 120.0, 0.7, self)
+	if elite or is_boss:
+		_label = Label.new()
+		_label.text = elite_name
+		_label.label_settings = LabelSettings.new()
+		_label.label_settings.font_size = 8
+		_label.label_settings.font_color = Color(0.95, 0.7, 1.0) if elite else Color(1.0, 0.4, 0.4)
+		_label.label_settings.outline_size = 3
+		_label.label_settings.outline_color = Color(0.1, 0.02, 0.08)
+		_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		_label.position = Vector2(-60, -size.y * base_scale.y - 34)
+		_label.size = Vector2(120, 12)
+		_label.z_index = 80
+		_label.visible = elite
+		add_child(_label)
+	if ai == "pouncer":
+		perch = global_position
+		state = "perch"
+	if ai == "stalker":
+		_hidden = true
+		anim.modulate = Color(1, 1, 1, 0.12)
+	if ai == "shield" or ai == "charger":
+		anim.play("walk")
 	home = global_position
 	warn = Label.new()
 	warn.text = "!"
@@ -181,6 +229,45 @@ func take_hit(d: float, opts: Dictionary) -> bool:
 		opts["stagger"] = false
 		FX.sparks(center() + Vector2(facing * 10, -4), Vector2(facing, -0.6), Color(0.85, 0.85, 1.0), 6, 150.0)
 		FX.text(center() + Vector2(0, -30), "siper", Color(0.8, 0.8, 0.95), 7)
+	# kalkanlı bekçi: önden gelen darbeler kalkana çarpar; ağır vuruş ya da 3 darbe kalkanı düşürür (sersemler, açık kalır)
+	if (ai == "shield" or ai == "charger") and guard_hp > 0 and state != "stagger" and signf(float(opts.get("dir", 1))) == -float(facing) and not opts.get("behind", false):
+		var heavy_hit: bool = opts.get("heavy", false) or float(opts.get("kb", 60.0)) >= 250.0
+		guard_hp -= 3 if heavy_hit else 1
+		var sp := center() + Vector2(facing * 14, -2)
+		FX.impact_sprite("blunt", sp, Vector2(facing, 0), Color(1.0, 0.9, 0.6), 0.8)
+		FX.sparks(sp, Vector2(facing, -0.5), Color(1.0, 0.9, 0.6), 10, 190.0)
+		Ses.play("darbe_metal", -2.0, 1.1)
+		Game.hitstop(0.04)
+		Game.kick(Vector2(facing, 0), 3.0)
+		vis_scale = Vector2(0.9, 1.08)
+		if guard_hp <= 0:
+			state = "stagger"
+			st = 1.4
+			velocity.x = facing * -90.0
+			FX.text(center() + Vector2(0, -size.y - 8), "KALKAN DÜŞTÜ!", Color(1.0, 0.85, 0.4), 8)
+			FX.anim("resonant_break", sp, 0.0, 0.9, Color(1.0, 0.85, 0.5))
+			Game.slowmo(0.4, 0.12)
+		else:
+			FX.text(center() + Vector2(0, -size.y - 8), "KALKAN", Color(0.9, 0.9, 1.0), 7)
+			velocity.x = facing * -40.0
+		return false
+	# tosbağa: kabuktayken dokunulmaz; dışarıdayken darbe alınca kabuğa çekilme şansı
+	if ai == "turtle":
+		if state in ["shell", "spin"]:
+			d *= 0.08
+			FX.sparks(center() + Vector2(float(opts.get("dir", 1)) * -16, -6), Vector2(-float(opts.get("dir", 1)), -0.6), Color(0.7, 0.9, 1.0), 6, 160.0)
+			Ses.play("darbe_tas", -4.0, 1.2)
+			FX.text(center() + Vector2(0, -34), "KABUK", Color(0.75, 0.9, 1.0), 7)
+			opts["stagger"] = false
+		elif randf() < 0.55 and stun_t <= 0.0:
+			state = "shell"
+			st = 1.3
+			shell_t = 1.3
+			anim.play("shell", true)
+			FX.dust(global_position, Vector2.UP, 5, 0.3)
+			FX.text(center() + Vector2(0, -34), "kabuğa çekildi", Color(0.75, 0.9, 1.0), 7)
+	if _hidden:
+		_reveal()
 	if decoy:
 		d = 9999.0
 	if state == "dormant":
@@ -313,6 +400,12 @@ func _anchor_g(key: String, fallback: Vector2) -> Vector2:
 
 func _hurt_sfx() -> String:
 	match sprite_kind:
+		"bekci":
+			return "tas_can"
+		"tosbaga":
+			return "tas_can"
+		"kara_boru_han":
+			return "kurt_can"
 		"kara_boru":
 			return "kurt_can"
 		"cor":
@@ -330,6 +423,12 @@ func _hurt_sfx() -> String:
 
 func _die_sfx() -> String:
 	match sprite_kind:
+		"bekci":
+			return "tas_olum"
+		"tosbaga":
+			return "tas_olum"
+		"kara_boru_han":
+			return "kurt_olum"
 		"kara_boru":
 			return "kurt_olum"
 		"cor":
@@ -454,6 +553,21 @@ func _physics_process(delta: float) -> void:
 			aggro = true
 		elif aggro and dist > 460.0:
 			aggro = false
+	if elite and aggro and player and not player.dead:
+		_elite_tick(delta, player, dist)
+	if state == "stagger":
+		# kalkan düştü: açık, sendeler
+		anim.play("stagger")
+		velocity.x = move_toward(velocity.x, 0.0, 500 * delta)
+		st -= delta
+		if not flying:
+			velocity.y = minf(velocity.y + 1100.0 * delta, 540.0)
+		move_and_slide()
+		if st <= 0.0:
+			state = "chase"
+			guard_hp = 3
+			cd = 0.5
+		return
 	match ai:
 		"lunger":
 			_ai_lunger(delta, player, to_p, dist)
@@ -467,6 +581,22 @@ func _physics_process(delta: float) -> void:
 			_ai_illusionist(delta, player, to_p, dist)
 		"grabber":
 			_ai_grabber(delta, player, to_p, dist)
+		"pouncer":
+			_ai_pouncer(delta, player, to_p, dist)
+		"shield":
+			_ai_shield(delta, player, to_p, dist)
+		"charger":
+			_ai_charger(delta, player, to_p, dist)
+		"turtle":
+			_ai_turtle(delta, player, to_p, dist)
+		"archer":
+			_ai_archer(delta, player, to_p, dist)
+		"stalker":
+			_ai_stalker(delta, player, to_p, dist)
+		"diver":
+			_ai_diver(delta, player, to_p, dist)
+		_:
+			_ai_custom(delta, player, to_p, dist)
 	guard_t = maxf(0.0, guard_t - delta)
 	if not flying:
 		velocity.y = minf(velocity.y + 1100.0 * delta, 540.0)
@@ -927,6 +1057,435 @@ func _ai_grabber(delta: float, player: Node, to_p: Vector2, dist: float) -> void
 			if st <= 0.0:
 				state = "chase"
 				cd = randf_range(1.5, 2.6)
+
+
+func _ai_custom(_delta: float, _player: Node, _to_p: Vector2, _dist: float) -> void:
+	pass  # boss sınıfları üstüne yazar
+
+
+func _elite_tick(delta: float, player: Node, dist: float) -> void:
+	## Seçkin (mini boss): 6 sn'de bir kükrer: yakındaki oyuncuyu iter, 3 sn hızlanır; çevresinde mor aura
+	elite_t -= delta
+	if Engine.get_physics_frames() % 5 == 0:
+		FX.burst(center() + Vector2(randf_range(-size.x * 0.5, size.x * 0.5), randf_range(-size.y, 0)), Color(0.75, 0.4, 1.0), 1, 20, 0.5, 0.14, -40, true)
+	if elite_t <= 0.0 and state in ["idle", "chase", "perch"]:
+		elite_t = 6.0
+		FX.ring(center(), 70, Color(0.8, 0.45, 1.0), 0.4)
+		FX.anim("hush_lock", center(), 0.0, 1.2, Color(0.8, 0.45, 1.0))
+		FX.text(center() + Vector2(0, -size.y - 20), "KÜKREME", Color(0.9, 0.6, 1.0), 8)
+		Ses.play("dusman_hazirlik", -2.0, 0.7)
+		Game.shake(3.0)
+		if dist < 80.0 and player.has_method("shove"):
+			player.shove(Vector2(signf(player.global_position.x - global_position.x) * 260.0, -160.0))
+		speed *= 1.3
+		get_tree().create_timer(3.0).timeout.connect(func() -> void: if is_instance_valid(self): speed /= 1.3)
+
+
+func _reveal() -> void:
+	if not _hidden:
+		return
+	_hidden = false
+	anim.modulate = Color(1, 1, 1, 1)
+	FX.anim("smoke_puff", center(), 0.0, 0.8, Color(0.7, 0.6, 0.9), false)
+	FX.ring(center(), 24, Color(0.9, 0.8, 1.0), 0.25)
+	Ses.play("kam_davul", -6.0, 1.3)
+
+
+func _ai_pouncer(delta: float, player: Node, to_p: Vector2, dist: float) -> void:
+	## Pusu tazısı: yüksekte bekler; oyuncu altından/önünden geçince üstüne atlar, inişte toz dalgası; sonra tazı gibi kovalar
+	match state:
+		"perch":
+			velocity.x = 0.0
+			anim.play("idle")
+			if Engine.get_physics_frames() % 40 == 0 and player:
+				_face(to_p)
+			if player and dist < 200.0 and to_p.y > -30.0 and absf(to_p.x) < 190.0:
+				state = "windup"
+				_windup_sfx()
+				_face(to_p)
+				st = 0.38
+				set_meta("pounce", true)
+		"windup":
+			anim.play("windup")
+			velocity.x = 0.0
+			st -= delta
+			if st <= 0.0:
+				state = "leap"
+				st = 0.0
+				var tgt: Vector2 = player.global_position + player.velocity * 0.35 if player else global_position + Vector2(facing * 80, 0)
+				var dx := tgt.x - global_position.x
+				var tt := clampf(absf(dx) / 320.0, 0.3, 0.6)
+				velocity = Vector2(dx / tt, -(maxf(0.0, global_position.y - tgt.y) + 60.0) / tt + 0.0)
+				velocity.y = minf(velocity.y, -220.0)
+				contact = true
+				_did_hit = false
+				vis_scale = Vector2(0.8, 1.25)
+				FX.dust(global_position, Vector2(-facing, -0.5), 6, 0.3)
+				FX.ghost(anim.base, Color(0.7, 0.5, 1.0, 0.4), 0.25)
+		"leap":
+			anim.play("leap")
+			st += delta
+			if Engine.get_physics_frames() % 2 == 0:
+				FX.ghost(anim.base, Color(0.6, 0.3, 0.7, 0.35), 0.18)
+			if is_on_floor() and st > 0.15:
+				state = "recover"
+				st = 0.5
+				contact = false
+				vis_scale = Vector2(1.35, 0.7)
+				FX.dust(global_position, Vector2.UP, 8, 0.32)
+				FX.ring(global_position, 30, Color(0.9, 0.85, 0.8), 0.25, 0.3)
+				Game.shake(2.5)
+				Ses.play("inis_2", -6.0)
+				if player and absf(player.global_position.x - global_position.x) < 34.0 and absf(player.global_position.y - global_position.y) < 24.0 and player.is_on_floor():
+					player.take_hit(dmg * 0.6, self)
+		"recover":
+			anim.play("idle")
+			velocity.x = move_toward(velocity.x, 0.0, 700 * delta)
+			st -= delta
+			if st <= 0.0:
+				state = "chase"
+				cd = 0.6
+		_:
+			_ai_lunger(delta, player, to_p, dist)
+			if state == "chase" and cd <= 0.0 and player and dist > 120.0 and to_p.y > 20.0 and randf() < 0.02:
+				state = "windup"
+				_windup_sfx()
+				st = 0.38
+
+
+func _ai_shield(delta: float, player: Node, to_p: Vector2, dist: float) -> void:
+	## Kalkanlı bekçi: kalkan önde yavaş ilerler; yakında kalkan darbesi (iter) ya da topuz vuruşu
+	match state:
+		"idle", "chase":
+			if not aggro:
+				state = "idle"
+				_patrol(delta)
+				anim.play("walk" if absf(velocity.x) > 8.0 else "guard")
+				return
+			state = "chase"
+			_face(to_p)
+			var tgt := facing * speed
+			if _wall_or_ledge() or dist < 40.0:
+				tgt = 0.0
+			velocity.x = move_toward(velocity.x, tgt, 300 * delta)
+			anim.play("walk" if absf(velocity.x) > 4.0 else "guard")
+			if cd <= 0.0 and dist < 64.0 and absf(to_p.y) < 50.0:
+				state = "windup"
+				_windup_sfx()
+				st = 0.5
+				set_meta("move", "bash" if randf() < 0.45 else "strike")
+		"windup":
+			velocity.x = 0.0
+			anim.play("windup" if get_meta("move") == "strike" else "guard")
+			st -= delta
+			if st <= 0.0:
+				state = "strike"
+				st = 0.3
+				var bash: bool = get_meta("move") == "bash"
+				anim.play("bash" if bash else "strike", true)
+				velocity.x = facing * (200.0 if bash else 90.0)
+				var box := Rect2(global_position.x + (4.0 if facing > 0 else -62.0), global_position.y - 56.0, 58.0, 56.0)
+				FX.slash(global_position + Vector2(facing * 8, -34), facing, -2.0, 0.9, 30.0, 7.0, Color(0.9, 0.85, 0.7), 0.16)
+				if player and box.intersects(player.hurt_rect()):
+					player.take_hit(dmg * (0.7 if bash else 1.1), self)
+					if bash and player.has_method("shove"):
+						player.shove(Vector2(facing * 300.0, -140.0))
+				Ses.play("savur_cekic" if not bash else "darbe_kunt", -6.0)
+		"strike":
+			velocity.x = move_toward(velocity.x, 0.0, 900 * delta)
+			st -= delta
+			if st <= 0.0:
+				state = "recover"
+				st = 0.6
+		"recover":
+			anim.play("guard")
+			velocity.x = move_toward(velocity.x, 0.0, 600 * delta)
+			st -= delta
+			if st <= 0.0:
+				state = "chase"
+				cd = randf_range(1.0, 1.8)
+
+
+func _ai_charger(delta: float, player: Node, to_p: Vector2, dist: float) -> void:
+	## Kalkanlı akıncı: uzaktan kalkanını kaldırıp ileri hücum eder; çarparsa fırlatır, duvara çarparsa sersemler
+	match state:
+		"idle", "chase":
+			if not aggro:
+				state = "idle"
+				_patrol(delta)
+				anim.play("walk" if absf(velocity.x) > 8.0 else "guard")
+				return
+			state = "chase"
+			_face(to_p)
+			var tgt := facing * speed
+			if _wall_or_ledge() or dist < 50.0:
+				tgt = 0.0
+			velocity.x = move_toward(velocity.x, tgt, 300 * delta)
+			anim.play("walk" if absf(velocity.x) > 4.0 else "guard")
+			if cd <= 0.0 and dist > 90.0 and dist < 300.0 and absf(to_p.y) < 40.0 and level.los(center(), player.center()):
+				state = "windup"
+				_windup_sfx()
+				st = 0.75
+				_face(to_p)
+			elif cd <= 0.0 and dist < 60.0 and absf(to_p.y) < 50.0:
+				state = "windup"
+				st = 0.4
+				set_meta("bash", true)
+		"windup":
+			velocity.x = move_toward(velocity.x, 0.0, 900 * delta)
+			anim.play("guard")
+			st -= delta
+			if Engine.get_physics_frames() % 4 == 0:
+				FX.dust(global_position + Vector2(-facing * 8, 0), Vector2(-facing, -0.3), 1, 0.2)
+			if st <= 0.0:
+				if get_meta("bash", false):
+					set_meta("bash", false)
+					state = "strike"
+					st = 0.3
+					anim.play("bash", true)
+					velocity.x = facing * 220.0
+					var box := Rect2(global_position.x + (4.0 if facing > 0 else -62.0), global_position.y - 56.0, 58.0, 56.0)
+					if player and box.intersects(player.hurt_rect()):
+						player.take_hit(dmg * 0.7, self)
+						if player.has_method("shove"):
+							player.shove(Vector2(facing * 320.0, -150.0))
+				else:
+					state = "charge"
+					st = 1.25
+					contact = true
+					_did_hit = false
+					Ses.play("savur_dev", -4.0, 0.8)
+					FX.ring(global_position + Vector2(facing * 10, -20), 20, Color(1.0, 0.8, 0.5), 0.25)
+		"charge":
+			anim.play("charge")
+			velocity.x = move_toward(velocity.x, facing * 400.0, 2200 * delta)
+			st -= delta
+			if Engine.get_physics_frames() % 2 == 0:
+				FX.ghost(anim.base, Color(1.0, 0.7, 0.4, 0.35), 0.18)
+				FX.dust(global_position + Vector2(-facing * 10, 0), Vector2(-facing, -0.4), 2, 0.26)
+			if player and not player.dead and not _did_hit and hurt_rect().grow(6).intersects(player.hurt_rect()):
+				_did_hit = true
+				if player.take_hit(dmg * 1.3, self) and player.has_method("shove"):
+					player.shove(Vector2(facing * 380.0, -220.0))
+				Game.hitstop(0.06)
+				Game.shake(5.0)
+				FX.impact_sprite("blunt", player.center(), Vector2(facing, 0), Color(1.0, 0.85, 0.6), 1.2)
+			if is_on_wall() or st <= 0.0 or _wall_or_ledge():
+				contact = false
+				if is_on_wall():
+					# duvara çarptı: uzun sersemleme, açık
+					state = "stagger"
+					st = 1.6
+					guard_hp = 0
+					velocity.x = -facing * 120.0
+					Game.shake(6.0)
+					Game.hitstop(0.05)
+					FX.impact_sprite("blunt", global_position + Vector2(facing * 14, -30), Vector2(facing, 0), Color(1.0, 0.9, 0.7), 1.1)
+					FX.sparks(global_position + Vector2(facing * 14, -30), Vector2(-facing, -0.6), Color(1.0, 0.9, 0.6), 12, 200.0)
+					FX.text(center() + Vector2(0, -size.y - 8), "DUVARA ÇARPTI!", Color(1.0, 0.85, 0.4), 8)
+					Ses.play("darbe_cekic", -4.0)
+				else:
+					state = "recover"
+					st = 0.7
+		"strike":
+			velocity.x = move_toward(velocity.x, 0.0, 900 * delta)
+			st -= delta
+			if st <= 0.0:
+				state = "recover"
+				st = 0.5
+		"recover":
+			anim.play("guard")
+			velocity.x = move_toward(velocity.x, 0.0, 800 * delta)
+			st -= delta
+			if st <= 0.0:
+				state = "chase"
+				guard_hp = 3
+				cd = randf_range(1.2, 2.2)
+
+
+func _ai_turtle(delta: float, player: Node, to_p: Vector2, dist: float) -> void:
+	## Taş tosbağa: yavaş yürür, yakında ısırır; vurulunca kabuğa çekilir (dokunulmaz) ve yuvarlanarak ezer
+	match state:
+		"idle", "chase":
+			if not aggro:
+				state = "idle"
+				_patrol(delta)
+				anim.play("walk" if absf(velocity.x) > 6.0 else "idle")
+				return
+			state = "chase"
+			_face(to_p)
+			var tgt := facing * speed
+			if _wall_or_ledge() or dist < 50.0:
+				tgt = 0.0
+			velocity.x = move_toward(velocity.x, tgt, 250 * delta)
+			anim.play("walk" if absf(velocity.x) > 4.0 else "idle")
+			if cd <= 0.0 and dist < 66.0 and absf(to_p.y) < 44.0:
+				state = "windup"
+				_windup_sfx()
+				st = 0.55
+			elif cd <= 0.0 and dist > 110.0 and dist < 240.0 and absf(to_p.y) < 30.0 and randf() < 0.01:
+				state = "shell"
+				st = 0.5
+				anim.play("shell", true)
+		"windup":
+			velocity.x = 0.0
+			anim.play("windup")
+			st -= delta
+			if st <= 0.0:
+				state = "strike"
+				st = 0.3
+				anim.play("bite", true)
+				velocity.x = facing * 120.0
+				var box := Rect2(global_position.x + (10.0 if facing > 0 else -66.0), global_position.y - 36.0, 56.0, 36.0)
+				if player and box.intersects(player.hurt_rect()):
+					player.take_hit(dmg, self)
+				Ses.play("isirik", -6.0, 0.8)
+		"strike":
+			velocity.x = move_toward(velocity.x, 0.0, 800 * delta)
+			st -= delta
+			if st <= 0.0:
+				state = "recover"
+				st = 0.5
+		"shell":
+			anim.play("shell")
+			velocity.x = move_toward(velocity.x, 0.0, 600 * delta)
+			st -= delta
+			if st <= 0.0:
+				# kabuktan çıkıp yuvarlan: oyuncuya doğru
+				state = "spin"
+				st = 1.4
+				_face(to_p)
+				contact = true
+				_did_hit = false
+				Ses.play("sarsinti", -8.0, 1.4)
+		"spin":
+			anim.play("spin")
+			anim.speed = 2.0
+			velocity.x = move_toward(velocity.x, facing * 300.0, 1400 * delta)
+			st -= delta
+			if Engine.get_physics_frames() % 3 == 0:
+				FX.dust(global_position + Vector2(-facing * 14, 0), Vector2(-facing, -0.3), 2, 0.28)
+				FX.sparks(global_position + Vector2(facing * 10, -2), Vector2(-facing, -0.8), Color(0.8, 1.0, 1.0), 2, 120.0)
+			if is_on_wall():
+				facing = -facing
+				_did_hit = false
+				Game.shake(2.0)
+				FX.dust(global_position, Vector2(-facing, -0.5), 5, 0.3)
+			if player and not player.dead and not _did_hit and hurt_rect().grow(4).intersects(player.hurt_rect()):
+				_did_hit = true
+				if player.take_hit(dmg * 1.2, self) and player.has_method("shove"):
+					player.shove(Vector2(facing * 300.0, -200.0))
+			if st <= 0.0:
+				anim.speed = 1.0
+				contact = false
+				state = "recover"
+				st = 0.8
+				anim.play("idle", true)
+		"recover":
+			anim.play("idle")
+			velocity.x = move_toward(velocity.x, 0.0, 600 * delta)
+			st -= delta
+			if st <= 0.0:
+				state = "chase"
+				cd = randf_range(1.0, 2.0)
+
+
+func _ai_archer(delta: float, player: Node, to_p: Vector2, dist: float) -> void:
+	## Kurgan okçusu: 150-280 px uzakta durur; ok atar; yaklaşınca geri çekilir
+	match state:
+		"idle", "chase":
+			if not aggro:
+				state = "idle"
+				_patrol(delta)
+				anim.play("run" if absf(velocity.x) > 10.0 else "idle")
+				return
+			state = "chase"
+			var want := 0.0
+			if dist < 130.0:
+				want = -signf(to_p.x) * speed * 1.4
+			elif dist > 300.0:
+				want = signf(to_p.x) * speed
+			if _wall_or_ledge() and signf(want) == facing:
+				want = 0.0
+			if absf(want) > 1.0:
+				facing = int(signf(want))
+			else:
+				_face(to_p)
+			velocity.x = move_toward(velocity.x, want, 500 * delta)
+			anim.play("run" if absf(velocity.x) > 10.0 else "idle")
+			if cd <= 0.0 and dist < 320.0 and absf(to_p.y) < 160.0 and level.los(center(), player.center()):
+				state = "windup"
+				_windup_sfx()
+				st = 0.7
+				_face(to_p)
+		"windup":
+			anim.show_frame("cast", 0)
+			velocity.x = move_toward(velocity.x, 0.0, 800 * delta)
+			_face(to_p)
+			st -= delta
+			if st <= 0.0:
+				state = "attack"
+				st = 0.35
+				anim.show_frame("cast", 2)
+				var p := Projectile.new()
+				p.team = "e"
+				p.kind = "arrow"
+				p.damage = dmg
+				p.source = self
+				p.position = _anchor_g("hand", center() + Vector2(facing * 10, -6))
+				var tt := clampf(dist / 380.0, 0.4, 0.9)
+				p.velocity = Vector2(to_p.x / tt, to_p.y / tt - 0.5 * 420.0 * tt)
+				p.gravity = 420.0
+				p.life = 2.5
+				p.trail_col = Color(0.9, 0.8, 0.6, 0.5)
+				level.add_projectile(p)
+				Ses.play("yay_birak", -6.0, 0.9)
+		"attack":
+			st -= delta
+			if st <= 0.0:
+				state = "chase"
+				cd = randf_range(1.4, 2.2)
+		"recover":
+			st -= delta
+			if st <= 0.0:
+				state = "chase"
+
+
+func _ai_stalker(delta: float, player: Node, to_p: Vector2, dist: float) -> void:
+	## Yek: görünmez sinsi; 110 px'e girince belirir ve hızlı hamle yapar
+	if _hidden:
+		anim.play("idle")
+		velocity.x = move_toward(velocity.x, 0.0, 600 * delta)
+		if player and dist < 110.0:
+			_reveal()
+			state = "windup"
+			_windup_sfx()
+			_face(to_p)
+			st = 0.25
+		elif aggro and player and dist < 260.0 and Engine.get_physics_frames() % 2 == 0:
+			# görünmezken sessizce yaklaşır
+			_face(to_p)
+			if not _wall_or_ledge():
+				velocity.x = facing * speed * 0.6
+		return
+	_ai_lunger(delta, player, to_p, dist)
+
+
+func _ai_diver(delta: float, player: Node, to_p: Vector2, dist: float) -> void:
+	## Dalıcı çor: spor atmaz, daha sık dalar
+	if state in ["idle", "chase"] and aggro and player and cd <= 0.0 and absf(to_p.x) < 60.0 and to_p.y > 30.0:
+		state = "dive"
+		st = 0.0
+		contact = true
+		_did_hit = false
+		velocity = Vector2(signf(to_p.x) * 90.0, 360.0)
+		Ses.play("savur_bicak", -8.0, 0.8)
+		FX.ghost(anim.base, Color(0.8, 0.9, 1.0, 0.4), 0.2)
+		return
+	if state == "windup":
+		state = "chase"
+		cd = 0.3
+	_ai_flyer(delta, player, to_p, dist)
 
 
 func _ai_hopper(delta: float, player: Node, to_p: Vector2, dist: float) -> void:

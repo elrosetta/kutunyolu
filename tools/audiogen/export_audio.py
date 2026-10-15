@@ -81,7 +81,7 @@ if do_sfx:
     json.dump(meta, open(mp, 'w', encoding='utf-8'), indent=1, ensure_ascii=False)
     print('sfx yazıldı:', len(meta))
 if do_music:
-    for biome in ['otuken', 'bozkir', 'sahmeran', 'kaf', 'tamu', 'yurt', 'baslik']:
+    for biome in ['otuken', 'bozkir', 'sahmeran', 'kaf', 'tamu', 'boss', 'yurt', 'baslik']:
         if only and biome not in only:
             continue
         t0 = time.time()

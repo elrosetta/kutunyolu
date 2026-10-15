@@ -33,6 +33,8 @@ func _ready() -> void:
 	_new_run()
 	if OS.get_cmdline_user_args().has("--yurt"):
 		_build_hub()  # yurt testi: doğrudan Ulu Kayın'da başla
+	if OS.get_cmdline_user_args().has("--boss"):
+		_build_boss("kara_boru_han")
 	if auto_test or showcase or _ekran != "":
 		hud.mode = "play"
 		get_tree().paused = false
@@ -73,8 +75,55 @@ func _build_level() -> void:
 	level.player_died.connect(_on_died)
 	level.scroll_requested.connect(_on_scroll)
 	level.slot_requested.connect(_on_slot_request)
+	level.lutuf_requested.connect(_on_lutuf)
 	hud.level = level
 	hud._card_t = 0.0
+
+
+func _build_boss(bid: String) -> void:
+	if level:
+		level.queue_free()
+	level = Level.new()
+	level.process_mode = Node.PROCESS_MODE_PAUSABLE
+	add_child(level)
+	level.build_boss(randi(), bid)
+	level.finished.connect(_on_finished)
+	level.player_died.connect(_on_died)
+	level.slot_requested.connect(_on_slot_request)
+	level.boss_died.connect(func() -> void: hud.flash_msg = "Kut Kapısı açılıyor..."; hud.flash_t = 3.0)
+	hud.level = level
+	hud._card_t = 0.0
+
+
+func _on_lutuf(p: Pickup) -> void:
+	## Sunak: rastgele bir tanrı lütfu (sahip olunmayanlardan), en çok 3
+	var have: Array = Game.run.get("lutuf", [])
+	if have.size() >= 3:
+		hud.flash_msg = "Üç lütuf taşıyorsun; sunak sessiz."
+		hud.flash_t = 2.5
+		return
+	var pool: Array = []
+	for k in Game.LUTUF.keys():
+		if not (k in have):
+			pool.append(k)
+	if pool.is_empty():
+		return
+	var id: String = pool[randi() % pool.size()]
+	Game.grant_lutuf(id)
+	var l: Array = Game.LUTUF[id]
+	var col := Color(l[2][0], l[2][1], l[2][2])
+	if level.player:
+		FX.ring(level.player.center(), 60, col, 0.6)
+		FX.soul(level.player.center(), col, 30)
+		FX.flash_light(level.player.center(), col, 260.0, 2.0, 0.5)
+		FX.text(level.player.center() + Vector2(0, -44), String(l[0]), col, 11)
+		level.player.vis_scale = Vector2(0.85, 1.15)
+	Game.slowmo(0.4, 0.3)
+	Ses.play("acilis", -2.0)
+	hud.flash_msg = "%s: %s" % [l[0], l[1]]
+	hud.flash_t = 5.0
+	level.pickups.erase(p)
+	p.queue_free()
 
 
 func _build_hub() -> void:
@@ -105,10 +154,20 @@ func _on_finished() -> void:
 		# yurttan derine
 		_next_level()
 		return
+	# bu derinliğin sonunda boss var mı?
+	var depth := int(Game.run.get("depth", 1))
+	if level and level.boss_id == "":
+		var bid: String = String(Game.BOSS_AFTER.get(depth, ""))
+		if bid != "" and not (bid in Game.run.get("boss_done", [])):
+			_build_boss(bid)
+			_start_play()
+			Game.run["lutuf"] = Game.run.get("lutuf", [])
+			return
 	if auto_test or showcase:
 		hud.mode = "done"
 		get_tree().paused = true
 		return
+	Game.run["lutuf"] = []  # lütuflar yurda dönünce söner
 	_build_hub()
 	_start_play()
 	hud.flash_msg = "Ulu Kayın yurdu: Kut'unu Umay Ana'ya götür (E). Kapı seni derine indirir."
@@ -578,6 +637,19 @@ func _physics_process(delta: float) -> void:
 	Input.action_press("sag")
 	if int(t * 60.0) % 23 == 0:
 		_tap("saldiri1")
+	# v9: koşu (Shift basılı) ve çömelerek saldırı yolları da sınanır
+	var f9 := int(t * 60.0) % 700
+	if f9 >= 200 and f9 < 330:
+		Input.action_press("yuvarlan")
+		_auto_pressed.append("yuvarlan")
+	if f9 >= 420 and f9 < 470:
+		Input.action_press("asagi")
+		_auto_pressed.append("asagi")
+		if f9 % 12 == 0:
+			_tap("saldiri1")
+		if f9 == 450:
+			Input.action_press("saldiri2")
+			_auto_pressed.append("saldiri2")
 	if level.hub and int(t * 60.0) % 45 == 0:
 		_tap("etkiles")
 	# duvara takıldıysa: çift zıpla + yuvarlan

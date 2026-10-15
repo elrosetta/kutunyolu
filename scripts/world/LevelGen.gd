@@ -8,10 +8,10 @@ extends RefCounted
 ## Parçalar: '#' katı, '=' platform, '.' zorla hava, ' ' dokunma. Alt satır yüzeye oturur.
 ## Üretimden sonra erişilebilirlik denetimi yapılır (basit zıplama modeli); geçilemeyen bölüm yeniden üretilir.
 
-const STYLES := ["orman", "ucurum", "magara", "harabe"]
+const STYLES := ["orman", "ucurum", "magara", "harabe", "bozkir", "kuyu"]
 
 ## Yüzeyin altına inen satır sayısı (çukur gibi parçalar için)
-const CHUNK_SINK := {"cukur": 5}
+const CHUNK_SINK := {"cukur": 5, "zehir_cukuru": 1, "kurgan": 3}
 
 const CHUNKS := {
 	"surunme": [  # alçak geçit: yalnızca yuvarlanarak (1 karo yükseklik)
@@ -73,7 +73,48 @@ const CHUNKS := {
 		"   ##   ##  ",
 		"   ##   ##  ",
 	],
+	# --- v9 özel odalar ('H' tehlike, 'S' sunak işareti, 'T' hazine kaidesi, 'E' seçkin): işaretler hava sayılır
+	"sunak": [  # tanrı sunağı: kaideye çıkılır, ortada sunak
+		"              ",
+		"              ",
+		"     S        ",
+		"   ######     ",
+		"..............",
+	],
+	"hazine": [  # hazine odası: yüksek taş oda, içine üstten iniş; kaide üstünde eşya
+		" ##########  ",
+		" #........#  ",
+		" #...T....#  ",
+		" #........#  ",
+		" #..====..#  ",
+		" #........#  ",
+		"..............",
+	],
+	"seckin": [  # seçkin odası: iki sütun arasında düz alan
+		"  #        #  ",
+		"  #        #  ",
+		"  #   E    #  ",
+		"  #        #  ",
+		"..............",
+	],
+	"kurgan": [  # bozkır kurganı: yer altı mezar odası; üstten delikle girilir
+		"              ",
+		"     ....     ",
+		"####....######",
+		"#...........T#",
+		"#............#",
+		"##############",
+	],
+	"zehir_cukuru": [  # tehlike çukuru: üstünden zıplanır ya da platformlardan geçilir
+		"              ",
+		"              ",
+		"   ========   ",
+		"              ",
+		"..HHHHHHHHHH..",
+		"##HHHHHHHHHH##",
+	],
 }
+## Tehlike çukuru parçaları yüzeyin altına iner
 
 
 static func generate(rng: RandomNumberGenerator, W: int, H: int, depth: int, allowed: Array = []) -> Dictionary:
@@ -168,20 +209,79 @@ static func _build(rng: RandomNumberGenerator, W: int, H: int, style: String) ->
 			_shafts(rng, grid, W, H, heights, 2)
 			_islands(rng, grid, W, H, heights, 3)
 			_wood_platforms(rng, grid, W, H, heights, 8)
-	# elle tasarlanmış parçalar: 2-4 tane, aralarında boşluk
-	var names: Array = CHUNKS.keys()
+		"bozkir":
+			# geniş açık ova: seyrek adalar, kurgan tümsekleri (yüzeyde yumuşak kabarıklıklar)
+			_mounds(rng, grid, W, H, heights, 4)
+			_islands(rng, grid, W, H, heights, 3)
+			_wood_platforms(rng, grid, W, H, heights, 5)
+		"kuyu":
+			# derin kuyular + mağara tavanı: dikey iniş-çıkışlar
+			_cave_roof(rng, grid, W, H, heights)
+			_pits(rng, grid, W, H, heights, 3)
+			_wood_platforms(rng, grid, W, H, heights, 8)
+	# elle tasarlanmış parçalar: genel 2-3 + biyom odaları (sunak her bölümde, hazine/seçkin/kurgan şans)
+	var names: Array = ["surunme", "sutunlar", "cukur", "merdiven", "kemer", "kule", "basamak", "mezar"]
 	var x := 30 + rng.randi_range(0, 10)
-	var n_ch := rng.randi_range(2, 4)
-	while n_ch > 0 and x < W - 40:
-		var nm: String = names[rng.randi_range(0, names.size() - 1)]
-		if style == "magara" and nm in ["kule", "basamak"]:
-			nm = "surunme"
+	var n_ch := rng.randi_range(2, 3)
+	var specials: Array = ["sunak"]
+	if rng.randf() < 0.75:
+		specials.append("hazine")
+	if rng.randf() < 0.6:
+		specials.append("seckin")
+	if style == "bozkir":
+		specials.append("kurgan")
+	if style in ["magara", "kuyu", "harabe", "ucurum"] and rng.randf() < 0.7:
+		specials.append("zehir_cukuru")
+	while (n_ch > 0 or not specials.is_empty()) and x < W - 40:
+		var nm: String
+		if not specials.is_empty() and (n_ch <= 0 or rng.randf() < 0.5):
+			nm = specials.pop_front()
+		else:
+			nm = names[rng.randi_range(0, names.size() - 1)]
+			if style in ["magara", "kuyu"] and nm in ["kule", "basamak"]:
+				nm = "surunme"
+			n_ch -= 1
 		_stamp(grid, W, H, heights, nm, x)
 		chunks.append({"name": nm, "x": x})
-		x += 12 + rng.randi_range(18, 40)
-		n_ch -= 1
+		x += 12 + rng.randi_range(16, 34)
+	_hazard_patches(rng, grid, W, H, heights, style)
 	_ensure_path(grid, W, H, heights)
 	return {"grid": grid, "heights": heights, "chunks": chunks}
+
+
+static func _mounds(rng: RandomNumberGenerator, grid: PackedByteArray, W: int, H: int, heights: Array, count: int) -> void:
+	## Bozkır kurgan tümsekleri: 10-16 karolık yumuşak kabarıklık (2-3 karo)
+	for i in count:
+		var cx := rng.randi_range(40, W - 40)
+		var wd := rng.randi_range(10, 16)
+		var hh := rng.randi_range(2, 3)
+		for x in range(cx - wd / 2, cx + wd / 2):
+			if x < 2 or x >= W - 2:
+				continue
+			var k := 1.0 - absf(float(x - cx)) / (wd / 2.0)
+			var up := int(round(hh * sin(k * PI / 2.0)))
+			var top: int = int(heights[x]) - up
+			for y in range(top, int(heights[x])):
+				_put(grid, x, y, W, H, 1)
+			heights[x] = top
+
+
+static func _hazard_patches(rng: RandomNumberGenerator, grid: PackedByteArray, W: int, H: int, heights: Array, style: String) -> void:
+	## Yüzeyde 2-4 karolık tehlike yamaları (değer 3): tek zıplamayla aşılır; giriş ve çıkışa uzak
+	var n := rng.randi_range(3, 6)
+	for i in n:
+		var x0 := rng.randi_range(36, W - 40)
+		var wd := rng.randi_range(2, 4)
+		var ok := true
+		for x in range(x0 - 2, x0 + wd + 2):
+			var gy := _ground(grid, x, W, H, heights)
+			if absi(gy - _ground(grid, x0, W, H, heights)) > 0 or _cell(grid, x, gy, W, H) != 1:
+				ok = false
+		if not ok:
+			continue
+		var gy0 := _ground(grid, x0, W, H, heights)
+		for x in range(x0, x0 + wd):
+			_put(grid, x, gy0, W, H, 3)
 
 
 static func _ground(g: PackedByteArray, x: int, W: int, H: int, heights: Array) -> int:
@@ -422,11 +522,15 @@ static func _stamp(grid: PackedByteArray, W: int, H: int, heights: Array, name: 
 					_put(grid, x, y, W, H, 2)
 				".":
 					_put(grid, x, y, W, H, 0)
+				"H":
+					_put(grid, x, y, W, H, 3)
+				"S", "T", "E":
+					_put(grid, x, y, W, H, 0)
 
 
 # ------------------------------------------------------------------ erişilebilirlik
 static func _standable(g: PackedByteArray, x: int, y: int, W: int, H: int) -> bool:
-	## Hava karosu, altı katı/platform, üstünde en az 1 karo hava (sürünme) olan yer
+	## Hava karosu, altı katı/platform, üstünde en az 1 karo hava (sürünme) olan yer; tehlike (3) üstünde durulmaz
 	if _cell(g, x, y, W, H) != 0:
 		return false
 	var below := _cell(g, x, y + 1, W, H)
@@ -528,14 +632,22 @@ static func _carve(g: PackedByteArray, W: int, H: int, heights: Array, x0: int, 
 
 
 static func _reachable(g: PackedByteArray, W: int, H: int, heights: Array) -> bool:
-	return _reach(g, W, H, heights)["ok"]
+	return _reach(_haz_as_air(g), W, H, heights)["ok"]
+
+
+static func _haz_as_air(g: PackedByteArray) -> PackedByteArray:
+	var c := g.duplicate()
+	for i in c.size():
+		if c[i] == 3:
+			c[i] = 0
+	return c
 
 
 static func guarantee(g: PackedByteArray, W: int, H: int, heights: Array) -> int:
 	## Girişten çıkışa yol yoksa takılan yerden koridor açar; açılan koridor sayısını döndürür.
 	var n := 0
 	for i in 80:
-		var r := _reach(g, W, H, heights)
+		var r := _reach(_haz_as_air(g), W, H, heights)
 		if r["ok"]:
 			return n
 		_carve(g, W, H, heights, int(r["x"]), int(r["y"]))

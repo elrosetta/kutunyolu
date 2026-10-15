@@ -214,6 +214,11 @@ ANIMS = {
     'hurt': (3, keyed((0.0, P(lean=-0.35, af=(-1.0, 0.7), ab=(-1.2, 0.5), bob=0.5, lf=(-0.3, 0.3), lb=(0.4, 0.2), sk=0.9, pk=1.1, jaw=0.8)),
                       (1.0, P(lean=-0.2, af=(-0.6, 0.6), ab=(-0.8, 0.5), bob=1.5, lf=(-0.1, 0.3), lb=(0.2, 0.2), sk=0.6, pk=0.8, jaw=0.3))), False, True),
     'drink': (2, lambda t: P(lean=-0.1, af=(2.6 + 0.2 * t, 1.6), ab=(0.3, 0.4)), False, True),
+    # çömelme: dizler kırık, gövde alçak; silahlı sürümde kollar iskeletle sürülür
+    'crouch': (2, lambda t: P(bob=9.0 + 0.4 * t, lean=0.22, lb=(0.9, 1.9), lf=(-0.7, 1.9), ab=(0.3, 0.6), af=(-0.2, 0.7), sk=0.5, pk=0.4, hdy=1.0), True, True),
+    'crouch_atk': (1, lambda t: P(bob=9.0, lean=0.3, lb=(0.9, 1.9), lf=(-0.7, 1.9), ab=(0.5, 0.6), sx=-1.0, sk=0.4, pk=0.3, hdy=1.0), False, False),
+    'sprint': (8, lambda t: P(bob=-abs(math.sin(t * 6.28)) * 3.0 + 1.0, lean=0.5, lb=(1.2 * math.sin(t * 6.28), 0.3 + 1.1 * max(0, -math.sin(t * 6.28)) + 0.2),
+                              lf=(-1.2 * math.sin(t * 6.28), 0.3 + 1.1 * max(0, math.sin(t * 6.28)) + 0.2), ab=(-1.3 * math.sin(t * 6.28), 1.3), af=(1.3 * math.sin(t * 6.28), 1.3), sk=-1.1, pk=-1.4, bp=t * 2.5), True, True),
     # --- kolsuz gövdeler (silahlı)
     'atk_down': _atk((0.0, P(lean=-0.15, ab=(0.6, 0.5), lf=(0.3, 0.4), lb=(-0.3, 0.2), sx=-1.0, bob=0.5, sk=0.4, pk=0.3)),
                      (0.25, P(lean=-0.28, ab=(0.8, 0.5), lf=(0.3, 0.4), lb=(-0.3, 0.25), sx=-1.8, bob=1.2, sk=0.5, pk=0.4, hdy=-0.5)),

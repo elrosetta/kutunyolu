@@ -242,16 +242,40 @@ static func fire(pos: Vector2, amount := 6, size := 0.35, spread_px := 6.0) -> v
 	p.spread = 25.0
 	p.initial_velocity_min = 30.0
 	p.initial_velocity_max = 80.0
-	p.gravity = Vector2(0, -120)
+	p.gravity = Vector2(0, -140)
 	p.emission_shape = CPUParticles2D.EMISSION_SHAPE_SPHERE
 	p.emission_sphere_radius = spread_px
 	p.scale_amount_min = size * 0.6
-	p.scale_amount_max = size
+	p.scale_amount_max = size * 1.1
+	var sc := Curve.new()
+	sc.add_point(Vector2(0, 0.6))
+	sc.add_point(Vector2(0.3, 1.0))
+	sc.add_point(Vector2(1, 0.15))
+	p.scale_amount_curve = sc
 	var g := Gradient.new()
-	g.set_color(0, Color(1.0, 0.95, 0.6, 1.0))
-	g.add_point(0.4, Color(1.0, 0.45, 0.1, 0.9))
-	g.set_color(1, Color(0.5, 0.05, 0.05, 0.0))
+	g.set_color(0, Color(1.0, 0.98, 0.75, 1.0))
+	g.add_point(0.3, Color(1.0, 0.6, 0.15, 0.95))
+	g.add_point(0.7, Color(0.9, 0.2, 0.05, 0.6))
+	g.set_color(1, Color(0.25, 0.03, 0.03, 0.0))
 	p.color_ramp = g
+	# kor zerreleri: yükselirken savrulur, uzun ömürlü
+	var e := _particles(pos, Color(1.0, 0.7, 0.3), maxi(2, amount / 2), 0.9, true, 63, "k_spark")
+	e.direction = Vector2.UP
+	e.spread = 50.0
+	e.initial_velocity_min = 40.0
+	e.initial_velocity_max = 120.0
+	e.gravity = Vector2(0, -60)
+	e.scale_amount_min = 0.08
+	e.scale_amount_max = 0.16
+	e.emission_shape = CPUParticles2D.EMISSION_SHAPE_SPHERE
+	e.emission_sphere_radius = spread_px
+	var g2 := Gradient.new()
+	g2.set_color(0, Color(1.0, 0.95, 0.7, 1.0))
+	g2.add_point(0.5, Color(1.0, 0.5, 0.15, 0.9))
+	g2.set_color(1, Color(0.6, 0.1, 0.05, 0.0))
+	e.color_ramp = g2
+	if amount >= 6:
+		flash_light(pos, Color(1.0, 0.55, 0.2), 60.0 + spread_px * 4.0, 0.9, 0.25)
 
 
 static func bubbles(pos: Vector2, amount := 3, col := Color(0.5, 1.0, 0.3)) -> void:

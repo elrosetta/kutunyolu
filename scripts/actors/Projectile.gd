@@ -71,6 +71,10 @@ func _ready() -> void:
 		gm.blend_mode = CanvasItemMaterial.BLEND_MODE_ADD
 		gm.light_mode = CanvasItemMaterial.LIGHT_MODE_UNSHADED
 		material = gm
+	if kind == "spore":
+		trail_col = Color(0.5, 1.0, 0.3, 0.6)
+		if level and level.has_method("add_light"):
+			level.add_light(Vector2.ZERO, Color(0.55, 1.0, 0.35), 50.0, 0.8, self)
 
 
 func _set_arrow_frame(ang: float, nudge := 0) -> void:
@@ -364,8 +368,17 @@ func _draw() -> void:
 				draw_arc(Vector2(-r, 0), r, -0.7, 0.7, 10, Color(0.7, 0.9, 1.0, 0.8 - i * 0.2), 2.0)
 		"spore":
 			var pulse := 1.0 + sin(_t * 18.0) * 0.2
-			draw_circle(Vector2.ZERO, 4.5 * pulse, Color(0.45, 0.9, 0.15, 0.35))
-			draw_circle(Vector2.ZERO, 2.6, Color(0.85, 1.0, 0.35))
+			# kuyruk: solan yeşil zerreler
+			for i in _trail.size():
+				var q: Vector2 = to_local(_trail[i])
+				var f := 1.0 - float(i) / maxf(1.0, _trail.size())
+				draw_circle(q, 1.0 + 2.5 * f, Color(0.5, 1.0, 0.3, 0.35 * f))
+			draw_circle(Vector2.ZERO, 6.5 * pulse, Color(0.45, 0.9, 0.15, 0.2))
+			draw_circle(Vector2.ZERO, 4.2 * pulse, Color(0.55, 1.0, 0.25, 0.5))
+			draw_circle(Vector2.ZERO, 2.4, Color(0.9, 1.0, 0.6))
+			for k in 3:
+				var a := _t * 9.0 + k * TAU / 3.0
+				draw_circle(Vector2(cos(a) * 6.0, sin(a) * 6.0), 1.0, Color(0.7, 1.0, 0.4, 0.8))
 		"eagle":
 			draw_colored_polygon(PackedVector2Array([Vector2(8, 0), Vector2(-4, -8), Vector2(-1, 0), Vector2(-4, 8)]), Color(0.5, 0.95, 1.2, 0.85))
 		"root":

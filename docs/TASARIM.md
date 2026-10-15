@@ -253,6 +253,28 @@ dönüşüm/uluma/ısırık, yay, patlama, büyü, yıldırım, donma, zehir, to
 kopuz + davul + rüzgâr; biyom başına döngü: otuken, bozkir, sahmeran, kaf, tamu + yurt + baslik). Üretim: `python tools/audiogen/export_audio.py`.
 `Ses.play("savur_hafif")` önekten varyant seçer, perde oynatır; `Ses.loop_start/stop` şarj uğultusu; `Ses.music(biyom)` çapraz geçiş.
 
+## Bölüm yapısı, boss ve yaratık çeşitliliği (v9)
+
+- **Boss:** `Game.BOSS_AFTER = {2: "kara_boru_han"}` — 2. derinliğin kapısı önce **Kara Börü Han** arenasına (`Level.build_boss`,
+  `Boss.gd`) açılır; boss ölünce kapı belirir, sonra yurt. Üç evre: hamle + uluma (tazı çağırır), bozgun kristalleri + gökten
+  çakma (işaretli yere iner), gölge kopyası + hız. HUD'da boss can çubuğu. Ganimet: 10 Kut, eşya (+2 kademe), parşömen, şifa otu.
+  Test: `--boss`.
+- **Yeni yapay zekâlar** (`Enemy.gd`): `pouncer` (yüksekten üstüne atlar), `shield` (kalkan önde; önden darbeler kalkana çarpar, 3
+  darbe ya da ağır vuruş kalkanı düşürür → sendeler), `charger` (kalkanla hücum; duvara çarparsa uzun sersemler), `turtle`
+  (vurulunca kabuğa çekilir, dokunulmaz; sonra yuvarlanarak ezer), `archer` (yaylı ok, mesafe korur), `stalker` (görünmez,
+  yaklaşınca belirir), `diver`. Yeni sprite'lar: `bekci` (kalkanlı savaşçı), `tosbaga`, `kara_boru_han` (`tools/artgen/creatures2.py`).
+  Biyom reskinleri artık kendi `ai` alanlarını kullanır; düşman havuzu biyomun tüm türleri.
+- **Seçkin = mini boss:** 1,3× boy, ad etiketi, mor aura, 6 sn'de bir kükreme (iter + hızlanır); ganimet: eşya + parşömen + şifa otu.
+- **Şifa Otu** (`Pickup` "sifa"): %35 can; seçkin/boss'tan kesin, diğerlerinden %5.
+- **Biyom mekanikleri:** tehlike karoları (grid 3; `assets/tiles/hazards.png`): Ötüken/Bozkır diken, Şahmeran zehir, Tamu lav,
+  Kaf buz (kaygan). Yeni stiller `bozkir` (kurgan tümsekleri) ve `kuyu` (derin kuyular + tavan). Özel odalar (chunk): `sunak`
+  (tanrı lütfu), `hazine` (kaide eşyası + altın), `seckin` (seçkin odası), `kurgan` (yer altı mezar odası), `zehir_cukuru`.
+- **Tanrı lütufları** (`Game.LUTUF`, sunakta E): Tengri (şimşek zinciri), Ülgen (öldürmede can), Umay (üçlü zıplama), Erlik
+  (+%35 hasar / -%20 can), Kayra (Kut 2×), Yer-Sub (zırh), Ay Ata (kritik), Gün Ana (tutuşturma). En çok 3; yurda dönünce söner.
+- **Kahraman:** S basılı = çömelme (çömelirken kılıç ve yay serbest; `crouch`/`crouch_atk` gövdeleri); Shift basılı tutma =
+  yuvarlanma biter bitmez koşu (1,55×, yumuşak ivme, hayalet iz); kombo açılışları alttan yukarı savurmaz.
+- **Müzik:** biyom parçaları 112-150 BPM sürücü davul + kopuz bası + riff kancası; `boss` parçası.
+
 ## Silah hissi (v7)
 
 - **Çift kol iskeleti:** gövde sprite'ları artık silahlı animasyonlarda iki kolu da çizmez; arka kol da üç parça
