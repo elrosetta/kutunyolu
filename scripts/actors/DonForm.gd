@@ -365,7 +365,7 @@ func _quake() -> void:
 	## İri kılık: iki yana yerden sarsıntı dalgası
 	_play(["slam", "strike"], true)
 	Game.shake(7.0)
-	Ses.play("sarsinti", 0.0, 0.8)
+	Ses.play("sarsinti_buyuk", 0.0, 0.8)
 	for sgn in [-1, 1]:
 		var p := Projectile.new()
 		p.team = "p"

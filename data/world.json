@@ -10,9 +10,9 @@
    "impl": true,
    "art": {
     "ambient": [
-     0.4,
-     0.44,
-     0.62
+     0.5,
+     0.54,
+     0.72
     ],
     "sun": [
      0.62,
@@ -21,8 +21,8 @@
     ],
     "sun_energy": 0.38,
     "sun_rot": 40,
-    "saturation": 0.96,
-    "contrast": 1.08,
+    "saturation": 0.94,
+    "contrast": 1.06,
     "particles": "ruh",
     "fog": true,
     "rays": [
@@ -105,7 +105,8 @@
       0.22,
       9.0
      ]
-    ]
+    ],
+    "deep_amount": 0.8
    },
    "depths": [
     1,
@@ -122,26 +123,26 @@
    "impl": true,
    "art": {
     "ambient": [
-     0.98,
-     0.94,
-     0.86
+     0.8,
+     0.76,
+     0.7
     ],
     "sun": [
      1.0,
-     0.92,
-     0.75
+     0.88,
+     0.7
     ],
-    "sun_energy": 0.55,
+    "sun_energy": 0.34,
     "sun_rot": 55,
-    "saturation": 1.08,
+    "saturation": 0.95,
     "contrast": 1.04,
     "particles": "polen",
     "fog": false,
     "rays": [
      1.0,
-     0.9,
-     0.6,
-     0.06
+     0.88,
+     0.62,
+     0.035
     ],
     "decor": [
      "kam_diregi",
@@ -150,9 +151,9 @@
      "cicek"
     ],
     "decor_tint": [
-     1.0,
-     0.98,
-     0.92
+     0.86,
+     0.82,
+     0.76
     ],
     "torch_col": [
      1.0,
@@ -160,9 +161,9 @@
      0.3
     ],
     "deep_color": [
-     0.22,
-     0.14,
-     0.08
+     0.1,
+     0.075,
+     0.06
     ],
     "gate_col": [
      1.0,
@@ -209,7 +210,10 @@
       0.22,
       8.0
      ]
-    ]
+    ],
+    "deep_amount": 0.8,
+    "glow": 0.45,
+    "glow_threshold": 1.25
    },
    "depths": [
     3,
@@ -239,19 +243,19 @@
    "impl": true,
    "art": {
     "ambient": [
-     0.34,
      0.42,
-     0.44
+     0.5,
+     0.52
     ],
     "sun": [
      0.5,
      0.95,
      0.75
     ],
-    "sun_energy": 0.25,
+    "sun_energy": 0.3,
     "sun_rot": 70,
-    "saturation": 1.1,
-    "contrast": 1.1,
+    "saturation": 1.04,
+    "contrast": 1.06,
     "particles": "spor",
     "fog": true,
     "rays": [
@@ -324,7 +328,8 @@
       0.22,
       8.0
      ]
-    ]
+    ],
+    "deep_amount": 0.8
    },
    "depths": [
     5,
@@ -341,26 +346,26 @@
    "impl": true,
    "art": {
     "ambient": [
-     0.86,
-     0.86,
-     0.98
+     0.68,
+     0.7,
+     0.84
     ],
     "sun": [
      1.0,
      0.78,
      0.82
     ],
-    "sun_energy": 0.5,
+    "sun_energy": 0.3,
     "sun_rot": 25,
-    "saturation": 0.95,
-    "contrast": 1.05,
+    "saturation": 0.9,
+    "contrast": 1.02,
     "particles": "kar",
     "fog": true,
     "rays": [
      1.0,
      0.8,
      0.85,
-     0.07
+     0.045
     ],
     "decor": [
      "kaya",
@@ -368,9 +373,9 @@
      "kam_diregi"
     ],
     "decor_tint": [
-     0.85,
-     0.88,
-     1.0
+     0.78,
+     0.8,
+     0.92
     ],
     "torch_col": [
      1.0,
@@ -378,9 +383,9 @@
      0.35
     ],
     "deep_color": [
-     0.12,
-     0.12,
-     0.2
+     0.06,
+     0.06,
+     0.11
     ],
     "gate_col": [
      0.8,
@@ -427,7 +432,10 @@
       0.22,
       8.0
      ]
-    ]
+    ],
+    "deep_amount": 0.85,
+    "glow": 0.55,
+    "glow_threshold": 1.2
    },
    "depths": [
     7,
@@ -444,19 +452,19 @@
    "impl": true,
    "art": {
     "ambient": [
-     0.5,
-     0.3,
-     0.3
+     0.66,
+     0.46,
+     0.44
     ],
     "sun": [
      1.0,
      0.45,
      0.2
     ],
-    "sun_energy": 0.3,
+    "sun_energy": 0.36,
     "sun_rot": 120,
-    "saturation": 1.1,
-    "contrast": 1.12,
+    "saturation": 1.04,
+    "contrast": 1.08,
     "particles": "kor",
     "fog": true,
     "rays": [
@@ -530,7 +538,8 @@
       0.22,
       8.0
      ]
-    ]
+    ],
+    "deep_amount": 0.8
    },
    "depths": [
     9,

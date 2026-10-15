@@ -13,15 +13,22 @@ var _t := 0.0
 var _grounded := false
 var spr: Sprite2D
 var light: PointLight2D
+var shadow: GroundShadow
+
+## Yerdeki nesnelerin temas gölgesi genişliği (piksel); süzülen ruhlar (don, ruh_kusu, lutuf) gölgesiz
+const SHADOW_W := {"item": 18.0, "tilsim": 16.0, "parsomen": 14.0, "sifa": 10.0, "gold": 6.0, "kut": 6.0}
 
 
 func _ready() -> void:
 	z_index = 15
+	if SHADOW_W.has(kind):
+		shadow = GroundShadow.attach(self, float(SHADOW_W[kind]), self)
 	if kind == "item":
 		spr = Sprite2D.new()
 		spr.texture = Data.weapon_tex
 		spr.region_enabled = true
 		spr.centered = false
+		spr.scale = Vector2.ONE * Data.wscale()
 		var m := ShaderMaterial.new()
 		m.shader = Game.toon_shader
 		spr.material = m
@@ -50,7 +57,7 @@ func _refresh() -> void:
 		spr.region_rect = Data.weapon_region(item["id"], item["material"])
 		spr.offset = -Data.weapon_pivot(item["id"])
 		var cell: Array = Data.weapon_meta["cell"]
-		if Data.weapon_pivot(item["id"]).x < 30:
+		if Data.weapon_pivot(item["id"]).x < 30 * Data.weapon_texel:
 			spr.offset.x += 16.0 - float(cell[0]) / 2.0 + 16.0
 	if light and not item.is_empty():
 		light.color = Color.from_string(Data.items["rarities"][int(item["rarity"])]["color"], Color.WHITE)

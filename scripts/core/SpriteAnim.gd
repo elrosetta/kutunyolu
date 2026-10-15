@@ -15,6 +15,7 @@ var speed := 1.0
 var manual := false
 var facing := 1
 var texel := 1.0  # doku yoğunluğu (meta "texel"): 1.5 = 1.5x piksel; sprite 1/texel ölçekle çizilir, dünya boyu aynı
+var shadow: GroundShadow  # sahibin (get_parent) ayaklarının altındaki temas gölgesi
 var _t := 0.0
 
 
@@ -42,6 +43,22 @@ func setup(sprite_name: String) -> void:
 		add_child(glow)
 	set_facing(1)
 	play(meta["anims"].keys()[0])
+	_attach_shadow()
+
+
+func _attach_shadow() -> void:
+	## Temas gölgesi sahibin (oyuncu, düşman, boss, NPC, kılık, ruh kurdu) ilk çocuğu olur.
+	## Genişlik: sahibin çarpışma boyu (size) varsa ondan, yoksa kare genişliğinden (meta "shadow_w" ile ezilebilir).
+	## Görünürlük/alfa bu SpriteAnim'den izlenir; genişlik bu düğümün ölçeğiyle çarpılır (seçkin, ezilme/esneme).
+	var host := get_parent() as Node2D
+	if host == null or shadow != null:
+		return
+	var cell: Array = meta["cell"]
+	var w := float(meta.get("shadow_w", float(cell[0]) / texel * 0.25))
+	var sz = host.get("size")
+	if sz is Vector2:
+		w = maxf(8.0, (sz as Vector2).x * 0.9)
+	shadow = GroundShadow.attach(host, w, self, self)
 
 
 func has_anim(n: String) -> bool:

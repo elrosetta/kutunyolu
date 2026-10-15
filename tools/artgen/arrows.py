@@ -53,19 +53,21 @@ def part(x, y):
     return None
 
 
-def render_cell(ang, cols):
-    img = Image.new('RGBA', (CELL, CELL), (0, 0, 0, 0))
+def render_cell(ang, cols, n=1):
+    """n: HD paketi çarpanı (aynı ok, n kat ince ızgarada)"""
+    cs = CELL * n
+    img = Image.new('RGBA', (cs, cs), (0, 0, 0, 0))
     px = img.load()
     ca, sa = math.cos(ang), math.sin(ang)
     c0 = CELL / 2.0
     S = 3
-    for j in range(CELL):
-        for i in range(CELL):
+    for j in range(cs):
+        for i in range(cs):
             counts = {}
             for sj in range(S):
                 for si in range(S):
-                    wx = i + (si + 0.5) / S - c0
-                    wy = j + (sj + 0.5) / S - c0
+                    wx = (i + (si + 0.5) / S) / n - c0
+                    wy = (j + (sj + 0.5) / S) / n - c0
                     # dünya -> yerel (ters döndürme)
                     lx = wx * ca + wy * sa
                     ly = -wx * sa + wy * ca
@@ -84,22 +86,26 @@ def render_cell(ang, cols):
     # sapın alt kenarına gölge: dolu pikselin hemen altı boşsa ve sap rengiyse koyulaştır
     out = img.copy()
     op = out.load()
-    for j in range(CELL - 1):
-        for i in range(CELL):
+    for j in range(cs - 1):
+        for i in range(cs):
             if px[i, j][3] and px[i, j][:3] == hx(cols[0])[:3] and not px[i, j + 1][3] and abs(math.sin(ang)) < 0.9:
                 op[i, j] = hx(cols[1])
     return out
 
 
-def build(root):
-    W = CELL * DIRS
-    H = CELL * len(ORDER)
-    sheet = Image.new('RGBA', (W, H), (0, 0, 0, 0))
+def build_sheet(n=1):
+    cs = CELL * n
+    sheet = Image.new('RGBA', (cs * DIRS, cs * len(ORDER)), (0, 0, 0, 0))
     for r, name in enumerate(ORDER):
         cols = VARIANTS[name]
         for d in range(DIRS):
             ang = d * (2 * math.pi / DIRS)
-            sheet.alpha_composite(render_cell(ang, cols), (d * CELL, r * CELL))
+            sheet.alpha_composite(render_cell(ang, cols, n), (d * cs, r * cs))
+    return sheet
+
+
+def build(root):
+    sheet = build_sheet(1)
     out = os.path.join(root, 'assets', 'fx')
     sheet.save(os.path.join(out, 'arrows.png'))
     with open(os.path.join(out, 'arrows.json'), 'w', encoding='utf-8') as f:

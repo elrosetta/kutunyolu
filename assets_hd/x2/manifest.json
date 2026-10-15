@@ -1,0 +1,494 @@
+{
+ "bg/bozkir_0_sky.png": [
+  960,
+  540
+ ],
+ "bg/bozkir_1_far.png": [
+  1920,
+  540
+ ],
+ "bg/bozkir_2_mid.png": [
+  1920,
+  540
+ ],
+ "bg/bozkir_3_near.png": [
+  1920,
+  540
+ ],
+ "bg/bozkir_4_fog.png": [
+  1920,
+  540
+ ],
+ "bg/kaf_0_sky.png": [
+  960,
+  540
+ ],
+ "bg/kaf_1_far.png": [
+  1920,
+  540
+ ],
+ "bg/kaf_2_mid.png": [
+  1920,
+  540
+ ],
+ "bg/kaf_3_near.png": [
+  1920,
+  540
+ ],
+ "bg/kaf_4_fog.png": [
+  1920,
+  540
+ ],
+ "bg/otuken_0_sky.png": [
+  960,
+  540
+ ],
+ "bg/otuken_1_mountains.png": [
+  1920,
+  540
+ ],
+ "bg/otuken_2_far.png": [
+  1920,
+  540
+ ],
+ "bg/otuken_3_mid.png": [
+  1920,
+  540
+ ],
+ "bg/otuken_4_near.png": [
+  1920,
+  540
+ ],
+ "bg/otuken_5_fog.png": [
+  1920,
+  540
+ ],
+ "bg/sahmeran_0_sky.png": [
+  960,
+  540
+ ],
+ "bg/sahmeran_1_far.png": [
+  1920,
+  540
+ ],
+ "bg/sahmeran_2_mid.png": [
+  1920,
+  540
+ ],
+ "bg/sahmeran_3_near.png": [
+  1920,
+  540
+ ],
+ "bg/sahmeran_4_fog.png": [
+  1920,
+  540
+ ],
+ "bg/tamu_0_sky.png": [
+  960,
+  540
+ ],
+ "bg/tamu_1_far.png": [
+  1920,
+  540
+ ],
+ "bg/tamu_2_mid.png": [
+  1920,
+  540
+ ],
+ "bg/tamu_3_near.png": [
+  1920,
+  540
+ ],
+ "bg/tamu_4_fog.png": [
+  1920,
+  540
+ ],
+ "bg/yurt_0_sky.png": [
+  960,
+  540
+ ],
+ "bg/yurt_1_tree.png": [
+  1920,
+  540
+ ],
+ "bg/yurt_2_camp.png": [
+  1920,
+  540
+ ],
+ "bg/yurt_3_mid.png": [
+  1920,
+  540
+ ],
+ "decor/cadir.png": [
+  96,
+  80
+ ],
+ "decor/cicek_1.png": [
+  40,
+  24
+ ],
+ "decor/cicek_2.png": [
+  40,
+  24
+ ],
+ "decor/cicek_3.png": [
+  40,
+  24
+ ],
+ "decor/cira.png": [
+  24,
+  64
+ ],
+ "decor/dilek_agaci.png": [
+  96,
+  120
+ ],
+ "decor/kam_diregi.png": [
+  56,
+  104
+ ],
+ "decor/kaya_1.png": [
+  48,
+  32
+ ],
+ "decor/kaya_2.png": [
+  48,
+  32
+ ],
+ "decor/mantar_1.png": [
+  40,
+  32
+ ],
+ "decor/mantar_2.png": [
+  40,
+  32
+ ],
+ "decor/ocak.png": [
+  48,
+  40
+ ],
+ "decor/ulu_kayin.png": [
+  260,
+  300
+ ],
+ "decor/yh_at.png": [
+  165,
+  126
+ ],
+ "decor/yh_balbal_1.png": [
+  45,
+  90
+ ],
+ "decor/yh_balbal_2.png": [
+  45,
+  90
+ ],
+ "decor/yh_cadir.png": [
+  210,
+  180
+ ],
+ "decor/yh_demirhane.png": [
+  240,
+  186
+ ],
+ "decor/yh_fener.png": [
+  60,
+  156
+ ],
+ "decor/yh_hali_1.png": [
+  144,
+  18
+ ],
+ "decor/yh_hali_2.png": [
+  144,
+  18
+ ],
+ "decor/yh_hali_sergi.png": [
+  195,
+  144
+ ],
+ "decor/yh_kandil.png": [
+  45,
+  150
+ ],
+ "decor/yh_kapi.png": [
+  255,
+  264
+ ],
+ "decor/yh_kartal.png": [
+  81,
+  144
+ ],
+ "decor/yh_kayin.png": [
+  300,
+  354
+ ],
+ "decor/yh_kazan.png": [
+  84,
+  96
+ ],
+ "decor/yh_kurgan.png": [
+  180,
+  96
+ ],
+ "decor/yh_mangal.png": [
+  54,
+  84
+ ],
+ "decor/yh_ors.png": [
+  72,
+  60
+ ],
+ "decor/yh_otag.png": [
+  345,
+  330
+ ],
+ "decor/yh_pinar.png": [
+  195,
+  180
+ ],
+ "decor/yh_seki.png": [
+  51,
+  45
+ ],
+ "decor/yh_sunak.png": [
+  126,
+  138
+ ],
+ "decor/yh_tug_k.png": [
+  84,
+  255
+ ],
+ "decor/yh_tug_m.png": [
+  84,
+  255
+ ],
+ "decor/yh_yol_1.png": [
+  114,
+  18
+ ],
+ "decor/yh_yol_2.png": [
+  114,
+  18
+ ],
+ "decor/yh_yol_3.png": [
+  114,
+  18
+ ],
+ "fx/arrows.png": [
+  768,
+  144
+ ],
+ "fx/slash/arc.png": [
+  1024,
+  128
+ ],
+ "fx/slash/arc_heavy.png": [
+  1296,
+  144
+ ],
+ "fx/slash/arc_short.png": [
+  480,
+  80
+ ],
+ "fx/slash/arc_thin.png": [
+  1024,
+  128
+ ],
+ "fx/slash/crit_burst.png": [
+  576,
+  96
+ ],
+ "fx/slash/decal_blood_0.png": [
+  40,
+  16
+ ],
+ "fx/slash/decal_blood_1.png": [
+  40,
+  16
+ ],
+ "fx/slash/decal_blood_2.png": [
+  40,
+  16
+ ],
+ "fx/slash/decal_crack_0.png": [
+  64,
+  20
+ ],
+ "fx/slash/decal_crack_1.png": [
+  64,
+  20
+ ],
+ "fx/slash/hit_ring.png": [
+  240,
+  48
+ ],
+ "fx/slash/impact_blunt.png": [
+  384,
+  64
+ ],
+ "fx/slash/impact_cut.png": [
+  320,
+  64
+ ],
+ "fx/slash/impact_magic.png": [
+  384,
+  64
+ ],
+ "fx/slash/impact_pierce.png": [
+  320,
+  64
+ ],
+ "fx/slash/kill_flash.png": [
+  192,
+  64
+ ],
+ "fx/slash/line.png": [
+  480,
+  96
+ ],
+ "fx/slash/ring.png": [
+  672,
+  112
+ ],
+ "fx/slash/smear_h.png": [
+  192,
+  24
+ ],
+ "fx/slash/spark_m.png": [
+  120,
+  24
+ ],
+ "fx/slash/spark_s.png": [
+  64,
+  16
+ ],
+ "fx/slash/x.png": [
+  576,
+  96
+ ],
+ "sprites/agac_iyesi.png": [
+  672,
+  520
+ ],
+ "sprites/arcura.png": [
+  384,
+  256
+ ],
+ "sprites/balbal.png": [
+  288,
+  360
+ ],
+ "sprites/bekci.png": [
+  480,
+  864
+ ],
+ "sprites/bengu.png": [
+  1152,
+  2640
+ ],
+ "sprites/bengu_kol.png": [
+  108,
+  24
+ ],
+ "sprites/bengu_kurt.png": [
+  1280,
+  672
+ ],
+ "sprites/cor.png": [
+  384,
+  228
+ ],
+ "sprites/erlik_han.png": [
+  1600,
+  1600
+ ],
+ "sprites/kara_boru.png": [
+  480,
+  280
+ ],
+ "sprites/kara_boru_han.png": [
+  1200,
+  1152
+ ],
+ "sprites/npc_demirci.png": [
+  384,
+  176
+ ],
+ "sprites/npc_ozan.png": [
+  384,
+  176
+ ],
+ "sprites/npc_umay.png": [
+  384,
+  176
+ ],
+ "sprites/sahmeran_ana.png": [
+  1600,
+  1408
+ ],
+ "sprites/surale.png": [
+  768,
+  520
+ ],
+ "sprites/tepegoz.png": [
+  1600,
+  1600
+ ],
+ "sprites/tosbaga.png": [
+  576,
+  448
+ ],
+ "sprites/yelbegen.png": [
+  1600,
+  1664
+ ],
+ "tiles/bozkir.png": [
+  576,
+  180
+ ],
+ "tiles/bozkir_soil.png": [
+  768,
+  768
+ ],
+ "tiles/hazards.png": [
+  48,
+  96
+ ],
+ "tiles/kaf.png": [
+  576,
+  180
+ ],
+ "tiles/kaf_soil.png": [
+  768,
+  768
+ ],
+ "tiles/otuken.png": [
+  576,
+  180
+ ],
+ "tiles/otuken_soil.png": [
+  768,
+  768
+ ],
+ "tiles/sahmeran.png": [
+  576,
+  180
+ ],
+ "tiles/sahmeran_soil.png": [
+  768,
+  768
+ ],
+ "tiles/tamu.png": [
+  576,
+  180
+ ],
+ "tiles/tamu_soil.png": [
+  768,
+  768
+ ],
+ "weapons/weapons.png": [
+  1408,
+  4800
+ ]
+}

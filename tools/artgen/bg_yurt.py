@@ -6,6 +6,7 @@
   yurt_2_camp : uzak büyük oba: tepelerde onlarca yurt, kapı ışıkları, ocak dumanları, tuğlar, at sürüsü, kurganlar
   yurt_3_mid  : yakın tepe: dilek kayınları, büyük yurt siluetleri, fener dizileri, tuğlar
 Dağlar ve sis Ötüken'den (otuken_1_mountains, otuken_5_fog) ödünç alınır.
+HD paketleri: bk.set_scale(N) ile N kat ince ızgarada aynı kompozisyon (bkz. bgkit.py); bk.S == 1 temel çıktıdır.
 
 Kullanım: python bg_yurt.py   (assets/bg'ye yazar)
 """
@@ -15,7 +16,7 @@ import os
 import numpy as np
 
 import bgkit as bk
-from bgkit import W, H, SW, SH, Layer, norm
+from bgkit import W, H, SW, SH, Layer, norm, lin, mgrid, bay, nfbm, upx, thin
 from hdkit import hexrgb, pal, bayer, fbm, to_image, reduce_palette
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -34,14 +35,15 @@ def yurt_sky(seed=61):
     rng = np.random.default_rng(seed)
     img = bk.gradient([(0, '#04040f'), (0.22, '#0a0b22'), (0.45, '#141838'), (0.62, '#1f2648'), (0.74, '#2e3150'),
                        (0.84, '#4a3c4e'), (0.93, '#6a4a48'), (1.0, '#7a5444')], SW, SH)
-    yy, xx = np.mgrid[0:SH, 0:SW].astype(float)
+    yy, xx = (np.mgrid[0:SH, 0:SW].astype(float) if bk.S == 1 else mgrid(SH, SW))
+    Sx = bk.S
     # ağacın ardındaki kutsal ışıma (ekran ortası, biraz sol)
     cx, cy = 380.0, 250.0
     d = np.sqrt(((xx - cx) / 1.25) ** 2 + (yy - cy) ** 2)
     halo = np.clip(1 - d / 430, 0, 1) ** 2.0
     img = img + halo[..., None] * (hexrgb('#3f7f8a') - img) * 0.42
     # kut ışığı perdeleri: dalgalı, dikey çizgili turkuaz-yeşil bantlar, üstte mora döner
-    curt = np.zeros((SH, SW))
+    curt = np.zeros(yy.shape)
     for (y0, amp, ph, fr, th) in ((150, 40, 0.3, 0.0062, 46), (205, 30, 2.1, 0.0085, 34), (110, 26, 4.0, 0.011, 24)):
         yc = y0 + np.sin(xx * fr + ph) * amp + np.sin(xx * fr * 2.7 + ph * 1.7) * amp * 0.35
         below = (yy - yc)
@@ -55,7 +57,7 @@ def yurt_sky(seed=61):
     # samanyolu
     t = (xx * 0.5 - yy)
     band = np.exp(-((t + 40) / 80.0) ** 2)
-    mw = fbm(SW, SH, [96, 48, 24, 12], rng, wrap_y=False)
+    mw = nfbm(SW, SH, [96, 48, 24, 12], rng, wrap_y=False)
     img += (band * np.clip(mw - 0.4, 0, 1) * 0.14)[..., None] * hexrgb('#9aa6d8')
     img = bk.dq(np.clip(img, 0, 1), 64)
     L = Layer(SW, SH)
@@ -63,17 +65,28 @@ def yurt_sky(seed=61):
     for _ in range(1100):
         x, y = int(rng.integers(0, SW)), int(rng.integers(0, int(SH * 0.66)))
         br = rng.random()
-        if rng.random() > band[y, x] * 0.7 + 0.4:
+        if rng.random() > band[y * Sx, x * Sx] * 0.7 + 0.4:
             continue
         c = hexrgb('#e8ecff') if br > 0.82 else (hexrgb('#9aa6cf') if br > 0.4 else hexrgb('#555d88'))
-        L.px(x, y, c, 0.9)
-        if br > 0.985:
-            for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1)):
-                L.px(x + dx, y + dy, hexrgb('#7d88b8'), 0.8)
+        if Sx == 1:
+            L.px(x, y, c, 0.9)
+            if br > 0.985:
+                for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+                    L.px(x + dx, y + dy, hexrgb('#7d88b8'), 0.8)
+        else:
+            if br > 0.985:
+                w_ = thin() / Sx
+                L.stroke([(x - 1.1, y + 0.5 - w_ / 2), (x + 2.1, y + 0.5 - w_ / 2)], hexrgb('#7d88b8'), 0.8, wid=w_, gap=1e9)
+                L.stroke([(x + 0.5 - w_ / 2, y - 1.1), (x + 0.5 - w_ / 2, y + 2.1)], hexrgb('#7d88b8'), 0.8, wid=w_, gap=1e9)
+            L.star(x, y, c, 0.9)
     # Ülker (Pleiades): küçük parlak yıldız öbeği sağ üstte
     for dx, dy in ((0, 0), (5, -2), (9, 1), (3, 4), (12, -4), (7, 6)):
-        L.px(800 + dx, 70 + dy, hexrgb('#f4f6ff'))
-        L.px(801 + dx, 70 + dy, hexrgb('#9aa6cf'), 0.6)
+        if Sx == 1:
+            L.px(800 + dx, 70 + dy, hexrgb('#f4f6ff'))
+            L.px(801 + dx, 70 + dy, hexrgb('#9aa6cf'), 0.6)
+        else:
+            L.dot(800 + dx + 0.5, 70 + dy + 0.25, hexrgb('#9aa6cf'), 0.6, r=max(1, Sx // 2) + 1)
+            L.star(800 + dx, 70 + dy, hexrgb('#f4f6ff'))
     # ince ay hilali
     mx, my, R = 860.0, 150.0, 18.0
     dm = np.sqrt((xx - mx) ** 2 + (yy - my) ** 2)
@@ -91,11 +104,11 @@ def yurt_tree(seed=62):
     out = Layer()
     X0 = TREE_X
     # arka ışıma (saydam, basamaklı)
-    yy, xx = np.mgrid[0:H, 0:W].astype(float)
+    yy, xx = (np.mgrid[0:H, 0:W].astype(float) if bk.S == 1 else mgrid(H, W))
     dx = (xx - X0 + W / 2) % W - W / 2
     d = np.sqrt((dx / 1.6) ** 2 + ((yy - 150) / 1.0) ** 2)
     glow_a = np.clip(1 - d / 420, 0, 1) ** 1.6 * 0.30
-    ga = np.floor(glow_a * 10 + (bayer(H, W) - 0.5) * 0.9) / 10
+    ga = np.floor(glow_a * 10 + (bay(H, W) - 0.5) * 0.9) / 10
     out.rgba[..., :3] = hexrgb('#4fa7a8')
     out.rgba[..., 3] = np.clip(ga, 0, 1)
     T = Layer()
@@ -114,10 +127,16 @@ def yurt_tree(seed=62):
         xc = float(np.interp(y, [196, 250, 330, 440, 560], [X0 + 4, X0 - 4, X0 + 6, X0 - 8, X0]))
         w_ = rng.uniform(5, 18)
         x0 = xc + rng.uniform(-r * 0.85, r * 0.6)
-        for j in range(int(w_)):
-            T.px(x0 + j, y + (1 if j % 4 == 0 else 0), BARK[0])
-            if j % 2 == 0:
-                T.px(x0 + j, y + 1, BARK[1])
+        if bk.S == 1:
+            for j in range(int(w_)):
+                T.px(x0 + j, y + (1 if j % 4 == 0 else 0), BARK[0])
+                if j % 2 == 0:
+                    T.px(x0 + j, y + 1, BARK[1])
+        else:
+            # HD: kayın lekesi: ortası kalın, uçları incelen kara yarık + altında koyu gölge
+            nj = int(w_)
+            T.stroke([(x0 + j, y + 1.2 + 0.25 * math.sin(j * 0.7)) for j in range(nj)], BARK[1], wid=0.8, gap=1e9)
+            T.stroke([(x0 + j, y + 0.4 + 0.25 * math.sin(j * 0.7)) for j in range(nj)], BARK[0], wid=0.9, gap=1e9)
     # taç: dalların ucunda ayrı ayrı büyük bulut-öbekleri, aralarından gök ve dallar görünür
     CL = [(-480, 175, 104, 46), (-340, 84, 120, 52), (-160, 22, 130, 56), (30, -24, 150, 62), (210, 34, 130, 54),
           (370, 96, 120, 50), (500, 184, 96, 42), (-250, 196, 76, 34), (280, 206, 76, 32), (-70, 128, 66, 30), (120, 140, 60, 28)]
@@ -155,17 +174,34 @@ def yurt_tree(seed=62):
             ln = int(rng.integers(5, 12))
             cols = [hexrgb(c) for c in ('#c84a50', '#e8e0d0', '#4a7ad0', '#e8b840', '#40b890')]
             c = cols[int(rng.integers(0, len(cols)))] * 0.7
-            for j in range(ln):
-                T.px(x, y + j, c)
-                T.px(x + 1, y + j, c * 0.7)
+            if bk.S == 1:
+                for j in range(ln):
+                    T.px(x, y + j, c)
+                    T.px(x + 1, y + j, c * 0.7)
+            else:
+                rib = [(x + math.sin(j * 0.8) * 0.25, y + j) for j in range(ln)]
+                T.stroke([(a + 1, b) for a, b in rib], c * 0.7, gap=1e9)
+                T.stroke(rib, c, gap=1e9)
     for x, y in lights:
         c = hexrgb('#9df2e0') if rng.random() < 0.72 else hexrgb('#ffe7a0')
-        T.px(x, y, c)
-        if rng.random() < 0.4:
-            T.px(x + 1, y, c * 0.7); T.px(x, y + 1, c * 0.55)
-        if rng.random() < 0.06:
-            for ddx, ddy in ((1, 0), (-1, 0), (0, 1), (0, -1)):
-                T.px(x + ddx, y + ddy, c * 0.65)
+        if bk.S == 1:
+            T.px(x, y, c)
+            if rng.random() < 0.4:
+                T.px(x + 1, y, c * 0.7); T.px(x, y + 1, c * 0.55)
+            if rng.random() < 0.06:
+                for ddx, ddy in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+                    T.px(x + ddx, y + ddy, c * 0.65)
+        else:
+            big = rng.random() < 0.4
+            cross = rng.random() < 0.06
+            r_ = max(1, bk.S // 2)
+            if big:
+                T.dot(x + 0.5, y + 0.25, c * 0.7, r=r_); T.dot(x + 0.25, y + 0.5, c * 0.55, r=r_)
+            if cross:
+                w_ = thin() / bk.S
+                T.stroke([(x - 1, y + 0.5), (x + 2, y + 0.5)], c * 0.65, wid=w_, gap=1e9)
+                T.stroke([(x + 0.5, y - 1), (x + 0.5, y + 2)], c * 0.65, wid=w_, gap=1e9)
+            T.dot(x, y, c, r=r_ + (1 if big else 0))
     # atmosfer: uzak, mavimsi pus (gövde altı daha puslu)
     hz = np.clip((yy - 200) / 260, 0, 1) * 0.45 + 0.1
     bk.apply_haze(T.rgba, '#2a3a52', hz * (T.rgba[..., 3] > 0))
@@ -198,32 +234,60 @@ def yurt_camp(seed=63):
                 bk.yurt(L, xx, b, s, felt[int(rng.integers(0, 2))], rng, smoke=hexrgb('#5a6276') if rng.random() < 0.5 else None)
                 # kapı ışığı (yurt fonksiyonunun kızıl kapısını kehribar ışıkla değiştir)
                 hb = s * 0.42
-                for y in range(int(b - hb * 0.7), int(b) + 1):
-                    L.px(xx + 1, y, door[0]); L.px(xx + 2, y, door[1])
-                L.px(xx + 1, b - hb * 0.7 - 1, door[2])
-                # yerde ışık lekesi
-                for ddx in range(-3, 6):
-                    L.px(xx + ddx, b + 1, door[1], 0.35)
+                if bk.S == 1:
+                    for y in range(int(b - hb * 0.7), int(b) + 1):
+                        L.px(xx + 1, y, door[0]); L.px(xx + 2, y, door[1])
+                    L.px(xx + 1, b - hb * 0.7 - 1, door[2])
+                    # yerde ışık lekesi
+                    for ddx in range(-3, 6):
+                        L.px(xx + ddx, b + 1, door[1], 0.35)
+                else:
+                    fx_ = math.floor(xx)
+                    L.poly([(fx_ + 1, b - hb * 0.7), (fx_ + 2, b - hb * 0.7), (fx_ + 2, math.floor(b) + 1), (fx_ + 1, math.floor(b) + 1)], door[0])
+                    L.poly([(fx_ + 2, b - hb * 0.7), (fx_ + 3, b - hb * 0.7), (fx_ + 3, math.floor(b) + 1), (fx_ + 2, math.floor(b) + 1)], door[1])
+                    L.stroke([(fx_ + 1, b - hb * 0.7 - 0.6), (fx_ + 2.6, b - hb * 0.7 - 0.6)], door[2], wid=thin() / bk.S, gap=1e9)
+                    L.stroke([(xx - 3, b + 1), (xx + 6, b + 1)], door[1], 0.35, wid=1.0, gap=1e9)
             # tuğ direği
             if rng.random() < 0.5:
                 tx = cx - rng.uniform(6, 12)
                 tb = ridge[int(tx) % W] + 2
                 th = s_r[1] * 3.2
-                L.line(tx, tb, tx, tb - th, ramp[0])
-                for j in range(4):
-                    L.px(tx - 1 + (j % 2), tb - th + 2 + j, hexrgb('#0a0a10'))
-                fc = hexrgb('#8a3040') if rng.random() < 0.6 else hexrgb('#30508a')
-                for j in range(int(s_r[1])):
-                    for i in range(3):
-                        L.px(tx + 1 + j, tb - th + 3 + i + (j // 4), fc * (0.8 if i == 2 else 1.0))
+                fc = None
+                if bk.S == 1:
+                    L.line(tx, tb, tx, tb - th, ramp[0])
+                    for j in range(4):
+                        L.px(tx - 1 + (j % 2), tb - th + 2 + j, hexrgb('#0a0a10'))
+                    fc = hexrgb('#8a3040') if rng.random() < 0.6 else hexrgb('#30508a')
+                    for j in range(int(s_r[1])):
+                        for i in range(3):
+                            L.px(tx + 1 + j, tb - th + 3 + i + (j // 4), fc * (0.8 if i == 2 else 1.0))
+                else:
+                    # HD: ince direk, at kılı püskül, rüzgârda dalgalanan sancak
+                    L.line(tx + 0.5, tb, tx + 0.5, tb - th, ramp[0], wid=0.6)
+                    L.stroke([(tx - 0.6, tb - th + 1.6), (tx + 0.5, tb - th + 2.2), (tx - 0.2, tb - th + 6.0)], hexrgb('#0a0a10'), wid=0.9, gap=1e9)
+                    fc = hexrgb('#8a3040') if rng.random() < 0.6 else hexrgb('#30508a')
+                    fl_ = int(s_r[1])
+                    up_ = [(tx + 1 + j, tb - th + 3 + j / 4 + math.sin(j * 0.9) * 0.3) for j in range(fl_ + 1)]
+                    dn_ = [(a, b_ + 3) for a, b_ in up_]
+                    L.poly(up_ + dn_[::-1], fc)
+                    L.stroke([(a, b_ - 0.6) for a, b_ in dn_], fc * 0.8, wid=1.0, gap=1e9)
         # ocak ateşleri (parlak kıvılcım noktaları)
         for _ in range((6, 9, 5)[k]):
             fx = rng.uniform(0, W)
             fb = ridge[int(fx) % W] + 1
-            L.px(fx, fb, hexrgb('#ffe6a0')); L.px(fx + 1, fb, hexrgb('#ff9a40')); L.px(fx, fb - 1, hexrgb('#ffb860'))
-            L.px(fx - 1, fb, hexrgb('#c86030'))
-            for j in range(8):
-                L.px(fx + j * 0.3, fb - 2 - j, hexrgb('#5a6276'), 0.4 * (1 - j / 8))
+            if bk.S == 1:
+                L.px(fx, fb, hexrgb('#ffe6a0')); L.px(fx + 1, fb, hexrgb('#ff9a40')); L.px(fx, fb - 1, hexrgb('#ffb860'))
+                L.px(fx - 1, fb, hexrgb('#c86030'))
+                for j in range(8):
+                    L.px(fx + j * 0.3, fb - 2 - j, hexrgb('#5a6276'), 0.4 * (1 - j / 8))
+            else:
+                # HD: küçük alev dili (dıştan içe), üstünde incelen duman
+                for j in range(8):
+                    L.stroke([(fx + j * 0.3 + math.sin(j * 0.8) * 0.25, fb - 2 - j), (fx + (j + 1) * 0.3 + math.sin((j + 1) * 0.8) * 0.25, fb - 3 - j)],
+                             hexrgb('#5a6276'), 0.4 * (1 - j / 8), wid=0.8, gap=1e9)
+                L.stroke([(fx - 1, fb + 0.5), (fx + 0.2, fb + 0.5)], hexrgb('#c86030'), wid=1.0, gap=1e9)
+                L.poly([(fx - 0.5, fb + 1), (fx + 1.8, fb + 1), (fx + 0.8, fb - 1.4)], hexrgb('#ff9a40'))
+                L.poly([(fx + 0.1, fb + 1), (fx + 1.2, fb + 1), (fx + 0.5, fb - 0.6)], hexrgb('#ffe6a0'))
         if k == 1:
             for _ in range(12):
                 hx = 1350 + rng.uniform(-70, 70)
@@ -250,9 +314,14 @@ def yurt_mid(seed=64):
         b = ridge[cx % W] + 3
         bk.yurt(out, cx, b, rng.uniform(26, 34), felt, rng, smoke=hexrgb('#3a4252'))
         s = 30
-        for y in range(int(b - s * 0.42 * 0.7), int(b) + 1):
-            for dd in range(1, 4):
-                out.px(cx + dd, y, hexrgb('#e09040') if dd < 3 else hexrgb('#a05a28'))
+        if bk.S == 1:
+            for y in range(int(b - s * 0.42 * 0.7), int(b) + 1):
+                for dd in range(1, 4):
+                    out.px(cx + dd, y, hexrgb('#e09040') if dd < 3 else hexrgb('#a05a28'))
+        else:
+            yt_ = int(b - s * 0.42 * 0.7)
+            out.poly([(cx + 1, yt_), (cx + 3, yt_), (cx + 3, int(b) + 1), (cx + 1, int(b) + 1)], hexrgb('#e09040'))
+            out.poly([(cx + 3, yt_), (cx + 4, yt_), (cx + 4, int(b) + 1), (cx + 3, int(b) + 1)], hexrgb('#a05a28'))
     # kayınlar
     for x in (120, 470, 930, 1400, 1800):
         b = ridge[x % W] + 4
@@ -266,21 +335,26 @@ def yurt_mid(seed=64):
         for _ in range(16):
             cx_ = x + rng.uniform(-40, 40); cy_ = b - h * 0.6 + rng.uniform(-20, 20)
             c = cols[int(rng.integers(0, 4))]
-            for k in range(int(rng.integers(4, 10))):
-                out.px(cx_, cy_ + k, c)
+            nk = int(rng.integers(4, 10))
+            out.stroke([(cx_ + math.sin(k * 0.9) * 0.2, cy_ + k) for k in range(nk)] if bk.S > 1 else [(cx_, cy_ + k) for k in range(nk)], c, gap=1e9)
     # fener dizileri: direkler arası sarkık ip, üstünde kehribar fenerler
     poles = [60, 380, 560, 860, 1040, 1300, 1500, 1720, 1900]
     for p in poles:
         b = ridge[p % W] + 3
         out.line(p, b, p, b - 70, G[2])
-        out.px(p, b - 71, hexrgb('#c8a040'))
+        _pt_ = out.px if bk.S == 1 else (lambda x_, y_, c_: out.dot(x_ + 0.25, y_ + 0.25, c_, r=max(1, bk.S // 2) + 1))
+        _pt_(p, b - 71, hexrgb('#c8a040'))
     for a, b_ in zip(poles, poles[1:]):
         ya = ridge[a % W] + 3 - 66; yb = ridge[b_ % W] + 3 - 66
         n = int(b_ - a)
+        if bk.S > 1:
+            # HD: sarkık ip sürekli ve ince
+            out.stroke([(a + i, ya + (yb - ya) * (i / n) + math.sin(i / n * math.pi) * 22 + 0.25) for i in range(n + 1)], G[3], wid=0.6, gap=1e9)
         for i in range(n + 1):
             t = i / n
             y = ya + (yb - ya) * t + math.sin(t * math.pi) * 22
-            out.px(a + i, y, G[3])
+            if bk.S == 1:
+                out.px(a + i, y, G[3])
             if i % 22 == 11:
                 out.px(a + i, y + 1, G[3])
                 for yy_ in range(2, 6):

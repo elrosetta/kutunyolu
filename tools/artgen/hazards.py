@@ -64,23 +64,31 @@ def decor_sunak():
     return c
 
 
-def main():
+def build():
+    """(albedo, normal, glow, meta). HD paketinde (raster.SS = N) hücreler N kat ince; meta mantıksal kalır."""
+    import raster
+    T = int(round(TS * raster.SS))
     rows = [('diken', [tile_diken(0), tile_diken(1)]),
             ('zehir', [tile_liquid(0, (96, 0.8, 0.75), '#143a10', False, 'zehir'), tile_liquid(1, (96, 0.8, 0.75), '#143a10', False, 'zehir')]),
             ('lav', [tile_liquid(0, (22, 0.95, 1.0), '#4a1004', True, 'lav'), tile_liquid(1, (22, 0.95, 1.0), '#4a1004', True, 'lav')]),
             ('buz', [tile_buz(0), tile_buz(1)])]
-    alb = np.zeros((TS * len(rows), TS * 2, 4))
+    alb = np.zeros((T * len(rows), T * 2, 4))
     nrm = np.zeros_like(alb)
     glo = np.zeros_like(alb)
     meta = {'cell': [TS, TS], 'rows': {}}
     for r, (name, tiles) in enumerate(rows):
         for f, c in enumerate(tiles):
             rgba = c.shade(rim_amt=0.2)
-            alb[r * TS:(r + 1) * TS, f * TS:(f + 1) * TS] = rgba
-            nrm[r * TS:(r + 1) * TS, f * TS:(f + 1) * TS] = c.normal_map(rgba[..., 3])
-            glo[r * TS:(r + 1) * TS, f * TS:(f + 1) * TS, :3] = np.clip(c.emis, 0, 1)
-            glo[r * TS:(r + 1) * TS, f * TS:(f + 1) * TS, 3] = (c.emis.max(axis=2) > 0)
+            alb[r * T:(r + 1) * T, f * T:(f + 1) * T] = rgba
+            nrm[r * T:(r + 1) * T, f * T:(f + 1) * T] = c.normal_map(rgba[..., 3])
+            glo[r * T:(r + 1) * T, f * T:(f + 1) * T, :3] = np.clip(c.emis, 0, 1)
+            glo[r * T:(r + 1) * T, f * T:(f + 1) * T, 3] = (c.emis.max(axis=2) > 0)
         meta['rows'][name] = r
+    return alb, nrm, glo, meta
+
+
+def main():
+    alb, nrm, glo, meta = build()
     def save(a, p):
         Image.fromarray((np.clip(a, 0, 1) * 255).astype(np.uint8), 'RGBA').save(p)
     save(alb, os.path.join(OUT, 'hazards.png'))

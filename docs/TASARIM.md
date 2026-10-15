@@ -19,6 +19,30 @@ yalnızca ateşten gelir: çıralar, od testisi, Bengü'nün Kut ışığı. Kar
 desaturedir; böylece oyuncu ve tehdit her zaman öne çıkar (Dead Cells'in Prisoners' Quarters mantığı).
 Arka plan: kara bulutlar, ölü ağaçlar, ruh ışıkları (`WISP`), zeminde süzülen sis (`otuken_5_fog.png`, zamanla kayar).
 
+### Gölge ve hacim (derinlik katmanı)
+
+Hiçbir şeyin gölgesi yoksa her şey kâğıt çıkartması gibi yüzer; üç katman bunu kırar:
+
+* **Temas gölgesi** (`scripts/core/GroundShadow.gd`): her aktör ve yerdeki eşyanın ayağının altında keskin,
+  iki tonlu piksel elips (çekirdek ≈ 0,55 + 1 px kenar 0,30; mürekkep `(0.03, 0.02, 0.06)`). Her kare altındaki
+  zemini/platformu arar (`Level.ground_at`, 4 px adım, 160 px), yükseldikçe küçülür ve solar (140 px'te yok),
+  ay yönüne hafifçe kayar. `SpriteAnim.setup` sahibinin (get_parent) ilk çocuğu olarak ekler (oyuncu, düşman,
+  boss, NPC, kılık, ruh kurdu); `Pickup` kendi ekler (`SHADOW_W`). Genişlik: `size.x × 0,9` ya da kare genişliği
+  × 0,25 (`shadow_w` meta ile ezilir); SpriteAnim ölçeğiyle çarpılır (seçkin, ezilme/esneme). Sahibiyle aynı z'de
+  ama sprite'tan önce çizilir; ölü/görünmez sahipte çizilmez; ışıktan etkilenmez.
+* **Ay gölgeleri** (`Level.moon_occluded`, `GroundShadow._update_moon_shade`, toon_light `moon_shade`): motorun ay gölgesi
+  KAPALI. Yan kesitte basamakların gölgesi toprağın içine uzun çapraz şeritler düşürüyordu; Godot'da gölgeyi alan öğe
+  seçilemiyor (`shadow_item_cull_mask` engelleyicileri seçer, TileMapLayer `light_mask`'i çizime aktarmıyor). Bunun yerine
+  her aktörün gövde ortasından aya doğru ışın karo ızgarasında yürütülür (yarım karo adım, 1400 px, 3 karede bir); katıya
+  çarparsa (çıkıntı altı, yar dibi, mağara) toon_light yönlü ışığın `art.shadow` (0,72) payını keser, 0,2 sn yumuşak geçiş.
+  Noktasal ışıklar (çıra, Kut) etkilenmez. Oyuncuda gövde, kol ve silah birlikte (`Player.set_moon_shade`). Toprak ay
+  ışığını gölgesiz alır. Karo engelleyicileri (`_tile_occluders`) yalnızca büyük sabit süs ışıklarının gölgesi için durur.
+  Ortam tabanı × `ambient_k` (0,8), ay enerjisi × `sun_k` (2,5); yön biyomun `sun_rot`'undan.
+* **Shader hacmi** (`toon_light.gdshader`, `ground.gdshader`): 3 bant korunur; `spec_band` (0,92) üstünde
+  +%15 beyaza çalan parlama, normal map'te siluete yatık (`NORMAL.z < rim_edge` 0,9) ve ışığa dönük piksellerde
+  1 basamak kenar ışığı (`rim_gain` 0,3). Zeminde "lit" anahtarlı karo üstü pikselleri yukarı bakan normal alır
+  (`top_tilt`): ay oraya ince bir ışık çizgisi düşürür, alttaki çıralar düşürmez.
+
 ## Dövüş hissi ve efekt katmanı (`scripts/core/FX.gd`)
 
 Dead Cells'in "her vuruş bir olay" ilkesi: darbe yıldızı (`ImpactFX`), yöne saçılan kıvılcım, düşmana özgü
@@ -448,16 +472,155 @@ Otomatik test: `godot --path . -- --otomatik` komutu oyunu kendi kendine oynatı
   o koşu için güç verir ve Ad Defteri'ne (meta) yazılır. Yurda varmadan ölürsen destan unutulur. `scripts/core/Adlar.gd`.
 * Sesler `tools/audiogen/v12.py` (bendir, zil, ney, mey, bağlama). Test: `-- --mekanik [--derinlik=N]` (`tools/tests/mekanik_testi.gd`).
 
-## Görüntü ayarları ve HD doku paketleri (2K / 4K)
+## Görüntü ayarları, kamera ve HD doku paketleri (2K / 4K)
 
+* **Görüntü alanı 960x540** (önceden 640x360): dünya 1,5 kat geniş görünür, her şey küçülür. 1080p'de 2x, 4K'da 4x tam sayı
+  ölçek. Arka plan katmanları zaten 540 px yüksekliğinde üretildiği için 1:1 çizilir. Menüler 640x360 tasarımında kalır ve
+  1,5 kat ölçekle çizilir (`HUD._menu_vp`); oyun içi HUD 1x (Ayarlar > Arayüz boyutu: Büyük = 1,5x).
 * **Ayarlar** (`scripts/autoload/Ayarlar.gd`, başlıkta ya da duraklatmada **Tab**): Pencereli / Tam ekran / Özel tam ekran,
-  pencereli çözünürlük (720p … 2160p, ekrana sığanlar), ölçekleme (Ekranı doldur = kesirli, Keskin piksel = tam sayı),
-  doku kalitesi (Otomatik / Standart / 2K / 4K), dikey eşitleme. `user://ayarlar.cfg` içinde saklanır.
-  Oyun 640x360 mantıksal çözünürlükte çizilir; her pencere boyutuna boşluksuz ölçeklenir.
-* **HD paketleri:** `shaders/hdpix.gdshaderinc` piksel sanatını çizim anında Scale2x (2K) ya da Scale4x (4K) kurallarıyla
-  büyütür: köşegen merdivenler yumuşar, palet korunur, bulanıklık olmaz. Önceden büyütülmüş dosyalarla aynı sonuç, ama
-  ek disk / VRAM yok (100 Mpx'lik doku seti 4x'te 1,6 Gpx olurdu). Genel gölgelendirici parametresi `hd_level`;
-  `toon_light`, `ground` (karolar + toprak dokusu) ve `hd_canvas` (arka plan, ok, arayüz) kullanır. Otomatik: 1440p → 2K, 2160p → 4K.
+  pencereli çözünürlük (720p … 2160p), ölçekleme (Ekranı doldur / Keskin piksel), doku kalitesi (Otomatik / Standart / 2K / 4K),
+  dikey eşitleme, arayüz boyutu. `user://ayarlar.cfg`. Doku kalitesi oyun yeniden başlatılınca uygulanır (`*` işareti).
+* **HD doku paketleri = gerçek yeniden çizim, büyütme değil.** `raster.SS` çarpanıyla tuval N kat ince ızgarada rasterlanır;
+  şekiller mantıksal birimde aynı kalır (`tools/artgen/export_hd.py N`). 2K = temel sayfaların 2 katı (`assets_hd/x2`), 4K = 4 katı
+  (`assets_hd/x4`). Yalnızca renk dokuları; normal/parlama haritaları ve JSON meta temelden. `manifest.json` temel boyutları tutar;
+  `Data.tex()` büyük dokuyu `ImageTexture.set_size_override` ile temel boyutta raporlar, oyun kodu değişmez.
+  Otomatik: 1080p ve üstü 2K, 2160p 4K (960x540 görüntüde 2K paketi 1080p'de, 4K paketi 4K'da ekran pikseline 1:1 oturur).
 * **Test:** `-- --doku=0..3 --pencere=2560x1440 --goruntu=cikti.png` (6 sn sonra ekranı kaydeder ve çıkar).
-* **Başlatıcı:** `Oyunu_Baslat.bat` artık her açılışta içe aktarma yapar (değişmeyen dosyalar hızlı geçilir); GitHub'dan çekilen
-  yeni dosyalar içe aktarılmazsa oyun boş ekranda kalıyordu.
+* **Başlatıcı:** `Oyunu_Baslat.bat` her açılışta içe aktarır; GitHub'dan çekilen yeni dosyalar içe aktarılmazsa oyun boş ekranda kalıyordu.
+
+## Dövüş hissi v14: hiyerarşi, hazırlık, kırbaç, darbe karesi
+
+Kaynaklar: Nijman "Art of Screenshake" (travma sarsıntısı, uyku kareleri), Jason Tomlee Slash FX (tek temiz hilal, kuyruğa doğru
+incelme, 1-2 karelik doruk), SLYNYRD/GDQuest (hazırlık → vuruş → aşma → takip; smear yalnızca vuruşta), anime darbe kareleri,
+Dead Cells pose-to-pose + efektle hareket. İlke: **her vuruş aynı şiddette okunmaz.** Üç soru bir saniyede yanıtlanmalı:
+kim vuruldu, ne kadar sert, şimdi ne yapmalı.
+
+* **Vuruş kademeleri** (`Player.HIT_FEEL`, `_melee_hits`): 0 hafif zincir vuruşu (35 ms hitstop, küçük kıvılcım, sarsıntı yok),
+  1 orta: zincir sonu / ağır silah (65 ms, darbe yıldızı + darbe sprite'ı, hafif yönlü travma), 2 büyük: kritik / tam şarjlı ağır /
+  bekleme bitirişi (105 ms, kritik patlaması, yönlü travma, titreşim, darbe karesi, kısa ağır çekim). Öldürme +30 ms. Üst sınır 120 ms.
+  Kombo hitstop'u en çok %35 uzatır. Ses aynı karede (`Ses.hit(kademe)`).
+* **Darbe karesi** (`scripts/core/ImpactFrame.gd`): 2-3 kare mürekkep karası ekran + vuran/vurulanın beyaz siluetleri; kritikte
+  1 kare ters renk. 0,7 sn bekleme süresi (seçkin/boss ölümü zorlar). Ayarlar > Sarsıntı ve flaş: Azaltılmış'ta ters renk yok, Kapalı'da hiç.
+* **Düşman flaşı** 3 kare (büyükte 5); geri itme üstel söner (ilk kareler hızlı, yumuşak oturma).
+* **Savuruş** (`_update_attack`, `_update_weapon_visual`): hazırlık tutuşu 2-4 kare (ağırlığa göre; gövde toplanır, silah geriye bir tık),
+  kırbaç gecikmesi (bilek, üst kolun açısal hızından geri kalır: hızlanırken geride, durunca ileri fırlar), aşma-oturma yayı
+  (vuruş bitince kol vuruş yönünde bir tık aşar, sönümlü salınımla oturur), vuruş anında ön kol gerilir. `_weight(it)` 0..1:
+  hançer 0,2 · kılıç 0,45 · ağır 0,8 · dev 1,0.
+* **İz / smear** (`WeaponTrail`): bıçağın ucunun süpürdüğü ince hilal (bıçak boyunun %34'ü → %11'e incelir), üç kademeli sönüş,
+  beyaz çekirdek yalnızca taze kısımda; ömür 80-140 ms (ağırlık). Büyük hilal sprite'ı yalnızca bitiriş / ağır / özel savuruşlarda.
+* **Kamera** (`Game`): travma sarsıntısı (travma², üstel sönüm, yönlü: darbe ekseninde 1,6x), küçük olaylarda eski doğrusal sarsıntı,
+  ileri bakış 28 px (`Player._look_ahead`), kol titreşimi `Game.rumble(güçlü, zayıf, süre)`. `Game.fx_scale` ayardan.
+* **Test:** `-- --ekran=kilic --silah=dag_cekici --dusman=kara_boru` önüne iki durağan düşman koyar ve 3 vuruş yapar.
+* **Kusursuz Kaçış** (`Player._perfect_dodge`): darbenin isabet edeceği an yuvarlanmanın ilk 120 ms'indeysen tetiklenir: 0,45 sn
+  ağır çekim (0,22x), dokunulmazlık uzar, Kut +8, 1,5 sn içindeki ilk yakın vuruş kesin kritik ("cezalandırma!"). 1,6 sn bekleme.
+  Alınan hasar hissi hasarın can oranıyla ölçeklenir; canın %25'inden büyük darbede darbe karesi oyuncuyu siluete çevirir.
+* **Ses hiyerarşisi** (`tools/audiogen/impact.py`): darbe_hafif / darbe_agir (36 ms bas ön-yankı) / darbe_kritik (ters yükseliş +
+  çatırtı) / olum_vurus; patlama üç katman (tık, 70→48 Hz bas, moloz), patlama_buyuk / patlama_uzak; simsek_catirti + gok_gurleme
+  (gecikmeli), sarsinti / sarsinti_buyuk. `Ses.hit(kademe, konum, tür)`, `Ses.boom(konum, boy)`, `Ses.thunder(konum, gecikme)`.
+  `sfx.json` "onset": geçişin dosya içindeki anı; hitstop ile aynı karede tetiklenince ön-yankı duraklamanın içine düşer.
+* **Patlama / şok dalgası / gürleme** (`ExplosionFX`, `ShockwaveFX` + `shaders/shockwave.gdshader`, `ThunderFX`, `LightningFX`):
+  patlama sahneli (2 kare beyaz flaş + ışınlar → küme ateş topu beyaz→sarı→turuncu→kızıl kenar, ease-out → kararma ve duman
+  pufları → moloz, kor, zemin halkası; büyükte +80 ms ikinci iç patlama ve ekran kırılma halkası), hepsi 1 px ızgaraya oturur,
+  gradyan yok. Şimşek: orta nokta yer değiştirme + 2-4 dal, 3 katman, 5 kademeli titreme. `FX.thunder(konum, güç)`: ön kıvılcım →
+  1 kare beyaz ekran + gökten bolt + darbe diski → 90 ms sonra gürleme (yönlü travma, titreşim, şok dalgası). Gök Asası'nın ilk
+  hedefi ve tam şarjlı yıldırım hamlesi gökten iner; yer vuruşları ve boss çakmaları `FX.shockwave` ekler.
+  Test: `--ekran=kilic --ikinci=gok_asasi` (K ile asayı kullanır), bomba için `--otomatik`.
+
+## Öğretici (v15)
+
+`HUD.TUT` + `_tut_tick`: mekanikler ilk karşılaşıldığında üstte bağlamsal ipucu kartı (tuş rozetleri + açıklama, 7,5 sn).
+Tetikleyiciler: kam gücü ≥ 30 ve bölümde âlem varsa (R gök / S+R yeraltı), yeraltı kapağına yaklaşınca (dünya işareti:
+mor ▼ + "S+R: yeraltına in" ya da "kam gücü N/30"), gökte ruh kuşu yakınken ("ruh kuşu" etiketi), don ruhu yerdeyken
+("ruhu em"), ruh emilince (G), 14. sn'de ağır vuruş/bitiriş, 40. sn'de usul, ilk kusursuz kaçışta. Her ipucu koşuda bir kez,
+kalıcı olarak en çok 3 koşuda (`Game.meta.ogrendi`); test koşuları (--ekran / --otomatik) sayacı artırmaz.
+
+## Silah arketipleri (v15)
+
+Geri bildirim: "silahların hamleleri birbirine çok benziyor, sıkılıyorum." 32 savuruş vardı ama yalnızca 7 gövde pozu;
+zincirlerin çoğu "kes, kes, daha büyük kes"ti. v15 her arketipi ayrı bir karakter gibi oynatır (Dead Cells: Balanced Blade /
+Broadsword / Spear / Whip / Twin Daggers / Nutcracker). Dört eksende ayrışırlar: **tempo** (`aps` × savuruşun `tm` çarpanı:
+hançer kesiği 0,12-0,18 sn, dev kılıç inişi ~1,4 sn, hazırlık tutuşu `_weight`e göre), **adım işi** (öne adım, geri sıçrayış,
+hoplayıp çakma, derin hamle, pirouette), **vuruş kutusu** (`_swing_box`: baş üstü dikey şerit, saplama / kırbaç uzun yatay şerit,
+çark daire, süpürme alçak şerit), **geri itme yönü** (fırlatma, yere çakma, kendine çekme, ileri itme) ve her silahın bir **imza
+mekaniği**.
+
+**Yeni gövde animasyonları** (`bengu.py`, 8 kare, poz-pozdan; kalça / omuz / eğilim işi yapar, ön kol oyunda sürülür, `sh_f`
+çapası tutarlı): `atk_overhead_2h` (tepeye kaldır, adımla iner, darbede dizler bükülür), `atk_backstep` (öne yüklen, geriye hopla,
+havada kes, çömelerek in), `atk_sweep_low` (derin çömelme, bıçak yer hizası), `atk_uppercut` (çömelmeden yükseliş, ayaklar yerden
+kesilir), `atk_lunge_long` (arka bacak gergin derin hamle), `atk_spin_2h` (omuz burulması + çapraz bacak, gövde kalkar: pirouette),
+`atk_dual` (omuzdan omuza burulma; arka kol ikinci bıçak olarak öne fırlar), `atk_whip` (ağırlık arka ayakta, omuz şaklar, kalça
+izler), `atk_slam_jump` (çömel, hopla, iki ayak birden çakıl), `atk_throw_axe` (geriye tam burulma, bırakışta öne burulma).
+
+**Yeni savuruşlar** (`Player.SWINGS`): backstep, lunge_long, spin_2h (iki yan, 2 vuruş), dual_l / dual_r, cross_dash (X kesik +
+delip geçme), whip_side, step_down (tek elli adımlı baş üstü), pole_vault. Eski savuruşların gövdeleri değişti: overhead_2h /
+step_down → atk_overhead_2h; slam / slam_2h → atk_slam_jump (vuruş penceresi 0,5-0,72: iniş karesi); rise / uppercut_2h →
+atk_uppercut; sweep_low → atk_sweep_low; whip_crack → atk_whip; axe → atk_throw_axe; helicopter / stab_heavy → atk_spin_2h /
+atk_lunge_long. Savuruş alanları: `tm` (süre çarpanı), `hold_k` (hazırlık tutuşu ve ağır şarj pozunun k noktası: sıçramalı
+gövdelerde havadaki kare yerine çömelme karesi tutulur; `_hold_k`).
+
+**Kombo bayrakları (v15):** `backstep` (gövde -190 px/sn geriye hoplar, 0,16 sn dokunulmaz; kutu öne uzar), `through` (vuruş
+penceresi boyunca 780 px/sn ileri, düşmanın içinden öteye; 0,3 sn dokunulmaz, bitince hız %25), `spin_hold` (tuş basılıyken vuruş
+penceresi başa sarar, en çok 1,2 sn, her turda iki yan yeniden vurulur; bu adım ağır saldırıya dönmez), `pull` (vuruştan sonra
+düşman oyuncuya doğru px/sn ile çekilir, `pulled_t` 0,5 → yakala kritiği), `tipcrit` (bıçak boyunun %75'inden uzak isabet kesin
+kritik, "uçtan!"), `stun` (sn, şarjla ×(1+hold)), `sa` (**`atk.super_armor` = true**: savuruş boyunca sarsılmazlık; `take_hit`
+hasarı düşer ama savuruşu kesmez, hurt_t / geri itme / kombo kırılması yok, dokunulmazlık 0,35 sn), `vault` (↑+J sırık atlayışı: +210 px/sn
+ileri, -470 yukarı), `crit` (adım kesin kritik), `tm`.
+
+| Silah | Tempo / ağırlık | Zincir | Bekleme bitirişi | Ağır (basılı tut) | İmza | Gövdeler |
+|---|---|---|---|---|---|---|
+| Alp Kılıcı | dengeli, 0,45 | diag_down → horiz → step_down (adım) | cross_x Alp Çaprazı | overhead_2h | 3. vuruş kritik (ucuncu_vurus) | down, horiz, overhead_2h |
+| Yıldırım Kılıcı | katana, 0,45 | iai → backstep → lunge | flurry | iai → şimşek hamlesi | geri sıçrayıp hücum | horiz, backstep, lunge |
+| Pala | kasap, 0,5 | diag_down → back → spin_2h | lunge Pala Akını | reap + pull Kanlı Kanca | **çarkta J basılı: 1,2 sn döner, iki yan** | down, horiz, spin_2h |
+| Yatağan | düellocu, 0,3 | reverse_grip → horiz → backstep → lunge | flurry | iai dash | **3. vuruş çekilirken kesin kritik** + ivme | horiz, backstep, lunge |
+| Ayaz Kılıcı | ağır-ölçülü, 0,45 | sweep_low → step_down (slam) | spin_2h | overhead_2h | don yükü (2 ağır vuruş) | sweep_low, overhead_2h |
+| Ulu Kılıç | dev, 1,0 | overhead_2h → spin_2h | helicopter Ulu Çark | slam_2h | **süper zırh (atk.super_armor)**, ulu_kesik | overhead_2h, spin_2h |
+| Ruh Kılıcı | 0,45 | diag_down → back → rise (fırlatır) | spin | cross_x | her kesik ruh hilali | down, horiz, uppercut |
+| Ay Palası | dansçı, 0,2 | twirl → dual_r → dual_l → backstep → thrust(x2) | flurry | helicopter | 5'li zincir hızlanır, sonunda dokunulmazlık | spin, dual, backstep, thrust |
+| Yılan Kılıcı | 0,45 | reverse_grip → thrust → sweep_low (çelme) | twirl zehir | reap zehir | zehir yükü | horiz, thrust, sweep_low |
+| Rüzgâr Kılıcı | hava, 0,3 | iai → backstep → rise (fırlatır) | helicopter | cross_x | havadaki düşmana kritik + yel bıçağı | horiz, backstep, uppercut |
+| Bozgun Kılıcı | dev, 1,0 | diag_down → spin_2h (sa) → step_down (sa) | cross_x | slam_2h (sa) | süper zırh, bozgun kristali | down, spin_2h, overhead_2h |
+| Gürz | 0,8 | windmill (şok) → slam (hopla-çak) | slam | slam_2h **stun 1,4** | sarsıntı dalgası, ağır sersemletir | heavy, slam_jump |
+| Çivili Topuz | 0,8 | down → uppercut_2h (fırlat) → slam | slam | slam_2h stun | zırh kırığı; havaya at-yere çak | down, uppercut, slam_jump |
+| Dağ Çekici | en ağır, 1,0 | overhead_2h (şok, sa) → uppercut_2h | slam Dağ Yıkan | slam_2h stun 1,6, sa | havadaki düşman yere çakılır | overhead_2h, uppercut |
+| Kor Çekici | 1,0 | windmill → overhead_2h | slam | slam_2h stun | kor gölü | heavy, overhead_2h |
+| Savaş Baltası | 0,8 | axe_hook (**pull**) → axe (fırlat) | spin_2h | overhead_2h | kancayla çek, sonra fırlat-çağır | down, throw_axe |
+| İkiz Balta | 0,8 | dual_l → dual_r (x2) → spin_2h | helicopter | spin_2h spin_hold | kanama; çark basılı sürer | dual, spin_2h |
+| Teber | 0,65 | pole_sweep → sweep_low (çelme) → overhead_2h | helicopter | sweep_low fırlat | geniş yay | horiz, sweep_low, overhead_2h |
+| Erlik Tırpanı | 0,8 | reap (**pull 240**) → sweep_low → spin_2h | reap pull 320 Ruh Biçen | reap pull 340 | **biçme düşmanı kendine çeker** | horiz, sweep_low, spin_2h |
+| Kargı | 0,5 | pole_thrust → pole_thrust → lunge_long | lunge | stab_heavy | **↑+J sırık atlayışı**, koşarken hücum kritiği | thrust, lunge_long, uppercut |
+| Tulpar Mızrağı | 0,5 | pole_thrust(+30) → pole_thrust(+30) → lunge_long(+90) | helicopter | stab_heavy dash 160 | her saplama ileri taşır, koşarken kritik | thrust, lunge_long |
+| Ulu Kayın Asası | 0,65 | pole_sweep → twirl → uppercut_2h | helicopter | pole_sweep stun | geri itme 1,8x, duvara çarptır | horiz, spin, uppercut |
+| İkiz Bıçak | hançer, 0,15 | dual_l → dual_r → rake → cross_dash (**through**) | flurry | cross_dash through | **4. vuruş çapraz kesikle içinden geçiş** | dual, down |
+| Kurt Pençeleri | 0,15 | rake → dual_r → rise (fırlat) | flurry | rake | havada sıçrama | down, dual, uppercut |
+| Böri Hançeri | suikastçı, 0,15 | dual_l → dual_r → reverse_grip → cross_dash | flurry | cross_dash | geçiş arkaya düşürür → arkadan kritik | dual, horiz |
+| Kement | 0,3 | whip_crack → whip_side | spin | whip_crack | **uçtan isabet kritik** + yakala çekişi | whip |
+| Od Kamçısı | 0,3 | whip_crack → sweep_low → whip_crack | spin | whip_crack | uçtan kritik, yakma | whip, sweep_low |
+
+Vuruş kutuları: overhead_2h / slam_2h / step_down `[-6,-64 → R+14,2]` (dikey), lunge_long `[6,-46 → R+32,-14]`, whip_crack /
+whip_side `[6,-52 → R+34,-18]` (kırbaç erimi 46 px), spin_2h `±(R+14)` daire, backstep `[-2,-50 → R+24,-6]`, dual `[-2,-46 → R+14,-10]`.
+Test: `--ekran=kilic --silah=<kimlik>` + temas sayfası; `--savurus` laboratuvarı yeni savuruşları da gösterir.
+
+## Görsel düzeltmeler (v16)
+
+Eski tasarım `eski-tasarim-v13` git etiketinde saklı.
+
+* **Titreme yok:** 1,5x / 2x yoğunluklu dokular (Bengü, karolar, silahlar) ekrana tam sayı olmayan oranla düşüyordu;
+  en yakın komşu örneklemesi kamera kaydıkça pikselleri 1-2 ekran pikseli arasında zıplatıyordu. `shaders/aapix.gdshaderinc`:
+  keskin ama kenar yumuşatmalı örnekleme (`AA_TEX` makrosu, texelFetch ile elle çift doğrusal, önceden çarpılmış alfa).
+  `toon_light` (`pixel_aa` 1) ve `ground` (karo + dünya koordinatlı toprak) kullanır.
+* **Flaşlar:** `Level.flash_white` en çok 0,18 alfa, 0,06 sn, gerçek zamanlı (ağır çekim uzatmaz); patlamada yalnızca büyükte.
+  Hasar: tam ekran kırmızı yerine vinyetin `hurt` parametresiyle kenarlardan kısa kırmızı nabız. `ImpactFrame`: ters renk karesi
+  kaldırıldı, kararma 0,5-0,68 alfa, en çok 2 kare. `RingFX`: ince (1-2 px), sönük, yarıçap ≤ 48.
+* **Silah:** `WeaponTrail.add` hızlı savuruşta kabza etrafında açıyla ara örnek ekler ("V" izi yok). `Player._ground_clamp`:
+  yerdeyken silah başı ve izi zemin çizgisinin altına inmez.
+* **Okunurluk:** oyuncuda kısık gölgesiz Kut ışığı (0,32); ay gölgesi aktörde ay payının en çok %55'ini keser. Ruh kurdu ışıması
+  0,7 ve tint 0,86 (bembeyaz yanıyordu); kurt biçiminde hayalet izi kurt gövdesinden.
+* **Ölüm efekti sade:** koyu kırmızı duman diski ve her ölümde halka kaldırıldı (seçkin/boss'ta halka kalır).
+* **Yere vuruş** (`scripts/core/GroundSlamFX.gd`, `FX.ground_slam`): silah başı yere değdiği karede (`Player._slam_contact`):
+  2 karelik baş flaşı → araziyi sütun sütun izleyen şok sırtı ve basınç çizgileri → V toz bulutu ve yuvarlanan toz → seken
+  biyom renkli taşlar → kıvılcım/kor → araziyi izleyen krater ve çatlak izi (7 sn). Güç = 0,5 + 0,55 × ağırlık + 0,5 × şarj
+  (+0,3 bitiriş), 0,6-1,9. Boss iniş/çakmaları da kullanır.
+* **Pozlama:** biyom başına `glow`, `glow_bloom`, `glow_threshold`, `brightness`, `deep_amount` (`data/world.json`). Bozkır
+  ortalama parlaklık 0,32 → 0,16 (kırpılan piksel %15 → %1,3), Kaf 0,19 → 0,10, gece biyomları biraz açıldı. `soil.py`
+  `_ao_dither`: gölgeli yandan ve çıkıntı altından noktalı ortam kapatma; `bg_hd.py` katman başına renk derecelendirme ve pus;
+  `env_forest.py` süslerin yere değdiği yerde 3 basamak koyulaşma.

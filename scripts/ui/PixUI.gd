@@ -198,7 +198,7 @@ static func weapon(ci: CanvasItem, it: Dictionary, center: Vector2, max_size: Ve
 	if it.is_empty() or not Data.has_weapon_sprite(it["id"]):
 		return
 	var reg := Data.weapon_icon_rect(it["id"], it["material"])
-	var s := sc
+	var s := sc / Data.weapon_texel
 	if reg.size.x * s > max_size.x or reg.size.y * s > max_size.y:
 		s = minf(max_size.x / reg.size.x, max_size.y / reg.size.y)
 		if s >= 1.0:

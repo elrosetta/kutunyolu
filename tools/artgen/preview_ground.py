@@ -1,5 +1,7 @@
 """Zemin önizlemesi: ground.gdshader'ın yaptığını Python'da taklit eder (anahtar renk → dünya
-koordinatlı toprak, gölge/ışık bantları, derinlikle kararma)."""
+koordinatlı toprak, gölge/ışık bantları, derinlikle kararma).
+
+Kullanım: python preview_ground.py out.png tiled.png [--hd N]  (N: soil.set_hd; hücre TS*N piksel)"""
 import sys
 import numpy as np
 from PIL import Image
@@ -11,6 +13,7 @@ TS = soil.TS
 
 
 def compose(grid, soil_rgb, atlas, meta, bg=None, seed=3):
+    TS = soil.TS * soil.HD          # HD'de hücre ve toprak aynı oranda yoğun
     rng = np.random.default_rng(seed)
     gh, gw = len(grid), len(grid[0])
     W, H = gw * TS, gh * TS
@@ -95,12 +98,16 @@ def demo_grid():
 
 
 if __name__ == '__main__':
+    if '--hd' in sys.argv:
+        soil.set_hd(int(sys.argv[sys.argv.index('--hd') + 1]))
+    up = 2 if soil.HD == 1 else 1
     tex, tex_n, _ = soil.soil_texture()
     A, N, meta = soil.build_ground_atlas()
     g = demo_grid()
-    bg = np.zeros((len(g) * TS, len(g[0]) * TS, 3)); bg[...] = [0.12, 0.17, 0.24]
+    T = TS * soil.HD
+    bg = np.zeros((len(g) * T, len(g[0]) * T, 3)); bg[...] = [0.12, 0.17, 0.24]
     img = compose(g, tex, A, meta, bg)
-    to_img(img).resize((img.shape[1] * 2, img.shape[0] * 2), Image.NEAREST).save(sys.argv[1])
+    to_img(img).resize((img.shape[1] * up, img.shape[0] * up), Image.NEAREST).save(sys.argv[1])
     t2 = np.tile(tex, (2, 2, 1))
-    to_img(t2).resize((t2.shape[1] * 2, t2.shape[0] * 2), Image.NEAREST).save(sys.argv[2])
+    to_img(t2).resize((t2.shape[1] * up, t2.shape[0] * up), Image.NEAREST).save(sys.argv[2])
     print('ok')

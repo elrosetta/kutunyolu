@@ -211,10 +211,11 @@ func _ready() -> void:
 	warn = Label.new()
 	warn.text = "!"
 	warn.label_settings = LabelSettings.new()
-	warn.label_settings.font_size = 14
+	warn.label_settings.font = Data.pixel_font
+	warn.label_settings.font_size = 26
 	warn.label_settings.font_color = Color(1.0, 0.35, 0.25)
-	warn.label_settings.outline_size = 3
-	warn.label_settings.outline_color = Color(0.1, 0.02, 0.04)
+	warn.label_settings.shadow_color = Color(0.1, 0.02, 0.04, 0.95)
+	warn.label_settings.shadow_offset = Vector2(2, 2)
 	warn.position = Vector2(-4, -size.y - 26)
 	warn.visible = false
 	warn.z_index = 80
@@ -306,11 +307,14 @@ func take_hit(d: float, opts: Dictionary) -> bool:
 	if state == "dormant":
 		_wake()
 	hp -= d
-	flash_t = 0.1
 	aggro = true
 	var crit: bool = opts.get("crit", false)
 	var dir := float(opts.get("dir", 1))
 	var big: bool = crit or opts.get("last", false) or float(opts.get("kb", 60.0)) > 180.0
+	# v14 darbe flaşı: 2-3 kare yüksek kontrast, sonra hemen normale (uzun flaş "sersemleme" gibi okunur)
+	flash_t = 0.05 if not big else 0.08
+	var feel_done: bool = opts.get("feel_done", false)
+	_feel_done = feel_done
 	FX.number(center(), d, crit)
 	# darbe tepkisi: gövde darbe yönünde ezilir ve yatar, düşmana özgü sıçrantı, kritikte ağır çekim ve ışık
 	vis_scale = (Vector2(1.34, 0.72) if big else Vector2(1.28, 0.78)) if not heavy else Vector2(1.12, 0.9)
@@ -328,19 +332,28 @@ func take_hit(d: float, opts: Dictionary) -> bool:
 			var dv := Vector2(cos(a), sin(a))
 			FX.streak(center() + dv * 6.0, center() + dv * randf_range(22.0, 38.0), Color(1.0, 0.95, 0.85, 0.8), 0.09)
 	if crit:
-		Game.shake(3.0)
-		Game.slowmo(0.35, 0.1)
 		FX.flash_light(center(), Color(1.0, 0.9, 0.6), 120.0, 1.6, 0.16)
-		FX.ring(center(), 18, Color(1.0, 0.85, 0.4), 0.2)
+		if not feel_done:
+			# saldıran kamera/zaman hissini vermediyse (mermi, tuzak, patlama): burada sade bir kritik hissi
+			Game.shake_dir(0.25, Vector2(dir, 0.3))
+			Game.slowmo(0.35, 0.08)
+			Game.hitstop(0.07)
+			if SlashFX.has("crit_burst"):
+				FX.slash_sprite("crit_burst", center(), 0.0, Vector2(0.8, 0.8), Color(1.0, 0.92, 0.6), true, Vector2(-1, -1), null, 30.0)
+	elif not feel_done and big:
+		Game.hitstop(0.05)
 	# ses: yaratığın türüne göre acı sesi + darbe
 	Ses.play(_hurt_sfx(), -4.0, 1.0, 0.1, 0.05, center())
+	var tier := 2 if crit else (1 if big else 0)
 	if guard_t > 0.0 and signf(dir) == -float(facing):
-		Ses.play("darbe_metal", -2.0)
+		Ses.hit(tier, center(), "metal") if Ses.has_method("hit") else Ses.play("darbe_metal", -2.0)
 	elif sprite_kind == "balbal":
-		Ses.play("darbe_tas", -3.0)
-	elif not opts.get("sfx_done", false):
-		# silah sesi saldıran tarafından çalınmadıysa (mermi, patlama, kapan): genel darbe
-		if crit:
+		Ses.hit(tier, center(), "tas") if Ses.has_method("hit") else Ses.play("darbe_tas", -3.0)
+	elif not opts.get("sfx_done", false) and not feel_done:
+		# silah sesi saldıran tarafından çalınmadıysa (mermi, patlama, kapan): kademeli darbe sesi
+		if Ses.has_method("hit"):
+			Ses.hit(tier, center())
+		elif crit:
 			Ses.play("darbe_kritik", 0.0)
 		elif big:
 			Ses.play("darbe_agir", -1.0)
@@ -403,9 +416,17 @@ func _die(dir := 1.0, kb := 100.0, crit := false) -> void:
 		return
 	Game.run["kills"] = int(Game.run.get("kills", 0)) + 1
 	Ses.play(_die_sfx(), 0.0, 1.0, 0.08, 0.03, center())
-	Game.hitstop(0.05 if not elite else 0.09)
+	if not _feel_done and Ses.has_method("hit"):
+		Ses.hit(3, center())
+	Game.hitstop(0.06 if not elite else 0.1)
 	if crit or elite:
 		Game.zoom_punch(0.05 if not elite else 0.08)
+	# v14 öldürme: seçkin ya da kritik ölümde darbe karesi; kısa ölüm flaşı sprite'ı
+	if elite or is_boss:
+		ImpactFrame.play([level.player if level else null, self], 1.0, 3, true)
+	if SlashFX.has("kill_flash"):
+		FX.slash_sprite("kill_flash", center(), 0.0, Vector2(1.0, 1.0) * (1.4 if elite else 1.0), Color(1.0, 0.97, 0.9), true, Vector2(-1, -1), null, 30.0)
+	Game.rumble(0.5 if not elite else 0.8, 0.25, 0.12 if not elite else 0.25)
 	if level and level.has_method("ground_y_below"):
 		var gy: float = level.ground_y_below(global_position + Vector2(0, -4))
 		if gy >= 0.0:
@@ -414,22 +435,27 @@ func _die(dir := 1.0, kb := 100.0, crit := false) -> void:
 	FX.corpse(anim.base, Vector2(dir * maxf(140.0, kb * 1.3), -220.0 - kb * 0.4), blood_col())
 	FX.blood(center(), Vector2(dir, -0.8), blood_col(), 16)
 	Blood.burst(center(), Vector2(dir, -0.6), blood_col(), 45 + (40 if elite else 0) + (90 if is_boss else 0), (randi_range(4, 6) + (4 if elite else 0) + (10 if is_boss else 0)), is_flesh())
-	FX.anim("smoke_puff", center(), 0.0, 0.9 + (0.5 if elite else 0.0), Color(blood_col(), 0.9).lerp(Color(0.3, 0.25, 0.35), 0.5), false)
-	FX.smoke(center(), 4, 0.45, Color(blood_col().darkened(0.5), 0.6))
-	FX.soul(center(), Color(0.55, 0.95, 1.0), 22 if not elite else 40)
-	FX.ring(center(), 26 if not elite else 44, Color(0.6, 0.95, 1.0), 0.3)
-	FX.flash_light(center(), Color(0.55, 0.95, 1.0), 140.0, 1.5, 0.3)
-	Game.shake(3.0 if not elite else 6.0)
+	# sade ölüm: kan + ceset + ruh zerresi okunur; eski koyu kırmızı duman diski ve her ölümde halka kaldırıldı
+	# (üst üste 10 katman ekranı bulandırıyordu)
+	FX.smoke(center(), 3, 0.4, Color(0.32, 0.3, 0.36, 0.45))
+	FX.soul(center(), Color(0.55, 0.95, 1.0), 12 if not elite else 30)
+	if elite or is_boss:
+		FX.ring(center(), 44, Color(0.6, 0.95, 1.0), 0.3)
+	FX.flash_light(center(), Color(0.55, 0.95, 1.0), 100.0, 0.9, 0.2)
+	Game.shake_dir(0.22 if not elite else 0.45, Vector2(dir, 0.4))
 	Game.kick(Vector2(dir, 0), 3.0)
 	if crit or elite:
-		Game.slowmo(0.3, 0.16 if not elite else 0.35)
+		Game.slowmo(0.3, 0.14 if not elite else 0.3)
 	if level:
 		level.on_enemy_died(self)
 	queue_free()
 
 
 func _windup_sfx() -> void:
-	## Saldırı uyarısı: her yaratığın kendi hazırlık sesi (yoksa genel)
+	## Saldırı uyarısı: her yaratığın kendi hazırlık sesi (yoksa genel) + 2 karelik beyaz flaş ve gerilme (anticipation):
+	## oyuncu saldırıyı sesten ve gövdeden aynı anda okur, kusursuz kaçışı zamanlayabilir
+	flash_t = maxf(flash_t, 0.035)
+	vis_scale = Vector2(0.86, 1.12) if not heavy else Vector2(0.92, 1.06)
 	var w := "hazirlik_" + sprite_kind
 	Ses.play(w if Ses.has(w) else "dusman_hazirlik", -8.0, 1.0, 0.12, 0.2, center())
 
@@ -490,6 +516,7 @@ func _die_sfx() -> String:
 
 var realm := ""  # v12: "" bu dünya, "yer" Erlik'in gölge ruhu (yalnızca yeraltında var)
 var _hit_tilt := 0.0
+var _feel_done := false  # son darbenin kamera/ses hissini saldıran verdi mi (Player yakın vuruş)
 var _slam_t := 0.0
 var _bounced := false
 # v11 doğal hareket: ölçek ve eğilme yaylarla (hafif aşma, salınarak oturur)
@@ -623,7 +650,8 @@ func _physics_process(delta: float) -> void:
 		_status_tint()
 	if hurt_t > 0.0:
 		hurt_t -= delta
-		velocity.x = move_toward(velocity.x, 0.0, 900 * delta)
+		# geri itme üstel söner: ilk kareler hızlı, sonra yumuşak oturma (doğrusal fren "kayma" gibi okunur)
+		velocity.x = lerpf(velocity.x, 0.0, 1.0 - exp(-9.0 * delta))
 		if not flying:
 			velocity.y = minf(velocity.y + 1100.0 * delta, 540.0)
 		move_and_slide()

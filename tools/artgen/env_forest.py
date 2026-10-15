@@ -249,3 +249,44 @@ DECOR = {
     'cicek_1': lambda: decor_flowers(0), 'cicek_2': lambda: decor_flowers(1), 'cicek_3': lambda: decor_flowers(2),
     'kaya_1': lambda: decor_rock(0), 'kaya_2': lambda: decor_rock(1), 'cira': decor_torch,
 }
+
+
+# ---- temas kararması (v16): süsün yere değdiği alt bölüm basamaklı olarak kararır (ortam kapanması).
+# Kâğıt çıkartması gibi yüzmesin; zemindeki toprak AO'suyla aynı dil: 3 sert bant, titreşim yok.
+# Işıyan pikseller (çıra alevi) dokunulmaz. Yükseklik oranla: HD'de aynı mantıksal bant.
+CONTACT_AO = ((0.05, 0.6), (0.1, 0.74), (0.17, 0.87))   # (alttan yükseklik payı, renk çarpanı)
+
+
+def _contact_ao(rgba, emis=None):
+    a = rgba[..., 3] > 0
+    if not a.any():
+        return rgba
+    rows = np.where(a.any(1))[0]
+    y0, y1 = rows[0], rows[-1]
+    hgt = max(1, y1 - y0 + 1)
+    yy = np.arange(rgba.shape[0])[:, None]
+    d = (y1 - yy) / hgt                                  # 0 = en alt satır
+    mul = np.ones(d.shape)
+    for frac, k in reversed(CONTACT_AO):
+        mul = np.where(d <= frac, k, mul)
+    m = a & (mul < 1)
+    if emis is not None:
+        m &= emis.max(-1) <= 0
+    rgba[..., :3] = np.where(m[..., None], rgba[..., :3] * mul.repeat(rgba.shape[1], 1)[..., None], rgba[..., :3])
+    return rgba
+
+
+def _with_contact_ao(fn):
+    def run():
+        c = fn()
+        orig = c.shade
+
+        def shade(*a, **kw):
+            out = orig(*a, **kw)
+            return _contact_ao(out, getattr(c, 'emis', None))
+        c.shade = shade
+        return c
+    return run
+
+
+DECOR = {k: _with_contact_ao(f) for k, f in DECOR.items()}

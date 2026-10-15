@@ -80,8 +80,7 @@ func _ai_kbh(delta: float, player: Node, to_p: Vector2, dist: float) -> void:
 				st = 0.6
 				contact = false
 				vis_scale = Vector2(1.25, 0.8)
-				FX.dust(global_position, Vector2.UP, 10, 0.4)
-				FX.shock_line(global_position, 60.0, Color(0.5, 0.4, 0.45, 0.7))
+				FX.ground_slam(global_position, facing, 1.3, Color(1.0, 0.5, 0.6), false, false, false)
 				Game.shake(5.0)
 				Ses.play("sarsinti", -4.0)
 		"howl":
@@ -126,12 +125,9 @@ func _ai_kbh(delta: float, player: Node, to_p: Vector2, dist: float) -> void:
 				vis_scale = Vector2(1.4, 0.7)
 				Game.shake(9.0)
 				Game.kick(Vector2.DOWN, 7.0)
-				Ses.play("sarsinti", 0.0, 0.8)
-				FX.anim("earth_rupture", global_position, 0.0, 1.6, Color(1.0, 0.5, 0.6), false)
-				FX.ring(global_position, 90, Color(1.0, 0.4, 0.5), 0.4, 0.3)
-				FX.shock_line(global_position, 90.0, Color(0.5, 0.35, 0.4, 0.8))
-				if level.has_method("flash_white"):
-					level.flash_white(0.25)
+				Ses.play("sarsinti_buyuk", 0.0, 0.8)
+				# v16 yer çarpması (GroundSlamFX); kamera sarsıntısı yukarıda
+				FX.ground_slam(global_position, facing, 2.0, Color(1.0, 0.5, 0.6), false, false, false)
 				if player and absf(player.global_position.x - global_position.x) < 110.0 and player.is_on_floor():
 					player.take_hit(dmg * 1.2, self)
 					if player.has_method("shove"):
@@ -475,7 +471,7 @@ func _do_gen(player: Node, to_p: Vector2, dist: float) -> void:
 			st = 0.7
 			anim.play("slam", true)
 			Game.shake(6.0)
-			Ses.play("sarsinti", -1.0, 0.8)
+			Ses.play("sarsinti_buyuk", -1.0, 0.8)
 			FX.anim("earth_rupture", global_position + Vector2(facing * 30, 0), 0.0, 1.4, col, false)
 			for sgn in [-1, 1]:
 				_ground_wave(sgn, col)
@@ -536,13 +532,8 @@ func _land_gen(player: Node) -> void:
 	vis_scale = Vector2(1.3, 0.75)
 	Game.shake(9.0)
 	Game.kick(Vector2.DOWN, 7.0)
-	Ses.play("sarsinti", 0.0, 0.75)
-	FX.anim("earth_rupture", global_position, 0.0, 1.8, col, false)
-	FX.ring(global_position, 110, col, 0.4, 0.3)
-	FX.shock_line(global_position, 110.0, Color(col, 0.7))
-	FX.dust(global_position, Vector2.UP, 14, 0.42)
-	if level and level.has_method("flash_white"):
-		level.flash_white(0.2)
+	Ses.play("sarsinti_buyuk", 0.0, 0.75)
+	FX.ground_slam(global_position, facing, 2.1, col, false, false, false)
 	if player and absf(player.global_position.x - global_position.x) < 120.0 and player.is_on_floor():
 		if player.take_hit(dmg * 1.2, self) and player.has_method("shove"):
 			player.shove(Vector2(signf(player.global_position.x - global_position.x) * 320.0, -280.0))

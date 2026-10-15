@@ -25,6 +25,11 @@ do_music = '--music' in args or not any(a.startswith('-') for a in args)
 
 # Kategori -> hedef yükseklik (dB, synth.loudness ölçüsü). İlk eşleşen kural geçerli.
 TARGETS = [
+    # v13 darbe hiyerarşisi / kademeli patlama / yıldırım (impact.py): kritik ve öldürücü ağırdan ~2 dB sıcak,
+    # patlama en gür efekt (Master'daki sert sınırlayıcı tavanı tutar), uzak patlama ve cızırtı döngüsü kısık
+    (r'^olum_vurus', -7.5), (r'^darbe_kritik', -8.0), (r'^darbe_agir', -9.5), (r'^darbe_hafif', -10.5), (r'^darbe_donuk', -11.0),
+    (r'^savur_hazirlik', -24.0), (r'^patlama_uzak$', -15.0), (r'^patlama_buyuk$', -6.5), (r'^patlama', -7.0),
+    (r'^sarsinti_buyuk$', -7.5), (r'^sarsinti', -8.0), (r'^simsek_sizirti_dongu$', -27.0), (r'^simsek_catirti', -8.5), (r'^gok_gurleme', -10.0),
     (r'^ortam_', -21.0), (r'^kalp_dongu$', -13.0), (r'_dongu$', -17.0),
     (r'^darbe_(kritik|cekic)', -9.0), (r'^darbe_agir$', -9.5), (r'^darbe_', -10.0), (r'^ok_vurus', -11.0), (r'^ok_ucus', -17.0),
     (r'^(patlama|sarsinti)$', -8.0), (r'^(yildirim|kut_donusum)$', -9.0),
@@ -62,6 +67,8 @@ if do_sfx:
     allsfx.update(bow2.build_bow())
     import v12
     allsfx.update(v12.build())
+    import impact  # v13: darbe hiyerarşisi, kademeli patlama, yıldırım, sarsıntı (eski darbe_agir/kritik/patlama/sarsinti'nin üstüne yazar)
+    allsfx.update(impact.build_all())
     amb = P.ambience()
     print('üretildi:', len(allsfx) + len(amb), 'ses', round(time.time() - t0, 1), 's')
     meta = {}
@@ -72,6 +79,9 @@ if do_sfx:
         y = master(x, target_for(name), loop=loop)
         write_wav(os.path.join(A, 'sfx', name + '.wav'), y, SR, None)
         meta[name] = {'loop': loop, 'len': round(len(y) / SR, 3), 'hedef_db': target_for(name)}
+        pre = name[:name.rfind('_')] if name.rfind('_') > 0 and name[name.rfind('_') + 1:].isdigit() else name
+        if pre in impact.ONSET and impact.ONSET[pre] > 0:
+            meta[name]['onset'] = impact.ONSET[pre]  # geçişin dosya içindeki anı (sn): ön-yankı payı
     for name, x in sorted(amb.items()):
         if only and name not in only:
             continue

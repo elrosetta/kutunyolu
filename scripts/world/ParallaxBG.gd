@@ -22,24 +22,26 @@ var _rays: Array = []
 var _base_y := 0.0
 
 
+var _vh := 540.0
+
+
 func _ready() -> void:
 	layer = -10
+	_vh = float(ProjectSettings.get_setting("display/window/size/viewport_height", 540))
 	for i in layers.size():
 		var spec: Array = layers[i]
-		var tex: Texture2D = load(spec[0])
+		var tex: Texture2D = Data.tex(spec[0])
 		var holder := Node2D.new()
 		add_child(holder)
 		var copies: Array = []
 		var n := 1 if spec[1] == 0.0 else 3
-		# katmanlar 360 piksellik ekrana göre değil, daha yoğun (ör. 540 px) üretilebilir: yükseklik
-		# 360'a inecek şekilde küçültülür; 1080p'de her doku pikseli 2x2 ekran pikseline düşer.
-		var k_px := 360.0 / float(tex.get_height())
+		# katmanlar görüntü yüksekliğine (540) oturacak şekilde ölçeklenir; 540 px üretilen katmanlar 1:1 çizilir
+		var k_px := _vh / float(tex.get_height())
 		for k in n:
 			var s := Sprite2D.new()
 			s.texture = tex
 			s.centered = false
 			s.scale = Vector2(k_px, k_px)
-			s.material = Game.hd_material()
 			holder.add_child(s)
 			copies.append(s)
 		_layers.append({"holder": holder, "copies": copies, "w": float(tex.get_width()) * k_px, "k": k_px, "fx": spec[1], "fy": spec[2], "drift": spec[3]})
@@ -75,11 +77,11 @@ func _process(_delta: float) -> void:
 	for L in _layers:
 		var fx: float = L["fx"]
 		var w: float = L["w"]
-		var y := clampf((_base_y - c.y) * float(L["fy"]), -50.0, 60.0) + (vp.y - 360.0)
+		var y := clampf((_base_y - c.y) * float(L["fy"]), -50.0, 60.0) + (vp.y - _vh)
 		if fx == 0.0:
 			L["copies"][0].position = Vector2(0, 0)
 			var kp: float = L["k"]
-			L["copies"][0].scale = Vector2(maxf(kp, kp * vp.x / w), maxf(kp, vp.y / 360.0 * kp))
+			L["copies"][0].scale = Vector2(maxf(kp, kp * vp.x / w), maxf(kp, vp.y / _vh * kp))
 			continue
 		var off := -fposmod(c.x * fx + t * float(L["drift"]), w)
 		for k in L["copies"].size():

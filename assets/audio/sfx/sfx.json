@@ -221,8 +221,9 @@
  },
  "darbe_agir": {
   "loop": false,
-  "len": 0.6,
-  "hedef_db": -9.5
+  "len": 0.261,
+  "hedef_db": -9.5,
+  "onset": 0.036
  },
  "darbe_balta_1": {
   "loop": false,
@@ -331,23 +332,27 @@
  },
  "darbe_kritik": {
   "loop": false,
-  "len": 1.265,
-  "hedef_db": -9.0
+  "len": 0.35,
+  "hedef_db": -8.0,
+  "onset": 0.045
  },
  "darbe_kritik_1": {
   "loop": false,
-  "len": 1.265,
-  "hedef_db": -9.0
+  "len": 0.35,
+  "hedef_db": -8.0,
+  "onset": 0.045
  },
  "darbe_kritik_2": {
   "loop": false,
-  "len": 1.265,
-  "hedef_db": -9.0
+  "len": 0.35,
+  "hedef_db": -8.0,
+  "onset": 0.045
  },
  "darbe_kritik_3": {
   "loop": false,
-  "len": 1.265,
-  "hedef_db": -9.0
+  "len": 0.35,
+  "hedef_db": -8.0,
+  "onset": 0.045
  },
  "darbe_kunt": {
   "loop": false,
@@ -696,8 +701,8 @@
  },
  "patlama": {
   "loop": false,
-  "len": 3.15,
-  "hedef_db": -8.0
+  "len": 1.05,
+  "hedef_db": -7.0
  },
  "sapla": {
   "loop": false,
@@ -716,7 +721,7 @@
  },
  "sarsinti": {
   "loop": false,
-  "len": 2.65,
+  "len": 0.6,
   "hedef_db": -8.0
  },
  "savur_agir_1": {
@@ -1203,5 +1208,127 @@
   "loop": false,
   "len": 0.35,
   "hedef_db": -17.0
+ },
+ "darbe_agir_1": {
+  "loop": false,
+  "len": 0.261,
+  "hedef_db": -9.5,
+  "onset": 0.036
+ },
+ "darbe_agir_2": {
+  "loop": false,
+  "len": 0.261,
+  "hedef_db": -9.5,
+  "onset": 0.036
+ },
+ "darbe_agir_3": {
+  "loop": false,
+  "len": 0.261,
+  "hedef_db": -9.5,
+  "onset": 0.036
+ },
+ "darbe_donuk_1": {
+  "loop": false,
+  "len": 0.2,
+  "hedef_db": -11.0
+ },
+ "darbe_donuk_2": {
+  "loop": false,
+  "len": 0.2,
+  "hedef_db": -11.0
+ },
+ "darbe_hafif_1": {
+  "loop": false,
+  "len": 0.09,
+  "hedef_db": -10.5
+ },
+ "darbe_hafif_2": {
+  "loop": false,
+  "len": 0.09,
+  "hedef_db": -10.5
+ },
+ "darbe_hafif_3": {
+  "loop": false,
+  "len": 0.09,
+  "hedef_db": -10.5
+ },
+ "gok_gurleme_1": {
+  "loop": false,
+  "len": 2.4,
+  "hedef_db": -10.0
+ },
+ "gok_gurleme_2": {
+  "loop": false,
+  "len": 2.9,
+  "hedef_db": -10.0
+ },
+ "olum_vurus_1": {
+  "loop": false,
+  "len": 0.6,
+  "hedef_db": -7.5,
+  "onset": 0.03
+ },
+ "olum_vurus_2": {
+  "loop": false,
+  "len": 0.6,
+  "hedef_db": -7.5,
+  "onset": 0.03
+ },
+ "patlama_1": {
+  "loop": false,
+  "len": 1.05,
+  "hedef_db": -7.0
+ },
+ "patlama_2": {
+  "loop": false,
+  "len": 1.05,
+  "hedef_db": -7.0
+ },
+ "patlama_3": {
+  "loop": false,
+  "len": 1.05,
+  "hedef_db": -7.0
+ },
+ "patlama_buyuk": {
+  "loop": false,
+  "len": 1.4,
+  "hedef_db": -6.5
+ },
+ "patlama_uzak": {
+  "loop": false,
+  "len": 1.3,
+  "hedef_db": -15.0
+ },
+ "sarsinti_buyuk": {
+  "loop": false,
+  "len": 1.1,
+  "hedef_db": -7.5
+ },
+ "savur_hazirlik_1": {
+  "loop": false,
+  "len": 0.12,
+  "hedef_db": -24.0
+ },
+ "savur_hazirlik_2": {
+  "loop": false,
+  "len": 0.12,
+  "hedef_db": -24.0
+ },
+ "simsek_catirti_1": {
+  "loop": false,
+  "len": 0.16,
+  "hedef_db": -8.5,
+  "onset": 0.03
+ },
+ "simsek_catirti_2": {
+  "loop": false,
+  "len": 0.16,
+  "hedef_db": -8.5,
+  "onset": 0.03
+ },
+ "simsek_sizirti_dongu": {
+  "loop": true,
+  "len": 2.2,
+  "hedef_db": -27.0
  }
 }

@@ -26,7 +26,7 @@ static func has(n: String) -> bool:
 func setup(n: String, additive := true, pivot := Vector2(-1, -1)) -> void:
 	var m: Dictionary = meta()[n]
 	if not _tex.has(n):
-		_tex[n] = load("res://assets/fx/slash/%s.png" % n)
+		_tex[n] = Data.tex("res://assets/fx/slash/%s.png" % n)
 	texture = _tex[n]
 	_n = int(m["frames"])
 	hframes = _n

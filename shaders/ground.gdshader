@@ -5,7 +5,7 @@
 // karo atlası da aynı yoğunlukta üretilir, böylece iki ızgara üst üste oturur.
 shader_type canvas_item;
 
-#include "res://shaders/hdpix.gdshaderinc"
+#include "res://shaders/aapix.gdshaderinc"
 
 uniform sampler2D soil_tex : filter_nearest, repeat_enable;
 uniform sampler2D soil_n : filter_nearest, repeat_enable;
@@ -21,6 +21,10 @@ uniform vec4 deep_color : source_color = vec4(0.04, 0.03, 0.06, 1.0);
 uniform float deep_amount : hint_range(0.0, 1.0) = 0.85;
 uniform float band_hi = 0.62;
 uniform float band_lo = 0.20;
+// karo üstündeki "lit" anahtarlı pikseller yukarı bakan normal alır: aydan ince bir ışık çizgisi düşer
+uniform float top_tilt : hint_range(0.0, 1.0) = 0.6;
+uniform float spec_band : hint_range(0.0, 1.0) = 0.92;
+uniform float spec_gain : hint_range(0.0, 1.0) = 0.12;
 
 varying vec2 world_pos;
 varying vec4 vcol;
@@ -32,9 +36,6 @@ void vertex() {
 
 void fragment() {
 	vec4 c = texture(TEXTURE, UV);
-	if (hd_level > 0) {
-		HD_SAMPLE(c, TEXTURE, UV, TEXTURE_PIXEL_SIZE);
-	}
 	vec3 k_soil = vec3(1.0, 0.0, 1.0);
 	// Anahtarlar yalnızca 0/1 bileşenli: HDR'de sRGB→doğrusal dönüşümünden etkilenmez.
 	vec3 k_shade = vec3(0.0, 1.0, 1.0);
@@ -51,14 +52,8 @@ void fragment() {
 	float any_soil = max(max(is_soil, is_edge), max(is_shade, is_lit));
 	vec2 suv = (floor(world_pos * soil_density) + 0.5) / vec2(textureSize(soil_tex, 0));
 	if (any_soil > 0.5 && c.a > 0.5) {
-		// toprak dokusu da HD pakette dünya ızgarasında Scale2x/4x ile örneklenir
-		vec3 s = texture(soil_tex, suv).rgb;
-		if (hd_level > 0) {
-			vec2 spx = 1.0 / vec2(textureSize(soil_tex, 0));
-			vec4 sh = vec4(0.0);
-			HD_SAMPLE(sh, soil_tex, (world_pos * soil_density) * spx, spx);
-			s = sh.rgb;
-		}
+		// keskin-kenar yumuşatmalı: kamera kayarken toprak taneleri titremez
+		vec3 s = aa_sample_wrap(soil_tex, world_pos * soil_density).rgb;
 		vec3 e = texture(soil_e, suv).rgb;
 		s *= mix(1.0, 0.6, is_shade);
 		s *= mix(1.0, 0.38, is_edge);
@@ -68,11 +63,16 @@ void fragment() {
 		// ışıyan damarlar derinlikte de sönmez (yalnızca hafifçe kısılır)
 		s += e * emis_gain * (1.0 - 0.45 * d);
 		c.rgb = s;
-		NORMAL_MAP = texture(soil_n, suv).rgb;
+		// zemin üstü (lit) pikselleri yukarı eğ: yukarıdan gelen ay ışığı üst bandı/parlamayı burada yakalar,
+		// aşağıdaki çıralar yakalamaz (haritada +Y aşağı: yukarı bakan normal = yeşil kanal > 0.5)
+		NORMAL_MAP = mix(texture(soil_n, suv).rgb, vec3(0.5, 0.5 + 0.45 * top_tilt, 1.0 - 0.4 * top_tilt), is_lit);
 	} else if (is_glow * has_glow > 0.5 && c.a > 0.5) {
 		c.rgb = glow_col.rgb * emis_gain * 0.7;
 		NORMAL_MAP = vec3(0.5, 0.5, 1.0);
 	} else {
+		if (c.a > 0.0) {
+			AA_TEX(TEXTURE, UV, c);
+		}
 		NORMAL_MAP = texture(NORMAL_TEXTURE, UV).rgb;
 	}
 	// Not: Godot 4'te COLOR zaten doku × köşe rengi; burada yalnızca köşe rengiyle (modulate) çarpılır.
@@ -82,5 +82,8 @@ void fragment() {
 void light() {
 	float ndl = dot(NORMAL, LIGHT_DIRECTION);
 	float b = ndl > band_hi ? 1.0 : (ndl > band_lo ? 0.62 : 0.28);
-	LIGHT = vec4(COLOR.rgb * LIGHT_COLOR.rgb * LIGHT_ENERGY * b, LIGHT_COLOR.a);
+	vec3 lit = COLOR.rgb * b;
+	// hafif parlama bandı: ışığa tam bakan toprak taneleri ve karo üstleri bir tık açılır
+	lit += step(spec_band, ndl) * spec_gain * (lit + vec3(0.4));
+	LIGHT = vec4(lit * LIGHT_COLOR.rgb * LIGHT_ENERGY, LIGHT_COLOR.a);
 }

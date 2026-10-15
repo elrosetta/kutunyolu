@@ -8,6 +8,8 @@ const PATH := "user://ayarlar.cfg"
 const MODES := ["Pencereli", "Tam ekran", "Özel tam ekran"]
 const SCALES := ["Ekranı doldur", "Keskin piksel"]
 const QUALITIES := ["Otomatik", "Standart", "2K", "4K"]
+const UI_SIZES := ["Normal", "Büyük"]
+const FX_LEVELS := ["Tam", "Azaltılmış", "Kapalı"]
 const RESOLUTIONS := [Vector2i(1280, 720), Vector2i(1366, 768), Vector2i(1600, 900), Vector2i(1920, 1080),
 	Vector2i(2560, 1440), Vector2i(3200, 1800), Vector2i(3840, 2160)]
 
@@ -16,8 +18,21 @@ var res_i := 3         # pencereli çözünürlük
 var scale_i := 0
 var quality := 0
 var vsync := true
+var ui_i := 0
+var fx_i := 0      # kamera sarsıntısı ve ekran flaşları: 0 tam, 1 yarım + ters renk karesi yok, 2 kapalı
 var hd_active := 0     # şu an etkin HD düzeyi (0 / 1 / 2)
 var _test_size := Vector2i.ZERO
+var hd_wanted := 0          # ayarda seçili paket; hd_active ile farklıysa yeniden başlatma gerekir
+var _pack_locked := false   # ilk dokular yüklendikten sonra paket değişmez
+
+
+func pack_scale() -> int:
+	## Etkin doku paketi çarpanı: 1 (standart), 2 (2K), 4 (4K)
+	return [1, 2, 4][hd_active]
+
+
+func lock_pack() -> void:
+	_pack_locked = true
 
 
 func _ready() -> void:
@@ -32,19 +47,35 @@ func _ready() -> void:
 			var want := Vector2i(int(p[0]), int(p[1]))
 			_test_size = want
 	apply()
-	get_tree().root.size_changed.connect(_update_hd)
+	get_tree().root.size_changed.connect(_on_resized)
 	for arg in OS.get_cmdline_user_args():
 		if String(arg).begins_with("--goruntu="):
 			_snap(String(arg).trim_prefix("--goruntu="))
 
 
 func _snap(path: String) -> void:
-	## Test: 2 sn sonra ekranın kendisini PNG olarak kaydet ve çık
-	await get_tree().create_timer(6.0, true, false, true).timeout
-	await RenderingServer.frame_post_draw
-	var img := get_viewport().get_texture().get_image()
-	img.save_png(path)
-	print("goruntu: pencere=%s goruntu=%s hd=%d" % [str(get_tree().root.size), str(img.get_size()), hd_active])
+	## Test: 6 sn (ya da --bekle=<sn>) sonra ekranın kendisini PNG olarak kaydet ve çık
+	var wait := 6.0
+	for arg in OS.get_cmdline_user_args():
+		if String(arg).begins_with("--bekle="):
+			wait = maxf(0.1, float(String(arg).trim_prefix("--bekle=")))
+	# seri çekim (tek açılışta birden çok kare): --seri=<adet> --aralik=<sn>; dosyalar <ad>_0.png, <ad>_1.png ...
+	var count := 1
+	var step := 0.25
+	for arg in OS.get_cmdline_user_args():
+		if String(arg).begins_with("--seri="):
+			count = maxi(1, int(String(arg).trim_prefix("--seri=")))
+		elif String(arg).begins_with("--aralik="):
+			step = maxf(0.02, float(String(arg).trim_prefix("--aralik=")))
+	await get_tree().create_timer(wait, true, false, true).timeout
+	for i in count:
+		if i > 0:
+			await get_tree().create_timer(step, true, false, true).timeout
+		await RenderingServer.frame_post_draw
+		var img := get_viewport().get_texture().get_image()
+		var out := path if count == 1 else "%s_%d.png" % [path.get_basename(), i]
+		img.save_png(out)
+		print("goruntu: %s pencere=%s goruntu=%s hd=%d" % [out.get_file(), str(get_tree().root.size), str(img.get_size()), hd_active])
 	get_tree().quit()
 
 
@@ -70,9 +101,10 @@ func res_text() -> String:
 
 
 func quality_text() -> String:
-	if quality == 0:
-		return "Otomatik (%s)" % ["Standart", "2K", "4K"][hd_active]
-	return QUALITIES[quality]
+	var t: String = ("Otomatik (%s)" % ["Standart", "2K", "4K"][hd_wanted]) if quality == 0 else QUALITIES[quality]
+	if hd_wanted != hd_active:
+		t += " *"
+	return t
 
 
 func apply() -> void:
@@ -91,26 +123,50 @@ func apply() -> void:
 			win.mode = Window.MODE_FULLSCREEN
 		2:
 			win.mode = Window.MODE_EXCLUSIVE_FULLSCREEN
-	win.content_scale_stretch = Window.CONTENT_SCALE_STRETCH_INTEGER if scale_i == 1 else Window.CONTENT_SCALE_STRETCH_FRACTIONAL
+	_apply_scale()
 	DisplayServer.window_set_vsync_mode(DisplayServer.VSYNC_ENABLED if vsync else DisplayServer.VSYNC_DISABLED)
 	_update_hd()
 
 
+func _apply_scale() -> void:
+	## Ekranı doldur: 960x540 görüntü kesirli ölçekle pencereyi doldurur.
+	## Keskin piksel: en yakın tam sayı kat seçilir (1080p 2x, 1440p 3x, 4K 4x) ve görüntü alanı pencereye
+	## göre ayarlanır; pikseller eşit kalır, kenarlarda siyah boşluk oluşmaz.
+	var win := get_tree().root
+	win.content_scale_stretch = Window.CONTENT_SCALE_STRETCH_FRACTIONAL
+	var base := Vector2i(960, 540)
+	if scale_i == 1:
+		var ws := win.size
+		var f := maxi(1, roundi(float(ws.y) / base.y))
+		win.content_scale_size = Vector2i(ws.x / f, ws.y / f)
+	else:
+		win.content_scale_size = base
+
+
+func _on_resized() -> void:
+	_apply_scale()
+	_update_hd()
+
+
 func _update_hd() -> void:
-	## Doku kalitesi: Otomatik'te pencere yüksekliğine göre (1440p → 2K, 2160p → 4K)
+	## Doku paketi (assets_hd/x2 = 2K, x4 = 4K): gerçek yüksek çözünürlüklü çizimler. Dokular yüklenirken
+	## seçildiği için değişiklik oyun yeniden başlatılınca uygulanır. Otomatik: 1080p+ → 2K, 2160p → 4K.
 	var lv := 0
 	match quality:
 		0:
-			var h := get_tree().root.size.y
-			lv = 2 if h >= 1800 else (1 if h >= 1200 else 0)
+			var h := get_tree().root.size.y if is_inside_tree() else 1080
+			if mode != 0:
+				h = DisplayServer.screen_get_size().y
+			lv = 2 if h >= 1800 else (1 if h >= 1000 else 0)
 		1:
 			lv = 0
 		2:
 			lv = 1
 		3:
 			lv = 2
-	hd_active = lv
-	RenderingServer.global_shader_parameter_set("hd_level", lv)
+	if not _pack_locked:
+		hd_active = lv
+	hd_wanted = lv
 
 
 func change(row: int, dir: int) -> void:
@@ -127,6 +183,11 @@ func change(row: int, dir: int) -> void:
 			quality = posmod(quality + dir, QUALITIES.size())
 		4:
 			vsync = not vsync
+		5:
+			ui_i = posmod(ui_i + dir, UI_SIZES.size())
+		6:
+			fx_i = posmod(fx_i + dir, FX_LEVELS.size())
+			Game.fx_scale = [1.0, 0.5, 0.0][fx_i]
 	apply()
 	save()
 
@@ -139,6 +200,8 @@ func rows() -> Array:
 		["Ölçekleme", SCALES[scale_i], true],
 		["Doku kalitesi", quality_text(), true],
 		["Dikey eşitleme", "Açık" if vsync else "Kapalı", true],
+		["Arayüz boyutu", UI_SIZES[ui_i], true],
+		["Sarsıntı ve flaş", FX_LEVELS[fx_i], true],
 	]
 
 
@@ -149,6 +212,8 @@ func save() -> void:
 	c.set_value("goruntu", "olcek", scale_i)
 	c.set_value("goruntu", "doku", quality)
 	c.set_value("goruntu", "vsync", vsync)
+	c.set_value("goruntu", "arayuz", ui_i)
+	c.set_value("goruntu", "efekt", fx_i)
 	c.save(PATH)
 
 
@@ -161,3 +226,10 @@ func _load() -> void:
 	scale_i = int(c.get_value("goruntu", "olcek", scale_i))
 	quality = int(c.get_value("goruntu", "doku", quality))
 	vsync = bool(c.get_value("goruntu", "vsync", vsync))
+	ui_i = int(c.get_value("goruntu", "arayuz", ui_i))
+	fx_i = int(c.get_value("goruntu", "efekt", fx_i))
+	Game.fx_scale = [1.0, 0.5, 0.0][clampi(fx_i, 0, 2)]
+
+
+func ui_scale() -> float:
+	return 1.5 if ui_i == 1 else 1.0

@@ -14,6 +14,7 @@ extends RefCounted
 ##   flash_light       anlık ışık parlaması (vuruş, patlama, savuşturma)
 ##   shock_line        yere vuruşta yanlara yayılan toz çizgisi
 ##   slash / ring      yay izi ve genişleyen halka
+##   ground_slam       v16 yer çarpması: yerel flaş, zemini izleyen şok, toz, moloz, çatlak (GroundSlamFX)
 
 static var root: Node2D
 static var dust_col := Color(0.62, 0.58, 0.6, 0.55)  # v11: biyom zemin tozu (Level ayarlar)
@@ -534,3 +535,101 @@ static func pop(node: Node2D, from: Vector2, dur := 0.18) -> void:
 	node.scale = from
 	var tw := node.create_tween()
 	tw.tween_property(node, "scale", Vector2(1, 1), dur).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+
+
+# ------------------------------------------------------------------ v14: aşamalı piksel VFX (patlama / şok dalgası / gök gürlemesi)
+static var _screen_layer: CanvasLayer
+
+
+static func screen_layer() -> CanvasLayer:
+	## Ekran uzayı efekt katmanı (kırılma halkası, tam ekran flaş). Vinyet (5) ve darbe karesinin (6) altında,
+	## dünyanın üstünde. Ağaç köküne bir kez eklenir; bölüm değişse de kalır.
+	if _screen_layer != null and is_instance_valid(_screen_layer) and _screen_layer.is_inside_tree():
+		return _screen_layer
+	if root == null or not root.is_inside_tree():
+		return null
+	var cl := CanvasLayer.new()
+	cl.layer = 4
+	root.get_tree().root.add_child(cl)
+	_screen_layer = cl
+	return cl
+
+
+static func screen_flash(a := 0.8, frames := 1, col := Color(1.0, 0.98, 0.94)) -> void:
+	## Tam ekran düz renk, tam olarak `frames` kare (gerçek zaman; vuruş duraklamasından etkilenmez).
+	var cl := screen_layer()
+	if cl == null:
+		return
+	var r := ColorRect.new()
+	r.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	r.color = Color(col.r, col.g, col.b, a * (0.4 + 0.6 * Game.fx_scale))  # Ayarlar > Sarsıntı ve flaş
+	cl.add_child(r)
+	# CanvasLayer altındaki kök Control çapayla boyutlanmaz: görünür dikdörtgene elle oturt
+	r.position = Vector2.ZERO
+	r.size = cl.get_viewport().get_visible_rect().size
+	cl.get_tree().create_timer(float(frames) / 60.0 - 0.002, true, false, true).timeout.connect(r.queue_free)
+
+
+static func explosion(pos: Vector2, radius: float, col_hot := Color(1.0, 0.85, 0.3), big := false, away := Vector2.UP, juice := true) -> ExplosionFX:
+	## Aşamalı piksel patlama: flaş → ateş topu → duman + parçalar + yer dalgası (ExplosionFX).
+	## radius: dünya pikseli (bomba 40). big: ikinci iç patlama + ekran kırılma halkası. away: patlamadan
+	## oyuncuya doğru yön (sarsıntı ekseni). juice=false: yalnız görsel (kamera / ses / ışık yok).
+	if root == null:
+		return null
+	var e := ExplosionFX.new()
+	e.position = pos
+	e.radius = radius
+	e.col_hot = col_hot
+	e.big = big or radius >= 50.0
+	e.away = away
+	e.juice = juice
+	root.add_child(e)
+	return e
+
+
+static func shockwave(pos: Vector2, radius: float, strength := 1.0) -> void:
+	## Ekran uzayı kırılma halkası (shaders/shockwave.gdshader): 0 → radius ~0,35 s'de ease-out ile
+	## genişler; strength 1 = en çok 3 mantıksal px (1080p'de 6 ekran px) kayma. Patlama, yer çarpması, gürleme.
+	var cl := screen_layer()
+	if cl == null:
+		return
+	if Game.fx_scale <= 0.0:
+		return
+	var s := ShockwaveFX.new()
+	s.world_pos = pos
+	s.max_r = radius
+	s.strength = 3.0 * strength
+	s.thickness = 6.0 + 4.0 * clampf(strength, 0.0, 1.5)
+	s.life = 0.35
+	cl.add_child(s)
+
+
+static func ground_slam(pos: Vector2, facing := 1, power := 1.0, col := Color(1.0, 0.85, 0.6), metal := true, fire := false, juice := true) -> GroundSlamFX:
+	## v16 yer çarpması (GroundSlamFX): pos = temas noktası, zemin yüzeyinde (karonun üst satırı). Baştaki 2 karelik
+	## yerel flaş → zemini izleyen şok cephesi + iki yana toz → biyom renginde moloz (sekme) → çatlak çıkartması;
+	## metalde kıvılcım, od silahında kor. power: 0,6 kılıç · 1 ağır · 1,5 tam şarj / bitiriş · 2 boss.
+	## juice: kısa aşağı yönlü sarsıntı + itiş + titreşim + yerel ışık (ses çağırana aittir).
+	if root == null:
+		return null
+	var g := GroundSlamFX.new()
+	g.position = pos
+	g.facing = 1 if facing >= 0 else -1
+	g.power = power
+	g.col = col
+	g.metal = metal
+	g.fire = fire
+	g.juice = juice
+	root.add_child(g)
+	return g
+
+
+static func thunder(pos: Vector2, strength := 1.0, col := Color(0.72, 0.86, 1.0)) -> void:
+	## Gök gürlemesi: ön kıvılcım → 1 kare beyaz ekran + gökten inen şimşek + yer flaşı → ~90 ms sonra
+	## sarsıntı / titreşim / gürleme sesi (ThunderFX). strength 0,6 hafif, 1 Gök Asası, 1,5 patron.
+	if root == null:
+		return
+	var t := ThunderFX.new()
+	t.position = pos
+	t.strength = strength
+	t.col = col
+	root.add_child(t)

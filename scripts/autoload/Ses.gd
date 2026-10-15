@@ -4,6 +4,10 @@ extends Node
 ## dosyayı çalmayan varyant seçimi, küçük perde ve ses oynaması, isteğe bağlı 2B konumlu çalma (kameraya göre sağ-sol),
 ## menü/duraklatma kısması (`menu_duck`), düşük can kalp atışı + boğuklaşma (`low_hp`), biyom ortam döngüleri ve çapraz
 ## geçişli müzik. Dosyalar `assets/audio` altında üretilir (tools/audiogen/export_audio.py).
+## v13 darbe hiyerarşisi: `hit(tier, pos, kind)` (0 hafif / 1 ağır / 2 kritik / 3 öldürücü; "tas"/"metal" yüzeyi),
+## `boom(pos, size)` (kademeli patlama; büyük / ekran dışı uzak), `thunder(pos, delay)` (çatırtı hemen, gök gürlemesi
+## zaman ölçeğinden bağımsız sayaçla sonra). Ağır/kritik/öldürücü dosyaların başında 30-45 ms bas ön-yankı vardır
+## (`assets/audio/sfx/sfx.json` "onset"); vuruş duraklamasıyla aynı karede tetiklenince geçiş darbe karesine oturur.
 
 const SFX_DIR := "res://assets/audio/sfx/"
 const MUSIC_DIR := "res://assets/audio/music/"
@@ -22,7 +26,7 @@ const UI_PREFIXES := ["ui_", "npc_", "esya_kusan", "esya_degis", "tilsim", "sevi
 const LIMITS := {
 	"adim": 2, "inis": 1, "zipla": 1, "yuvarlan": 1, "altin": 4, "kut_tane": 4, "ui_gez": 2, "ui_sec": 2,
 	"savur": 3, "darbe": 5, "darbe_kritik": 2, "ok_vurus": 3, "ok_ucus": 3, "dusman_hazirlik": 3, "hazirlik": 3,
-	"patlama": 3, "sarsinti": 2,
+	"patlama": 3, "sarsinti": 2, "olum_vurus": 2, "simsek_catirti": 2, "gok_gurleme": 2,
 }
 const DEFAULT_LIMIT := 3
 
@@ -277,6 +281,76 @@ func play(name: String, vol_db := 0.0, pitch := 1.0, pitch_var := 0.06, min_gap 
 func play_at(name: String, pos: Vector2, vol_db := 0.0, pitch := 1.0, pitch_var := 0.06, min_gap := 0.03) -> Node:
 	## Konumlu kısayol: Ses.play_at("darbe_et", e.center()).
 	return play(name, vol_db, pitch, pitch_var, min_gap, pos)
+
+
+# ------------------------------------------------------------------ v13: darbe hiyerarşisi, patlama, yıldırım
+## Kademe -> ses adı, yedek ad (dosya yoksa), ses farkı (dB) ve perde oynaması. 0 hafif, 1 ağır, 2 kritik, 3 öldürücü.
+## Dosyalar zaten kademeye göre daha sıcak masterlanmıştır; buradaki fark merdiveni belirginleştirir.
+const HIT_TIERS := [
+	{"name": "darbe_hafif", "alt": "darbe_et", "db": -3.0, "pv": 0.05},
+	{"name": "darbe_agir", "alt": "darbe_kunt", "db": -1.0, "pv": 0.04},
+	{"name": "darbe_kritik", "alt": "darbe_kritik", "db": 0.5, "pv": 0.03},
+	{"name": "olum_vurus", "alt": "darbe_kritik", "db": 1.5, "pv": 0.025},
+]
+## Yüzey -> ses: kademe 0..2'de kademe sesinin yerine geçer (öldürücü vuruş her zaman olum_vurus).
+const HIT_KIND := {"tas": "darbe_donuk", "kalkan": "darbe_donuk", "metal": "darbe_metal"}
+## Ekran dışı patlama eşiği: kameraya uzaklık > görünür alanın yarı köşegeni x bu kat.
+const FAR_K := 1.15
+
+
+func hit(tier: int, pos := Vector2.INF, kind := "") -> Node:
+	## Darbe hiyerarşisi: tier 0 hafif / 1 ağır / 2 kritik / 3 öldürücü; kind "tas" ("kalkan") -> darbe_donuk, "metal" -> darbe_metal.
+	## Kademeye göre ses farkı ve küçük rastgele perde. Vuruş duraklaması (Game.hitstop) ile aynı karede çağrılır: hafifte geçiş
+	## t=0'da, ağır/kritik/öldürücüde 30-45 ms bas ön-yankıdan sonra gelir (duraklamanın içine düşer).
+	var t: int = clampi(tier, 0, HIT_TIERS.size() - 1)
+	var d: Dictionary = HIT_TIERS[t]
+	var name: String = d["name"]
+	var vol: float = float(d["db"])
+	if t < 3 and HIT_KIND.has(kind):
+		name = HIT_KIND[kind]
+		vol = -2.0 + 1.0 * t
+	if not has(name):
+		name = d["alt"]
+	return play(name, vol, 1.0, float(d["pv"]), 0.02, pos, 1.0)
+
+
+func boom(pos := Vector2.INF, size := 1.0, vol_db := 0.0) -> Node:
+	## Kademeli patlama (tık -> 15 ms sonra alt bas -> moloz): size >= 1.5 -> patlama_buyuk; konum kameradan uzaksa (ekran dışı)
+	## patlama_uzak; yoksa patlama_1..3. Küçük patlamalar biraz ince (perde 1/sqrt(size)).
+	var name := "patlama"
+	var pit := 1.0
+	if size >= 1.5 and has("patlama_buyuk"):
+		name = "patlama_buyuk"
+	else:
+		pit = clampf(1.0 / sqrt(maxf(size, 0.3)), 0.8, 1.3)
+	if pos.is_finite() and _is_far(pos) and has("patlama_uzak"):
+		name = "patlama_uzak"
+		pit = 1.0
+	return play(name, vol_db, pit, 0.04, 0.03, pos, 1.0)
+
+
+func thunder(pos := Vector2.INF, delay := 0.1, vol_db := 0.0) -> Node:
+	## Yıldırım: beyaz karede simsek_catirti hemen; gok_gurleme `delay` sn sonra, zaman ölçeğinden bağımsız sayaçla (vuruş
+	## duraklaması / ağır çekim gürlemeyi geciktirmez). Ön ipucu için: loop_start("simsek", "simsek_sizirti_dongu", -12.0) / loop_stop.
+	var p := play("simsek_catirti", vol_db, 1.0, 0.03, 0.02, pos, 1.0)
+	if not has("gok_gurleme"):
+		return p
+	var roll := func() -> void:
+		play("gok_gurleme", vol_db - 1.0, 1.0, 0.05, 0.05, pos, 1.5)
+	if delay <= 0.0:
+		roll.call()
+	else:
+		get_tree().create_timer(delay, true, false, true).timeout.connect(roll)
+	return p
+
+
+func _is_far(pos: Vector2) -> bool:
+	## Konum ekranın görünür alanının dışında mı (kamera merkezine uzaklık > yarı köşegen x FAR_K)?
+	var cam := get_viewport().get_camera_2d()
+	if cam == null:
+		return false
+	var half: Vector2 = get_viewport().get_visible_rect().size * 0.5 / cam.zoom
+	return pos.distance_to(cam.get_screen_center_position()) > half.length() * FAR_K
 
 
 func _bus_for(name: String) -> String:

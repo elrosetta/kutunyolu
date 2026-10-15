@@ -3,6 +3,7 @@
 Derinlik → biyom: 1-2 Kararan Ötüken (gece), 3-4 Bozkır Kurganları (gündüz), 5-6 Şahmeran Mağarası (mağara),
 7-8 Kaf Dağı (karlı şafak), 9+ Erlik'in Ülkesi (lav gecesi). Godot tarafı data/world.json'daki "art" alanını okur.
 """
+import numpy as np
 from pixkit import pal, hexrgb
 from raster import Mat, ramp
 
@@ -113,3 +114,43 @@ RESKIN = {
     'tamu': {'demir_gaga': ('kara_boru', [1.2, 0.5, 0.4]), 'kayip_ruh': ('cor', [0.9, 0.6, 1.2]), 'tamu_bekcisi': ('balbal', [0.9, 0.5, 0.5]),
              'od_iyesi': ('agac_iyesi', [1.3, 0.6, 0.4]), 'erlik_kizi': ('arcura', [1.1, 0.6, 1.1]), 'kara_atli': ('surale', [0.7, 0.5, 0.6])},
 }
+
+
+## Pozlama dengesi (v16): gündüz biyomlarının toprak paletleri göz yakıyordu (doygun sarı, açık uçlar ~0,85).
+## Palet tanımları okunaklı kalsın diye renkler yerinde değil, burada derecelenir: (değer, doygunluk, koyu uç).
+## Koyu uç: rampanın alt yarısı ek olarak karartılır; gölge/ışık arası değer aralığı açılır (hacim okunur).
+## Gece biyomlarında ise tersi: toprak kesiti arka plan duvarlarıyla aynı karanlıktaydı, oyun alanı ayrışmıyordu;
+## yalnızca toprak/humus/kök/ahşap/taş (ışıyan lav ve kapak renkleri değil) bir tık açılır. 4. öğe: derecelenecek paletler.
+_EARTH = ('SOIL', 'HUMUS', 'ROOT', 'WOOD', 'ROCK')
+SOIL_GRADE = {
+    'bozkir': (0.86, 0.78, 0.84),
+    'kaf': (0.94, 0.9, 0.86),
+    'otuken': (1.12, 1.0, 1.0, _EARTH),
+    'sahmeran': (1.15, 1.0, 1.0, _EARTH),
+    'tamu': (1.4, 1.0, 1.0, _EARTH),
+}
+
+
+def _grade_ramp(p, val, sat, dark):
+    p = np.asarray(p, float)
+    lum = (p * np.array([0.2126, 0.7152, 0.0722])).sum(-1, keepdims=True)
+    q = (lum + (p - lum) * sat) * val
+    n = len(q)
+    if n > 2:
+        w = np.clip(1.0 - np.arange(n) / (n - 1) * 2.0, 0, 1)[:, None]   # alt yarı: 1 → 0
+        q = q * (1 - w * (1 - dark))
+    return np.clip(q, 0, 1)
+
+
+for _bid, _g in SOIL_GRADE.items():
+    _v, _s, _d = _g[:3]
+    _keys = _g[3] if len(_g) > 3 else ('SOIL', 'CLAY', 'HUMUS', 'GRASS', 'ROOT', 'SPECK', 'WOOD', 'ROCK')
+    _sc = BIOMES[_bid]['soil']
+    for _k in _keys:
+        if _k != 'ROCK':
+            _sc[_k] = _grade_ramp(_sc[_k], _v, _s, _d)
+    if 'ROCK' in _keys:
+        _sc['ROCK'] = [(h, s * _s, min(0.95, v * _v)) for (h, s, v) in _sc['ROCK']]
+    if 'ROOT' in _keys:
+        _rh, _rs, _rv = _sc['ROOT_MAT']
+        _sc['ROOT_MAT'] = (_rh, _rs * _s, min(0.95, _rv * _v))

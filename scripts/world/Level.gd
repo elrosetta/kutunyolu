@@ -46,9 +46,13 @@ var boss_gate_open := false
 var alem: Alem  # v12 Üç Âlem
 const HUB_W := 92
 var red_rect: ColorRect
+var vig_mat: ShaderMaterial  # vinyet; hasar nabzı "hurt" parametresiyle
 var _light_tex: GradientTexture2D
 var _done := false
 var _hub_floor: Node2D
+var moon: DirectionalLight2D  # ay: yönlü ışık + arazi gölgeleri (GroundShadow kayma yönünü buradan okur)
+var moon_shadow := 0.72  # ay gölgesindeki aktörde ay ışığının giden payı (toon_light moon_shade üst sınırı)
+var _shadow_dir := Vector2(0, 1)  # ay ışığının gidiş yönü (karo engelleyicileri bu yöne göre seçilir)
 
 
 func build(seed_value: int) -> void:
@@ -201,17 +205,19 @@ func open_boss_gate() -> void:
 func _build_hazards() -> void:
 	## Tehlike karoları (grid 3): biyoma göre diken / zehir / lav / buz; iki kare animasyon
 	haz_kind = {"otuken": "diken", "bozkir": "diken", "sahmeran": "zehir", "kaf": "buz", "tamu": "lav"}.get(biome.get("id", "otuken"), "diken")
+	var hp := Data.pack if Data.pack_has("res://assets/tiles/hazards.png") else 1
 	var ts := TileSet.new()
-	ts.tile_size = Vector2i(TS, TS)
+	ts.tile_size = Vector2i(TS * hp, TS * hp)
 	var src := TileSetAtlasSource.new()
-	src.texture = Data.canvas_tex("res://assets/tiles/hazards.png", "res://assets/tiles/hazards_n.png")
-	src.texture_region_size = Vector2i(TS, TS)
+	src.texture = _atlas_tex("res://assets/tiles/hazards.png", "res://assets/tiles/hazards_n.png")
+	src.texture_region_size = Vector2i(TS * hp, TS * hp)
 	ts.add_source(src, 0)
 	for r in 4:
 		for c in 2:
 			src.create_tile(Vector2i(c, r))
 	hazard = TileMapLayer.new()
 	hazard.tile_set = ts
+	hazard.scale = Vector2.ONE / float(hp)
 	var m := ShaderMaterial.new()
 	m.shader = Game.toon_shader
 	hazard.material = m
@@ -240,6 +246,7 @@ func _build_hazards() -> void:
 			for c in 2:
 				src2.create_tile(Vector2i(c, r))
 		glow.tile_set = ts2
+		glow.scale = Vector2.ONE * float(hp)  # ebeveyn (HD) katmanın küçültmesini dengele: parlama temel boyutlu
 		var gm := CanvasItemMaterial.new()
 		gm.blend_mode = CanvasItemMaterial.BLEND_MODE_ADD
 		gm.light_mode = CanvasItemMaterial.LIGHT_MODE_UNSHADED
@@ -777,8 +784,33 @@ func _art_cell() -> int:
 	return int(Data.tile_meta.get("tile", TS))
 
 
+var _tile_pack := 1  # karo atlası doku paketinden geldiyse çarpanı (TileSet gerçek doku boyutunu kullanır)
+
+
+func _tile_px() -> int:
+	## Karo atlas hücresinin gerçek doku pikseli (temel hücre x paket çarpanı)
+	return _art_cell() * _tile_pack
+
+
+func _atlas_tex(path: String, normal: String) -> CanvasTexture:
+	## Karo atlası: paket varsa gerçek boyutlu HD doku + temel normal map (UV ile örneklenir)
+	var ct := CanvasTexture.new()
+	ct.diffuse_texture = Data.tex_full(path)
+	if ResourceLoader.exists(normal):
+		ct.normal_texture = load(normal)
+	ct.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	return ct
+
+
+func _tile_id() -> String:
+	## Karo/toprak dosya kimliği: biyom kimliği, --stil=v2 ise varsa "<biyom>_v2" (Data.stil_id)
+	return Data.stil_id(String(biome.get("id", "otuken")), "res://assets/tiles/%s.png")
+
+
 func _make_tileset() -> TileSet:
-	var ac := _art_cell()
+	var tpath := "res://assets/tiles/%s.png" % _tile_id()
+	_tile_pack = Data.pack if Data.pack_has(tpath) else 1
+	var ac := _tile_px()
 	var ts := TileSet.new()
 	ts.tile_size = Vector2i(ac, ac)
 	ts.add_physics_layer()
@@ -787,9 +819,17 @@ func _make_tileset() -> TileSet:
 	ts.add_physics_layer()
 	ts.set_physics_layer_collision_layer(1, Game.LAYER_PLATFORM)
 	ts.set_physics_layer_collision_mask(1, 0)
+	# Işık engelleyici katmanı: ay (ve büyük çıralar) arazi gölgesi düşürsün. Engelleyiciler kapalı kare
+	# değil, yalnızca ışığa SIRTI dönük yüzlerdeki açık doğru parçalarıdır (bkz. _tile): böylece zemin
+	# kesitindeki toprak ay ışığını almaya devam eder, ama yar dipleri, çıkıntı altları ve mağaralar gölgelenir.
+	ts.add_occlusion_layer()
+	ts.set_occlusion_layer_light_mask(0, 1)
+	ts.set_occlusion_layer_sdf_collision(0, false)
+	var rot := deg_to_rad(float(art.get("sun_rot", 40)))
+	_shadow_dir = Vector2(-sin(rot), cos(rot))
 	var src := TileSetAtlasSource.new()
-	var bid: String = biome.get("id", "otuken")
-	src.texture = Data.canvas_tex("res://assets/tiles/%s.png" % bid, "res://assets/tiles/%s_n.png" % bid)
+	var bid: String = _tile_id()
+	src.texture = _atlas_tex("res://assets/tiles/%s.png" % bid, "res://assets/tiles/%s_n.png" % bid)
 	src.texture_region_size = Vector2i(ac, ac)
 	ts.add_source(src, 0)
 	var meta := Data.tile_meta
@@ -820,7 +860,49 @@ func _tile(src: TileSetAtlasSource, coords: Vector2i, phys: int, poly: PackedVec
 	if one_way:
 		td.set_collision_polygon_one_way(phys, 0, true)
 		# tek yönlü pay: katman ölçeğinden sonra da 1 dünya pikseli kalsın
-		td.set_collision_polygon_one_way_margin(phys, 0, float(_art_cell()) / TS)
+		td.set_collision_polygon_one_way_margin(phys, 0, float(_tile_px()) / TS)
+	_tile_occluders(td, coords, one_way)
+
+
+func _tile_occluders(td: TileData, coords: Vector2i, one_way: bool) -> void:
+	## Karonun açık yüzlerinden ay ışığına sırtı dönük olanlara (n·d > 0) açık doğru parçası engelleyici.
+	## Havadaki bir noktadan aya giden ışın katıya hep böyle bir yüzden girer; dolayısıyla hava gölgeleri
+	## tamdır. Işığa bakan yüzler (zemin üstü, aydınlık yamaç) engellemez: altlarındaki toprak kesiti
+	## üstündeki zeminle aynı ışığı alır (kesit geleneği). Zemin karosunda açık yüzler atlas sütunundan
+	## (m maskesi: 1 üst, 2 sağ, 4 alt, 8 sol hava), platformda ince levhanın altı ve uç yüzleri.
+	var h := _tile_px() * 0.5
+	var d := _shadow_dir
+	var segs: Array = []
+	if one_way:
+		var kind := coords.x % 3  # 0 sol uç, 1 orta, 2 sağ uç
+		var bot := -h * 0.5
+		if d.y > 0.05:
+			segs.append([Vector2(-h, bot), Vector2(h, bot)])
+		elif d.y < -0.05:
+			segs.append([Vector2(-h, -h), Vector2(h, -h)])
+		if kind == 0 and d.x < -0.05:
+			segs.append([Vector2(-h, -h), Vector2(-h, bot)])
+		if kind == 2 and d.x > 0.05:
+			segs.append([Vector2(h, -h), Vector2(h, bot)])
+	else:
+		var m := coords.x
+		if (m & 1) and d.y < -0.05:
+			segs.append([Vector2(-h, -h), Vector2(h, -h)])
+		if (m & 4) and d.y > 0.05:
+			segs.append([Vector2(-h, h), Vector2(h, h)])
+		if (m & 8) and d.x < -0.05:
+			segs.append([Vector2(-h, -h), Vector2(-h, h)])
+		if (m & 2) and d.x > 0.05:
+			segs.append([Vector2(h, -h), Vector2(h, h)])
+	if segs.is_empty():
+		return
+	td.set_occluder_polygons_count(0, segs.size())
+	for i in segs.size():
+		var occ := OccluderPolygon2D.new()
+		occ.closed = false
+		occ.cull_mode = OccluderPolygon2D.CULL_DISABLED
+		occ.polygon = PackedVector2Array([segs[i][0], segs[i][1]])
+		td.set_occluder_polygon(0, i, occ)
 
 
 func _depth_texture() -> ImageTexture:
@@ -858,14 +940,17 @@ func _build_tiles() -> void:
 	var ts := _make_tileset()
 	var gmat := ShaderMaterial.new()
 	gmat.shader = load("res://shaders/ground.gdshader")
-	var bid2: String = biome.get("id", "otuken")
-	gmat.set_shader_parameter("soil_tex", load("res://assets/tiles/%s_soil.png" % bid2))
+	var bid2: String = _tile_id()
+	# toprak dokusu: paket varsa yüksek çözünürlüklü (shader dünya ızgarasından gerçek doku boyutuyla okur)
+	var soil_path := "res://assets/tiles/%s_soil.png" % bid2
+	var soil_hd := Data.pack_has(soil_path)
+	gmat.set_shader_parameter("soil_tex", load(soil_path.replace("res://assets/", "res://assets_hd/x%d/" % Data.pack)) if soil_hd else load(soil_path))
 	gmat.set_shader_parameter("soil_n", load("res://assets/tiles/%s_soil_n.png" % bid2))
 	var dc: Array = art.get("deep_color", [0.04, 0.03, 0.06])
 	gmat.set_shader_parameter("deep_color", Color(dc[0], dc[1], dc[2]))
 	gmat.set_shader_parameter("depth_tex", _depth_texture())
 	gmat.set_shader_parameter("map_size_px", Vector2(W * TS, H * TS))
-	gmat.set_shader_parameter("soil_density", float(_art_cell()) / TS)
+	gmat.set_shader_parameter("soil_density", float(_art_cell()) / TS * (float(Data.pack) if soil_hd else 1.0))
 	var emis_path := "res://assets/tiles/%s_soil_e.png" % bid2
 	if ResourceLoader.exists(emis_path):
 		gmat.set_shader_parameter("soil_e", load(emis_path))
@@ -875,7 +960,7 @@ func _build_tiles() -> void:
 		gmat.set_shader_parameter("glow_col", Color(gc[0], gc[1], gc[2]))
 	var tmat := ShaderMaterial.new()
 	tmat.shader = Game.toon_shader
-	var art_scale := Vector2.ONE * (float(TS) / _art_cell())
+	var art_scale := Vector2.ONE * (float(TS) / _tile_px())
 	ground = TileMapLayer.new()
 	ground.tile_set = ts
 	ground.material = gmat
@@ -936,6 +1021,23 @@ func solid_at(p: Vector2) -> bool:
 	return cell(int(floor(p.x / TS)), int(floor(p.y / TS))) == 1
 
 
+func moon_occluded(p: Vector2, max_d := 1400.0) -> bool:
+	## p'den aya giden ışın katı bir karoya çarpıyor mu (çıkıntı altı, yar dibi, mağara). Haritanın üstü
+	## ve yanları açık gök sayılır. Adım yarım karo: ince platformlar (tek yönlü) gölge düşürmez.
+	var dir := -_shadow_dir
+	var step := float(TS) * 0.5
+	var n := int(max_d / step)
+	for i in range(1, n):
+		var q := p + dir * (step * float(i))
+		var cx := int(floor(q.x / TS))
+		var cy := int(floor(q.y / TS))
+		if cy < 0 or cx < 0 or cx >= W:
+			return false
+		if cy < H and grid[idx(cx, cy)] == 1:
+			return true
+	return false
+
+
 func ground_at(p: Vector2) -> bool:
 	return cell(int(floor(p.x / TS)), int(floor(p.y / TS))) != 0
 
@@ -977,7 +1079,10 @@ func light_tex() -> GradientTexture2D:
 	return _light_tex
 
 
-func add_light(pos: Vector2, col: Color, radius: float, energy := 1.0, parent: Node = null) -> PointLight2D:
+func add_light(pos: Vector2, col: Color, radius: float, energy := 1.0, parent: Node = null, shadows := false) -> PointLight2D:
+	## shadows: arazi gölgesi düşürür (her gölgeli nokta ışığı kadrajdaki engelleyicileri 4 yöne çizer;
+	## yalnızca büyük, sabit ışıklar için: süs çıraları, ocak, Kut Kapısı). Büyük sabit süs ışıkları
+	## (decor_root altı, yarıçap >= 200) kendiliğinden gölgeli olur.
 	var l := PointLight2D.new()
 	l.texture = light_tex()
 	l.texture_scale = radius / 64.0
@@ -985,6 +1090,11 @@ func add_light(pos: Vector2, col: Color, radius: float, energy := 1.0, parent: N
 	l.energy = energy
 	l.height = 26.0
 	l.position = pos
+	if shadows or (parent == decor_root and decor_root != null and radius >= 200.0):
+		l.shadow_enabled = true
+		l.shadow_filter = Light2D.SHADOW_FILTER_NONE
+		l.shadow_color = Color(0.05, 0.04, 0.08, 0.8)
+		l.shadow_item_cull_mask = 1
 	(parent if parent else self).add_child(l)
 	return l
 
@@ -995,28 +1105,56 @@ func _build_lighting() -> void:
 	var amb: Array = art.get("ambient", [0.40, 0.44, 0.62])
 	var sun_c: Array = art.get("sun", [0.62, 0.72, 1.0])
 	var cm := CanvasModulate.new()
-	cm.color = Color(amb[0], amb[1], amb[2])
+	# Ortam tabanı bir tık düşer, fark ayın gölge düşüren katkısına taşınır: aydınlık/gölge ayrımı okunur,
+	# toplam pozlama yaklaşık aynı kalır (gölgedeki düşman ortam ışığıyla görünür).
+	var amb_k := float(art.get("ambient_k", 0.8))
+	cm.color = Color(amb[0] * amb_k, amb[1] * amb_k, amb[2] * amb_k)
 	add_child(cm)
-	var moon := DirectionalLight2D.new()
+	moon = DirectionalLight2D.new()
 	moon.color = Color(sun_c[0], sun_c[1], sun_c[2])
-	moon.energy = float(art.get("sun_energy", 0.38))
-	moon.height = 0.55
+	moon.energy = float(art.get("sun_energy", 0.38)) * float(art.get("sun_k", 2.5))
+	moon.height = float(art.get("sun_height", 0.55))
 	moon.rotation_degrees = float(art.get("sun_rot", 40))
+	# Arazi gölgeleri: karo engelleyicileri (bkz. _tile_occluders) yar diplerini, çıkıntı altlarını ve
+	# mağaraları gölgeler. Gölge rengi siyah değil, ayın soğuk renginin kısık hâli: gölgedeki düşman
+	# ortam ışığı (CanvasModulate) + bu kalıntı ile okunur kalır. Süzgeç yok: piksel sanatına uygun keskin kenar.
+	# Motor gölgesi KAPALI: yan kesitte basamakların gölgesi toprağın içine uzun çapraz şeritler
+	# düşürüyordu ve Godot'da gölgeyi alan öğe seçilemiyor (shadow_item_cull_mask engelleyicileri seçer,
+	# TileMapLayer light_mask'i çizime aktarmıyor). Aktörlerin ay gölgesi moon_occluded() ile hesaplanır
+	# (GroundShadow → toon_light "moon_shade"). Karo engelleyicileri büyük süs ışıklarının gölgesi için kalır.
+	moon.shadow_enabled = false
+	var sh := float(art.get("shadow", 0.72))  # gölgede ay ışığının ne kadarı gider (0..1)
+	moon_shadow = sh
+	# Not: gölge rengi motor tarafında ışık renginden çok daha büyük bir ölçekle toplanır; siyaha yakın
+	# soğuk bir değer bile belirgin kalıntı verir. sh: 1 = ay ışığı gölgede tamamen gider.
+	moon.shadow_color = Color(0.012 * (1.0 - sh) / 0.28, 0.014 * (1.0 - sh) / 0.28, 0.024 * (1.0 - sh) / 0.28, 1.0)
+	moon.shadow_filter = Light2D.SHADOW_FILTER_NONE
+	moon.shadow_item_cull_mask = 1
+	moon.max_distance = 2400.0
 	add_child(moon)
 	var env := Environment.new()
 	env.background_mode = Environment.BG_CANVAS
 	env.glow_enabled = true
-	env.glow_intensity = 0.9
+	# Parlama biyoma göre: gündüz biyomlarında eşik yüksek ve şiddet düşük, yoksa açık toprak/gök
+	# yumuşak ışık karışımıyla patlar (göz yakan beyaz alanlar).
+	env.glow_intensity = float(art.get("glow", 0.9))
 	env.glow_strength = 1.0
-	env.glow_bloom = 0.04
-	env.glow_hdr_threshold = 0.9
+	env.glow_bloom = float(art.get("glow_bloom", 0.04))
+	env.glow_hdr_threshold = float(art.get("glow_threshold", 0.9))
 	env.glow_blend_mode = Environment.GLOW_BLEND_MODE_SOFTLIGHT
 	env.adjustment_enabled = true
+	env.adjustment_brightness = float(art.get("brightness", 1.0))
 	env.adjustment_saturation = float(art.get("saturation", 0.96))
 	env.adjustment_contrast = float(art.get("contrast", 1.08))
 	var we := WorldEnvironment.new()
 	we.environment = env
 	add_child(we)
+	# Toprak derinlik kararması (ground.gdshader deep_amount/deep_color): yüzeyden içeri doğru ortam
+	# kapanması. Biyom art'ı ezebilir; zemin _build_tiles'ta bu fonksiyondan önce kurulur.
+	if ground and ground.material is ShaderMaterial:
+		var gm := ground.material as ShaderMaterial
+		if art.has("deep_amount"):
+			gm.set_shader_parameter("deep_amount", float(art["deep_amount"]))
 
 
 func _build_background() -> void:
@@ -1028,7 +1166,7 @@ func _build_background() -> void:
 		var layers: Array = []
 		for i in names.size():
 			var f: Array = fxs[i] if i < fxs.size() else [0.3, 0.1, 0.0]
-			layers.append(["res://assets/bg/%s.png" % names[i], float(f[0]), float(f[1]), float(f[2])])
+			layers.append(["res://assets/bg/%s.png" % Data.stil_id(String(names[i]), "res://assets/bg/%s.png"), float(f[0]), float(f[1]), float(f[2])])
 		bg.layers = layers
 	var rc: Array = art.get("rays", [0.62, 0.8, 1.0, 0.07])
 	bg.ray_color = Color(rc[0], rc[1], rc[2], rc[3])
@@ -1150,6 +1288,7 @@ func _build_overlay_fx() -> void:
 	var sm := ShaderMaterial.new()
 	sm.shader = load("res://shaders/vignette.gdshader")
 	vig.material = sm
+	vig_mat = sm
 	cl.add_child(vig)
 	red_rect = ColorRect.new()
 	red_rect.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -1159,9 +1298,14 @@ func _build_overlay_fx() -> void:
 
 
 func flash_red() -> void:
-	red_rect.color.a = 0.16
+	## Hasar: kenarlardan kısa kırmızı vinyet nabzı (eskiden tüm ekran düz kırmızı boyanıyordu; karanlık
+	## biyomlarda sahneyi kapatıyordu). Vuruş duraklaması/ağır çekim uzatmaz.
+	if vig_mat == null:
+		return
+	vig_mat.set_shader_parameter("hurt", 0.9 * maxf(0.4, Game.fx_scale))
 	var tw := create_tween()
-	tw.tween_property(red_rect, "color:a", 0.0, 0.3)
+	tw.set_ignore_time_scale(true)
+	tw.tween_method(func(v: float) -> void: vig_mat.set_shader_parameter("hurt", v), 0.9 * maxf(0.4, Game.fx_scale), 0.0, 0.35)
 
 
 # ------------------------------------------------------------------ süsler
@@ -1464,33 +1608,28 @@ func add_projectile(p: Projectile) -> void:
 
 
 func flash_white(a := 0.35) -> void:
-	## Ağır vuruşta tüm ekran bir an beyazlar (Dead Cells'in "kill flash"i)
+	## Ağır vuruşta tüm ekran bir an beyazlar (Dead Cells'in "kill flash"i). Göz yormasın: en çok 0,18 alfa,
+	## 2-3 kare; ağır çekim/vuruş duraklaması uzatmaz (gerçek zamanlı). Ayarlar > Sarsıntı ve flaş ile ölçeklenir.
 	if red_rect == null:
+		return
+	a = minf(a * 0.5, 0.18) * Game.fx_scale
+	if a <= 0.01:
 		return
 	red_rect.color = Color(1.0, 0.97, 0.9, a)
 	var tw := red_rect.create_tween()
-	tw.tween_property(red_rect, "color:a", 0.0, 0.12)
+	tw.set_ignore_time_scale(true)
+	tw.tween_property(red_rect, "color:a", 0.0, 0.06)
 	tw.tween_callback(func() -> void: red_rect.color = Color(1, 0.1, 0.1, 0.0))
 
 
 func explode(pos: Vector2, radius: float, dmg: float, by_player: bool) -> void:
-	Game.shake(6.0)
-	Game.kick(Vector2.DOWN, 5.0)
-	Ses.play("patlama", 0.0)
-	Game.slowmo(0.5, 0.08)
-	FX.impact(pos, Vector2.UP, Color(1.0, 0.75, 0.35), 2.4)
-	FX.anim("warm_explosion", pos + Vector2(0, 6), 0.0, 0.7 + radius / 50.0, Color(1.0, 0.9, 0.8))
-	FX.smoke(pos, 8, 0.7)
-	FX.fire(pos, 10, 0.4, radius * 0.4)
-	FX.sparks(pos, Vector2.UP, Color(1.0, 0.8, 0.4), 16, 260.0)
-	FX.shock_line(pos, radius * 0.8, Color(0.5, 0.4, 0.35, 0.6))
-	FX.ring(pos, radius, Color(1.0, 0.7, 0.3), 0.35)
-	FX.burst(pos, Color(1.0, 0.6, 0.2), 26, 220, 0.5, 0.3, 300, true)
-	FX.burst(pos, Color(0.3, 0.25, 0.25), 14, 120, 0.9, 0.35, -30)
-	var l := add_light(pos, Color(1.0, 0.6, 0.25), radius * 3.0, 2.0)
-	var tw := l.create_tween()
-	tw.tween_property(l, "energy", 0.0, 0.35)
-	tw.tween_callback(l.queue_free)
+	## v14: aşamalı piksel patlama (ExplosionFX): flaş → ateş topu → duman + parçalar; kamera, ses ve ışık içinde
+	var away := Vector2.UP
+	if player and is_instance_valid(player):
+		var d: Vector2 = player.center() - pos
+		if d.length() > 1.0:
+			away = d.normalized()
+	FX.explosion(pos, radius, Color(1.0, 0.85, 0.3), radius >= 50.0, away)
 	if by_player:
 		for e in get_tree().get_nodes_in_group("dusman"):
 			if is_instance_valid(e) and not e.dead and e.center().distance_to(pos) < radius + 14.0:

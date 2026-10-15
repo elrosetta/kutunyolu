@@ -14,6 +14,7 @@ import sys
 import numpy as np
 from PIL import Image
 
+import raster
 from raster import to_img
 import bengu
 import creatures
@@ -44,7 +45,9 @@ def ang_of(a):
 def export_sheet(name, anims, render, cell, origin, texel=1.0):
     names = list(anims.keys())
     cols = max(anims[a][0] for a in names)
-    W, H = cols * cell[0], len(names) * cell[1]
+    N = raster.SS  # HD paketinde fiziksel hücre = mantıksal hücre x N (meta mantıksal kalır)
+    cw, ch = int(cell[0] * N), int(cell[1] * N)
+    W, H = cols * cw, len(names) * ch
     alb = np.zeros((H, W, 4)); nrm = np.zeros((H, W, 4)); glo = np.zeros((H, W, 4))
     meta = {'cell': list(cell), 'origin': list(origin), 'anims': {}}
     if texel != 1.0:
@@ -56,12 +59,13 @@ def export_sheet(name, anims, render, cell, origin, texel=1.0):
         for i in range(n):
             res = render(an, i)
             c, rgba, nm, info = res
-            alb[r * cell[1]:(r + 1) * cell[1], i * cell[0]:(i + 1) * cell[0]] = rgba
-            nrm[r * cell[1]:(r + 1) * cell[1], i * cell[0]:(i + 1) * cell[0]] = nm
+            ys, xs = slice(r * ch, (r + 1) * ch), slice(i * cw, (i + 1) * cw)
+            alb[ys, xs] = rgba
+            nrm[ys, xs] = nm
             em = c.emis
             ga = (em.max(axis=2) > 0).astype(float)
-            glo[r * cell[1]:(r + 1) * cell[1], i * cell[0]:(i + 1) * cell[0], :3] = np.clip(em * 1.0, 0, 1)
-            glo[r * cell[1]:(r + 1) * cell[1], i * cell[0]:(i + 1) * cell[0], 3] = ga
+            glo[ys, xs, :3] = np.clip(em * 1.0, 0, 1)
+            glo[ys, xs, 3] = ga
             fr = {}
             for k in ('hand_f', 'hand_b', 'mouth', 'hand', 'head', 'sh_f', 'sh_b'):
                 if info and k in info:
@@ -194,12 +198,12 @@ def _export_player():
     export_sheet('bengu', bengu.ANIMS, lambda an, i: bengu.render_frame(an, i), bengu.CELL, bengu.FEET, bengu.TEX)
     # oyunda sürülen ön kol parçaları: üst kol, ön kol, yumruk (her biri aşağıyı gösterir, pivot üstte)
     parts = bengu.render_arm_parts()
-    cw, ch = bengu.ARM_CELL
+    cw, ch = int(bengu.ARM_CELL[0] * raster.SS), int(bengu.ARM_CELL[1] * raster.SS)
     alb = np.zeros((ch, cw * len(parts), 4))
     for i, pc in enumerate(parts):
         alb[:, i * cw:(i + 1) * cw] = pc.shade()
     save(alb, os.path.join(A, 'sprites', 'bengu_kol.png'))
-    json.dump({'cell': [cw, ch], 'pivot': list(bengu.ARM_PIVOT), 'fist_pivot': [bengu.ARM_PIVOT[0], bengu.ARM_PIVOT[1] + 3],
+    json.dump({'cell': list(bengu.ARM_CELL), 'pivot': list(bengu.ARM_PIVOT), 'fist_pivot': [bengu.ARM_PIVOT[0], bengu.ARM_PIVOT[1] + 3],
                'texel': bengu.TEX, 'upper_len': bengu.UPPER_LEN, 'fore_len': bengu.FORE_LEN, 'parts': ['upper', 'fore', 'fist', 'upper_b', 'fore_b', 'fist_b']},
               open(os.path.join(A, 'sprites', 'bengu_kol.json'), 'w', encoding='utf-8'), indent=1)
 

@@ -17,7 +17,7 @@ kâğıt gibi okunur. VCanvas aynı çizim API'sini korur, ama:
     hacmi yakalar.
 """
 import numpy as np
-from raster import Canvas, hx, shift
+from raster import Canvas, hx, shift, thicken
 
 
 def _box(a, r):
@@ -61,8 +61,8 @@ class VCanvas(Canvas):
 
     def __init__(self, w, h, ox=0, oy=0):
         super().__init__(w, h, ox, oy)
-        self.uv = np.zeros((h, w, 2))
-        self.pid = np.zeros((h, w))
+        self.uv = np.zeros((self.h, self.w, 2))
+        self.pid = np.zeros((self.h, self.w))
         self._pc = 0
         self._cur = None
 
@@ -117,10 +117,12 @@ class VCanvas(Canvas):
         alpha = self.mat >= 0
         A = alpha.astype(float)
         # büyük form: siluetin çok ölçekli bulanıklığı yükseklik gibi davranır
-        hg = _blur(A, 1, 2) * 0.35 + _blur(A, 3, 2) * 0.45 + _blur(A, 6, 2) * 0.2
+        S = self.S
+        R_ = lambda r: max(1, int(round(r * S)))
+        hg = _blur(A, R_(1), 2) * 0.35 + _blur(A, R_(3), 2) * 0.45 + _blur(A, R_(6), 2) * 0.2
         gx = (shift(hg, 0, -1, 0.0) - shift(hg, 0, 1, 0.0)) * 0.5
         gy = (shift(hg, -1, 0, 0.0) - shift(hg, 1, 0, 0.0)) * 0.5
-        ng = np.stack([-gx * 4.0, -gy * 4.0, np.ones_like(hg) * 0.9], -1)
+        ng = np.stack([-gx * 4.0 * S, -gy * 4.0 * S, np.ones_like(hg) * 0.9], -1)
         ng /= np.linalg.norm(ng, axis=-1, keepdims=True)
         n = self.n * (1 - form) + ng * form
         n /= np.linalg.norm(n, axis=-1, keepdims=True) + 1e-9
@@ -136,16 +138,17 @@ class VCanvas(Canvas):
         z = np.where(alpha, self.z, -1e9)
         zf = np.where(alpha, self.z, np.nan)
         zmax = z.copy()
-        for dy in range(-2, 3):
-            for dx in range(-2, 3):
-                if dy * dy + dx * dx <= 5:
+        ar = R_(2)
+        for dy in range(-ar, ar + 1):
+            for dx in range(-ar, ar + 1):
+                if dy * dy + dx * dx <= 5 * S * S:
                     zmax = np.maximum(zmax, shift(z, dy, dx, -1e9))
         occ = np.clip((zmax - z - 2.5 * zs) / (9.0 * zs), 0, 1) * alpha
         d -= ao * occ * 0.55
         # temas gölgesi: sol-üstteki yakın parça sağ-alta düşer
         cs = np.zeros((Hh, Ww), bool)
         for dy, dx in ((1, 1), (1, 0), (2, 1), (2, 2), (0, 1)):
-            cs |= shift(z, dy, dx, -1e9) > z + 3.5 * zs
+            cs |= shift(z, int(round(dy * S)), int(round(dx * S)), -1e9) > z + 3.5 * zs
         cs &= alpha
         d -= cast * cs
         # kürk tutamları (parçaya bağlı gürültü; animasyonda kaymaz)
@@ -169,7 +172,7 @@ class VCanvas(Canvas):
         emis = np.zeros((Hh, Ww, 3))
         rc = hx(rim_col)
         # siluet kenarı ve dış yönü (kenar ışığı + seçici kontur için)
-        ab = _blur(A, 1, 2)
+        ab = _blur(A, R_(1), 2)
         ogx = (shift(ab, 0, -1, 0.0) - shift(ab, 0, 1, 0.0))
         ogy = (shift(ab, -1, 0, 0.0) - shift(ab, 1, 0, 0.0))
         on = np.sqrt(ogx * ogx + ogy * ogy) + 1e-9
@@ -273,6 +276,9 @@ class VCanvas(Canvas):
                 out[ee, 3] = lit_outline
         self.emis = emis
         self.outline_mask = nb
+        if S > 1:
+            thicken(out, int(round(S * 0.5)))
+            self.outline_mask = (out[..., 3] > 0) & ~alpha
         return out
 
     def normal_map(self, out_alpha):

@@ -26,12 +26,14 @@ func _process(delta: float) -> void:
 
 
 func _draw() -> void:
+	# Sade halka: eskiden 1,6x HDR parlaklıkta, 4 px kalın ve çok büyük çiziliyordu; birkaç tanesi üst üste
+	# binince ekran halkalarla doluyordu. Şimdi ince (1-2 px), sönük, yarıçapı 48 ile sınırlı.
 	var k := _t / life
-	var r := max_r * (0.3 + 0.7 * sqrt(k))
-	var c := Color(col.r * 1.6, col.g * 1.6, col.b * 1.6, 1.0 - k)
-	var w := maxf(1.0, 4.0 * (1.0 - k))
+	var r := roundf(minf(max_r, 48.0) * (0.3 + 0.7 * sqrt(k)))
+	var c := Color(col.r, col.g, col.b, 0.55 * (1.0 - k) * (1.0 - k))
+	var w := 2.0 if k < 0.35 else 1.0
 	if aspect >= 0.999:
-		draw_arc(Vector2.ZERO, r, 0.0, TAU, 32, c, w)
+		draw_arc(Vector2.ZERO, r, 0.0, TAU, maxi(16, int(r)), c, w, false)
 		return
 	var pts := PackedVector2Array()
 	for i in 33:

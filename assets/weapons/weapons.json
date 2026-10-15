@@ -1,8 +1,9 @@
 {
  "cell": [
-  64,
-  40
+  128,
+  80
  ],
+ "texel": 2,
  "materials": [
   "demir",
   "tunc",
@@ -20,421 +21,421 @@
   "alp_kilici": {
    "row": 0,
    "pivot": [
-    16,
-    20
+    32,
+    40
    ]
   },
   "pala": {
    "row": 1,
    "pivot": [
-    16,
-    20
+    32,
+    40
    ]
   },
   "yatagan": {
    "row": 2,
    "pivot": [
-    16,
-    20
+    32,
+    40
    ]
   },
   "gurz": {
    "row": 3,
    "pivot": [
-    16,
-    20
+    32,
+    40
    ]
   },
   "teber": {
    "row": 4,
    "pivot": [
-    16,
-    20
+    32,
+    40
    ]
   },
   "kargi": {
    "row": 5,
    "pivot": [
-    16,
-    20
+    32,
+    40
    ]
   },
   "ikiz_bicak": {
    "row": 6,
    "pivot": [
-    16,
-    20
+    32,
+    40
    ]
   },
   "turk_yayi": {
    "row": 7,
    "pivot": [
-    16,
-    20
+    32,
+    40
    ]
   },
   "akinci_yayi": {
    "row": 8,
    "pivot": [
-    16,
-    20
+    32,
+    40
    ]
   },
   "cirit": {
    "row": 9,
    "pivot": [
-    16,
-    20
+    32,
+    40
    ]
   },
   "coban_sapani": {
    "row": 10,
    "pivot": [
-    16,
-    20
+    32,
+    40
    ]
   },
   "yuvarlak_kalkan": {
    "row": 11,
    "pivot": [
-    32,
-    20
+    64,
+    40
    ]
   },
   "kartal_kalkani": {
    "row": 12,
    "pivot": [
-    32,
-    20
+    64,
+    40
    ]
   },
   "ayna_kalkan": {
    "row": 13,
    "pivot": [
-    32,
-    20
+    64,
+    40
    ]
   },
   "kara_barut": {
    "row": 14,
    "pivot": [
-    32,
-    20
+    64,
+    40
    ]
   },
   "bozkurt_cagrisi": {
    "row": 15,
    "pivot": [
-    32,
-    20
+    64,
+    40
    ]
   },
   "nazar_boncugu": {
    "row": 16,
    "pivot": [
-    32,
-    20
+    64,
+    40
    ]
   },
   "od_testisi": {
    "row": 17,
    "pivot": [
-    32,
-    20
+    64,
+    40
    ]
   },
   "yildirim_kilici": {
    "row": 18,
    "pivot": [
-    16,
-    20
+    32,
+    40
    ]
   },
   "savas_baltasi": {
    "row": 19,
    "pivot": [
-    16,
-    20
+    32,
+    40
    ]
   },
   "kement": {
    "row": 20,
    "pivot": [
-    16,
-    20
+    32,
+    40
    ]
   },
   "od_kamcisi": {
    "row": 21,
    "pivot": [
-    16,
-    20
+    32,
+    40
    ]
   },
   "civili_topuz": {
    "row": 22,
    "pivot": [
-    16,
-    20
+    32,
+    40
    ]
   },
   "erlik_tirpani": {
    "row": 23,
    "pivot": [
-    16,
-    20
+    32,
+    40
    ]
   },
   "kurt_pencesi": {
    "row": 24,
    "pivot": [
-    16,
-    20
+    32,
+    40
    ]
   },
   "ayaz_kilici": {
    "row": 25,
    "pivot": [
-    16,
-    20
+    32,
+    40
    ]
   },
   "saganak_yayi": {
    "row": 26,
    "pivot": [
-    16,
-    20
+    32,
+    40
    ]
   },
   "tufan_yayi": {
    "row": 27,
    "pivot": [
-    16,
-    20
+    32,
+    40
    ]
   },
   "od_oklari": {
    "row": 28,
    "pivot": [
-    16,
-    20
+    32,
+    40
    ]
   },
   "kam_kopuzu": {
    "row": 29,
    "pivot": [
-    16,
-    20
+    32,
+    40
    ]
   },
   "gok_asasi": {
    "row": 30,
    "pivot": [
-    16,
-    20
+    32,
+    40
    ]
   },
   "yel_borusu": {
    "row": 31,
    "pivot": [
-    16,
-    20
+    32,
+    40
    ]
   },
   "kartal_tuyleri": {
    "row": 32,
    "pivot": [
-    32,
-    20
+    64,
+    40
    ]
   },
   "mancinik_tasi": {
    "row": 33,
    "pivot": [
-    32,
-    20
+    64,
+    40
    ]
   },
   "dikenli_kalkan": {
    "row": 34,
    "pivot": [
-    32,
-    20
+    64,
+    40
    ]
   },
   "kut_kalkani": {
    "row": 35,
    "pivot": [
-    32,
-    20
+    64,
+    40
    ]
   },
   "ejder_kalkani": {
    "row": 36,
    "pivot": [
-    32,
-    20
+    64,
+    40
    ]
   },
   "ulu_kayin_kalkani": {
    "row": 37,
    "pivot": [
-    32,
-    20
+    64,
+    40
    ]
   },
   "tas_kalkan": {
    "row": 38,
    "pivot": [
-    32,
-    20
+    64,
+    40
    ]
   },
   "sifa_muskasi": {
    "row": 39,
    "pivot": [
-    32,
-    20
+    64,
+    40
    ]
   },
   "ayaz_tilsimi": {
    "row": 40,
    "pivot": [
-    32,
-    20
+    64,
+    40
    ]
   },
   "yel_tilsimi": {
    "row": 41,
    "pivot": [
-    32,
-    20
+    64,
+    40
    ]
   },
   "davul_totemi": {
    "row": 42,
    "pivot": [
-    32,
-    20
+    64,
+    40
    ]
   },
   "ok_yagmuru": {
    "row": 43,
    "pivot": [
-    32,
-    20
+    64,
+    40
    ]
   },
   "kartal_cagrisi": {
    "row": 44,
    "pivot": [
-    32,
-    20
+    64,
+    40
    ]
   },
   "ruh_kusu": {
    "row": 45,
    "pivot": [
-    32,
-    20
+    64,
+    40
    ]
   },
   "umay_tuyu": {
    "row": 46,
    "pivot": [
-    32,
-    20
+    64,
+    40
    ]
   },
   "erlik_zinciri": {
    "row": 47,
    "pivot": [
-    32,
-    20
+    64,
+    40
    ]
   },
   "ulu_kilic": {
    "row": 48,
    "pivot": [
-    16,
-    20
+    32,
+    40
    ]
   },
   "dag_cekici": {
    "row": 49,
    "pivot": [
-    16,
-    20
+    32,
+    40
    ]
   },
   "ruh_kilici": {
    "row": 50,
    "pivot": [
-    16,
-    20
+    32,
+    40
    ]
   },
   "ay_palasi": {
    "row": 51,
    "pivot": [
-    16,
-    20
+    32,
+    40
    ]
   },
   "yilan_kilici": {
    "row": 52,
    "pivot": [
-    16,
-    20
+    32,
+    40
    ]
   },
   "kor_cekici": {
    "row": 53,
    "pivot": [
-    16,
-    20
+    32,
+    40
    ]
   },
   "ruzgar_kilici": {
    "row": 54,
    "pivot": [
-    16,
-    20
+    32,
+    40
    ]
   },
   "tulpar_mizragi": {
    "row": 55,
    "pivot": [
-    16,
-    20
+    32,
+    40
    ]
   },
   "bori_hanceri": {
    "row": 56,
    "pivot": [
-    16,
-    20
+    32,
+    40
    ]
   },
   "ikiz_balta": {
    "row": 57,
    "pivot": [
-    16,
-    20
+    32,
+    40
    ]
   },
   "kayin_asasi": {
    "row": 58,
    "pivot": [
-    16,
-    20
+    32,
+    40
    ]
   },
   "bozgun_kilici": {
    "row": 59,
    "pivot": [
-    16,
-    20
+    32,
+    40
    ]
   }
  }

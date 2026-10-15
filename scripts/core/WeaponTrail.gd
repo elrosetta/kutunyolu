@@ -26,6 +26,19 @@ func add(base: Vector2, tip: Vector2) -> void:
 		var last: Array = _pts[_pts.size() - 1]
 		if last[1].distance_to(tip) < 0.8:
 			return
+		# Hızlı savuruşta iki kare arasında bıçak 90°+ dönebilir: düz şerit yay yerine "V" çizer.
+		# Ara örnekler kabza etrafında açı adım adım döndürülerek eklenir (en çok 0,22 rad).
+		var lb: Vector2 = last[0]
+		var lv: Vector2 = last[1] - lb
+		var nv: Vector2 = tip - base
+		if lv.length() > 1.0 and nv.length() > 1.0:
+			var da := wrapf(nv.angle() - lv.angle(), -PI, PI)
+			var steps := mini(int(ceil(absf(da) / 0.22)), 24)
+			for s in range(1, steps):
+				var k := float(s) / float(steps)
+				var bb := lb.lerp(base, k)
+				var vv := Vector2.from_angle(lv.angle() + da * k) * lerpf(lv.length(), nv.length(), k)
+				_pts.append([bb, bb + vv, lerpf(float(last[2]), _t, k)])
 	_pts.append([base, tip, _t])
 
 
@@ -78,8 +91,9 @@ func _draw() -> void:
 		var stage := int(age * 3.0)  # 0 taze, 1 orta, 2 sönmekte
 		if stage >= 3:
 			continue
-		var alpha: float = [0.95, 0.6, 0.3][stage]
-		var w: float = [0.85, 0.6, 0.35][stage] * clampf(width_mul, 0.3, 1.2)
+		# iz = bıçağın UCUNUN süpürdüğü ince hilal (tüm bıçak boyu değil): başta kalın, kuyruğa doğru incelir
+		var alpha: float = [0.9, 0.55, 0.25][stage]
+		var w: float = [0.34, 0.22, 0.11][stage] * clampf(width_mul, 0.3, 1.4)
 		var ta: Vector2 = a[1]
 		var tb: Vector2 = b[1]
 		var ia: Vector2 = ta + (a[0] - ta) * w
@@ -88,7 +102,7 @@ func _draw() -> void:
 		var mb: Vector2 = tb + (b[0] - tb) * w * 0.7
 		_fill_quad(PackedVector2Array([ia, ma, mb, ib]), Color(inner, alpha * 0.7))
 		_fill_quad(PackedVector2Array([ma, ta, tb, mb]), Color(body, alpha))
-		if stage < 2:
-			var ca: Vector2 = ta + (a[0] - ta) * 0.14
-			var cb: Vector2 = tb + (b[0] - tb) * 0.14
+		if stage < 1:
+			var ca: Vector2 = ta + (a[0] - ta) * 0.09
+			var cb: Vector2 = tb + (b[0] - tb) * 0.09
 			_fill_quad(PackedVector2Array([ca, ta, tb, cb]), Color(core, alpha))

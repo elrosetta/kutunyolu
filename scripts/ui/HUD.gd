@@ -24,6 +24,24 @@ var _hp_lag := -1.0
 var _kut_pulse := 0.0
 var _last_mode := ""
 var _ducked := false
+## Öğretici (v15): mekanikler ilk karşılaşıldığında bağlamsal ipucu kartı; her ipucu en çok 3 koşuda gösterilir
+var _tut_id := ""
+var _tut_t := 0.0
+var _tut_txt: Array = []
+var _tut_keys: Array = []
+var _tut_shown_run: Dictionary = {}
+const TUT := {
+	"kam_hazir": [[["R", "göğe"], ["S+R", "yeraltına"]], "Kam gücün yetti: kam transıyla aynı bölümün öbür âlemine geçersin. Güç 100'den sn'de 15 tükenir, bu dünyada yeniden dolar."],
+	"kapak": [[["S+R", "yeraltına in"]], "Mor ruh taşı bir kapaktır. Yeraltındayken içinden geçilir; altındaki gizli odada eşya, şifa ve altın var."],
+	"gok": [[["R", "geri dön"]], "ÜLGEN'İN GÖĞÜ: altın bulutlara basılır. Ruh kuşlarına dokun: Kut ve kam gücü verir. Bulut zincirinin tepesinde Ülgen sunağı eşyası durur."],
+	"yer": [[["R", "geri dön"]], "ERLİK'İN YERALTI: ruh taşlarının içinden geç, gizli odalara in. Gölge ruhlar yalnızca burada vurulur: her biri 3 Kut."],
+	"kus": [[["dokun", "kuşu yakala"]], "Ruh kuşu: dokununca Kut ve kam gücü verir; kam gücü dolu kalırsa gökte daha uzun kalırsın."],
+	"don_ruh": [[["dokun", "ruhu em"]], "Seçkin düşman mor bir ruh bıraktı. Dokunup emersen onun kılığına girebilirsin."],
+	"don_hazir": [[["G", "don değiştir"]], "Emdiğin ruh hazır: 10 sn boyunca o yaratığın kılığına gir ve hamle takımını kullan (kurt: atılış · dev: çakma · kanat: uçuş · büyücü: büyü)."],
+	"agir": [[["J", "basılı tut: ağır vuruş"], ["bekle+J", "bitiriş"]], "Her silahın kendi zinciri var. İki vuruştan sonra kısa bekleyip J: silahın özel bitirişi. J'yi basılı tut: şarjlı ağır vuruş."],
+	"usul": [[["J", "vuruşa denk"]], "Müzik aksak usulde çalıyor (sağdaki ölçer). Saldırıyı vuruşa denk getirirsen hasar artar, seri Kut verir."],
+	"kacis": [[["L", "son anda yuvarlan"]], "Kusursuz Kaçış: darbenin isabet edeceği an yuvarlanırsan zaman yavaşlar ve sıradaki vuruşun kesin kritik olur."],
+}
 var back_mode := "title"   # ayarlar ekranı kapanınca dönülecek mod
 
 const SLOT_KEYS := {"melee": "J", "second": "K", "g1": "U", "g2": "I"}
@@ -37,7 +55,6 @@ func _ready() -> void:
 	set_anchors_preset(Control.PRESET_FULL_RECT)
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-	material = Game.hd_material()  # 2K/4K: yazı ve simgeler de Scale2x/4x ile yumuşar
 
 
 func _process(delta: float) -> void:
@@ -48,6 +65,7 @@ func _process(delta: float) -> void:
 	_kut_pulse = maxf(0.0, _kut_pulse - delta)
 	ad_t += delta
 	_usul_flash = maxf(0.0, _usul_flash - delta * 3.0)
+	_tut_tick(delta)
 	if mode != _last_mode:
 		if mode in ["tilsim", "slot", "umay", "demirci", "ozan", "dead", "done", "ad"]:
 			_open_t = 0.0
@@ -59,6 +77,119 @@ func _process(delta: float) -> void:
 		if Ses.has_method("menu_duck"):
 			Ses.call("menu_duck", menu)
 	queue_redraw()
+
+
+func _tut_show(id: String, force := false) -> void:
+	## İpucu kartını göster: koşuda bir kez, kalıcı olarak en çok 3 kez (force: her koşuda)
+	if _tut_id != "" or _tut_shown_run.has(id):
+		return
+	if not force and Game.learned(id) >= 3:
+		return
+	_tut_shown_run[id] = true
+	# test koşuları (--ekran / --otomatik) sayacı kalıcı artırmaz: oyuncunun ipuçları tükenmesin
+	var test_run := false
+	for x in OS.get_cmdline_user_args():
+		if String(x) == "--otomatik" or String(x).begins_with("--ekran="):
+			test_run = true
+	if not test_run:
+		Game.learn(id)
+	_tut_id = id
+	_tut_t = 7.5
+	var d: Array = TUT[id]
+	_tut_keys = d[0]
+	_tut_txt = PixUI.wrap(String(d[1]), 300)
+	Ses.play("ui_ac", -8.0)
+
+
+func _tut_tick(delta: float) -> void:
+	if _tut_t > 0.0:
+		_tut_t -= delta
+		if _tut_t <= 0.0:
+			_tut_id = ""
+	if mode != "play" or get_tree().paused or Game.run.is_empty() or level == null or level.player == null:
+		return
+	var pl: Node = level.player
+	if level.hub:
+		return
+	# tetikleyiciler (öncelik sırasıyla)
+	if pl.don_kind != "" and not pl.don_on:
+		_tut_show("don_hazir")
+	elif pl.realm == "gok":
+		_tut_show("gok", true)
+	elif pl.realm == "yer":
+		_tut_show("yer", true)
+	elif pl.kam >= 30.0 and level.alem != null and pl.realm == "":
+		_tut_show("kam_hazir")
+	if "perfect_t" in pl and float(pl.perfect_t) > 1.3:
+		_tut_show("kacis")
+	if _tut_id == "" and float(Game.run.get("time", 0.0)) > 14.0 and not Game.run["slots"].get("melee", {}).is_empty():
+		_tut_show("agir")
+	if _tut_id == "" and float(Game.run.get("time", 0.0)) > 40.0 and Ses.has_method("usul_now") and not Ses.usul_now().is_empty():
+		_tut_show("usul")
+	# dünya nesneleri: yeraltı kapağı, don ruhu, ruh kuşu
+	if level.alem and pl.realm == "":
+		var d: Dictionary = level.alem.nearest_door(pl.global_position, 100.0)
+		if not d.is_empty():
+			_tut_show("kapak")
+	for p in level.pickups:
+		if not is_instance_valid(p):
+			continue
+		if p.kind == "don" and p.global_position.distance_to(pl.global_position) < 150.0:
+			_tut_show("don_ruh")
+		elif p.kind == "ruh_kusu" and pl.realm == "gok" and p.global_position.distance_to(pl.global_position) < 140.0:
+			_tut_show("kus")
+
+
+func _draw_tut(vp: Vector2) -> void:
+	## İpucu kartı: üstte ortada, tuş rozetleri + sarılmış metin; girişte kayar, sonda solar
+	if _tut_id == "":
+		return
+	var a := clampf(minf(_tut_t * 2.0, (7.5 - _tut_t) * 4.0), 0.0, 1.0)
+	var slide := (1.0 - clampf((7.5 - _tut_t) * 4.0, 0.0, 1.0)) * -12.0
+	var w := 324.0
+	var h := 22.0 + _tut_txt.size() * 10.0
+	var x := roundf((vp.x - w) / 2.0)
+	var y := 34.0 + slide
+	PixUI.fancy_panel(self, Rect2(x, y, w, h), Color(PixUI.GOLD, a), Color(PixUI.INK2, PixUI.INK2.a * a))
+	var kx := x + 8.0
+	for k in _tut_keys:
+		PixUI.key_cap(self, Vector2(kx, y + 5), k[0], Color(PixUI.GOLD, a))
+		kx += maxf(9.0, PixUI.width(k[0]) + 4.0) + 3.0
+		PixUI.text(self, Vector2(kx, y + 5), k[1], Color(PixUI.TEXT, a))
+		kx += PixUI.width(k[1]) + 12.0
+	var ty := y + 18.0
+	for l in _tut_txt:
+		PixUI.text(self, Vector2(x + 8, ty), l, Color(PixUI.DIM.lightened(0.15), a), 1, HORIZONTAL_ALIGNMENT_LEFT, -1.0, 0)
+		ty += 10.0
+
+
+func _draw_world_marks(vp: Vector2, pl: Node) -> void:
+	## Dünya işaretleri: yakın yeraltı kapağı (bu dünyadayken), ruh kuşu (gökte), don ruhu
+	if level.alem == null:
+		return
+	var xf := get_viewport().get_canvas_transform()
+	var us: float = Ayarlar.ui_scale()
+	var bob := roundf(sin(_t * 4.0) * 2.0)
+	if pl.realm == "":
+		var d: Dictionary = level.alem.nearest_door(pl.global_position, 140.0)
+		if not d.is_empty():
+			var dr: Rect2 = d["door"]
+			var sp: Vector2 = (xf * dr.get_center()) / us
+			var col := Alem.YER_COL
+			PixUI.text(self, Vector2(sp.x - 60, sp.y - 30 + bob), "▼", col, 1, HORIZONTAL_ALIGNMENT_CENTER, 120, 2)
+			var lbl := "S+R: yeraltına in" if pl.kam >= 30.0 else "kam gücü %d / 30" % int(pl.kam)
+			var w := PixUI.width(lbl) + 10.0
+			PixUI.panel(self, Rect2(sp.x - w / 2.0, sp.y - 20 + bob, w, 13), col)
+			PixUI.text(self, Vector2(sp.x - w / 2.0, sp.y - 19 + bob), lbl, PixUI.TEXT, 1, HORIZONTAL_ALIGNMENT_CENTER, w)
+	elif pl.realm == "gok":
+		var b: Node = level.alem.nearest_bird(pl.global_position, 220.0)
+		if b:
+			var sp: Vector2 = (xf * b.global_position) / us
+			PixUI.text(self, Vector2(sp.x - 60, sp.y - 24 + bob), "ruh kuşu", Alem.GOK_COL, 1, HORIZONTAL_ALIGNMENT_CENTER, 120, 2)
+	for p in level.pickups:
+		if is_instance_valid(p) and p.kind == "don" and p.global_position.distance_to(pl.global_position) < 220.0:
+			var sp: Vector2 = (xf * p.global_position) / us
+			PixUI.text(self, Vector2(sp.x - 60, sp.y - 26 + bob), "ruhu em", DonForm.COL, 1, HORIZONTAL_ALIGNMENT_CENTER, 120, 2)
 
 
 func open_anim() -> void:
@@ -113,13 +244,30 @@ func _hint(vp: Vector2, items: Array, y := -1.0) -> void:
 		x += PixUI.width(it[1]) + 12.0
 
 
+const MENU_SCALE := 1.5  # menüler 640x360 tasarımında; 960x540 görüntüde 1,5 kat (1080p'de 3x, 4K'da 6x: keskin)
+
+
+func _menu_vp() -> Vector2:
+	## Menü ekranları: 1,5 kat ölçekli çizim, tasarım alanı ~640x360
+	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE * MENU_SCALE)
+	return get_viewport_rect().size / MENU_SCALE
+
+
+func _hud_vp() -> Vector2:
+	## Oyun içi HUD: Arayüz boyutu ayarına göre 1x (Normal) ya da 1,5x (Büyük)
+	var s: float = Ayarlar.ui_scale()
+	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE * s)
+	return get_viewport_rect().size / s
+
+
 func _draw() -> void:
-	var vp := get_viewport_rect().size
+	var vp := _menu_vp()
 	if mode == "ayarlar":
 		if back_mode == "title" or Game.run.is_empty() or level == null or level.player == null:
 			_draw_title(vp)
 		else:
-			_draw_hud(vp)
+			_draw_hud(_hud_vp())
+			vp = _menu_vp()
 		_draw_settings(vp)
 		return
 	match mode:
@@ -146,7 +294,8 @@ func _draw() -> void:
 	var paused_play := mode == "play" and get_tree().paused
 	if _card_t < 4.0 and mode == "play" and not paused_play:
 		_draw_banner(vp)
-	_draw_hud(vp)
+	_draw_hud(_hud_vp())
+	vp = _menu_vp()
 	match mode:
 		"dead":
 			_draw_dead(vp)
@@ -316,6 +465,10 @@ func _draw_hud(vp: Vector2) -> void:
 	var ix := vp.x - 8 - pw + (pw - iw) / 2.0
 	PixUI.text(self, Vector2(ix, 22), info, PixUI.DIM, 1, HORIZONTAL_ALIGNMENT_LEFT, -1.0, 0)
 	PixUI.icon(self, "kafatasi", Vector2(ix + iw - 7, 24), PixUI.DIM, 1, false)
+	# ---- öğretici ve dünya işaretleri
+	if mode == "play" and not get_tree().paused:
+		_draw_world_marks(vp, pl)
+		_draw_tut(vp)
 	# ---- kısa mesaj
 	if flash_t > 0.0 and flash_msg != "" and mode == "play":
 		var a := clampf(flash_t, 0.0, 1.0)
@@ -327,10 +480,10 @@ func _draw_hud(vp: Vector2) -> void:
 		return
 	var p: Node = level.nearest_item(pl.global_position + Vector2(0, -10))
 	if p and p.kind == "tilsim":
-		var sp0: Vector2 = p.get_global_transform_with_canvas().origin
+		var sp0: Vector2 = p.get_global_transform_with_canvas().origin / Ayarlar.ui_scale()
 		_world_prompt(sp0 + Vector2(0, -34), "E", "Tılsımı oku")
 	elif p and p.kind == "lutuf":
-		var sp1: Vector2 = p.get_global_transform_with_canvas().origin
+		var sp1: Vector2 = p.get_global_transform_with_canvas().origin / Ayarlar.ui_scale()
 		_world_prompt(sp1 + Vector2(0, -58), "E", "Tanrı sunağı: lütuf dile")
 	elif p and not p.item.is_empty():
 		var opts: Array = level.slot_options(p.item)
@@ -345,7 +498,7 @@ func _draw_hud(vp: Vector2) -> void:
 		var cur: Dictionary = {} if free else R["slots"].get(nat, {})
 		var ch := _card_h(p.item)
 		_draw_card(p.item, Vector2(vp.x - 198, 46), "YERDEKİ", cur)
-		var sp: Vector2 = p.get_global_transform_with_canvas().origin
+		var sp: Vector2 = p.get_global_transform_with_canvas().origin / Ayarlar.ui_scale()
 		var pr := "Al" if free else "Yuva seç"
 		_world_prompt(sp + Vector2(0, -38), "E", pr)
 		var note := "İki yuva da dolu: E ile hangisini değiştireceğini seç." if not free else "Boş yuvaya gider: %s [%s]" % [SLOT_NAMES[tgt], SLOT_KEYS[tgt]]
@@ -639,9 +792,13 @@ func _draw_title(vp: Vector2) -> void:
 	PixUI.panel(self, Rect2(vp.x / 2.0 - 230, vp.y - 76, 460, 46))
 	_hint(vp, rows[0], vp.y - 70)
 	_hint(vp, rows[1], vp.y - 56)
-	PixUI.text(self, Vector2(0, vp.y - 42), "R kam transı: göğe geç (S+R yeraltı) · G don: seçkin ruhunun kılığı · müziğin usulüne denk vuruş güçlü · destanını Ozan'a anlat, adın konsun", Color(0.85, 0.75, 1.0, 0.9), 1, HORIZONTAL_ALIGNMENT_CENTER, vp.x, 0)
-	PixUI.text(self, Vector2(0, vp.y - 29), "J art arda = zincir · bekle+J = bitiriş · basılı = ağır · ↑J göğe savur · havada ↓J dalış · koşarken J akın · yuvarlan+J dönüş · S+J diz biçen", Color(1.0, 0.85, 0.5, 0.85), 1, HORIZONTAL_ALIGNMENT_CENTER, vp.x, 0)
-	PixUI.text(self, Vector2(0, vp.y - 17), "Shift basılı = koş · S = çömel (çömelirken saldırı ve yay) · duvara doğru zıpla = kenara tutun", Color(0.75, 0.9, 1.0, 0.8), 1, HORIZONTAL_ALIGNMENT_CENTER, vp.x, 0)
+	# uzun ipucu satırları 1x ölçekte (menü ölçeğinde ekrana sığmıyor)
+	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+	var fv := vp * MENU_SCALE
+	PixUI.text(self, Vector2(0, fv.y - 63), "R kam transı: göğe geç (S+R yeraltı) · G don: seçkin ruhunun kılığı · müziğin usulüne denk vuruş güçlü · destanını Ozan'a anlat, adın konsun", Color(0.85, 0.75, 1.0, 0.9), 1, HORIZONTAL_ALIGNMENT_CENTER, fv.x, 0)
+	PixUI.text(self, Vector2(0, fv.y - 43), "J art arda = zincir · bekle+J = bitiriş · basılı = ağır · ↑J göğe savur · havada ↓J dalış · koşarken J akın · yuvarlan+J dönüş · S+J diz biçen", Color(1.0, 0.85, 0.5, 0.85), 1, HORIZONTAL_ALIGNMENT_CENTER, fv.x, 0)
+	PixUI.text(self, Vector2(0, fv.y - 25), "Shift basılı = koş · S = çömel (çömelirken saldırı ve yay) · duvara doğru zıpla = kenara tutun", Color(0.75, 0.9, 1.0, 0.8), 1, HORIZONTAL_ALIGNMENT_CENTER, fv.x, 0)
+	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE * MENU_SCALE)
 
 
 func _draw_intro(vp: Vector2) -> void:
@@ -758,9 +915,11 @@ func _draw_settings(vp: Vector2) -> void:
 	var tips := [
 		"Pencereli, tam ekran (kenarsız) ya da özel tam ekran.",
 		"Pencereli modda pencere boyutu. Tam ekranda ekranın kendi çözünürlüğü kullanılır.",
-		"Ekranı doldur: her çözünürlükte boşluksuz. Keskin piksel: tam sayı ölçek, kenarlarda siyah pay kalabilir.",
-		"2K / 4K: piksel sanatı Scale2x / Scale4x ile büyütülür; köşegenler yumuşar, ayrıntı keskin kalır. Otomatik: 1440p'de 2K, 2160p'de 4K.",
+		"Ekranı doldur: görüş alanı sabit, kesirli ölçek. Keskin piksel: tam sayı ölçek (1440p'de 3x), görüş alanı ekrana göre biraz değişir; siyah boşluk kalmaz.",
+		"2K / 4K: karakterler, düşmanlar, silahlar ve dünya 2 / 4 kat çözünürlükte yeniden çizilmiş dokularla gösterilir. * : oyunu yeniden başlatınca uygulanır.",
 		"Kare hızını ekran yenilemesine kilitler (yırtılmayı önler).",
+		"Oyun içi göstergelerin boyutu. Normal: daha çok oyun alanı görünür.",
+		"Kamera sarsıntısı, darbe kareleri ve ekran flaşları. Rahatsız ediyorsa Azaltılmış ya da Kapalı seç.",
 	]
 	var tl := PixUI.wrap(tips[clampi(sel, 0, tips.size() - 1)], 420)
 	var ty := y + 14.0
@@ -768,7 +927,7 @@ func _draw_settings(vp: Vector2) -> void:
 		PixUI.text(self, Vector2(0, ty), l, PixUI.DIM, 1, HORIZONTAL_ALIGNMENT_CENTER, vp.x)
 		ty += 11.0
 	var ws := get_tree().root.size
-	PixUI.text(self, Vector2(0, ty + 6), "Pencere: %dx%d  ·  ölçek ×%s" % [ws.x, ws.y, ItemGen.fmt(float(ws.y) / 360.0)], Color(PixUI.KUT, 0.8), 1, HORIZONTAL_ALIGNMENT_CENTER, vp.x, 0)
+	PixUI.text(self, Vector2(0, ty + 6), "Pencere: %dx%d  ·  ölçek ×%s" % [ws.x, ws.y, ItemGen.fmt(float(ws.y) / get_viewport_rect().size.y)], Color(PixUI.KUT, 0.8), 1, HORIZONTAL_ALIGNMENT_CENTER, vp.x, 0)
 	_hint(vp, [["W/S", "seç"], ["A/D", "değiştir"], ["Esc", "geri"]])
 
 

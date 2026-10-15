@@ -39,20 +39,22 @@ const UMAY := {
 }
 
 var toon_shader: Shader = preload("res://shaders/toon_light.gdshader")
-var _hd_mat: ShaderMaterial
 
-
-func hd_material() -> ShaderMaterial:
-	## Gölgelendiricisi olmayan sprite'lar için HD doku malzemesi (2K/4K paketleri; Ayarlar.gd)
-	if _hd_mat == null:
-		_hd_mat = ShaderMaterial.new()
-		_hd_mat.shader = load("res://shaders/hd_canvas.gdshader")
-	return _hd_mat
 var meta: Dictionary = {}
 var run: Dictionary = {}
 var camera: Camera2D
 var shake_amount := 0.0
 var kick_off := Vector2.ZERO
+## Travma tabanlı sarsıntı (Vlambeer / Nijman): olaylar travma ekler, kamera travma² ile sallanır,
+## travma üstel söner. Yön verilirse sarsıntı o eksende yoğunlaşır (ağır tepeden vuruş kamerayı aşağı iter).
+var trauma := 0.0
+var trauma_dir := Vector2.ZERO
+var _noise_t := 0.0
+var _rumble_until := 0.0
+var look_ahead := 0.0   # kamera ileri bakış (oyuncu yazar, Level kamerayı taşır)
+var fx_scale := 1.0     # Ayarlar > Sarsıntı ve flaş: 1 tam, 0,5 azaltılmış, 0 kapalı
+const SHAKE_MAX := Vector2(10.0, 7.0)
+const SHAKE_ROT := 0.012
 var _hitstop_until := 0.0
 var _slow_until := 0.0
 var _slow_scale := 1.0
@@ -81,20 +83,58 @@ func _process(delta: float) -> void:
 		camera.zoom = Vector2.ONE * (1.0 + _zoom)
 		kick_off = kick_off.lerp(Vector2.ZERO, clampf(rd * 14.0, 0.0, 1.0))
 		var off := kick_off
+		# eski doğrusal sarsıntı (küçük olaylar) + travma sarsıntısı (büyük olaylar, üstel sönüm, yönlü)
 		if shake_amount > 0.05:
 			off += Vector2(randf_range(-1, 1), randf_range(-1, 1)) * shake_amount
 			shake_amount = move_toward(shake_amount, 0.0, rd * 30.0)
+		var rot := 0.0
+		if trauma > 0.01:
+			_noise_t += rd * 38.0
+			var k := trauma * trauma
+			var nx := sin(_noise_t * 1.7) * 0.6 + sin(_noise_t * 4.3 + 1.3) * 0.4
+			var ny := sin(_noise_t * 2.1 + 0.7) * 0.6 + sin(_noise_t * 5.1 + 2.9) * 0.4
+			var sh := Vector2(nx * SHAKE_MAX.x, ny * SHAKE_MAX.y) * k
+			if trauma_dir.length() > 0.01:
+				# yönlü: sarsıntı darbe ekseninde 2 kat, dik eksende yarım
+				var d := trauma_dir.normalized()
+				var along := sh.dot(d)
+				var perp := sh - d * along
+				sh = d * along * 1.6 + perp * 0.45
+			off += sh
+			rot = nx * SHAKE_ROT * k
+			trauma = maxf(0.0, trauma - rd * 2.6)
+			trauma_dir = trauma_dir.lerp(Vector2.ZERO, clampf(rd * 3.0, 0.0, 1.0))
 		camera.offset = off
+		camera.rotation = rot
+		if _rumble_until > 0.0 and now > _rumble_until:
+			_rumble_until = 0.0
+			for d in Input.get_connected_joypads():
+				Input.stop_joy_vibration(d)
 
 
 func shake(amount: float) -> void:
-	shake_amount = maxf(shake_amount, amount)
+	shake_amount = maxf(shake_amount, amount * fx_scale)
+
+
+func shake_dir(amount: float, dir := Vector2.ZERO) -> void:
+	## Travma sarsıntısı: amount 0..1 (0,25 hafif, 0,5 ağır vuruş, 0,8 patlama); dir darbe yönü (isteğe bağlı)
+	trauma = minf(1.0, trauma + amount * fx_scale)
+	if dir.length() > 0.01:
+		trauma_dir = (trauma_dir + dir.normalized() * amount).limit_length(1.0)
+
+
+func rumble(strong := 0.5, weak := 0.3, dur := 0.12) -> void:
+	## Oyun kolu titreşimi: güçlü motor (alçak gürleme) / zayıf motor (tiz vızıltı)
+	var now := Time.get_ticks_msec() / 1000.0
+	for d in Input.get_connected_joypads():
+		Input.start_joy_vibration(d, weak, strong, dur)
+	_rumble_until = maxf(_rumble_until, now + dur)
 
 
 func kick(dir: Vector2, amount := 4.0) -> void:
 	## Kamera itişi: darbe yönünde kısa bir kayma, hızla geri döner.
 	if dir.length() > 0.01:
-		kick_off += dir.normalized() * amount
+		kick_off += dir.normalized() * amount * (0.5 + 0.5 * fx_scale)
 
 
 func zoom_punch(amount := 0.05) -> void:
@@ -267,6 +307,18 @@ func unlock_cost(id: String) -> int:
 	else:
 		c = 10
 	return c
+
+
+func learned(id: String) -> int:
+	## Öğretici: bu ipucu kaç kez gösterildi (kalıcı)
+	return int(meta.get("ogrendi", {}).get(id, 0))
+
+
+func learn(id: String) -> void:
+	var o: Dictionary = meta.get("ogrendi", {})
+	o[id] = learned(id) + 1
+	meta["ogrendi"] = o
+	save_meta()
 
 
 func add_blueprint(id: String) -> bool:

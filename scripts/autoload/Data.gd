@@ -13,11 +13,100 @@ var _sprites: Dictionary = {}
 var _decor: Dictionary = {}
 
 
+## Doku paketi (2K / 4K): assets_hd/x2 ya da x4 altında aynı göreli yolla, temel dokunun 2 / 4 katı
+## çözünürlükte yeniden çizilmiş renk dokuları. manifest.json temel boyutları tutar; yüklenen büyük doku
+## ImageTexture.set_size_override ile temel boyutta raporlanır: bölgeler, kareler ve çizim boyu değişmez,
+## yalnızca ayrıntı artar. Normal ve parlama haritaları temel çözünürlükte kalır.
+var pack := 1
+var _pack_dir := ""
+var _pack_manifest: Dictionary = {}
+var _tex_cache: Dictionary = {}
+
+
+func _init_pack() -> void:
+	pack = Ayarlar.pack_scale()
+	Ayarlar.lock_pack()
+	if pack <= 1:
+		return
+	_pack_dir = "res://assets_hd/x%d/" % pack
+	_pack_manifest = load_json(_pack_dir + "manifest.json") if FileAccess.file_exists(_pack_dir + "manifest.json") else {}
+	if _pack_manifest.is_empty():
+		push_warning("Doku paketi x%d bulunamadı; standart dokular kullanılıyor" % pack)
+		pack = 1
+
+
+func tex(path: String) -> Texture2D:
+	## Renk dokusu: paket etkinse ve bu doku pakette varsa yüksek çözünürlüklü sürüm (temel boyutta raporlanır)
+	if _tex_cache.has(path):
+		return _tex_cache[path]
+	var t: Texture2D = null
+	if pack > 1:
+		var rel := path.trim_prefix("res://assets/")
+		if _pack_manifest.has(rel) and ResourceLoader.exists(_pack_dir + rel):
+			var big: Texture2D = load(_pack_dir + rel)
+			var it := ImageTexture.create_from_image(big.get_image())
+			var bs: Array = _pack_manifest[rel]
+			it.set_size_override(Vector2i(int(bs[0]), int(bs[1])))
+			t = it
+	if t == null:
+		t = load(path)
+	_tex_cache[path] = t
+	return t
+
+
+func tex_full(path: String) -> Texture2D:
+	## Paket dokusunu GERÇEK boyutunda döndürür (boyut geçersiz kılma yok). TileSet geçersiz kılmayı yok
+	## saydığı için karo atlasları bununla yüklenir ve karo boyu paket çarpanıyla büyütülür.
+	if pack_has(path):
+		return load(_pack_dir + path.trim_prefix("res://assets/"))
+	return load(path)
+
+
+func pack_has(path: String) -> bool:
+	return pack > 1 and _pack_manifest.has(path.trim_prefix("res://assets/"))
+
+
+var _weapon_img: Image
+
+
+func weapon_image() -> Image:
+	## Silah atlasının TEMEL görüntüsü (bölge çözümlemesi için; paketten bağımsız)
+	if _weapon_img == null:
+		var bt: Texture2D = load("res://assets/weapons/weapons.png")
+		_weapon_img = bt.get_image()
+		if _weapon_img.is_compressed():
+			_weapon_img.decompress()
+	return _weapon_img
+
+
+## Görsel stil (deneme): -- --stil=v2 ile bir varlığın "_v2" adlı sürümü varsa o yüklenir, yoksa v1 kalır
+## (bengu -> bengu_v2, bengu_kol -> bengu_kol_v2, otuken karoları -> otuken_v2, otuken_3_mid -> otuken_3_mid_v2).
+## v2 sanatı: tools/artgen/style_v2.py, export_v2.py. v1 dosyaları olduğu gibi durur.
+var stil := "v1"
+
+
+func stil_id(id: String, probe: String) -> String:
+	## probe: kimliğin yerine geçeceği "%s" içeren yol, ör. "res://assets/sprites/%s.json"
+	if stil == "v1":
+		return id
+	var alt := "%s_%s" % [id, stil]
+	var pth := probe % alt
+	if ResourceLoader.exists(pth) or FileAccess.file_exists(pth):
+		return alt
+	return id
+
+
 func _ready() -> void:
+	for arg in OS.get_cmdline_user_args():
+		if String(arg).begins_with("--stil="):
+			stil = String(arg).trim_prefix("--stil=")
+	_init_pack()
 	items = load_json("res://data/items.json")
 	world = load_json("res://data/world.json")
 	story = load_json("res://data/story.json")
 	weapon_meta = load_json("res://assets/weapons/weapons.json")
+	# silah atlası doku yoğunluğu (weapons.json "texel"): 2 = hücre 128x80, oyunda 1/2 ölçekle çizilir, dünya boyu aynı
+	weapon_texel = float(weapon_meta.get("texel", 1.0))
 	decor_meta = load_json("res://assets/decor/decor.json")
 	tile_meta = load_json("res://assets/tiles/otuken.json")
 	weapon_tex = canvas_tex("res://assets/weapons/weapons.png", "res://assets/weapons/weapons_n.png")
@@ -32,6 +121,12 @@ func _ready() -> void:
 
 
 var pixel_font: FontFile
+var weapon_texel := 1.0
+
+
+func wscale() -> float:
+	## Silah sprite'ının oyun içi ölçeği (1 / doku yoğunluğu)
+	return 1.0 / weapon_texel
 var _icon_cache: Dictionary = {}
 
 
@@ -42,10 +137,8 @@ func weapon_icon_rect(item_id: String, mat_id: String) -> Rect2:
 		return _icon_cache[key]
 	var reg := weapon_region(item_id, mat_id)
 	var r := reg
-	var img: Image = weapon_tex.diffuse_texture.get_image() if weapon_tex and weapon_tex.diffuse_texture else null
+	var img: Image = weapon_image()
 	if img:
-		if img.is_compressed():
-			img.decompress()
 		var used := img.get_region(Rect2i(reg)).get_used_rect()
 		if used.size.x > 0:
 			r = Rect2(reg.position + Vector2(used.position), Vector2(used.size))
@@ -67,7 +160,7 @@ func load_json(path: String) -> Dictionary:
 
 func canvas_tex(diffuse: String, normal: String) -> CanvasTexture:
 	var ct := CanvasTexture.new()
-	ct.diffuse_texture = load(diffuse)
+	ct.diffuse_texture = tex(diffuse)
 	if ResourceLoader.exists(normal):
 		ct.normal_texture = load(normal)
 	ct.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
@@ -77,9 +170,10 @@ func canvas_tex(diffuse: String, normal: String) -> CanvasTexture:
 func sprite(sprite_name: String) -> Dictionary:
 	if _sprites.has(sprite_name):
 		return _sprites[sprite_name]
-	var meta := load_json("res://assets/sprites/%s.json" % sprite_name)
-	meta["tex"] = canvas_tex("res://assets/sprites/%s.png" % sprite_name, "res://assets/sprites/%s_n.png" % sprite_name)
-	var gp := "res://assets/sprites/%s_e.png" % sprite_name
+	var sid := stil_id(sprite_name, "res://assets/sprites/%s.json")
+	var meta := load_json("res://assets/sprites/%s.json" % sid)
+	meta["tex"] = canvas_tex("res://assets/sprites/%s.png" % sid, "res://assets/sprites/%s_n.png" % sid)
+	var gp := "res://assets/sprites/%s_e.png" % sid
 	meta["glow_tex"] = load(gp) if ResourceLoader.exists(gp) else null
 	_sprites[sprite_name] = meta
 	return meta

@@ -48,21 +48,21 @@ func _ready() -> void:
 		spr.region_rect = Data.weapon_region(atlas_item, atlas_mat)
 		spr.centered = false
 		spr.offset = -Data.weapon_pivot(atlas_item)
+		spr.scale = Vector2.ONE * Data.wscale()
 		if kind == "javelin":
-			spr.offset.x -= 20
+			spr.offset.x -= 20 * Data.weapon_texel
 		var m := ShaderMaterial.new()
 		m.shader = Game.toon_shader
 		spr.material = m
 		add_child(spr)
 	if kind == "arrow":
 		if _arrow_tex == null:
-			_arrow_tex = load("res://assets/fx/arrows.png")
+			_arrow_tex = Data.tex("res://assets/fx/arrows.png")
 		arrow_spr = Sprite2D.new()
 		arrow_spr.texture = _arrow_tex
 		arrow_spr.hframes = ARROW_DIRS
 		arrow_spr.vframes = ARROW_VARIANTS.size()
 		arrow_spr.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-		arrow_spr.material = Game.hd_material()
 		add_child(arrow_spr)
 		if arrow_variant == "":
 			arrow_variant = "dusman" if team != "p" else {"altin": "altin", "od": "od", "sel": "sel", "kizil": "kizil"}.get(fx_kind, "normal")

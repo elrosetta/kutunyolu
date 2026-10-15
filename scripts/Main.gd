@@ -622,6 +622,7 @@ func _showcase(delta: float) -> void:
 
 var _ekran := ""
 var _ekran_t := 0
+var _ekran_ikinci := false
 
 
 func _debug_screen() -> void:
@@ -640,14 +641,31 @@ func _debug_screen() -> void:
 			pl0.facing = 1
 			if _ekran == "yay":
 				Game.run["slots"]["second"] = ItemGen.roll("turk_yayi", 1, "demir", 1)
+			for arg in OS.get_cmdline_user_args():
+				if String(arg).begins_with("--silah="):
+					Game.run["slots"]["melee"] = ItemGen.roll(String(arg).trim_prefix("--silah="), 1, "demir", 0)
+				elif String(arg).begins_with("--ikinci="):
+					Game.run["slots"]["second"] = ItemGen.roll(String(arg).trim_prefix("--ikinci="), 2, "demir", 0)
+					_ekran_ikinci = true
 			pl0.on_equip()
+			# vuruş testi: önüne iki durağan düşman koy (--dusman=kimlik ile tür seçilir)
+			var ek := "kara_boru"
+			for arg in OS.get_cmdline_user_args():
+				if String(arg).begins_with("--dusman="):
+					ek = String(arg).trim_prefix("--dusman=")
+			for i in 2:
+				var en := level.spawn_enemy(ek, pl0.global_position + Vector2(34 + i * 26, 0), i == 1)
+				if en:
+					en.set_physics_process(false)
+					en.facing = -1
+					en.anim.set_facing(-1)
 		if _ekran == "yay":
 			if _ekran_t == 45:
 				Input.action_press("saldiri2")
 			elif _ekran_t == 85:
 				Input.action_release("saldiri2")
 		elif _ekran_t in [45, 70, 95]:
-			_tap("saldiri1")
+			_tap("saldiri2" if _ekran_ikinci else "saldiri1")
 		return
 	if _ekran_t != 40 or level == null or level.player == null:
 		return

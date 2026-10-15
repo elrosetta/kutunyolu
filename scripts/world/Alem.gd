@@ -295,6 +295,32 @@ func _build_overlay() -> void:
 
 
 # ------------------------------------------------------------------ 3) âlem değiştirme
+func nearest_door(pos: Vector2, maxd := 90.0) -> Dictionary:
+	## Öğretici: oyuncuya en yakın yeraltı odası kapağı (ruh taşı); yoksa boş sözlük
+	var best: Dictionary = {}
+	var bd := maxd
+	for r in rooms:
+		var d: Rect2 = r["door"]
+		var dist := pos.distance_to(d.get_center())
+		if dist < bd:
+			bd = dist
+			best = r
+	return best
+
+
+func nearest_bird(pos: Vector2, maxd := 120.0) -> Node:
+	var best: Node = null
+	var bd := maxd
+	for b in birds:
+		if not is_instance_valid(b):
+			continue
+		var dist := pos.distance_to(b.global_position)
+		if dist < bd:
+			bd = dist
+			best = b
+	return best
+
+
 func set_realm(r: String) -> void:
 	var prev := realm
 	realm = r

@@ -66,10 +66,45 @@ class Mat:
         self.bands = bands
 
 
+# HD doku paketleri (2K / 4K): mantıksal birim başına piksel çarpanı. Şekiller mantıksal birimde (temel
+# sayfa pikseli) tanımlı kalır; tuval SS kat ince ızgarada rasterlanır, desenler (paint) mantıksal
+# koordinatla çalıştığı için aynı görünür ama daha çok ayrıntıyla. export_assets.py --hd N bunu ayarlar.
+SS = 1
+
+
+def thicken(out, steps):
+    """Dış konturu steps-1 piksel daha kalınlaştırır (HD'de kontur, temel sanattaki kalınlığa yakın kalsın)."""
+    for _ in range(max(0, steps - 1)):
+        a = out[..., 3] > 0
+        add = np.zeros(a.shape, bool)
+        col = np.zeros_like(out)
+        for dy, dx in ((0, 1), (1, 0), (0, -1), (-1, 0)):
+            sa = shift(a, dy, dx, False)
+            so = shift(out, dy, dx, 0.0)
+            new = (~a) & sa & (~add)
+            col[new] = so[new]
+            add |= new
+        out[add] = col[add]
+    return out
+
+
+def _up(a, S, shape):
+    """Mantıksal dizi -> fiziksel ızgara (en yakın komşu)."""
+    if S == 1:
+        return a
+    hh, ww = shape
+    yi = np.minimum((np.arange(hh) + 0.5) / S, a.shape[0] - 1e-6).astype(int)
+    xi = np.minimum((np.arange(ww) + 0.5) / S, a.shape[1] - 1e-6).astype(int)
+    return a[np.ix_(yi, xi)]
+
+
 class Canvas:
     def __init__(self, w, h, ox=0, oy=0):
+        self.S = SS
+        self.lw, self.lh = w, h
+        w, h = int(round(w * SS)), int(round(h * SS))
         self.w, self.h = w, h
-        self.ox, self.oy = ox, oy
+        self.ox, self.oy = ox * SS, oy * SS
         self.z = np.full((h, w), -1e9)
         self.n = np.zeros((h, w, 3)); self.n[..., 2] = 1
         self.mat = np.full((h, w), -1, int)
@@ -85,12 +120,13 @@ class Canvas:
         return len(self.mats) - 1
 
     def _grid(self, x0, y0, x1, y1):
-        x0 = max(0, int(np.floor(x0 + self.ox)) - 1); y0 = max(0, int(np.floor(y0 + self.oy)) - 1)
-        x1 = min(self.w, int(np.ceil(x1 + self.ox)) + 2); y1 = min(self.h, int(np.ceil(y1 + self.oy)) + 2)
+        S = self.S
+        x0 = max(0, int(np.floor(x0 * S + self.ox)) - 1); y0 = max(0, int(np.floor(y0 * S + self.oy)) - 1)
+        x1 = min(self.w, int(np.ceil(x1 * S + self.ox)) + 2); y1 = min(self.h, int(np.ceil(y1 * S + self.oy)) + 2)
         if x1 <= x0 or y1 <= y0:
             return None
         ys, xs = np.mgrid[y0:y1, x0:x1]
-        return (slice(y0, y1), slice(x0, x1)), xs + 0.5 - self.ox, ys + 0.5 - self.oy
+        return (slice(y0, y1), slice(x0, x1)), (xs + 0.5 - self.ox) / S, (ys + 0.5 - self.oy) / S
 
     def _write(self, sl, inside, z, nx, ny, nz, mat, tone=0.0, paint=None, lu=None, lv=None, px=None, py=None):
         mid = self._mid(mat)
@@ -189,7 +225,7 @@ class Canvas:
     def region(self, mask, mat, z=0.0, bevel=3, slope=0.55, tone=0.0, paint=None, x0=0, y0=0):
         """Piksel maskesinden eğimli bölge: kenara uzaklık = yükseklik (organik kenarlar için)."""
         hh, ww = mask.shape
-        sl = (slice(y0, y0 + hh), slice(x0, x0 + ww))
+        S = self.S
         d = np.zeros(mask.shape)
         cur = mask.copy()
         for _ in range(bevel):
@@ -201,14 +237,20 @@ class Canvas:
         gx = (shift(d, 0, -1, 0.0) - shift(d, 0, 1, 0.0)) * 0.5
         gy = (shift(d, -1, 0, 0.0) - shift(d, 1, 0, 0.0)) * 0.5
         nx, ny, nz = -gx * slope, -gy * slope, np.ones(mask.shape)
-        ys, xs = np.mgrid[y0:y0 + hh, x0:x0 + ww]
-        px, py = xs + 0.5 - self.ox, ys + 0.5 - self.oy
+        # fiziksel ızgara: maske ve eğim en yakın komşuyla büyütülür, desen koordinatı mantıksal kalır
+        X0, Y0 = int(round(x0 * S)), int(round(y0 * S))
+        H2, W2 = int(round(hh * S)), int(round(ww * S))
+        sl = (slice(Y0, Y0 + H2), slice(X0, X0 + W2))
+        mask, d, nx, ny = (_up(a, S, (H2, W2)) for a in (mask, d, nx, ny))
+        nz = np.ones(mask.shape)
+        ys, xs = np.mgrid[Y0:Y0 + H2, X0:X0 + W2]
+        px, py = (xs + 0.5 - self.ox) / S, (ys + 0.5 - self.oy) / S
         self._write(sl, mask, z + d, nx, ny, nz, mat, tone, paint, d, d, px, py)
 
     def dot(self, p, mat, z=50.0, size=1):
-        x = int(np.floor(p[0] + self.ox)); y = int(np.floor(p[1] + self.oy))
+        x = int(np.floor(p[0] * self.S + self.ox)); y = int(np.floor(p[1] * self.S + self.oy))
         if 0 <= x < self.w and 0 <= y < self.h:
-            s = size
+            s = max(1, int(round(size * self.S)))
             sl = (slice(y, min(self.h, y + s)), slice(x, min(self.w, x + s)))
             hh, ww = sl[0].stop - sl[0].start, sl[1].stop - sl[1].start
             o = np.ones((hh, ww))
@@ -278,6 +320,9 @@ class Canvas:
             out[e, 3] = 1
         self.emis = emis
         self.outline_mask = nb
+        if self.S > 1:
+            thicken(out, int(round(self.S * 0.5)))
+            self.outline_mask = (out[..., 3] > 0) & ~alpha
         return out
 
     def normal_map(self, out_alpha):

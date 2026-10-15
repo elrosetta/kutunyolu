@@ -4,6 +4,9 @@ Gerçekçilik araçları: atmosfer perspektifi (uzak = açık, mavimsi, düşük
 yüzleri, öz-gölgeli hacimli bulutlar, gerçek taç yapılı ağaçlar, ışık hüzmeleri, biyom simgeleri.
 Arka planlar oyun alanından daha düşük kontrastlıdır ki karakterler okunabilsin.
 
+HD paketleri: bk.set_scale(N) ile aynı katmanlar N kat ince ızgarada yeniden çizilir (bkz. bgkit.py);
+konumlar/boylar mantıksal pikselde, rastgele tüketim N'den bağımsız. bk.S == 1 dalları temel çıktıyı aynen korur.
+
   otuken   : gece; hasta ay, samanyolu, ay ışığında dağlar, sisli orman sıraları, meşe/çam/kayın, dilek ağacı
   bozkir   : gündüz; kümülüs, Altay silsilesi, uzak yurtlar ve dumanlar, kurganlar, balballar, at sürüsü
   sahmeran : mağara; sarkıt tavan, ışıldayan kristaller, yeraltı gölü ve yansımalar, yılan kabartmalı sütun
@@ -16,7 +19,7 @@ import numpy as np
 import hdkit as hk
 from hdkit import hexrgb, pal, hramp, bayer, fbm, ridged, profile, BAYER8, to_image, reduce_palette
 import bgkit as bk
-from bgkit import W, H, SW, SH, Layer, norm
+from bgkit import W, H, SW, SH, Layer, norm, lin, mgrid, bay, nfbm, nridged, upx, thin
 
 PALN = 64   # katman başına renk sınırı
 
@@ -27,19 +30,42 @@ def _out(rgba, n=PALN, alpha_steps=4):
     return to_image(reduce_palette(rgba, n, alpha_steps))
 
 
+def _pt(L, x, y, c, a=1.0):
+    """Işık/kıvılcım noktası: temelde tek piksel, HD'de alt piksel konumlu ince nokta."""
+    if bk.S == 1:
+        return L.px(x, y, c, a)
+    L.dot(x, y, c, a, r=max(1, bk.S // 2))
+
+
+def _star(L, x, y, c, cross=None):
+    """Yıldız (+ isteğe bağlı artı şeklinde ışıltı): temelde px, HD'de ince nokta ve ince ışınlar."""
+    if bk.S == 1:
+        L.px(x, y, c)
+        if cross is not None:
+            for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+                L.px(x + dx, y + dy, cross)
+        return
+    if cross is not None:
+        cx, cy = math.floor(x) + 0.5, math.floor(y) + 0.5
+        w_ = thin() / bk.S
+        L.stroke([(cx - 1.6, cy - w_ / 2), (cx + 1.6, cy - w_ / 2)], cross, wid=w_, gap=1e9)
+        L.stroke([(cx - w_ / 2, cy - 1.6), (cx - w_ / 2, cy + 1.6)], cross, wid=w_, gap=1e9)
+    L.star(x, y, c)
+
+
 def _fog_layer(col, seed, y0, amt, cells=(480, 240, 120, 60), rise=140.0, top_wisps=0.0):
     rng = np.random.default_rng(seed)
-    n = fbm(W, H, list(cells), rng, aspect=0.32, wrap_y=False)
-    yy = np.arange(H)[:, None].astype(float)
+    n = nfbm(W, H, list(cells), rng, aspect=0.32, wrap_y=False)
+    yy = lin(H)[:, None].astype(float)
     band = np.clip((yy - y0) / rise, 0, 1) ** 1.3
     a = band * np.clip((n - 0.3) / 0.45, 0, 1) * amt
     if top_wisps > 0:
-        n2 = fbm(W, H, [240, 120, 60], rng, aspect=0.18, wrap_y=False)
+        n2 = nfbm(W, H, [240, 120, 60], rng, aspect=0.18, wrap_y=False)
         wb = np.exp(-((yy - (y0 - 40)) / 26.0) ** 2)
         a = np.maximum(a, wb * np.clip((n2 - 0.55) / 0.3, 0, 1) * top_wisps)
-    rgba = np.zeros((H, W, 4))
+    rgba = np.zeros((H * bk.S, W * bk.S, 4))
     rgba[..., :3] = hexrgb(col) if isinstance(col, str) else col
-    b = bayer(H, W)
+    b = bay(H, W)
     rgba[..., 3] = np.clip(np.floor(a * 8 + (b - 0.5) * 0.95) / 8, 0, 1)
     return to_image(rgba)
 
@@ -52,15 +78,16 @@ OT_MOON = (705, 168)
 def otuken_sky(seed=5):
     rng = np.random.default_rng(seed)
     img = bk.gradient([(0, '#020309'), (0.18, '#060914'), (0.42, '#0c1424'), (0.62, '#132036'), (0.8, '#1b2c40'), (1.0, '#24394b')], SW, SH)
-    yy, xx = np.mgrid[0:SH, 0:SW]
+    yy, xx = mgrid(SH, SW)
+    Sx = bk.S
     mx, my = OT_MOON
     d = np.sqrt((xx - mx) ** 2 + ((yy - my) * 1.08) ** 2)
     # samanyolu: ayın karşı tarafında çapraz, soluk, düğümlü bant
     t = (xx * 0.42 - yy) / 1.0
     band = np.exp(-((t - 30) / 70.0) ** 2)
-    mw = fbm(SW, SH, [96, 48, 24, 12], rng, wrap_y=False)
+    mw = nfbm(SW, SH, [96, 48, 24, 12], rng, wrap_y=False)
     img += (band * np.clip(mw - 0.38, 0, 1) * 0.16)[..., None] * hexrgb('#8a9cc8')
-    dark_lane = band * (np.clip(fbm(SW, SH, [64, 32, 16], rng, wrap_y=False) - 0.55, 0, 1) * 0.18)
+    dark_lane = band * (np.clip(nfbm(SW, SH, [64, 32, 16], rng, wrap_y=False) - 0.55, 0, 1) * 0.18)
     img -= dark_lane[..., None] * 0.35
     # ay halesi: hasta yeşilimsi gri, iki katman
     glow = np.clip(1 - d / 300, 0, 1) ** 2.2 * 0.42 + np.clip(1 - d / 90, 0, 1) ** 1.5 * 0.25
@@ -71,25 +98,22 @@ def otuken_sky(seed=5):
     # yıldızlar (ay halesinin dışında, samanyolunda yoğun)
     for _ in range(900):
         x, y = int(rng.integers(0, SW)), int(rng.integers(0, int(SH * 0.62)))
-        if d[y, x] < 150:
+        if d[y * Sx, x * Sx] < 150:
             continue
         p = rng.random()
-        if p > band[y, x] * 0.8 + 0.35:
+        if p > band[y * Sx, x * Sx] * 0.8 + 0.35:
             continue
         br = rng.random()
         c = hexrgb('#c9d4ee') if br > 0.8 else (hexrgb('#8a98bb') if br > 0.35 else hexrgb('#4d5a7a'))
-        L.px(x, y, c)
-        if br > 0.985:
-            for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1)):
-                L.px(x + dx, y + dy, hexrgb('#6e7ca0'))
+        _star(L, x, y, c, hexrgb('#6e7ca0') if br > 0.985 else None)
     # ay: kenar kararması, denizler, kraterler
     R = 34
     mm = d < R
     nd = np.clip(d / R, 0, 1)
-    maria = fbm(SW, SH, [16, 8, 4], rng, wrap_y=False)
+    maria = nfbm(SW, SH, [16, 8, 4], rng, wrap_y=False)
     mlum = 0.97 - nd ** 3 * 0.35 - np.clip(maria - 0.47, 0, 1) * 1.5
     mramp = pal('#5d6966', '#76837e', '#919d96', '#aeb8ae', '#c8d0c4', '#dfe5d8', '#eef2e6')
-    mc = bk.ramp_pick(mramp, np.clip(mlum, 0, 0.999) * 0.999, bayer(SH, SW), 0.8)
+    mc = bk.ramp_pick(mramp, np.clip(mlum, 0, 0.999) * 0.999, bay(SH, SW), 0.8)
     L.rgba[mm, :3] = mc[mm]
     pr = np.random.default_rng(seed + 1)
     for _ in range(14):
@@ -134,8 +158,8 @@ def otuken_mountains(seed=8):
     nl = Layer(); nl.rgba[...] = near
     out.over(nl)
     # vadi sisi: dağların eteğinde yatay pus bantları
-    yy = np.arange(H)[:, None]
-    n = fbm(W, H, [320, 160, 80], rng, aspect=0.2, wrap_y=False)
+    yy = lin(H)[:, None]
+    n = nfbm(W, H, [320, 160, 80], rng, aspect=0.2, wrap_y=False)
     mist = np.clip((yy - 420) / 90.0, 0, 1) * np.clip((n - 0.25) / 0.5, 0, 1) * 0.6
     bk.apply_haze(out.rgba, '#273647', mist * (out.rgba[..., 3] > 0))
     return _out(out.rgba)
@@ -170,8 +194,8 @@ def otuken_far(seed=9):
         bk.fill_ground(L, p + 4, lambda ys, x, c=ramp[0]: np.broadcast_to(c, (len(ys), 3)))
         out.over(L)
         # sıralar arası sis
-        yy = np.arange(H)[:, None]
-        n = fbm(W, H, [240, 120, 60], rng, aspect=0.25, wrap_y=False)
+        yy = lin(H)[:, None]
+        n = nfbm(W, H, [240, 120, 60], rng, aspect=0.25, wrap_y=False)
         mist = np.exp(-((yy - (base + 18)) / 22.0) ** 2) * np.clip((n - 0.2) / 0.5, 0, 1) * 0.5
         bk.apply_haze(out.rgba, '#344a5e', mist * (out.rgba[..., 3] > 0))
     # uzak balbal taşları ve kam direği siluetleri bir açıklıkta
@@ -193,9 +217,15 @@ def _wish_tree(L, x, base, rng):
         cx = x + rng.uniform(-50, 50); cy = base - 150 * 0.55 + rng.uniform(-30, 10)
         c = cols[int(rng.integers(0, len(cols)))] * 0.62
         ln = int(rng.integers(4, 9))
-        for k in range(ln):
-            L.px(cx + (k // 3), cy + k, c * (0.85 if k % 2 else 1.0))
-            L.px(cx + 1 + (k // 3), cy + k, c * 0.7)
+        if bk.S == 1:
+            for k in range(ln):
+                L.px(cx + (k // 3), cy + k, c * (0.85 if k % 2 else 1.0))
+                L.px(cx + 1 + (k // 3), cy + k, c * 0.7)
+        else:
+            # HD: rüzgârda hafif kıvrılan bez şerit
+            pts = [(cx + k / 3 + math.sin(k * 0.9) * 0.2, cy + k) for k in range(ln)]
+            L.stroke([(px_ + 1, py_) for px_, py_ in pts], c * 0.7, gap=1e9)
+            L.stroke(pts, [c * (0.85 if k % 2 else 1.0) for k in range(ln)], gap=1e9)
 
 
 def otuken_mid(seed=10):
@@ -244,22 +274,31 @@ def otuken_mid(seed=10):
     for x in range(0, W):
         if rng.random() < 0.5:
             hh = int(rng.integers(2, 8))
-            for k in range(hh):
-                out.px(x + (k // 4) * (1 if x % 2 else -1), gl[x] + 1 - k, G[3 if k < hh - 1 else 5])
+            if bk.S == 1:
+                for k in range(hh):
+                    out.px(x + (k // 4) * (1 if x % 2 else -1), gl[x] + 1 - k, G[3 if k < hh - 1 else 5])
+            else:
+                s_ = 1 if x % 2 else -1
+                out.stroke([(x + k / 4 * s_, gl[x] + 1 - k) for k in range(hh)], [G[3 if k < hh - 1 else 5] for k in range(hh)],
+                           wid=0.75, gap=1e9)
     # ruh ışıkları
     for _ in range(18):
         x, y = rng.uniform(0, W), rng.uniform(300, 460)
-        out.px(x, y, hexrgb('#9df2e0')); out.px(x + 1, y, hexrgb('#5fb8a8'), 0.6); out.px(x, y + 1, hexrgb('#3f7a72'), 0.5)
+        if bk.S == 1:
+            out.px(x, y, hexrgb('#9df2e0')); out.px(x + 1, y, hexrgb('#5fb8a8'), 0.6); out.px(x, y + 1, hexrgb('#3f7a72'), 0.5)
+        else:
+            _glow(out, x + 0.7, y + 0.7, 2.4, '#3f7a72', 0.7)
+            _pt(out, x + 0.5, y + 0.5, hexrgb('#9df2e0'))
     # ay hüzmesi: ağaçların arasından soğuk, eğik, çok saydam ışık bantları
     beams = Layer()
-    yy, xx = np.mgrid[0:H, 0:W]
+    yy, xx = mgrid(H, W)
     for bx in (300, 760, 1240, 1700):
         t = (xx - bx) + (yy - 0) * 0.55
-        m = (np.abs(t) < rng.uniform(16, 30)) & (yy < gl[None, :] - 4)
+        m = (np.abs(t) < rng.uniform(16, 30)) & (yy < upx(gl)[None, :] - 4)
         a = (1 - yy / H) * 0.14
         beams.rgba[m, :3] = hexrgb('#7fa2b0')
         beams.rgba[m, 3] = a[m]
-    beams.rgba[..., 3] = np.clip(np.floor(beams.rgba[..., 3] * 16 + (bayer(H, W) - 0.5)) / 16, 0, 1)
+    beams.rgba[..., 3] = np.clip(np.floor(beams.rgba[..., 3] * 16 + (bay(H, W) - 0.5)) / 16, 0, 1)
     base_ = Layer(); base_.rgba[...] = beams.rgba
     base_.over(out)
     # hüzmeyi ağaçların önüne de hafifçe
@@ -294,26 +333,37 @@ def otuken_near(seed=11):
         for k in range(8):
             yk = rng.uniform(40, 420)
             xk = x + rng.uniform(-w * 0.7, w * 0.7)
-            for j in range(int(rng.integers(6, 24))):
-                out.px(xk + math.sin(j * 0.4) * 1.2, yk + j, MOSS[2 if j % 3 else 3])
+            nj = int(rng.integers(6, 24))
+            out.stroke([(xk + math.sin(j * 0.4) * 1.2, yk + j) for j in range(nj)], [MOSS[2 if j % 3 else 3] for j in range(nj)], wid=0.75, gap=1e9)
     # alt kenar: eğrelti ve ot siluetleri
     for x in range(0, W, 2):
         if rng.random() < 0.6:
             hh = int(rng.integers(6, 30))
             lean = rng.uniform(-0.5, 0.5)
-            for k in range(hh):
-                out.px(x + lean * k * k / hh, H - 1 - k, MOSS[1 if k < hh * 0.6 else 2])
+            out.stroke([(x + lean * k * k / hh, H - 1 - k) for k in range(hh)], [MOSS[1 if k < hh * 0.6 else 2] for k in range(hh)],
+                       wid=0.75, gap=1e9)
     for _ in range(8):
         cx = rng.uniform(0, W)
         for j in range(5):
             a = -math.pi / 2 + (j - 2) * 0.45
+            fr_ = []
             for k in range(28):
                 t = k / 28
                 xx_ = cx + math.cos(a) * k * 1.4 + t * t * 10 * (j - 2)
                 yy_ = H - 4 + math.sin(a) * k * 1.4 + t * t * 14
-                out.px(xx_, yy_, MOSS[2])
-                if k % 3 == 0:
-                    out.px(xx_ + 1, yy_ + 2, MOSS[1]); out.px(xx_ - 1, yy_ + 2, MOSS[1])
+                if bk.S == 1:
+                    out.px(xx_, yy_, MOSS[2])
+                    if k % 3 == 0:
+                        out.px(xx_ + 1, yy_ + 2, MOSS[1]); out.px(xx_ - 1, yy_ + 2, MOSS[1])
+                else:
+                    fr_.append((xx_, yy_))
+            if fr_:
+                # HD: eğrelti yaprağı: ince orta damar + iki yana inen yaprakçıklar
+                for k in range(0, 28, 3):
+                    xx_, yy_ = fr_[k]
+                    out.stroke([(xx_, yy_), (xx_ + 1.2, yy_ + 2.2)], MOSS[1], wid=0.6, gap=1e9)
+                    out.stroke([(xx_, yy_), (xx_ - 1.2, yy_ + 2.2)], MOSS[1], wid=0.6, gap=1e9)
+                out.stroke(fr_, MOSS[2], wid=0.75, gap=1e9)
     return _out(out.rgba, 32)
 
 
@@ -329,7 +379,7 @@ BZ_SUN = (790, 118)
 def bozkir_sky(seed=21):
     rng = np.random.default_rng(seed)
     img = bk.gradient([(0, '#2459b4'), (0.25, '#3d7bcf'), (0.5, '#6aa5e0'), (0.7, '#a2c9ea'), (0.85, '#d4e2e6'), (1.0, '#ecdcb6')], SW, SH)
-    yy, xx = np.mgrid[0:SH, 0:SW]
+    yy, xx = mgrid(SH, SW)
     sx, sy = BZ_SUN
     d = np.sqrt((xx - sx) ** 2 + (yy - sy) ** 2)
     glow = np.clip(1 - d / 360, 0, 1) ** 2.3 * 0.7 + np.clip(1 - d / 70, 0, 1) ** 1.2 * 0.4
@@ -340,10 +390,10 @@ def bozkir_sky(seed=21):
     for r, c in ((22, '#fff6d8'), (18, '#fffbea'), (14, '#ffffff')):
         L.rgba[d < r, :3] = hexrgb(c)
     # yüksek sirrus çizgileri
-    cir = fbm(SW, SH, [240, 120, 60, 30], rng, aspect=0.08, wrap_y=False)
+    cir = nfbm(SW, SH, [240, 120, 60, 30], rng, aspect=0.08, wrap_y=False)
     band = np.exp(-((yy - 70) / 40.0) ** 2) + np.exp(-((yy - 150) / 25.0) ** 2) * 0.6
     ca = np.clip((cir - 0.56) / 0.2, 0, 1) * band * 0.55
-    ca = np.clip(np.floor(ca * 6 + (bayer(SH, SW) - 0.5)) / 6, 0, 1)
+    ca = np.clip(np.floor(ca * 6 + (bay(SH, SW) - 0.5)) / 6, 0, 1)
     L.rgba[..., :3] = L.rgba[..., :3] * (1 - ca[..., None]) + hexrgb('#f4f8fc') * ca[..., None]
     cl = pal('#7d93b5', '#93a8c6', '#aabcd6', '#c2d1e4', '#d9e4f0', '#ebf1f7', '#f8fbfd', '#ffffff')
     for (cx, cy, wd, ht) in ((150, 210, 240, 70), (520, 150, 200, 52), (880, 250, 280, 80), (360, 330, 340, 44), (700, 380, 220, 30),
@@ -355,12 +405,27 @@ def bozkir_sky(seed=21):
     for _ in range(9):
         bk.bird(L, rng.integers(80, 900), rng.integers(80, 300), hexrgb('#2c3550'), span=int(rng.integers(2, 4)), flap=int(rng.integers(-1, 2)))
     ex, ey = 300, 120
-    for dx in range(-9, 10):
-        dy = int(abs(dx) * 0.35) - (1 if abs(dx) > 6 else 0)
-        L.px(ex + dx, ey + dy, hexrgb('#2a2620'))
-        if abs(dx) < 6:
-            L.px(ex + dx, ey + dy + 1, hexrgb('#3e3426'))
-    L.px(ex, ey + 2, hexrgb('#2a2620')); L.px(ex + 1, ey - 1, hexrgb('#4a3a28'))
+    if bk.S == 1:
+        for dx in range(-9, 10):
+            dy = int(abs(dx) * 0.35) - (1 if abs(dx) > 6 else 0)
+            L.px(ex + dx, ey + dy, hexrgb('#2a2620'))
+            if abs(dx) < 6:
+                L.px(ex + dx, ey + dy + 1, hexrgb('#3e3426'))
+        L.px(ex, ey + 2, hexrgb('#2a2620')); L.px(ex + 1, ey - 1, hexrgb('#4a3a28'))
+    else:
+        # HD: süzülen kartal; aynı kanat açıklığı, uçlarda ayrık birincil tüyler
+        def wy(dx):
+            ad = abs(dx)
+            return ey + 0.5 + ad * 0.35 - max(0.0, ad - 5.5) * 0.45
+        dxs = np.linspace(-9.4, 9.4, 39)
+        L.stroke([(ex + 0.5 + d, wy(d) + 0.6) for d in dxs if abs(d) < 6.2], hexrgb('#3e3426'), wid=1.1, gap=1e9)
+        L.stroke([(ex + 0.5 + d, wy(d)) for d in dxs], hexrgb('#2a2620'), wid=0.9, gap=1e9)
+        for s_ in (-1, 1):
+            for f_ in range(3):
+                bx_ = ex + 0.5 + s_ * (8.0 + f_ * 0.6)
+                L.stroke([(bx_, wy(8.0 + f_ * 0.6)), (bx_ + s_ * 1.2, wy(8.0 + f_ * 0.6) - 0.7 + f_ * 0.5)], hexrgb('#2a2620'), wid=0.45, gap=1e9)
+        L.stroke([(ex + 0.5, ey + 1.0), (ex + 0.5, ey + 2.9)], hexrgb('#2a2620'), wid=1.0, gap=1e9)
+        L.stroke([(ex + 1.2, ey - 0.2), (ex + 1.9, ey - 0.6)], hexrgb('#4a3a28'), wid=0.8, gap=1e9)
     return _out(L.rgba, 0)
 
 
@@ -425,11 +490,18 @@ def bozkir_mid(seed=23):
     r2 = bk.ridge_line(W, 490, 26, [480, 240, 120], rng)
     L2 = Layer()
     bk.hills(L2, r2, G2, BZ_L, rng, grass=0.7, streaks=0.0, shadows=0.14, depth_dark=0.2, tex=0.16)
-    for x in range(0, W):
-        t = x / W * math.tau
-        y = r2[x] + 18 + math.sin(t * 2) * 8
-        for k in range(3):
-            L2.px(x, y + k, hexrgb('#9a7a4a') if k else hexrgb('#b8955c'))
+    if bk.S == 1:
+        for x in range(0, W):
+            t = x / W * math.tau
+            y = r2[x] + 18 + math.sin(t * 2) * 8
+            for k in range(3):
+                L2.px(x, y + k, hexrgb('#9a7a4a') if k else hexrgb('#b8955c'))
+    else:
+        # HD: aynı patika eğrisi, sürekli kenar; tekerlek izleri ince
+        road = [(x, r2[x] + 18 + math.sin(x / W * math.tau * 2) * 8) for x in range(0, W)] + [(W, r2[0] + 18)]
+        L2.stroke([(x, y + 1) for x, y in road], hexrgb('#9a7a4a'), wid=2.0, gap=1e9)
+        L2.stroke(road, hexrgb('#b8955c'), wid=1.0, gap=1e9)
+        L2.stroke([(x, y + 1.9) for x, y in road], hexrgb('#8a6c40'), wid=thin() / bk.S, gap=1e9)
     out.over(L2)
     bk.apply_haze(out.rgba, '#dccfa8', 0.06 * (out.rgba[..., 3] > 0))
     return _out(out.rgba)
@@ -446,14 +518,12 @@ def bozkir_near(seed=24):
         if rng.random() < 0.55:
             hh = int(rng.integers(10, 44))
             lean = rng.uniform(0.2, 1.2) * (1 if rng.random() < 0.8 else -1)
-            for k in range(hh):
-                t = k / hh
-                xx = x + lean * t * t * hh * 0.35
-                out.px(xx, H - 1 - k, GR[1 + int(t * 3.5)])
+            out.stroke([(x + lean * (k / hh) * (k / hh) * hh * 0.35, H - 1 - k) for k in range(hh)], [GR[1 + int(k / hh * 3.5)] for k in range(hh)],
+                       wid=0.75, gap=1e9)
             if rng.random() < 0.3:
                 tx = x + lean * hh * 0.35
-                for j in range(int(rng.integers(5, 12))):
-                    out.px(tx + j * 0.7 * np.sign(lean), H - hh + j, PLUME[j % 3])
+                nj = int(rng.integers(5, 12))
+                out.stroke([(tx + j * 0.7 * np.sign(lean), H - hh + j) for j in range(nj)], [PLUME[j % 3] for j in range(nj)], wid=0.75, gap=1e9)
     for cx in (500, 1500):
         hgt = 70
         base = H - 4
@@ -472,9 +542,14 @@ def bozkir_near(seed=24):
         c1 = hexrgb('#2f6ab8') if k % 3 else hexrgb('#e8e4d8')
         c2 = c1 * 0.72
         ln = int(rng.integers(12, 22))
-        for j in range(ln):
-            yy_ = y0 + j * 0.35 + math.sin(j * 0.45 + k) * 1.4
-            out.px(ox + 3 + j, yy_, c1); out.px(ox + 3 + j, yy_ + 1, c2)
+        if bk.S == 1:
+            for j in range(ln):
+                yy_ = y0 + j * 0.35 + math.sin(j * 0.45 + k) * 1.4
+                out.px(ox + 3 + j, yy_, c1); out.px(ox + 3 + j, yy_ + 1, c2)
+        else:
+            rib = [(ox + 3 + j, y0 + j * 0.35 + math.sin(j * 0.45 + k) * 1.4) for j in range(ln)]
+            out.stroke([(x, y + 1) for x, y in rib], c2, gap=1e9)
+            out.stroke(rib, c1, gap=1e9)
     bk.apply_haze(out.rgba, '#c8b88e', 0.2 * (out.rgba[..., 3] > 0))
     return _out(out.rgba, 40)
 
@@ -489,13 +564,13 @@ def _glow(L, cx, cy, r, col, amt=0.5, steps=6):
     xs, ys = L.grid(cx - r, cy - r, cx + r, cy + r)
     if len(ys) == 0:
         return
-    X, Y = np.meshgrid(xs + 0.5 - cx, ys + 0.5 - cy)
+    X, Y = np.meshgrid(L.c(xs) - cx, L.c(ys) - cy)
     d = np.sqrt(X * X + Y * Y) / r
     a = np.clip(1 - d, 0, 1) ** 2 * amt
     bb = BAYER8[ys[:, None] % 8, xs[None, :] % 8]
     a = np.clip(np.floor(a * steps + (bb - 0.5) * 0.95) / steps, 0, 1)
     c = hexrgb(col) if isinstance(col, str) else np.asarray(col)
-    Xi = xs % L.w
+    Xi = xs % L.pw
     sub = L.rgba[np.ix_(ys, Xi)]
     op = sub[..., 3:4]
     rgb = np.where(op > 0, np.minimum(1, sub[..., :3] + c * a[..., None]), c)
@@ -515,11 +590,13 @@ def _stalactite(L, x, top, ln, w, ramp, light, rng, up=False, wet=None):
         pts.append((x + math.sin(t * 3 + x) * w * 0.15, y))
     L.tube(pts, w, 0.5, ramp, light)
     if wet is not None:
+        wp = []
         for k in range(int(ln * 0.6)):
             t = k / ln
             yy = top + (k if not up else -k)
             if rng.random() < 0.55:
-                L.px(x + w * (1 - t) * 0.45, yy, wet)
+                wp.append((x + w * (1 - t) * 0.45, yy))
+        L.stroke(wp, wet, wid=0.6, gap=1.05)
 
 
 def _crystals(L, cx, cy, size, cols, light, rng, n=None, glow=None):
@@ -550,6 +627,8 @@ def _reflect(L, y_water, ramp_water, rng, glow_cols=(), strength=0.45, ripple=0.
     """Yeraltı gölü: su çizgisinin üstünü ters çevirip kısar, yatay dalga kaymalarıyla bozar."""
     h, w = L.h, L.w
     yw = int(y_water)
+    if L.S > 1:
+        return _reflect_hd(L, yw, ramp_water, rng, strength, ripple)
     above = L.rgba[:yw].copy()
     for y in range(yw, h):
         k = y - yw
@@ -569,6 +648,38 @@ def _reflect(L, y_water, ramp_water, rng, glow_cols=(), strength=0.45, ripple=0.
     L.rgba[yw, :, :3] = np.minimum(1, L.rgba[yw, :, :3] * 1.3 + 0.03)
 
 
+def _reflect_hd(L, yw, ramp_water, rng, strength, ripple):
+    """_reflect HD sürümü: aynı dalga kaymaları ince satırlarda (alt piksel kayma), parıltılar ince."""
+    S_ = L.S
+    h, w = L.h, L.w
+    above = L.rgba[:yw * S_].copy()
+    for y in range(yw, h):
+        k = y - yw
+        if yw - 1 - k < 0:
+            break
+        for q in range(S_):
+            yp = y * S_ + q
+            srcp = yw * S_ - 1 - (yp - yw * S_)
+            if srcp < 0:
+                break
+            kk = (yp - yw * S_) / S_
+            yl = yp / S_
+            sh = int(round(math.sin(yl * 0.9 + kk * 0.15) * ripple * (1 + kk * 0.02) * S_))
+            row = np.roll(above[srcp], sh, 0)
+            base = ramp_water[min(len(ramp_water) - 1, 1 + k // 40)]
+            a = row[:, 3:4] * strength * max(0.2, 1 - kk / 120)
+            L.rgba[yp, :, :3] = base * (1 - a) + row[:, :3] * a
+            L.rgba[yp, :, 3] = 1
+        if (y + int(rng.integers(0, 3))) % 5 == 0:
+            m = rng.random(w) < 0.12
+            mf = bk.side(m.astype(float) + 0.5).random(w * S_) < 0.12
+            for q in range(thin()):
+                yp = y * S_ + q
+                L.rgba[yp, mf, :3] = np.minimum(1, L.rgba[yp, mf, :3] + 0.05)
+    for q in range(thin()):
+        L.rgba[yw * S_ + q, :, :3] = np.minimum(1, L.rgba[yw * S_ + q, :, :3] * 1.3 + 0.03)
+
+
 # =============================================================== ŞAHMERAN (mağara)
 SH_L = norm([0.45, -0.72, 0.55])
 SH_ROCK = pal('#030807', '#06100d', '#0a1713', '#0f1f1a', '#152922', '#1c342c', '#25403a')
@@ -580,9 +691,9 @@ def sahmeran_sky(seed=31):
     rng = np.random.default_rng(seed)
     img = bk.gradient([(0, '#020504'), (0.35, '#06100d'), (0.7, '#0a1915'), (1.0, '#0e211c')], SW, SH)
     # uzak kaya duvarı: katmanlı çatlaklar, çok düşük kontrast
-    r = ridged(SW, SH, [96, 48, 24, 12], rng, aspect=0.35, wrap_y=False)
+    r = nridged(SW, SH, [96, 48, 24, 12], rng, aspect=0.35, wrap_y=False)
     img = img * (0.82 + r[..., None] * 0.36)
-    yy, xx = np.mgrid[0:SH, 0:SW]
+    yy, xx = mgrid(SH, SW)
     # tavandaki yarıktan inen soluk ışık
     hx_ = 300
     shaft = np.clip(1 - np.abs((xx - hx_) - (yy) * 0.18) / 46.0, 0, 1) * np.clip(1 - yy / 520, 0, 1)
@@ -598,11 +709,11 @@ def sahmeran_sky(seed=31):
     L.rgba[..., :3] = img; L.rgba[..., 3] = 1
     # yarık: tepede parlak ağız
     for k in range(30):
-        L.px(hx_ + rng.uniform(-18, 18), rng.uniform(0, 6), hexrgb('#8ad8c0'))
+        _pt(L, hx_ + rng.uniform(-18, 18), rng.uniform(0, 6), hexrgb('#8ad8c0'))
     # ışıl böcekleri (tavanda yıldız gibi)
     for _ in range(260):
         x, y = rng.uniform(0, SW), rng.uniform(0, 260)
-        L.px(x, y, hexrgb('#5ad8b0') if rng.random() < 0.3 else hexrgb('#2a7a68'))
+        _pt(L, x, y, hexrgb('#5ad8b0') if rng.random() < 0.3 else hexrgb('#2a7a68'))
     return _out(L.rgba, 0)
 
 
@@ -613,8 +724,12 @@ def sahmeran_far(seed=32):
     R = pal('#08130f', '#0c1a15', '#11221c', '#162b24', '#1c352d', '#244038')
     # tavan bandı + sarkıtlar
     top = bk.ridge_line(W, 70, 50, [480, 240, 120, 60], rng)
-    for x in range(W):
-        out.rgba[:int(top[x]), x, :3] = R[1]; out.rgba[:int(top[x]), x, 3] = 1
+    if bk.S == 1:
+        for x in range(W):
+            out.rgba[:int(top[x]), x, :3] = R[1]; out.rgba[:int(top[x]), x, 3] = 1
+    else:
+        ceil_ = lin(H)[:, None] < upx(top)[None, :] - 0.5
+        out.rgba[ceil_, :3] = R[1]; out.rgba[ceil_, 3] = 1
     x = 0.0
     while x < W:
         _stalactite(out, x, top[int(x) % W] - 2, rng.uniform(20, 150) * rng.random() ** 0.5, rng.uniform(3, 9), R, SH_L, rng)
@@ -653,13 +768,26 @@ def _snake_relief(L, cx, y0, y1, ramp, rng):
         y = y1 - (y1 - y0) * t
         x = cx + math.sin(t * math.tau * 2.2) * 11
         pts.append((x, y))
-    for (x, y) in pts:
-        L.px(x - 2, y, ramp[0]); L.px(x - 1, y, ramp[1]); L.px(x, y, ramp[4]); L.px(x + 1, y, ramp[3]); L.px(x + 2, y, ramp[2])
+    if L.S == 1:
+        for (x, y) in pts:
+            L.px(x - 2, y, ramp[0]); L.px(x - 1, y, ramp[1]); L.px(x, y, ramp[4]); L.px(x + 1, y, ramp[3]); L.px(x + 2, y, ramp[2])
+    else:
+        # HD: aynı dolanan gövde; beş tonlu kabartma şeridi, temeldeki gibi satır satır (aralıklı) ama ince satırlarla
+        S_ = L.S
+        for k in range(len(pts) - 1):
+            (xa, ya), (xb, yb) = pts[k], pts[k + 1]
+            for q in range(0, int(abs(yb - ya) * S_), 2):
+                t = q / max(1.0, abs(yb - ya) * S_)
+                x, y = xa + (xb - xa) * t, ya + (yb - ya) * t
+                for off, ci in ((-2, 0), (-1, 1), (0, 4), (1, 3), (2, 2)):
+                    L.dot(x + off, y, ramp[ci], r=1)
+                    for r_ in range(1, S_):
+                        L.dot(x + off + r_ / S_, y, ramp[ci], r=1)
     hx_, hy = pts[-1]
     L.sphere(hx_, hy - 4, 5, ramp, SH_L, squash=0.8)
     for dx in (-3, 0, 3):
         L.line(hx_ + dx, hy - 9, hx_ + dx * 1.3, hy - 14, hexrgb('#c8a032'))
-    L.px(hx_ + 2, hy - 5, hexrgb('#62e8c8')); L.px(hx_ - 1, hy - 5, hexrgb('#62e8c8'))
+    _pt(L, hx_ + 2, hy - 5, hexrgb('#62e8c8')); _pt(L, hx_ - 1, hy - 5, hexrgb('#62e8c8'))
 
 
 def sahmeran_mid(seed=33):
@@ -680,7 +808,11 @@ def sahmeran_mid(seed=33):
         # ıslak damla izleri
         for k in range(40):
             yy = rng.uniform(0, 440)
-            out.px(cx + rng.uniform(0.2, 0.7) * wmid, yy, WET)
+            if bk.S == 1:
+                out.px(cx + rng.uniform(0.2, 0.7) * wmid, yy, WET)
+            else:
+                xw = cx + rng.uniform(0.2, 0.7) * wmid
+                out.stroke([(xw, yy), (xw, yy + 1.6)], WET, wid=thin() / bk.S, gap=1e9)
         if i == 1:
             _snake_relief(out, cx, 170, 360, R[2:], rng)
         for k in range(int(rng.integers(2, 5))):
@@ -691,7 +823,11 @@ def sahmeran_mid(seed=33):
     # ıslak zemin parıltısı ve yosun öbekleri
     for x in range(0, W):
         if rng.random() < 0.25:
-            out.px(x, fl[x] + rng.uniform(1, 4), WET * 0.7)
+            if bk.S == 1:
+                out.px(x, fl[x] + rng.uniform(1, 4), WET * 0.7)
+            else:
+                yw_ = fl[x] + rng.uniform(1, 4)
+                out.stroke([(x, yw_), (x + 1.4, yw_)], WET * 0.7, wid=thin() / bk.S, gap=1e9)
     for x in range(0, W, 6):
         if rng.random() < 0.3:
             for j in range(int(rng.integers(3, 9))):
@@ -704,11 +840,17 @@ def sahmeran_mid(seed=33):
     for _ in range(40):
         x = rng.uniform(0, W)
         ln = rng.uniform(20, 120)
-        for k in range(int(ln)):
-            if k % 6 == 0:
-                out.px(x, k, hexrgb('#5ad8b0'))
-            elif k % 2 == 0:
-                out.px(x, k, hexrgb('#1a3a32'), 0.6)
+        if bk.S == 1:
+            for k in range(int(ln)):
+                if k % 6 == 0:
+                    out.px(x, k, hexrgb('#5ad8b0'))
+                elif k % 2 == 0:
+                    out.px(x, k, hexrgb('#1a3a32'), 0.6)
+        else:
+            # HD: sürekli ince iplik, üstünde ışıl damlacıklar
+            out.stroke([(x + 0.5, 0), (x + 0.5, int(ln) - 1)], hexrgb('#1a3a32'), 0.6, wid=thin() / bk.S, gap=1e9)
+            for k in range(0, int(ln), 6):
+                _pt(out, x + 0.5 - 0.25, k + 0.25, hexrgb('#5ad8b0'))
     bk.apply_haze(out.rgba, '#123028', 0.12 * (out.rgba[..., 3] > 0))
     return _out(out.rgba)
 
@@ -731,10 +873,21 @@ def sahmeran_near(seed=34):
         x = rng.uniform(0, W)
         ln = rng.uniform(40, 200)
         xx = x
+        rp = []
         for k in range(int(ln)):
             xx += rng.uniform(-0.4, 0.4)
-            out.px(xx, k, R[3]); out.px(xx + 1, k, R[2])
-        out.px(xx, ln, hexrgb('#3fd0a8')); out.px(xx, ln + 1, hexrgb('#1a6a58'))
+            if bk.S == 1:
+                out.px(xx, k, R[3]); out.px(xx + 1, k, R[2])
+            else:
+                rp.append((xx, k))
+        if rp:
+            out.stroke([(a + 1, b) for a, b in rp], R[2], gap=1e9)
+            out.stroke(rp, R[3], gap=1e9)
+        if bk.S == 1:
+            out.px(xx, ln, hexrgb('#3fd0a8')); out.px(xx, ln + 1, hexrgb('#1a6a58'))
+        else:
+            _glow(out, xx + 0.5, ln + 1.0, 2.2, '#1a6a58', 0.8)
+            out.stroke([(xx + 0.2, ln), (xx + 0.2, ln + 1.2)], hexrgb('#3fd0a8'), wid=0.6, gap=1e9)
     return _out(out.rgba, 24)
 
 
@@ -750,7 +903,7 @@ KF_SUN = (640, 440)
 def kaf_sky(seed=41):
     rng = np.random.default_rng(seed)
     img = bk.gradient([(0, '#151a3e'), (0.25, '#2c2c5e'), (0.48, '#5a4880'), (0.66, '#a0628c'), (0.8, '#e08a84'), (0.92, '#f6b886'), (1.0, '#ffd8a4')], SW, SH)
-    yy, xx = np.mgrid[0:SH, 0:SW]
+    yy, xx = mgrid(SH, SW)
     sx, sy = KF_SUN
     d = np.sqrt((xx - sx) ** 2 + ((yy - sy) * 1.3) ** 2)
     glow = np.clip(1 - d / 420, 0, 1) ** 2.2 * 0.6
@@ -763,7 +916,7 @@ def kaf_sky(seed=41):
     # sönmekte olan yıldızlar
     for _ in range(200):
         x, y = int(rng.integers(0, SW)), int(rng.integers(0, 170))
-        L.px(x, y, hexrgb('#c8c8f0') if rng.random() < 0.3 else hexrgb('#7a7ab0'))
+        _star(L, x, y, hexrgb('#c8c8f0') if rng.random() < 0.3 else hexrgb('#7a7ab0'))
     # alttan aydınlanan bulutlar: güneş tarafı pembe-altın
     cl = pal('#3a3268', '#4e3e78', '#6a4c88', '#8c5a90', '#b8708e', '#e0908a', '#f8b890', '#ffe0b8')
     for (cx, cy, wd, ht) in ((140, 160, 260, 44), (560, 110, 300, 40), (860, 230, 220, 50), (330, 300, 360, 36), (760, 360, 280, 28)):
@@ -809,10 +962,28 @@ def kaf_mid(seed=43):
     CL = Layer()
     bk.hills(CL, plateau, ROCK, KF_L, rng, grass=None, depth_dark=0.1, tex=0.14)
     # tepede kar örtüsü
-    for x in range(W):
-        if plateau[x] < H:
-            for k in range(int(3 + (x * 7 % 5))):
-                CL.px(x, plateau[x] + k, SN[6 - min(k, 3)])
+    if bk.S == 1:
+        for x in range(W):
+            if plateau[x] < H:
+                for k in range(int(3 + (x * 7 % 5))):
+                    CL.px(x, plateau[x] + k, SN[6 - min(k, 3)])
+    else:
+        # HD: aynı kalınlıkta kar örtüsü, kalınlık sütundan sütuna yumuşak değişir
+        S_ = bk.S
+        pu = upx(plateau)
+        dep = upx(np.array([3 + (x * 7 % 5) for x in range(W)], float))
+        sn = np.asarray(SN)
+        for xp in range(W * S_):
+            x = xp // S_
+            if plateau[x] >= H or pu[xp] >= H:
+                continue
+            y0p = int(math.floor(pu[xp] * S_))
+            r = np.arange(int(dep[xp] * S_))
+            k = np.minimum(r // S_, 3)
+            rows = y0p + r
+            ok = (rows >= 0) & (rows < H * S_)
+            CL.rgba[rows[ok], xp, :3] = sn[6 - k[ok]]
+            CL.rgba[rows[ok], xp, 3] = 1
     # uçurum yüzünde dikey çatlaklar ve kaya sütunları
     for _ in range(40):
         x0 = cx + rng.uniform(-150, 150)
@@ -820,10 +991,20 @@ def kaf_mid(seed=43):
             continue
         y0 = plateau[int(x0) % W] + rng.uniform(4, 30)
         ln = rng.uniform(20, 120)
-        for k in range(int(ln)):
-            xx_ = x0 + math.sin(k * 0.2) * 0.8
-            if CL.rgba[int(min(H - 1, y0 + k)), int(xx_) % W, 3] > 0:
-                CL.px(xx_, y0 + k, ROCK[0]); CL.px(xx_ + 1, y0 + k, ROCK[4])
+        if bk.S == 1:
+            for k in range(int(ln)):
+                xx_ = x0 + math.sin(k * 0.2) * 0.8
+                if CL.rgba[int(min(H - 1, y0 + k)), int(xx_) % W, 3] > 0:
+                    CL.px(xx_, y0 + k, ROCK[0]); CL.px(xx_ + 1, y0 + k, ROCK[4])
+        else:
+            # HD: ince çatlak (koyu) + sağında ince ışık dudağı; yalnızca kaya üstünde
+            S_ = bk.S
+            ks = np.arange(int(ln) * S_) / S_
+            cp = [(x0 + math.sin(k * 0.2) * 0.8, y0 + k) for k in ks]
+            cp = [(a, b) for a, b in cp if CL.rgba[int(min(H * S_ - 1, b * S_)), int(a * S_) % (W * S_), 3] > 0]
+            w_ = thin() / S_
+            CL.stroke([(a + w_, b) for a, b in cp], ROCK[4], wid=w_, gap=2.0 / S_)
+            CL.stroke(cp, ROCK[0], wid=w_, gap=2.0 / S_)
     out.over(CL)
     for k in range(22):
         x0 = cx - 34 + k * 3.1 + rng.uniform(-1, 1)
@@ -881,7 +1062,7 @@ TM_LS = norm([0.7, -0.3, 0.6])           # yüzey yönleri için yan ışık
 def tamu_sky(seed=51):
     rng = np.random.default_rng(seed)
     img = bk.gradient([(0, '#040102'), (0.3, '#0b0304'), (0.55, '#170605'), (0.78, '#300c07'), (0.92, '#5a1a0a'), (1.0, '#7a2a0e')], SW, SH)
-    yy, xx = np.mgrid[0:SH, 0:SW]
+    yy, xx = mgrid(SH, SW)
     # tutulmuş kara güneş: kapkara disk, ince kor halka, dışa taşan kızıl taç
     ex, ey = 240, 160
     d = np.sqrt((xx - ex) ** 2 + (yy - ey) ** 2)
@@ -901,12 +1082,32 @@ def tamu_sky(seed=51):
         bk.cumulus(L, cx, cy, wd, ht, cl, TM_L, rng, puff=(0.14, 0.32), rough=0.3, lift=-0.18 + cy / 1400, squash=0.75, base_flat=False)
     for _ in range(160):
         x, y = rng.uniform(0, SW), rng.uniform(0, SH)
-        L.px(x, y, hexrgb('#ff8a30') if rng.random() < 0.4 else hexrgb('#a83a10'))
+        _pt(L, x, y, hexrgb('#ff8a30') if rng.random() < 0.4 else hexrgb('#a83a10'))
     return _out(L.rgba, 0)
 
 
 def _lava_line(L, pts, w, rng):
     core = hexrgb('#ffd060'); mid = hexrgb('#ff7a1a'); edge = hexrgb('#a02a08')
+    if L.S > 1:
+        # HD: aynı akış yolu, 1/S adımlı; her örnekte ince yatay kesit (çekirdek / orta / kenar)
+        S_ = L.S
+        for i in range(len(pts) - 1):
+            (x0, y0), (x1, y1) = pts[i], pts[i + 1]
+            n = int(max(abs(x1 - x0), abs(y1 - y0)) * S_) + 1
+            for k in range(n + 1):
+                t = k / n
+                x = x0 + (x1 - x0) * t; y = y0 + (y1 - y0) * t
+                xa = int(math.floor((x - w - 1) * S_)); xb = int(math.ceil((x + w + 2) * S_))
+                xp = np.arange(xa, xb)
+                dx = np.abs((xp + 0.5) / S_ - 0.5 - x)
+                ok = dx <= int(w) + 1.5
+                cols = np.where((dx < w * 0.4)[:, None], core, np.where((dx <= w + 0.5)[:, None], mid, edge))
+                yp = int(math.floor(y * S_))
+                for q in range(max(1, S_ // 2)):
+                    if 0 <= yp + q < L.ph:
+                        L.rgba[yp + q, xp[ok] % L.pw, :3] = cols[ok]
+                        L.rgba[yp + q, xp[ok] % L.pw, 3] = 1
+        return
     for i in range(len(pts) - 1):
         (x0, y0), (x1, y1) = pts[i], pts[i + 1]
         n = int(max(abs(x1 - x0), abs(y1 - y0))) + 1
@@ -921,6 +1122,24 @@ def _lava_line(L, pts, w, rng):
 def _lava_sea(L, y0, rng, h=H):
     """Lav gölü: kararmış kabuk plakaları, aralarında ışıyan çatlaklar; kıyıda daha parlak."""
     w = L.w
+    if L.S > 1:
+        S_ = L.S
+        n = nfbm(w, h, [48, 24, 12], rng, aspect=0.35, wrap_y=False)
+        cr = nridged(w, h, [40, 20], rng, aspect=0.4, wrap_y=False)
+        b = bay(h, w)
+        rows = np.arange(int(y0) * S_, h * S_)
+        k = (rows / S_ - y0) / max(1, h - y0)
+        crk = cr[rows] > (0.72 - k * 0.1)[:, None]
+        hot = cr[rows] > 0.86
+        plate = (n[rows] + (b[rows] - 0.5) * 0.08)[..., None]
+        base = np.where(plate > 0.55, hexrgb('#1a0806'), np.where(plate > 0.45, hexrgb('#2e0e08'), hexrgb('#4a160a')))
+        c = np.where(crk[..., None], hexrgb('#e8561a'), base)
+        c = np.where(hot[..., None], hexrgb('#ffc050'), c)
+        L.rgba[rows, :, :3] = c
+        L.rgba[rows, :, 3] = 1
+        L.rgba[int(y0) * S_:int(y0) * S_ + S_, :, :3] = hexrgb('#ffd060')
+        L.rgba[int(y0) * S_ + S_:int(y0) * S_ + 2 * S_, :, :3] = hexrgb('#ff8a2a')
+        return
     n = fbm(w, h, [48, 24, 12], rng, aspect=0.35, wrap_y=False)
     cr = ridged(w, h, [40, 20], rng, aspect=0.4, wrap_y=False)
     b = bayer(h, w)
@@ -941,6 +1160,23 @@ def _lava_sea(L, y0, rng, h=H):
 def _chain(L, x0, y0, x1, y1, sag, ramp):
     """İki nokta arasında sarkan zincir: dönüşümlü halka (yan/ön)."""
     n = int(math.hypot(x1 - x0, y1 - y0) / 3) + 1
+    if L.S > 1:
+        # HD: dönüşümlü halkalar; yandan görünen halka ince oval, önden görünen kısa çubuk
+        for k in range(n + 1):
+            t = k / n
+            x = x0 + (x1 - x0) * t
+            y = y0 + (y1 - y0) * t + sag * 4 * t * (1 - t)
+            if k % 2 == 0:
+                cx, cy = x + 1.0, y - 0.5
+                ang = np.linspace(0, math.tau, 25)
+                pts = [(cx + math.cos(a) * 1.6, cy + math.sin(a) * 1.55) for a in ang]
+                cols = [ramp[3] if math.cos(a) > 0.35 else (ramp[0] if math.sin(a) > 0.5 else (ramp[1] if math.cos(a) < -0.35 else ramp[2])) for a in ang]
+                L.stroke(pts, cols, wid=0.75, gap=1e9)
+            else:
+                L.stroke([(x - 1, y + 0.4), (x + 0.6, y + 0.4)], ramp[2], wid=1.0, gap=1e9)
+                L.stroke([(x + 0.6, y + 0.4), (x + 2.6, y + 0.4)], ramp[3], wid=1.0, gap=1e9)
+                L.stroke([(x - 0.6, y + 1.2), (x + 1.6, y + 1.2)], ramp[0], wid=thin() / L.S, gap=1e9)
+        return
     for k in range(n + 1):
         t = k / n
         x = x0 + (x1 - x0) * t
@@ -961,7 +1197,7 @@ def tamu_far(seed=52):
     pk = bk.make_peaks(rng, 9, 470, 90, 230, smin=0.75, smax=1.35)
     mt = bk.massif(pk, rock, TM_LS, rng, haze='#2a0c08', haze_amt=0.05, haze_bottom=0.0, rough=9, spur_period=30, back_haze=0.25)
     # eteklerde alttan lav ışığı
-    yy = np.arange(H)[:, None].astype(float)
+    yy = lin(H)[:, None].astype(float)
     glow = np.clip((yy - 360) / 120.0, 0, 1) ** 1.5 * 0.45
     bk.apply_haze(mt, '#8a2a0c', glow * (mt[..., 3] > 0))
     out.rgba[...] = mt
@@ -984,6 +1220,60 @@ def tamu_far(seed=52):
     return _out(out.rgba)
 
 
+def _basalt_hd(out, x0, cw, t, tilt, BAS, rng):
+    """tamu_mid bazalt sütununun HD çizimi: aynı yüz bantları ve lav ışığı, eğik tepe sürekli, derzler ince."""
+    S_ = bk.S
+    Hp = H * S_
+    xp = np.arange(int(x0) * S_, int(x0 + cw) * S_)
+    f = ((xp + 0.5) / S_ - 0.5 - x0) / cw
+    yl = (np.arange(Hp) + 0.5) / S_ - 0.5
+    lowk = np.clip((yl - 330) / 160.0, 0, 1)
+    BAS = np.asarray(BAS)
+    for j, x in enumerate(xp):
+        fj = f[j]
+        tt = t + tilt * (fj - 0.5) * 2
+        r0 = max(0, int(math.floor(tt * S_)))
+        if fj < 0.1:
+            ci = np.zeros(Hp - r0, int)
+        elif fj < 0.4:
+            ci = 2 + (lowk[r0:] * 2).astype(int)
+        elif fj < 0.8:
+            ci = 3 + (lowk[r0:] * 2).astype(int)
+        else:
+            ci = 4 + (lowk[r0:] * 3).astype(int)
+        out.rgba[r0:, x % (W * S_), :3] = BAS[ci]
+        out.rgba[r0:, x % (W * S_), 3] = 1
+        out.rgba[r0:r0 + 2 * S_ - 1, x % (W * S_), :3] = BAS[5] if fj > 0.3 else BAS[3]
+    for _ in range(int(rng.integers(2, 6))):
+        yk = int(rng.uniform(t + 10, H - 2))
+        for x in xp:
+            fj = ((x + 0.5) / S_ - 0.5 - x0) / cw
+            for q in range(thin()):
+                out.rgba[yk * S_ + q, x % (W * S_), :3] = BAS[0]
+                out.rgba[yk * S_ + thin() + q, x % (W * S_), :3] = BAS[5] if fj > 0.4 else BAS[3]
+                out.rgba[yk * S_ + q, x % (W * S_), 3] = 1
+                out.rgba[yk * S_ + thin() + q, x % (W * S_), 3] = 1
+
+
+def _lavafall_hd(out, lx):
+    """tamu_mid lav çağlayanının HD çizimi: aynı genişleyen akış ve salınım, çapraz parlak akıntı çizgileri ince."""
+    S_ = bk.S
+    for yp in range(240 * S_, 482 * S_):
+        y = yp / S_
+        w = 3 + (y - 240) * 0.035
+        wob = math.sin(y * 0.15) * 0.8
+        xa = int(math.floor((lx + wob - w - 1) * S_)); xb = int(math.ceil((lx + wob + w + 2) * S_))
+        xp = np.arange(xa, xb)
+        dx = (xp + 0.5) / S_ - 0.5 - (lx + wob)
+        adx = np.abs(dx)
+        ok = adx <= int(w) + 1.5
+        c = np.where((adx < w * 0.35)[:, None], hexrgb('#ffe080'), np.where((adx <= w + 0.5)[:, None], hexrgb('#ff8a24'), hexrgb('#a02a08')))
+        streak = (adx > w * 0.35) & (((yp + np.round(dx * S_).astype(int) * 3) % (7 * S_)) < thin())
+        c[streak] = hexrgb('#ffb040')
+        out.rgba[yp, xp[ok] % (W * S_), :3] = c[ok]
+        out.rgba[yp, xp[ok] % (W * S_), 3] = 1
+
+
 def tamu_mid(seed=53):
     """Bazalt sütun kayalıkları (altıgen kesitli, lavla alttan aydınlanan), lav çağlayanı, dev kaburga kemeri,
     iki yana gerilmiş zincirler, lav ırmağı."""
@@ -1001,6 +1291,9 @@ def tamu_mid(seed=53):
             x0 = gx + k * cw * 0.92 - ncol * cw * 0.45
             t = top0 + abs(k - ncol / 2) * rng.uniform(5, 14) + rng.uniform(-10, 10)
             tilt = rng.uniform(-3, 3)
+            if bk.S > 1:
+                _basalt_hd(out, x0, cw, t, tilt, BAS, rng)
+                continue
             for x in range(int(x0), int(x0 + cw)):
                 f = (x - x0) / cw
                 tt = int(t + tilt * (f - 0.5) * 2)
@@ -1024,7 +1317,9 @@ def tamu_mid(seed=53):
         _glow(out, gx, 480, 110, '#b8360c', 0.35)
     # lav çağlayanı
     lx = 760 + 10
-    for y in range(240, 482):
+    if bk.S > 1:
+        _lavafall_hd(out, lx)
+    for y in (range(240, 482) if bk.S == 1 else ()):
         w = 3 + (y - 240) * 0.035
         wob = math.sin(y * 0.15) * 0.8
         for dx in range(-int(w) - 1, int(w) + 2):
@@ -1086,3 +1381,54 @@ for _bid in ('otuken', 'bozkir', 'sahmeran', 'kaf', 'tamu'):
     _fns = [(nm, globals().get(_bid + '_' + nm.split('_', 1)[1])) for nm in _NAMES.get(_bid, _DEFAULT)]
     if all(f is not None for _, f in _fns):
         BIOME_LAYERS[_bid] = _fns
+
+
+# ---- pozlama dengesi (v16): gündüz biyomlarının arka planı oyun alanından parlak ve doygundu (göz yakıyordu).
+# Her katman, çizildikten SONRA noktasal bir renk düzeltmesinden geçer: doygunluk kısılır, değer çarpılır, açık
+# tonlar yumuşak dizle sıkıştırılır (beyaz patlama yok), sonra biyomun pus rengine çekilir. Noktasal olduğu için
+# palet sayısı ve piksel kenarları aynı kalır. Kural: arka plan oyun alanının aydınlık zemininden koyu ve düşük
+# kontrastlı; yakın katmanlar (siluet) uzaktakilerden koyu, uzaklar pusa yakın (atmosfer perspektifi).
+# katman adı -> (değer, doygunluk, diz, pus payı); 'haze' biyomun pus rengi
+GRADE = {
+    'bozkir': {'haze': '#a8a4a8',
+               '0_sky': (0.8, 0.7, 0.66, 0.1), '1_far': (0.76, 0.7, 0.62, 0.16), '2_mid': (0.7, 0.74, 0.62, 0.08),
+               '3_near': (0.56, 0.78, 0.6, 0.0), '4_fog': (0.72, 0.7, 0.6, 0.0)},
+    'kaf': {'haze': '#6a6888',
+            '0_sky': (0.9, 0.86, 0.7, 0.06), '1_far': (0.82, 0.84, 0.66, 0.1), '2_mid': (0.78, 0.86, 0.66, 0.06),
+            '3_near': (0.8, 0.9, 0.64, 0.0), '4_fog': (0.76, 0.84, 0.62, 0.0)},
+    # gece biyomları zaten koyu: yalnızca tepe parlaklıkları (ay, kristal, lav) sıkıştırılır
+    'otuken': {'haze': '#1c2232', '0_sky': (1.0, 0.95, 0.8, 0.0)},
+    'sahmeran': {'haze': '#0c1a18', '2_mid': (0.92, 0.92, 0.72, 0.0)},
+    # tamu: arka duvarlar oyun alanından ayrışsın diye bir tık koyu; lav tepeleri sıkıştırılır
+    'tamu': {'haze': '#1a0806', '1_far': (0.78, 0.92, 0.68, 0.08), '2_mid': (0.8, 0.95, 0.7, 0.04)},
+}
+
+
+def grade_image(img, val, sat, knee, haze_amt, haze):
+    a = np.asarray(img.convert('RGBA')).astype(float) / 255.0
+    rgb = a[..., :3]
+    lum = (rgb * np.array([0.2126, 0.7152, 0.0722])).sum(-1, keepdims=True)
+    rgb = lum + (rgb - lum) * sat
+    rgb = np.clip(rgb, 0, None) * val
+    mx = rgb.max(-1, keepdims=True)
+    # yumuşak diz: diz üstü değerler 1'e asimptotik yaklaşır (tavan = diz + (1-diz)*0.6)
+    top = knee + (1 - knee) * 0.6
+    comp = np.where(mx > knee, knee + (top - knee) * (1 - np.exp(-(mx - knee) / max(1e-3, top - knee))), mx)
+    rgb = rgb * (comp / np.maximum(mx, 1e-6))
+    rgb = rgb * (1 - haze_amt) + hexrgb(haze) * haze_amt
+    a[..., :3] = np.clip(rgb, 0, 1)
+    return to_image(a)
+
+
+def _graded(bid, nm, fn):
+    g = GRADE.get(bid, {}).get(nm)
+    if g is None:
+        return fn
+
+    def run():
+        return grade_image(fn(), *g, GRADE[bid]['haze'])
+    return run
+
+
+for _bid, _fns in BIOME_LAYERS.items():
+    BIOME_LAYERS[_bid] = [(nm, _graded(_bid, nm, f)) for nm, f in _fns]
