@@ -15,3 +15,6 @@ Thumbs.db
 
 # Depodaki motor zip'inden açılan Godot (zip depoda, 180 MB'lık .exe değil)
 motor/*.exe
+
+# Dışa aktarılan oyun (build)
+build/
