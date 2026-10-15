@@ -95,7 +95,7 @@ def demo_grid():
 
 
 if __name__ == '__main__':
-    tex, tex_n = soil.soil_texture()
+    tex, tex_n, _ = soil.soil_texture()
     A, N, meta = soil.build_ground_atlas()
     g = demo_grid()
     bg = np.zeros((len(g) * TS, len(g[0]) * TS, 3)); bg[...] = [0.12, 0.17, 0.24]

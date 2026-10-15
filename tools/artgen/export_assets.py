@@ -1,6 +1,8 @@
 """Bütün üretilmiş görselleri Godot projesine yazar (albedo + normal map + JSON meta).
 
 Kullanım:  python export_assets.py            (proje kökü: bu dosyanın iki üstü)
+           python export_assets.py --tiles [biyom ...]   yalnızca zemin karoları + toprak dokuları
+           python export_assets.py --bg [biyom ...]      yalnızca paralaks arka planları
            python export_assets.py --creatures [kimlik ...]   yalnızca yaratık sprite'ları (varsayılan: hepsi)
 Sanatçı çizimleri geldiğinde aynı dosya adlarıyla değiştirmek yeterli: oyun JSON meta'yı okur.
 """
@@ -17,8 +19,6 @@ import creatures
 import env_forest
 import yurt
 import bg_forest
-import bg_otuken
-import bg_biomes
 import biomes
 import soil
 
@@ -82,7 +82,46 @@ def export_sheet(name, anims, render, cell, origin):
     print('sprite', name, W, H)
 
 
+def export_tiles(only=()):
+    """Zemin atlası + dikişsiz toprak dokusu (1.5x yoğunluk; bkz. soil.py)."""
+    for bid, bcfg in biomes.BIOMES.items():
+        if only and bid not in only:
+            continue
+        soil.set_biome(bcfg['soil'])
+        Al, Nm, tmeta = soil.build_ground_atlas()
+        save(Al, os.path.join(A, 'tiles', bid + '.png')); save(Nm, os.path.join(A, 'tiles', bid + '_n.png'))
+        st, sn, se = soil.soil_texture()
+        save(np.dstack([st, np.ones(st.shape[:2])]), os.path.join(A, 'tiles', bid + '_soil.png'))
+        save(sn, os.path.join(A, 'tiles', bid + '_soil_n.png'))
+        ep = os.path.join(A, 'tiles', bid + '_soil_e.png')
+        if se is not None:
+            save(np.dstack([se, np.ones(st.shape[:2])]), ep)
+        elif os.path.exists(ep):
+            os.remove(ep)
+        json.dump(tmeta, open(os.path.join(A, 'tiles', bid + '.json'), 'w', encoding='utf-8'), indent=1)
+        print('tiles', bid, Al.shape)
+    soil.set_biome(biomes.BIOMES['otuken']['soil'])
+
+
+def export_bg(only=()):
+    """Paralaks katmanları (1.5x yoğunluk: gök 960x540, diğerleri 1920x540; bkz. bg_hd.py)."""
+    import bg_hd
+    for bid, layers in bg_hd.BIOME_LAYERS.items():
+        if only and bid not in only:
+            continue
+        for nm_, fn in layers:
+            fn().save(os.path.join(A, 'bg', '%s_%s.png' % (bid, nm_)))
+        print('bg', bid)
+
+
 def main():
+    only_ = [a for a in sys.argv[1:] if not a.startswith('-')]
+    if '--tiles' in sys.argv or '--bg' in sys.argv:
+        if '--tiles' in sys.argv:
+            export_tiles(only_)
+        if '--bg' in sys.argv:
+            export_bg(only_)
+        return
     if '--weapons' in sys.argv:
         _weapons_only()
         return
@@ -112,18 +151,7 @@ def main():
         return
     # karolar: her biyom için ayrı palet
     only = [a for a in sys.argv[1:] if not a.startswith('-')]
-    for bid, bcfg in biomes.BIOMES.items():
-        if only and bid not in only:
-            continue
-        soil.set_biome(bcfg['soil'])
-        Al, Nm, tmeta = soil.build_ground_atlas()
-        save(Al, os.path.join(A, 'tiles', bid + '.png')); save(Nm, os.path.join(A, 'tiles', bid + '_n.png'))
-        st, sn = soil.soil_texture()
-        save(np.dstack([st, np.ones(st.shape[:2])]), os.path.join(A, 'tiles', bid + '_soil.png'))
-        save(sn, os.path.join(A, 'tiles', bid + '_soil_n.png'))
-        json.dump(tmeta, open(os.path.join(A, 'tiles', bid + '.json'), 'w', encoding='utf-8'), indent=1)
-        print('tiles', bid, Al.shape)
-    soil.set_biome(biomes.BIOMES['otuken']['soil'])
+    export_tiles(only)
     # süsler
     dmeta = {}
     for k, fn in list(env_forest.DECOR.items()) + list(yurt.DECOR.items()):
@@ -139,19 +167,7 @@ def main():
     json.dump(dmeta, open(os.path.join(A, 'decor', 'decor.json'), 'w', encoding='utf-8'), indent=1)
     print('decor', len(dmeta))
     # paralaks
-    bg_otuken.sky().save(os.path.join(A, 'bg', 'otuken_0_sky.png'))
-    bg_otuken.mountains().save(os.path.join(A, 'bg', 'otuken_1_mountains.png'))
-    bg_otuken.forest_far().save(os.path.join(A, 'bg', 'otuken_2_far.png'))
-    bg_otuken.forest_mid().save(os.path.join(A, 'bg', 'otuken_3_mid.png'))
-    bg_otuken.forest_near().save(os.path.join(A, 'bg', 'otuken_4_near.png'))
-    bg_otuken.fog().save(os.path.join(A, 'bg', 'otuken_5_fog.png'))
-    for bid, fns in bg_biomes.BIOME_BG.items():
-        if only and bid not in only:
-            continue
-        names = ['0_sky', '1_far', '2_mid', '3_near', '4_fog']
-        for nm_, fn in zip(names, fns):
-            fn().save(os.path.join(A, 'bg', '%s_%s.png' % (bid, nm_)))
-        print('bg', bid)
+    export_bg(only)
     bg_forest.god_ray().save(os.path.join(A, 'fx', 'god_ray.png'))
     bg_forest.soft_dot().save(os.path.join(A, 'fx', 'soft_dot.png'))
     bg_forest.leaf_particles().save(os.path.join(A, 'fx', 'leaves.png'))
