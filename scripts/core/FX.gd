@@ -51,10 +51,14 @@ static func _ls(size: int, col: Color) -> LabelSettings:
 	var key := "%d_%s" % [size, col.to_html()]
 	if not _label_settings.has(key):
 		var ls := LabelSettings.new()
-		ls.font_size = size
+		# piksel yazı tipi yalnızca tam sayı ölçekle çizilir: küçükler 1x, büyükler 2x
+		ls.font = Data.pixel_font
+		ls.font_size = 26 if size >= 12 else 13
 		ls.font_color = col
-		ls.outline_size = 3
-		ls.outline_color = Color(0.06, 0.04, 0.09)
+		ls.shadow_color = Color(0.06, 0.04, 0.09, 0.95)
+		ls.shadow_offset = Vector2(1, 1) * (2.0 if size >= 12 else 1.0)
+		ls.shadow_size = 1
+		ls.line_spacing = 0
 		_label_settings[key] = ls
 	return _label_settings[key]
 

@@ -10,12 +10,10 @@ var anim: SpriteAnim
 var near := false
 var talk_t := 0.0
 var _t := 0.0
-var font: Font
 
 
 func _ready() -> void:
 	z_index = 3
-	font = ThemeDB.fallback_font
 	anim = SpriteAnim.new()
 	add_child(anim)
 	anim.setup("npc_" + id)
@@ -46,11 +44,7 @@ func _process(delta: float) -> void:
 
 
 func _draw() -> void:
-	var w := font.get_string_size(display_name, HORIZONTAL_ALIGNMENT_LEFT, -1, 7).x
-	draw_string_outline(font, Vector2(-w / 2.0, -92), display_name, HORIZONTAL_ALIGNMENT_LEFT, -1, 7, 3, Color(0.05, 0.03, 0.08, 0.9))
-	draw_string(font, Vector2(-w / 2.0, -92), display_name, HORIZONTAL_ALIGNMENT_LEFT, -1, 7, Color(0.96, 0.93, 0.86))
+	PixUI.text(self, Vector2(-80, -101), display_name, PixUI.TEXT, 1, HORIZONTAL_ALIGNMENT_CENTER, 160, 2)
 	if near:
-		var y := -104.0 + sin(_t * 5.0) * 2.0
-		draw_rect(Rect2(-7, y - 8, 14, 11), Color(0.07, 0.05, 0.1, 0.92))
-		draw_rect(Rect2(-7, y - 8, 14, 11), Color(1.0, 0.83, 0.42), false, 1.0)
-		draw_string(font, Vector2(-3, y + 1), "E", HORIZONTAL_ALIGNMENT_LEFT, -1, 8, Color(1.0, 0.83, 0.42))
+		var y := roundf(-116.0 + sin(_t * 5.0) * 2.0)
+		PixUI.key_cap(self, Vector2(-5, y), "E")

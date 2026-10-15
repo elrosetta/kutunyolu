@@ -22,6 +22,35 @@ func _ready() -> void:
 	tile_meta = load_json("res://assets/tiles/otuken.json")
 	weapon_tex = canvas_tex("res://assets/weapons/weapons.png", "res://assets/weapons/weapons_n.png")
 	weapon_glow = load("res://assets/weapons/weapons_e.png")
+	# piksel yazı tipi (tools/artgen/pixfont.py): 13 = 1x, 26 = 2x, 39 = 3x; yalnızca tam sayı ölçek
+	pixel_font = load("res://assets/ui/pixel.fnt")
+	if pixel_font:
+		pixel_font.fixed_size_scale_mode = TextServer.FIXED_SIZE_SCALE_INTEGER_ONLY
+		pixel_font.antialiasing = TextServer.FONT_ANTIALIASING_NONE
+	else:
+		push_error("Piksel yazı tipi yüklenemedi")
+
+
+var pixel_font: FontFile
+var _icon_cache: Dictionary = {}
+
+
+func weapon_icon_rect(item_id: String, mat_id: String) -> Rect2:
+	## Silah karesinin dolu bölgesi (arayüz simgeleri için sıkı kırpma); önbellekli.
+	var key := item_id + "/" + mat_id
+	if _icon_cache.has(key):
+		return _icon_cache[key]
+	var reg := weapon_region(item_id, mat_id)
+	var r := reg
+	var img: Image = weapon_tex.diffuse_texture.get_image() if weapon_tex and weapon_tex.diffuse_texture else null
+	if img:
+		if img.is_compressed():
+			img.decompress()
+		var used := img.get_region(Rect2i(reg)).get_used_rect()
+		if used.size.x > 0:
+			r = Rect2(reg.position + Vector2(used.position), Vector2(used.size))
+	_icon_cache[key] = r
+	return r
 
 
 func load_json(path: String) -> Dictionary:

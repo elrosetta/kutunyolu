@@ -169,6 +169,36 @@ func ongun_mult(ongun: String) -> float:
 	return 1.0 + 0.15 * float(run["ongun"].get(ongun, 0))
 
 
+func item_onguns(it: Dictionary) -> Array:
+	## Eşyanın ongunları: bir ya da iki renk (Dead Cells'in çift renkli eşyaları).
+	var out: Array = []
+	var o: Variant = it.get("ongun", "")
+	if o is Array:
+		out = (o as Array).duplicate()
+	elif String(o) != "":
+		out.append(String(o))
+	var o2 := String(it.get("ongun2", ""))
+	if o2 != "" and not (o2 in out):
+		out.append(o2)
+	return out
+
+
+func item_best_ongun(it: Dictionary) -> String:
+	## Çift renkli eşya hangi ongun daha yüksekse ona göre güçlenir; eşitlikte ilk renk.
+	var best := ""
+	var best_lv := -1
+	for o in item_onguns(it):
+		var lv := int(run.get("ongun", {}).get(o, 0)) if not run.is_empty() else 0
+		if lv > best_lv:
+			best_lv = lv
+			best = o
+	return best if best != "" else "kurt"
+
+
+func item_mult(it: Dictionary) -> float:
+	return ongun_mult(item_best_ongun(it))
+
+
 func bank_run_kut() -> void:
 	## Koşu bitince (ölüm ya da kapı) toplanan Kut, Umay'ın bankasına eklenir.
 	if run.is_empty():

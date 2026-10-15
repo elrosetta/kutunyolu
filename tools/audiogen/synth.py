@@ -169,3 +169,138 @@ def write_wav(path, x, sr=SR, peak=0.9, stereo=None):
         w.setsampwidth(2)
         w.setframerate(sr)
         w.writeframes(pcm)
+
+
+# ------------------------------------------------------------ v9: zamanla değişen süzgeç, ses yolu, mastering
+def stft_shape(x, fn, sr=SR, n=1024, hop=256):
+    """Zamanla değişen süzgeç: kısa süreli Fourier; fn(t (kare,1), f (1,kutu)) -> kazanç dizisi. Hann pencere, 4x örtüşme."""
+    if len(x) < n:
+        x = np.concatenate((x, np.zeros(n - len(x))))
+    L = len(x)
+    pad = np.concatenate((np.zeros(n), x, np.zeros(n + hop)))
+    w = np.hanning(n + 1)[:-1]
+    idx = np.arange(0, len(pad) - n, hop)
+    frames = np.stack([pad[i:i + n] * w for i in idx])
+    F = np.fft.rfft(frames, axis=1)
+    tt = ((idx - n + n / 2) / sr)[:, None]
+    ff = np.fft.rfftfreq(n, 1 / sr)[None, :] + 1e-6
+    F *= fn(tt, ff)
+    y = np.fft.irfft(F, n, axis=1) * w
+    out = np.zeros(len(pad))
+    norm = np.zeros(len(pad))
+    for k, i in enumerate(idx):
+        out[i:i + n] += y[k]
+        norm[i:i + n] += w * w
+    out /= np.maximum(norm, 1e-3)
+    return out[n:n + L]
+
+
+def curve(points, dur, sr=SR):
+    """[(zaman, değer), ...] noktalarından doğrusal eğri (örnek başına)."""
+    t = t_axis(dur, sr)
+    ts = [p[0] for p in points]
+    vs = [p[1] for p in points]
+    return np.interp(t, ts, vs)
+
+
+def resonance(f, fc, bw):
+    return 1.0 / (1.0 + ((f - fc) / (bw * 0.5)) ** 2)
+
+
+VOWELS = {  # erkek sesi biçimlendiricileri (Hz): F1, F2, F3
+    'a': (730, 1090, 2440), 'o': (570, 840, 2410), 'u': (300, 870, 2240),
+    'i': (270, 2290, 3010), 'e': (530, 1840, 2480), 'ı': (350, 1350, 2500),
+}
+
+
+def voice(f0, dur, vowels=('a',), size=1.0, breath=0.15, grit=0.0, jitter=0.02, sr=SR, seed=0, sub=0.0):
+    """Biçimlendirici sentezli ses: f0 sayı ya da örnek eğrisi; vowels zamana yayılan ünlü dizisi; size>1 iri gövde
+    (biçimlendiriciler aşağı kayar); breath hırıltı gürültüsü; grit gırtlak bozulması; sub alt oktav (iri yaratıklar)."""
+    n = int(dur * sr)
+    rng = np.random.default_rng(seed)
+    f = np.full(n, float(f0)) if np.isscalar(f0) else np.asarray(f0, float)[:n]
+    jit = fft_filter(rng.standard_normal(n), hi=30, sr=sr, slope=1.0)
+    jit /= np.max(np.abs(jit)) + 1e-9
+    f = f * (1 + jitter * jit)
+    ph = np.cumsum(f) / sr
+    saw = 2 * (ph % 1.0) - 1
+    src = saw + 0.35 * np.sign(np.sin(2 * np.pi * ph))
+    if sub:
+        src += sub * (2 * ((ph * 0.5) % 1.0) - 1)
+    nz = rng.uniform(-1, 1, n)
+    src = src * (1 - breath) + nz * breath * (0.6 + 0.4 * (np.sin(2 * np.pi * ph) > 0))
+    if grit:
+        src = np.tanh(src * (1 + grit)) * (1 + 0.5 * grit * fft_filter(rng.uniform(-1, 1, n), hi=60, sr=sr))
+    fm = np.array([VOWELS[v] for v in vowels], float) / size
+    tv = np.linspace(0, dur, len(vowels))
+
+    def g(tt, ff):
+        tt = np.clip(tt, 0, dur)
+        out = np.zeros((tt.shape[0], ff.shape[1]))
+        for k in range(3):
+            fc = np.interp(tt[:, 0], tv, fm[:, k])[:, None]
+            out += resonance(ff, fc, 80 + 0.08 * fc) * (1.0, 0.7, 0.35)[k]
+        return out + 0.02
+    return stft_shape(src, g, sr)
+
+
+def hp(x, f=30, sr=SR):
+    return fft_filter(x, lo=f, sr=sr, slope=1.5)
+
+
+def lp(x, f, sr=SR):
+    return fft_filter(x, hi=f, sr=sr, slope=1.5)
+
+
+def bp(x, lo, hi, sr=SR):
+    return fft_filter(x, lo=lo, hi=hi, sr=sr, slope=1.5)
+
+
+def loudness(x, sr=SR, win=0.05):
+    """Algılanan yükseklik kestirimi: 80 Hz altı kesilmiş, 50 ms'lik pencerelerin en yüksek RMS'i (dBFS)."""
+    y = fft_filter(x, lo=80, sr=sr, slope=1.0)
+    y = fft_filter(y, lo=1500, sr=sr, slope=0.5) * 0.4 + y * 0.8  # tiz bölgeye hafif ağırlık (K-ağırlığı benzeri)
+    w = max(1, int(win * sr))
+    if len(y) < w:
+        return 20 * math.log10(np.sqrt(np.mean(y ** 2)) + 1e-9)
+    c = np.cumsum(np.concatenate(([0.0], y ** 2)))
+    r = np.sqrt((c[w:] - c[:-w]) / w)
+    return 20 * math.log10(np.max(r) + 1e-9)
+
+
+def soft_limit(x, ceiling=0.89, knee=0.7):
+    """Tepe sınırlayıcı: knee*ceiling üstünü tanh ile yumuşakça ceiling'e bükler (kırpma yok)."""
+    k = knee * ceiling
+    a = np.abs(x)
+    over = a > k
+    y = x.copy()
+    r = ceiling - k
+    y[over] = np.sign(x[over]) * (k + r * np.tanh((a[over] - k) / r))
+    return y
+
+
+def master(x, target_db=-12.0, ceiling=0.89, sr=SR, loop=False):
+    """Seviye eşitleme: DC/infrases temizliği, hedef yükseklik, yumuşak tepe sınırlama, uçlarda kısa yumuşatma."""
+    x = np.asarray(x, float)
+    x = x - np.mean(x)
+    x = fft_filter(x, lo=35, sr=sr, slope=2.0)  # 35 Hz altı hoparlörde duyulmaz, yalnızca pay yer
+    g = 10 ** ((target_db - loudness(x, sr)) / 20)
+    pk = np.max(np.abs(x)) * g + 1e-9
+    if pk > ceiling * 2.0:  # en fazla ~6 dB yumuşak sınırlama (vuruşa 'yumruk' katar, geçişleri ezmez)
+        g *= ceiling * 2.0 / pk
+    x = soft_limit(x * g, ceiling)
+    if not loop:
+        x = trim_tail(x, sr=sr)
+        x = x - np.mean(x)  # sınırlayıcının bükümünden kalan DC
+        x = fade(x, 0.001, min(0.01, len(x) / sr * 0.2), sr)
+    return x
+
+
+def trim_tail(x, db=-58.0, sr=SR, keep=0.02):
+    """Sondaki duyulmaz yankı kuyruğunu kes (tepeye göre db altı)."""
+    th = np.max(np.abs(x)) * 10 ** (db / 20)
+    idx = np.nonzero(np.abs(x) > th)[0]
+    if len(idx) == 0:
+        return x
+    end = min(len(x), idx[-1] + int(keep * sr))
+    return x[:end]

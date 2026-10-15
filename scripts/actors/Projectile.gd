@@ -30,6 +30,13 @@ var _stuck_t := -1.0
 var _t := 0.0
 var _trail: Array = []
 var spr: Sprite2D
+var arrow_spr: Sprite2D      # 32 yönlü piksel ok (tools/artgen/arrows.py)
+var arrow_variant := ""      # "" ise fx_kind / takıma göre seçilir
+var _embed_t := -1.0         # duvara saplandı: titreşir, sonra söner
+var _wobble := 0
+const ARROW_DIRS := 32
+const ARROW_VARIANTS := ["normal", "altin", "od", "sel", "kizil", "dusman"]
+static var _arrow_tex: Texture2D
 
 
 func _ready() -> void:
@@ -47,20 +54,82 @@ func _ready() -> void:
 		m.shader = Game.toon_shader
 		spr.material = m
 		add_child(spr)
-	if kind in ["spore", "eagle", "arrow"]:
+	if kind == "arrow":
+		if _arrow_tex == null:
+			_arrow_tex = load("res://assets/fx/arrows.png")
+		arrow_spr = Sprite2D.new()
+		arrow_spr.texture = _arrow_tex
+		arrow_spr.hframes = ARROW_DIRS
+		arrow_spr.vframes = ARROW_VARIANTS.size()
+		arrow_spr.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+		add_child(arrow_spr)
+		if arrow_variant == "":
+			arrow_variant = "dusman" if team != "p" else {"altin": "altin", "od": "od", "sel": "sel", "kizil": "kizil"}.get(fx_kind, "normal")
+		_set_arrow_frame(velocity.angle())
+	if kind in ["spore", "eagle", "curse"]:
 		var gm := CanvasItemMaterial.new()
-		gm.blend_mode = CanvasItemMaterial.BLEND_MODE_ADD if kind != "arrow" else CanvasItemMaterial.BLEND_MODE_MIX
-		gm.light_mode = CanvasItemMaterial.LIGHT_MODE_UNSHADED if kind != "arrow" else CanvasItemMaterial.LIGHT_MODE_NORMAL
+		gm.blend_mode = CanvasItemMaterial.BLEND_MODE_ADD
+		gm.light_mode = CanvasItemMaterial.LIGHT_MODE_UNSHADED
 		material = gm
+
+
+func _set_arrow_frame(ang: float, nudge := 0) -> void:
+	if arrow_spr == null:
+		return
+	var d := (int(roundf(fposmod(ang, TAU) / TAU * ARROW_DIRS)) + nudge + ARROW_DIRS) % ARROW_DIRS
+	arrow_spr.frame = maxi(0, ARROW_VARIANTS.find(arrow_variant)) * ARROW_DIRS + d
+
+
+func _embed(wall: bool) -> void:
+	## Ok duvara saplanır: biraz içeri girer, birkaç kare titrer (kare kaydırma), 1,4 sn sonra söner.
+	_embed_t = 0.0
+	_wobble = 6
+	position += velocity.normalized() * 3.0
+	_trail.clear()
+	if wall:
+		Ses.play_at("ok_vurus_tahta" if randf() < 0.6 else "ok_vurus_tas", global_position, -6.0)
+		FX.dust(global_position, -velocity.normalized(), 3, 0.2)
+		FX.sparks(global_position, -velocity.normalized(), Color(1.0, 0.9, 0.7), 3, 90.0)
+
+
+func _stick_into(e: Node) -> void:
+	## Düşmanın gövdesine saplanan ok: düşmanla birlikte hareket eder, kısa süre sonra söner.
+	if arrow_spr == null or not is_instance_valid(e):
+		return
+	var s2 := Sprite2D.new()
+	s2.texture = arrow_spr.texture
+	s2.hframes = arrow_spr.hframes
+	s2.vframes = arrow_spr.vframes
+	s2.frame = arrow_spr.frame
+	s2.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	s2.z_index = 5
+	e.add_child(s2)
+	s2.global_position = (global_position + velocity.normalized() * 4.0).round()
+	var tw := s2.create_tween()
+	tw.tween_interval(0.9)
+	tw.tween_property(s2, "modulate:a", 0.0, 0.35)
+	tw.tween_callback(s2.queue_free)
 
 
 func _physics_process(delta: float) -> void:
 	_t += delta
+	if _embed_t >= 0.0:
+		_embed_t += delta
+		if _wobble > 0 and Engine.get_physics_frames() % 2 == 0:
+			_wobble -= 1
+			_set_arrow_frame(velocity.angle(), (1 if _wobble % 2 == 0 else -1) if _wobble > 1 else 0)
+		if _embed_t > 1.0:
+			modulate.a = clampf(1.0 - (_embed_t - 1.0) / 0.4, 0.0, 1.0)
+		if _embed_t > 1.4:
+			queue_free()
+		queue_redraw()
+		return
 	if _stuck_t >= 0.0:
 		_stuck_t += delta
 		var pl: Node = level.player
 		if pl and pl.global_position.distance_to(global_position) < 22.0:
-			pl.cd["second"] = 0.0
+			if pl.sec_slot != "":
+				pl.cd[pl.sec_slot] = 0.0
 			queue_free()
 		elif _stuck_t > 5.0:
 			queue_free()
@@ -113,12 +182,18 @@ func _physics_process(delta: float) -> void:
 		if stick:
 			_stuck_t = 0.0
 			position = position + velocity.normalized() * 4.0
+			Ses.play_at("ok_vurus_tahta", global_position, -6.0)
+			return
+		if kind == "arrow":
+			_embed(true)
 			return
 		FX.burst(position, Color(0.8, 0.75, 0.6), 4, 50, 0.25, 0.15, 200)
 		queue_free()
 		return
 	position = next
-	if kind in ["arrow", "javelin", "eagle", "spore", "feather", "wave"]:
+	if kind == "arrow":
+		_set_arrow_frame(velocity.angle())
+	elif kind in ["javelin", "eagle", "spore", "feather", "wave", "curse"]:
 		rotation = velocity.angle()
 	elif kind in ["bomb", "pot", "stone", "ice", "stone_big"]:
 		rotation += delta * 10.0
@@ -126,7 +201,7 @@ func _physics_process(delta: float) -> void:
 		rotation += delta * 22.0 * signf(velocity.x)
 	if trail_col.a > 0.0:
 		_trail.push_front(global_position)
-		if _trail.size() > 9:
+		if _trail.size() > (14 if fx_kind != "" else 9):
 			_trail.pop_back()
 	match fx_kind:
 		"altin":
@@ -155,7 +230,7 @@ func _physics_process(delta: float) -> void:
 				if on_hit.is_valid():
 					on_hit.call(e)
 					var hd := velocity.normalized()
-					Ses.play("ok_vurus", -4.0, 1.0, 0.1)
+					Ses.play("ok_vurus", -4.0, 1.0, 0.1, 0.03, global_position)
 					FX.impact(global_position, hd, Color(1.0, 0.95, 0.8) if fx_kind != "od" else Color(1.0, 0.6, 0.25), 1.2 if fx_kind == "altin" else 0.9)
 					FX.sparks(global_position, -hd, Color(1.0, 0.9, 0.7), 5, 140.0)
 					match fx_kind:
@@ -172,6 +247,8 @@ func _physics_process(delta: float) -> void:
 					bounces -= 1
 					velocity.x = -velocity.x
 				else:
+					if kind == "arrow":
+						_stick_into(e)
 					queue_free()
 					return
 	else:
@@ -180,8 +257,11 @@ func _physics_process(delta: float) -> void:
 			var src: Node = source if is_instance_valid(source) else null
 			var hit: bool = pl.take_hit(damage, src, self)
 			if hit:
-				Ses.play("ok_vurus", -6.0, 0.8, 0.1)
-				if kind == "spore":
+				Ses.play("ok_vurus", -6.0, 0.8, 0.1, 0.03, global_position)
+				if kind == "curse":
+					FX.anim("arcane_parry", position, 0.0, 0.6, Color(0.85, 0.45, 1.0))
+					Ses.play_at("kam_kahkaha", position, -8.0)
+				elif kind == "spore":
 					FX.anim("acid_splash", position, 0.0, 0.8, Color(0.7, 1.0, 0.4))
 					if pl.has_method("apply_poison"):
 						pl.apply_poison(3.0)
@@ -229,16 +309,33 @@ func _explode() -> void:
 
 func _draw() -> void:
 	if trail_col.a > 0.0 and _trail.size() >= 2:
+		# piksel iz: geçmiş konumlar boyunca tam sayı karelere oturan, kuyruğa doğru incelen/solan noktalar
 		var n := _trail.size()
-		for i in range(n - 1):
+		var prev: Vector2 = to_local(_trail[0])
+		for i in range(1, n):
+			var cur: Vector2 = to_local(_trail[i])
 			var f := 1.0 - float(i) / n
-			var a: Vector2 = to_local(_trail[i])
-			var b: Vector2 = to_local(_trail[i + 1])
-			draw_line(a, b, Color(trail_col.r, trail_col.g, trail_col.b, trail_col.a * f * 0.7), 2.5 * f)
+			var c := Color(trail_col.r, trail_col.g, trail_col.b, trail_col.a * f * 0.85)
+			var steps := maxi(1, int(prev.distance_to(cur)))
+			var sz := 2.0 if (f > 0.55 and fx_kind != "") else 1.0
+			for k in steps:
+				var q := prev.lerp(cur, float(k) / steps).round()
+				draw_rect(Rect2(q - Vector2(sz, sz) * 0.5, Vector2(sz, sz)), c)
+			prev = cur
+	if fx_kind != "" and kind == "arrow" and _embed_t < 0.0:
+		# uçta küçük parıltı çekirdeği
+		draw_rect(Rect2((velocity.normalized() * 6.0).round() - Vector2(1, 1), Vector2(2, 2)), Color(trail_col, 0.9))
 	if spr:
 		return
 	match kind:
 		"arrow":
+			pass
+		"curse":
+			var pulse := 1.0 + sin(_t * 20.0) * 0.25
+			draw_circle(Vector2.ZERO, 5.0 * pulse, Color(0.6, 0.2, 0.9, 0.35))
+			draw_circle(Vector2.ZERO, 2.6, Color(0.85, 0.45, 1.0))
+			draw_rect(Rect2(-1, -1, 2, 2), Color(1.0, 0.85, 1.0))
+		"arrow_old":
 			var head := Color(0.85, 0.88, 0.95)
 			var flt := Color(0.9, 0.25, 0.2)
 			match fx_kind:

@@ -538,36 +538,36 @@
  "enemies": [
   {
    "id": "kara_boru",
-   "name": "Kara Börü",
+   "name": "Erlik Tazısı",
    "biome": "otuken",
    "hp": 30,
    "dmg": 10,
    "speed": 95,
    "ai": "lunger",
    "impl": true,
-   "desc": "Erlik'in bozgunuyla kararan kurt. Sürüyle avlanır, atılarak ısırır."
+   "desc": "Yeraltının sıska kara tazısı. Gözleri ve ağzı kor gibi yanar; kırık zinciriyle sürüyle avlanır, atılarak ısırır."
   },
   {
    "id": "cor",
-   "name": "Çor",
+   "name": "Çor Ruhu",
    "biome": "otuken",
    "hp": 22,
    "dmg": 9,
    "speed": 55,
    "ai": "flyer_ranged",
    "impl": true,
-   "desc": "Salgın getiren kötü ruh. Maskesinin ardından zehirli spor tükürür."
+   "desc": "Salgın getiren kefenli ruh. Zincirde sallanan buhurdanından zehirli spor savurur."
   },
   {
    "id": "agac_iyesi",
-   "name": "Ağaç İyesi",
+   "name": "Kara İye",
    "biome": "otuken",
    "hp": 110,
    "dmg": 18,
    "speed": 30,
    "ai": "brute",
    "impl": true,
-   "desc": "Ormanın koruyucusuydu; kökleri zehirlenince öfkeye kapıldı."
+   "desc": "Ormanın geyik kafatası koruyucusuydu; Erlik'in çatlakları göğsünü yarınca öfkeye kapıldı. Ağır yumruğuyla yeri döver, kök fışkırtır."
   },
   {
    "id": "balbal",
@@ -578,29 +578,29 @@
    "speed": 45,
    "ai": "hopper",
    "impl": true,
-   "desc": "Bir kahramanın mezar taşı. Erlik'in sesiyle uyandı, taş kılıcını savurur."
+   "desc": "Bir Göktürk alpının taş heykeli. Erlik'in sesiyle Orhun runaları yandı; elinde kadeh, taş kılıcını savurur."
   },
   {
    "id": "arcura",
-   "name": "Arçura",
+   "name": "Kara Kam",
    "biome": "otuken",
    "hp": 40,
    "dmg": 12,
    "speed": 70,
    "ai": "illusionist",
    "impl": true,
-   "desc": "Yolcuları yanıltan orman cini. Kendi hayaletlerini yaratır."
+   "desc": "Erlik'e kul olmuş maskeli kam. Davulunu döverek kendi hayaletlerini çağırır, arkana geçip lanet savurur."
   },
   {
    "id": "surale",
-   "name": "Şürale",
+   "name": "Gulyabani",
    "biome": "otuken",
    "hp": 45,
    "dmg": 8,
    "speed": 80,
    "ai": "grabber",
    "impl": true,
-   "desc": "Uzun parmaklı orman yaratığı. Yakaladığını gıdıklayarak sersemletir."
+   "desc": "Kefenli, kambur, solgun gul. Yere değen uzun kollarıyla yakalar, sersemletip fırlatır."
   },
   {
    "id": "kurgan_bekcisi",
@@ -621,14 +621,14 @@
   },
   {
    "id": "kara_kus_yavrusu",
-   "name": "Kara Kuş Yavrusu",
+   "name": "Kurgan Ruhu",
    "biome": "bozkir",
    "hp": 28,
    "dmg": 12,
    "speed": 120,
    "ai": "diver",
    "impl": true,
-   "desc": "Erlik'in kara kuşunun yavrusu. Gökten pike yapar.",
+   "desc": "Kurgandan kalkan kefenli ruh. Gökten pike yapar.",
    "sprite": "cor",
    "tint": [
     1.1,
@@ -672,14 +672,14 @@
   },
   {
    "id": "kurgan_okcusu",
-   "name": "Kurgan Okçusu",
+   "name": "Kurgan Kamı",
    "biome": "bozkir",
    "hp": 32,
    "dmg": 11,
    "speed": 40,
    "ai": "archer",
    "impl": true,
-   "desc": "Kemikleşmiş atlı okçu. Geri çekilerek ok atar.",
+   "desc": "Ölüleri kurganlarından kaldıran kam. Geri çekilerek lanet atar.",
    "sprite": "arcura",
    "tint": [
     1.1,
@@ -689,14 +689,14 @@
   },
   {
    "id": "al_atli",
-   "name": "Al Atlı",
+   "name": "Kızıl Gul",
    "biome": "bozkir",
    "hp": 90,
    "dmg": 20,
    "speed": 150,
    "ai": "charger",
    "impl": true,
-   "desc": "Kızıl hayalet atlı. Bozkırı yararak hücum eder.",
+   "desc": "Kurganları eşen kızıl derili gul. Bozkırı yararak saldırır.",
    "sprite": "surale",
    "tint": [
     1.2,
@@ -789,14 +789,14 @@
   },
   {
    "id": "kirkayak",
-   "name": "Zehir Kırkayağı",
+   "name": "Mağara Tazısı",
    "biome": "sahmeran",
    "hp": 40,
    "dmg": 12,
    "speed": 130,
    "ai": "crawler",
    "impl": true,
-   "desc": "Duvarlarda ve tavanda yürüyen dev kırkayak.",
+   "desc": "Kristal mağaranın kör tazısı. Zehirli dişleriyle atılır.",
    "sprite": "kara_boru",
    "tint": [
     0.6,
@@ -806,14 +806,14 @@
   },
   {
    "id": "kan_yarasasi",
-   "name": "Kan Yarasası",
+   "name": "Kan Çoru",
    "biome": "sahmeran",
    "hp": 20,
    "dmg": 8,
    "speed": 140,
    "ai": "swarm",
    "impl": true,
-   "desc": "Sürüyle saldıran, can emen yarasalar.",
+   "desc": "Can emen kefenli ruhlar; sürüyle gelir.",
    "sprite": "cor",
    "tint": [
     1.2,
@@ -840,14 +840,14 @@
   },
   {
    "id": "isilti_bocegi",
-   "name": "Işıltı Böceği",
+   "name": "Işıltı Kamı",
    "biome": "sahmeran",
    "hp": 18,
    "dmg": 18,
    "speed": 75,
    "ai": "kamikaze",
    "impl": true,
-   "desc": "Yaklaşınca patlayan ışıldayan böcek.",
+   "desc": "Kristallerin ışığıyla büyü yapan kör kam.",
    "sprite": "arcura",
    "tint": [
     0.7,
@@ -857,14 +857,14 @@
   },
   {
    "id": "tas_kertenkele",
-   "name": "Taş Kertenkele",
+   "name": "Taş Gulü",
    "biome": "sahmeran",
    "hp": 65,
    "dmg": 14,
    "speed": 90,
    "ai": "lunger",
    "impl": true,
-   "desc": "Taşa bürünüp pusu kuran kertenkele.",
+   "desc": "Taşa bürünüp pusu kuran gul. Uzun kollarıyla yakalar.",
    "sprite": "surale",
    "tint": [
     0.7,
@@ -891,14 +891,14 @@
   },
   {
    "id": "ayaz_kurdu",
-   "name": "Ayaz Kurdu",
+   "name": "Ayaz Tazısı",
    "biome": "kaf",
    "hp": 50,
    "dmg": 14,
    "speed": 110,
    "ai": "lunger",
    "impl": true,
-   "desc": "Buz nefesli dağ kurdu. Isırığı dondurur.",
+   "desc": "Buz nefesli Erlik tazısı. Isırığı dondurur.",
    "sprite": "kara_boru",
    "tint": [
     0.8,
@@ -925,14 +925,14 @@
   },
   {
    "id": "kaf_kartali",
-   "name": "Kaf Kartalı",
+   "name": "Ayaz Çoru",
    "biome": "kaf",
    "hp": 45,
    "dmg": 16,
    "speed": 140,
    "ai": "diver",
    "impl": true,
-   "desc": "Zümrüdüanka'nın bozulmuş muhafızı. Pençeleriyle kaldırıp düşürür.",
+   "desc": "Kaf Dağı'nın fırtınasında donmuş kefenli ruh. Tepeden süzülür.",
    "sprite": "cor",
    "tint": [
     0.9,
@@ -959,14 +959,14 @@
   },
   {
    "id": "simurg_muhafizi",
-   "name": "Simurg Muhafızı",
+   "name": "Simurg Kamı",
    "biome": "kaf",
    "hp": 80,
    "dmg": 17,
    "speed": 70,
    "ai": "shield",
    "impl": true,
-   "desc": "Tüylü kalkanlı savaşçı. Kalkanıyla okları geri savurur.",
+   "desc": "Simurg tüyleri takınmış sapkın kam. Büyüsüyle okları savurur.",
    "sprite": "arcura",
    "tint": [
     1.0,
@@ -1027,14 +1027,14 @@
   },
   {
    "id": "demir_gaga",
-   "name": "Demir Gagalı Kuş",
+   "name": "Demir Dişli Tazı",
    "biome": "tamu",
    "hp": 50,
    "dmg": 18,
    "speed": 130,
    "ai": "diver",
    "impl": true,
-   "desc": "Erlik'in demir gagalı kuşu. Zırhı deler.",
+   "desc": "Erlik'in demir dişli tazısı. Zırhı deler.",
    "sprite": "kara_boru",
    "tint": [
     1.2,
@@ -1061,14 +1061,14 @@
   },
   {
    "id": "kara_atli",
-   "name": "Kara Atlı",
+   "name": "Kor Gulyabani",
    "biome": "tamu",
    "hp": 160,
    "dmg": 28,
    "speed": 160,
    "ai": "charger",
    "impl": true,
-   "desc": "Erlik'in oğlu. Kara atıyla ateş izi bırakarak hücum eder.",
+   "desc": "Erlik'in ülkesinde kül içinde dolaşan gul. Ardında ateş izi bırakır.",
    "sprite": "surale",
    "tint": [
     0.7,

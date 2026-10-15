@@ -39,26 +39,56 @@ func _process(delta: float) -> void:
 	queue_redraw()
 
 
+func _fill_quad(q: PackedVector2Array, c: Color) -> void:
+	## Dışbükey dörtgeni tam sayı piksel satırlarıyla doldurur (tarama çizgisi): kenarlar merdiven, bulanıklık yok.
+	var y0 := floori(minf(minf(q[0].y, q[1].y), minf(q[2].y, q[3].y)))
+	var y1 := ceili(maxf(maxf(q[0].y, q[1].y), maxf(q[2].y, q[3].y)))
+	for y in range(y0, y1):
+		var yc := y + 0.5
+		var xa := INF
+		var xb := -INF
+		for i in 4:
+			var a: Vector2 = q[i]
+			var b: Vector2 = q[(i + 1) % 4]
+			if (a.y <= yc and b.y > yc) or (b.y <= yc and a.y > yc):
+				var x := a.x + (yc - a.y) / (b.y - a.y) * (b.x - a.x)
+				xa = minf(xa, x)
+				xb = maxf(xb, x)
+		if xa < xb:
+			var l := roundf(xa)
+			var r := roundf(xb)
+			if r <= l:
+				r = l + 1.0
+			draw_rect(Rect2(l, y, r - l, 1), c)
+
+
 func _draw() -> void:
+	## Piksel savuruş izi: üç katı bant (koyu iç kenar, silah rengi gövde, beyaz uç çekirdeği).
+	## Yaş üç kademede söner ve izin kökü uca doğru yenir; geçiş yumuşak değil, kare kare.
 	if _pts.size() < 2:
 		return
 	var n := _pts.size()
-	var body := Color(col.r * 1.25, col.g * 1.2, col.b * 1.15, 1.0)
-	var core := Color(1.5, 1.45, 1.35, 1.0)
+	var body := Color(col.r * 1.1, col.g * 1.05, col.b * 1.0, 1.0)
+	var inner := Color(col.r * 0.55, col.g * 0.5, col.b * 0.65, 1.0)
+	var core := Color(1.4, 1.38, 1.3, 1.0)
 	for i in range(n - 1):
 		var a: Array = _pts[i]
 		var b: Array = _pts[i + 1]
-		var fa := 1.0 - clampf((_t - float(a[2])) / life, 0.0, 1.0)
-		var fb := 1.0 - clampf((_t - float(b[2])) / life, 0.0, 1.0)
-		# gövde: kökten uca, eskidikçe uca doğru daralır
-		var wa := clampf(0.85 * width_mul * (0.35 + 0.65 * fa), 0.0, 1.0)
-		var wb := clampf(0.85 * width_mul * (0.35 + 0.65 * fb), 0.0, 1.0)
-		var ia: Vector2 = a[1] + (a[0] - a[1]) * wa
-		var ib: Vector2 = b[1] + (b[0] - b[1]) * wb
-		draw_primitive(PackedVector2Array([ia, a[1], b[1], ib]),
-			PackedColorArray([Color(body, 0.0), Color(body, fa * fa * 0.75), Color(body, fb * fb * 0.75), Color(body, 0.0)]), PackedVector2Array())
-		# çekirdek: uç kenarında ince beyaz bant
-		var ca: Vector2 = a[1] + (a[0] - a[1]) * 0.16 * width_mul
-		var cb: Vector2 = b[1] + (b[0] - b[1]) * 0.16 * width_mul
-		draw_primitive(PackedVector2Array([ca, a[1], b[1], cb]),
-			PackedColorArray([Color(core, 0.0), Color(core, fa * fa), Color(core, fb * fb), Color(core, 0.0)]), PackedVector2Array())
+		var age := clampf((_t - float(b[2])) / life, 0.0, 1.0)
+		var stage := int(age * 3.0)  # 0 taze, 1 orta, 2 sönmekte
+		if stage >= 3:
+			continue
+		var alpha: float = [0.95, 0.6, 0.3][stage]
+		var w: float = [0.85, 0.6, 0.35][stage] * clampf(width_mul, 0.3, 1.2)
+		var ta: Vector2 = a[1]
+		var tb: Vector2 = b[1]
+		var ia: Vector2 = ta + (a[0] - ta) * w
+		var ib: Vector2 = tb + (b[0] - tb) * w
+		var ma: Vector2 = ta + (a[0] - ta) * w * 0.7
+		var mb: Vector2 = tb + (b[0] - tb) * w * 0.7
+		_fill_quad(PackedVector2Array([ia, ma, mb, ib]), Color(inner, alpha * 0.7))
+		_fill_quad(PackedVector2Array([ma, ta, tb, mb]), Color(body, alpha))
+		if stage < 2:
+			var ca: Vector2 = ta + (a[0] - ta) * 0.14
+			var cb: Vector2 = tb + (b[0] - tb) * 0.14
+			_fill_quad(PackedVector2Array([ca, ta, tb, cb]), Color(core, alpha))

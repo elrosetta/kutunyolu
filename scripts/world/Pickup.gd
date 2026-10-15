@@ -35,6 +35,12 @@ func _ready() -> void:
 		light = level.add_light(Vector2(0, -6), Color(0.6, 0.9, 1.0), 70.0, 0.9, self)
 
 
+func reset_ground() -> void:
+	## Değiştirilen eski eşya: yeniden düşsün
+	_grounded = false
+	pedestal = false
+
+
 func _refresh() -> void:
 	if spr and not item.is_empty() and Data.has_weapon_sprite(item["id"]):
 		spr.region_rect = Data.weapon_region(item["id"], item["material"])

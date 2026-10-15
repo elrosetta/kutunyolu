@@ -327,8 +327,16 @@ var aim_t := -1.0
 var throw_t := -1.0
 var thrown := false
 var block_t := -1.0
-var cd := {"second": 0.0, "g1": 0.0, "g2": 0.0}
-var cd_max := {"second": 1.0, "g1": 1.0, "g2": 1.0}
+var cd := {"melee": 0.0, "second": 0.0, "g1": 0.0, "g2": 0.0}
+var cd_max := {"melee": 1.0, "second": 1.0, "g1": 1.0, "g2": 1.0}
+## Dead Cells gibi iki silah yuvası: J ("melee") ve K ("second") yuvasına her tür silah/kalkan konabilir.
+## Yakın dövüş rolü ve ikincil rol (yay, fırlatma, büyü, kalkan) her karede yuvalardaki eşyalardan çözülür.
+var mel_slot := "melee"
+var sec_slot := "second"
+var mel_act := "saldiri1"
+var sec_act := "saldiri2"
+var _want_mel := ""
+const SLOT_ACT := {"melee": "saldiri1", "second": "saldiri2"}
 var kut := 0.0
 var spirit_t := 0.0
 var ward := false
@@ -384,6 +392,54 @@ var arm_fist_b: Sprite2D
 var wind_n := 0  # Rüzgâr Kılıcı: üçüncü kesik sayacı
 var arm_meta: Dictionary = {}
 var _hand_local := Vector2.ZERO
+## Yay: kiriş + yaydaki ok çizimi (kol iskeletinin içinde, silahın üstünde)
+var bow_str: BowString
+var bow_rel_t := 0.0        # bırakış sonrası takip: kiriş titrer, yay geri teper
+var _bow_full := false
+var _bow_nock := Vector2.ZERO
+var _bow_nock_ok := false
+var _bow_tip_cache: Dictionary = {}
+const BOW_REL := 0.24
+const BAKED_ARROW_BOWS := ["saganak_yayi", "tufan_yayi", "od_oklari"]
+
+
+class BowString extends Node2D:
+	## Piksel kiriş: uçlardan geri çekilen gez noktasına iki düz çizgi; isteğe bağlı yaydaki ok.
+	var top := Vector2.ZERO
+	var bot := Vector2.ZERO
+	var nock := Vector2.ZERO
+	var dir := 1
+	var arrow_on := false
+	var arrow_head := Color(0.88, 0.92, 0.98)
+	var fletch := Color(0.85, 0.25, 0.2)
+	var glow := 0.0
+	var str_col := Color(0.93, 0.88, 0.75)
+
+	func _seg(a: Vector2, b: Vector2, col: Color) -> void:
+		var n := maxi(1, int(ceilf(maxf(absf(b.x - a.x), absf(b.y - a.y)))))
+		for i in n + 1:
+			var q := a.lerp(b, float(i) / n).floor()
+			draw_rect(Rect2(q, Vector2.ONE), col)
+
+	func _draw() -> void:
+		_seg(top, nock, str_col)
+		_seg(nock, bot, str_col)
+		if arrow_on:
+			var tail := nock + Vector2(-dir * 1, 0)
+			var head := nock + Vector2(dir * 21, 0)
+			_seg(tail, head - Vector2(dir * 3, 0), Color(0.79, 0.6, 0.37))
+			# uç
+			_seg(head - Vector2(dir * 3, 0), head, arrow_head)
+			draw_rect(Rect2((head - Vector2(dir * 2, 1)).floor(), Vector2.ONE), arrow_head)
+			draw_rect(Rect2((head - Vector2(dir * 2, -1)).floor(), Vector2.ONE), arrow_head)
+			# tüyler
+			draw_rect(Rect2((tail + Vector2(dir * 1, -1)).floor(), Vector2(2, 1)), fletch)
+			draw_rect(Rect2((tail + Vector2(dir * 1, 1)).floor(), Vector2(2, 1)), Color(0.95, 0.93, 0.88))
+			if glow > 0.0:
+				var g := Color(1.0, 0.92, 0.55, glow)
+				draw_rect(Rect2((head - Vector2(1, 1)).floor(), Vector2(3, 3)), Color(g, glow * 0.5))
+				draw_rect(Rect2((head + Vector2(dir * 1, -3)).floor(), Vector2(1, 7)), Color(g, glow * 0.7))
+				draw_rect(Rect2((head + Vector2(dir * 1 - 3, 0)).floor(), Vector2(7, 1)), Color(g, glow * 0.7))
 var _blade_local := Vector2.RIGHT
 var since_atk := 9.0       # son saldırının bitişinden beri geçen süre (zincir / bekleme ayrımı)
 var last_step := -1
@@ -439,6 +495,9 @@ func _ready() -> void:
 	shield_spr = weapon.duplicate()
 	shield_spr.material = wm
 	arm_root.add_child(shield_spr)
+	bow_str = BowString.new()
+	bow_str.visible = false
+	arm_root.add_child(bow_str)
 	arm_fist = _arm_piece(arm_tex, Rect2(cw * 2, 0, cw, ch), fpv, am)
 	# arka kol: gövdenin arkasında (z -1), iki elli silahlarda kabzaya IK ile uzanır
 	arm_root_b = Node2D.new()
@@ -492,7 +551,13 @@ func _update_back_arm(it: Dictionary, h: Vector2, bd: Vector2, is_shield: bool) 
 	var e: Vector2
 	var hb: Vector2
 	var iid: String = it.get("id", "")
-	if TWO_HANDED.has(iid) and not is_shield and not atk.is_empty():
+	if it.get("kind", "") == "bow" and _bow_nock_ok and (aim_t >= 0.0 or bow_rel_t > 0.0):
+		# yay: arka el gezde; bırakınca geriye savrulur
+		var follow := Vector2(-facing * 5.0, -2.0) * clampf(bow_rel_t / BOW_REL, 0.0, 1.0) if aim_t < 0.0 else Vector2.ZERO
+		var r2 := _ik2(sh_b, _bow_nock + follow, l1, l2)
+		e = r2[0]
+		hb = r2[1]
+	elif TWO_HANDED.has(iid) and not is_shield and not atk.is_empty():
 		var target: Vector2 = h + bd.normalized() * float(TWO_HANDED[iid])
 		var r := _ik2(sh_b, target, l1, l2)
 		e = r[0]
@@ -532,7 +597,86 @@ func _arm_piece(tex: Texture2D, region: Rect2, pivot: Vector2, mat: Material) ->
 
 # ------------------------------------------------------------------ yardımcılar
 func slot(s: String) -> Dictionary:
+	if s == "":
+		return {}
 	return Game.run["slots"].get(s, {})
+
+
+static func is_melee_item(it: Dictionary) -> bool:
+	return it.get("cat", "") == "weapons" and not (it.get("kind", "") in ["bow", "throw", "magic"])
+
+
+static func is_second_item(it: Dictionary) -> bool:
+	return it.get("cat", "") == "shields" or (it.get("cat", "") == "weapons" and it.get("kind", "") in ["bow", "throw", "magic"])
+
+
+func _resolve_roles() -> void:
+	## Hangi yuva yakın dövüş, hangisi ikincil? İki yakın silah varsa basılan tuşun silahı kullanılır
+	## (saldırı sürerken kilitli, bitince geçilir); iki yay/kalkan varsa da aynı.
+	var a := slot("melee")
+	var b := slot("second")
+	var mels: Array = []
+	var secs: Array = []
+	if is_melee_item(a):
+		mels.append("melee")
+	if is_melee_item(b):
+		mels.append("second")
+	if is_second_item(a):
+		secs.append("melee")
+	if is_second_item(b):
+		secs.append("second")
+	# yakın dövüş rolü
+	if mels.is_empty():
+		if atk.is_empty():
+			mel_slot = ""
+	elif mels.size() == 1:
+		if atk.is_empty() or mel_slot == "":
+			mel_slot = mels[0]
+	else:
+		for sl in mels:
+			if Input.is_action_just_pressed(SLOT_ACT[sl]) and sl != mel_slot:
+				if atk.is_empty():
+					mel_slot = sl
+					last_step = -1
+					since_atk = 99.0
+				else:
+					_want_mel = sl
+		if atk.is_empty() and _want_mel != "":
+			mel_slot = _want_mel
+			_want_mel = ""
+			last_step = -1
+			since_atk = 99.0
+		if not (mel_slot in mels):
+			mel_slot = mels[0]
+	# ikincil rol (yay gerili / kalkan kalkık / fırlatma sürerken kilitli)
+	var busy2 := aim_t >= 0.0 or block_t >= 0.0 or throw_t >= 0.0
+	if secs.is_empty():
+		if not busy2:
+			sec_slot = ""
+	elif secs.size() == 1:
+		if not busy2:
+			sec_slot = secs[0]
+	elif not busy2:
+		for sl in secs:
+			if Input.is_action_just_pressed(SLOT_ACT[sl]):
+				sec_slot = sl
+		if not (sec_slot in secs):
+			sec_slot = secs[0]
+	mel_act = SLOT_ACT.get(mel_slot, "")
+	sec_act = SLOT_ACT.get(sec_slot, "")
+
+
+func on_equip() -> void:
+	## Yuva değişti: süren saldırı / nişan / siper bırakılır, roller yeniden çözülür.
+	_end_trail()
+	atk = {}
+	aim_t = -1.0
+	block_t = -1.0
+	throw_t = -1.0
+	charge_t = -1.0
+	last_step = -1
+	_want_mel = ""
+	_resolve_roles()
 
 
 func hurt_rect() -> Rect2:
@@ -559,7 +703,7 @@ func heal(v: float) -> void:
 
 
 func add_kut(v: float) -> void:
-	kut = minf(100.0, kut + v * (1.12 if slot("melee").get("material", "") == "tunc" else 1.0))
+	kut = minf(100.0, kut + v * (1.12 if slot(mel_slot).get("material", "") == "tunc" else 1.0))
 
 
 func weapon_color(it: Dictionary) -> Color:
@@ -607,6 +751,8 @@ func _set_crouch(v: bool) -> void:
 
 # ------------------------------------------------------------------ ana döngü
 func _physics_process(delta: float) -> void:
+	# düşük can: kalp atışı ve boğuk ses (Ses.low_hp 0..1)
+	Ses.low_hp(0.0 if dead else clampf(1.0 - float(Game.run["hp"]) / float(Game.run["max_hp"]) / 0.3, 0.0, 1.0))
 	if dead:
 		velocity.y = minf(velocity.y + GRAV * delta, MAX_FALL)
 		velocity.x = move_toward(velocity.x, 0.0, 600 * delta)
@@ -653,6 +799,7 @@ func _physics_process(delta: float) -> void:
 		return
 	for k in cd.keys():
 		cd[k] = maxf(0.0, cd[k] - delta)
+	bow_rel_t -= delta
 	coyote -= delta
 	jump_buf -= delta
 	roll_cd -= delta
@@ -675,6 +822,7 @@ func _physics_process(delta: float) -> void:
 	set_collision_mask_value(4, drop_t <= 0.0)
 
 	var dir := Input.get_axis("sol", "sag")
+	_resolve_roles()
 	if Input.is_action_just_pressed("zipla"):
 		jump_buf = 0.13
 	if not is_on_floor():
@@ -718,7 +866,7 @@ func _physics_process(delta: float) -> void:
 			roll_t = 0.0
 			_set_crouch(false)
 			_jump(false)
-		if slot("second").get("id", "") == "akinci_yayi" and Input.is_action_just_pressed("saldiri2") and cd["second"] <= 0.0:
+		if sec_act != "" and slot(sec_slot).get("id", "") == "akinci_yayi" and Input.is_action_just_pressed(sec_act) and cd[sec_slot] <= 0.0:
 			_fire_bow(0.5)
 		return
 	if crouched:
@@ -737,16 +885,16 @@ func _physics_process(delta: float) -> void:
 		_set_crouch(false)
 
 	# saldırı girdileri
-	var mel := slot("melee")
+	var mel := slot(mel_slot)
 	var lightning := false  # v5: yıldırım hamlesi artık genel ağır saldırı (basılı tut) üzerinden
-	if Input.is_action_just_pressed("saldiri1"):
+	if mel_act != "" and (Input.is_action_just_pressed(mel_act) or (_want_mel != "" and Input.is_action_just_pressed(SLOT_ACT[_want_mel]))):
 		if lightning and atk.is_empty() and drink_t <= 0.0:
 			charge_t = 0.0  # basılı tutma başladı: kısa dokunuş = kombo, uzun = şimşek hamlesi
 		else:
 			melee_buf = 0.2
 	if charge_t >= 0.0:
 		charge_t += delta
-		if Input.is_action_pressed("saldiri1") and charge_t < 1.2:
+		if mel_act != "" and Input.is_action_pressed(mel_act) and charge_t < 1.2:
 			if charge_t > 0.2 and charge_fx == null:
 				charge_fx = FX.anim("focus_charge", center(), 0.0, 0.7, Color(0.6, 0.85, 1.0), true, false, self)
 				if charge_fx:
@@ -794,34 +942,42 @@ func _physics_process(delta: float) -> void:
 			heal(max_hp() * 0.015)
 			FX.burst(center() + Vector2(randf_range(-8, 8), randf_range(-10, 10)), Color(0.5, 1.0, 0.7), 1, 20, 0.5, 0.14, -50, true)
 
-	var sec := slot("second")
+	var sec := slot(sec_slot)
 	var sec_kind: String = sec.get("kind", "")
 	if atk.is_empty() and drink_t <= 0.0:
 		if sec_kind == "bow":
-			if Input.is_action_just_pressed("saldiri2") and cd["second"] <= 0.0:
+			if Input.is_action_just_pressed(sec_act) and cd[sec_slot] <= 0.0:
 				aim_t = 0.0
+				_bow_full = false
 				Ses.play("yay_ger", -8.0)
 			if aim_t >= 0.0:
 				aim_t += delta
+				if aim_t >= 0.55 and not _bow_full:
+					_bow_full = true
+					Ses.play("sarj_dolu", -12.0, 1.3)
+					anim.set_flash(0.3)
+					get_tree().create_timer(0.05).timeout.connect(func() -> void: anim.set_flash(0.0))
+					if _bow_nock_ok:
+						FX.burst(arm_root.to_global(_bow_nock + Vector2(facing * 21, 0)), Color(1.0, 0.9, 0.5), 6, 40, 0.25, 0.14, 0, true)
 				if aim_t > 0.5 and Engine.get_physics_frames() % 3 == 0:
 					FX.burst(global_position + Vector2(facing * 14, -30), Color(1.0, 0.95, 0.7), 1, 20, 0.25, 0.14, 0, true)
-				if not Input.is_action_pressed("saldiri2"):
+				if not Input.is_action_pressed(sec_act):
 					_fire_bow(clampf(aim_t / 0.55, 0.0, 1.0))
 					aim_t = -1.0
 		elif sec_kind == "throw":
-			if Input.is_action_just_pressed("saldiri2") and cd["second"] <= 0.0 and throw_t < 0.0:
+			if Input.is_action_just_pressed(sec_act) and cd[sec_slot] <= 0.0 and throw_t < 0.0:
 				throw_t = 0.0
 				thrown = false
 		elif sec_kind == "magic":
-			if Input.is_action_just_pressed("saldiri2") and cd["second"] <= 0.0:
+			if Input.is_action_just_pressed(sec_act) and cd[sec_slot] <= 0.0:
 				_cast_magic(sec)
 		elif sec_kind == "shield":
-			if Input.is_action_just_pressed("saldiri2"):
+			if Input.is_action_just_pressed(sec_act):
 				block_t = 0.0
 				vis_scale = Vector2(1.1, 0.92)
 			if block_t >= 0.0:
 				block_t += delta
-				if not Input.is_action_pressed("saldiri2"):
+				if not Input.is_action_pressed(sec_act):
 					block_t = -1.0
 	if throw_t >= 0.0:
 		throw_t += delta
@@ -900,6 +1056,13 @@ func _physics_process(delta: float) -> void:
 		drink_t -= delta
 	if cast_t > 0.0:
 		cast_t -= delta
+	# toparlanma iptali: vuruş bitti, oyuncu yürür / zıplar / yuvarlanırsa savuruşun kuyruğunu bekletme
+	if not atk.is_empty() and atk["phase"] == "rec" and not atk.get("heavy", false) and (dir != 0 or jump_buf > 0.0):
+		_end_trail()
+		var cc: Dictionary = atk["c"]
+		last_step = -1 if (cc.get("last", false) or atk.get("pause", false)) else int(atk["step"])
+		since_atk = 0.0
+		atk = {}
 	if not atk.is_empty():
 		_update_attack(delta)
 
@@ -992,8 +1155,8 @@ func _start_roll(dir: float) -> void:
 	Ses.play("yuvarlan", -6.0)
 	_ghost_t = 0.0
 	vis_scale = Vector2(1.15, 0.85)
-	if slot("melee").get("mech_id", "") == "golge_adim":
-		sure_crits = int(slot("melee").get("mech_v", 1))
+	if slot(mel_slot).get("mech_id", "") == "golge_adim":
+		sure_crits = int(slot(mel_slot).get("mech_v", 1))
 	FX.dust(global_position, Vector2(-facing, -0.6), 6, 0.3)
 
 
@@ -1026,6 +1189,8 @@ func _update_anim(dir: float) -> void:
 		anim.show_frame("cast", 1 if cast_t < 0.2 else 0)
 	elif aim_t >= 0.0:
 		anim.show_frame("bow", 1 if aim_t > 0.12 else 0)
+	elif bow_rel_t > 0.0 and slot(sec_slot).get("kind", "") == "bow":
+		anim.show_frame("bow", 1)
 	elif block_t >= 0.0:
 		anim.show_frame("block", 0)
 	elif not is_on_floor():
@@ -1053,7 +1218,7 @@ func _reach(it: Dictionary) -> float:
 
 func _start_attack(step: int) -> void:
 	## step >= 0: zincirdeki adım; step == -1: bekleme bitirişi
-	var it := slot("melee")
+	var it := slot(mel_slot)
 	if it.is_empty():
 		return
 	var combo := _combo_for(it)
@@ -1135,6 +1300,11 @@ func debug_swing(sw_name: String, item_id := "alp_kilici") -> void:
 		"dur": 1.0 / float(it["aps"]) * (1.25 if sw_name in ["spin", "flurry", "slam"] else 1.0), "hit": [], "item": it, "hold": 0.0, "pause": false, "multi_i": 0}
 
 
+func _atk_act() -> String:
+	## Süren yakın saldırının tuşu (iki yakın silahta hangisiyle başladıysa)
+	return mel_act if mel_act != "" else "saldiri1"
+
+
 func _ease(u: float, mode: int) -> float:
 	match mode:
 		1:
@@ -1172,7 +1342,7 @@ func _update_attack(delta: float) -> void:
 		_update_charge(delta)
 		return
 	# Hazırlık bitince tuş hâlâ basılıysa kısa süre bekle; bırakılırsa normal vuruş, HOLD_T'yi aşarsa ağır saldırı.
-	if atk["phase"] == "wind" and _can_hold_heavy(c) and Input.is_action_pressed("saldiri1"):
+	if atk["phase"] == "wind" and _can_hold_heavy(c) and Input.is_action_pressed(_atk_act()):
 		var wind_end: float = atk["dur"] * (hit0 - 0.02)
 		if atk["t"] + delta >= wind_end:
 			atk["t"] = wind_end
@@ -1184,7 +1354,7 @@ func _update_attack(delta: float) -> void:
 				_begin_heavy(it)
 			return
 	# gürz şarjı: hazırlıkta tuş basılıysa bekle, güç birikir
-	if c.get("charge", false) and atk["phase"] == "wind" and Input.is_action_pressed("saldiri1") and atk["hold"] < 0.7:
+	if c.get("charge", false) and atk["phase"] == "wind" and Input.is_action_pressed(_atk_act()) and atk["hold"] < 0.7:
 		if atk["hold"] == 0.0:
 			var fc := FX.anim("focus_charge", center(), 0.0, 0.8, Color(1.0, 0.8, 0.4), true, false, self)
 			if fc:
@@ -1267,7 +1437,7 @@ func _sample_trail(it: Dictionary, c: Dictionary, k: float) -> void:
 		if atk.get("heavy", false):
 			col = col.lerp(Color.WHITE, 0.25)
 			wmul *= 1.3 + 0.4 * float(atk.get("hold", 0.0)) / 0.7
-		_trail = FX.trail(col, wmul * 0.6)
+		_trail = FX.trail(col, wmul)
 		if _trail == null:
 			return
 	var R := _reach(it)
@@ -1441,7 +1611,7 @@ func _update_charge(delta: float) -> void:
 		FX.flash_light(hand, col, 110.0, 1.6, 0.2)
 		FX.text(center() + Vector2(0, -40), String(c.get("name", "AĞIR")), col.lerp(Color.WHITE, 0.3), 9)
 		Game.kick(Vector2.UP, 2.0)
-	if not Input.is_action_pressed("saldiri1") or ch >= HEAVY_MAX + 0.5:
+	if not Input.is_action_pressed(_atk_act()) or ch >= HEAVY_MAX + 0.5:
 		if _heavy_fx and is_instance_valid(_heavy_fx):
 			_heavy_fx.stop()
 		_heavy_fx = null
@@ -1544,6 +1714,9 @@ func _slash_fx(it: Dictionary, c: Dictionary) -> void:
 	if atk.get("pause", false):
 		col = col.lerp(Color(1.0, 0.85, 0.45), 0.5)
 	var heavy: bool = atk.get("heavy", false) or it.get("id", "") in HEAVY
+	# normal zincir vuruşlarında ana efekt piksel izdir; büyük hilal yalnızca bitiriş, ağır ve özel savuruşlarda
+	if not (atk.get("pause", false) or atk.get("heavy", false) or c.get("last", false) or sname in ["thrust", "flurry", "lunge", "pole_thrust", "stab_heavy", "spin", "helicopter", "twirl", "cross_x"]):
+		return
 	var pts := _pose_points(_swing_pose(atk["sw"], 0.0))
 	var sh := arm_root.to_global(pts[0])
 	var rad := R + float(arm_meta.get("upper_len", 8.5)) + float(arm_meta.get("fore_len", 8.0)) * 0.9
@@ -1706,7 +1879,7 @@ func _melee_hits() -> void:
 
 # ------------------------------------------------------------------ hasar hesabı
 func _deal(e: Node, base: float, it: Dictionary, opts: Dictionary = {}) -> void:
-	var d := base * Game.ongun_mult(it.get("ongun", "kurt"))
+	var d := base * Game.item_mult(opts.get("scale_item", it))
 	d *= 1.0 + ItemGen.aff(it, "hasar") / 100.0
 	var hp_k := float(Game.run["hp"]) / max_hp()
 	if hp_k >= 0.999:
@@ -1952,7 +2125,7 @@ func _hit_sfx(it: Dictionary, big: bool, crit: bool, sname: String) -> void:
 
 func _fire_bow(charge: float) -> void:
 	Ses.play("yay_birak", -4.0, 0.9 + 0.2 * charge)
-	var it := slot("second")
+	var it := slot(sec_slot)
 	var full := charge >= 0.98
 	var spd := lerpf(300.0, 560.0, charge)
 	var mech: String = it.get("mech_id", "")
@@ -1961,7 +2134,7 @@ func _fire_bow(charge: float) -> void:
 		var p := Projectile.new()
 		p.kind = "arrow"
 		p.team = "p"
-		p.position = global_position + Vector2(facing * 10, -30)
+		p.position = (arm_root.to_global(_bow_nock + Vector2(facing * 12, 0)) if _bow_nock_ok else global_position + Vector2(facing * 10, -30))
 		var ang := 0.0
 		if n_arrows > 1:
 			ang = lerpf(-0.42, 0.42, float(i) / float(n_arrows - 1))
@@ -1991,10 +2164,15 @@ func _fire_bow(charge: float) -> void:
 		level.add_projectile(p)
 	if mech == "alev_oku":
 		FX.fire(global_position + Vector2(facing * 14, -30), 4, 0.3)
-	cd["second"] = 1.0 / float(it["aps"])
-	cd_max["second"] = cd["second"]
+	cd[sec_slot] = 1.0 / float(it["aps"])
+	cd_max[sec_slot] = cd[sec_slot]
 	vis_scale = Vector2(0.94, 1.04)
-	var muzzle := global_position + Vector2(facing * 10, -30)
+	bow_rel_t = BOW_REL
+	_bow_full = false
+	Ses.play("ok_ucus", -12.0, 0.9 + 0.25 * charge, 0.08, 0.03, center())
+	var muzzle := arm_root.to_global(_bow_nock + Vector2(facing * 20, 0)) if _bow_nock_ok else global_position + Vector2(facing * 10, -30)
+	if full:
+		Game.hitstop(0.03)
 	FX.burst(muzzle, Color(1, 0.95, 0.8), 4 + int(6 * charge), 40 + 60 * charge, 0.2, 0.15, 0, true)
 	if full:
 		FX.ring(muzzle, 14, Color(1.0, 0.9, 0.5), 0.18)
@@ -2028,8 +2206,8 @@ func _throw_item(it: Dictionary) -> void:
 			f.on_hit = func(e: Node) -> void:
 				_deal(e, float(it["dmg"]), it, {"kb": 50.0, "dir": signf(e.center().x - origin.x), "far": e.center().distance_to(origin) > 150.0})
 			level.add_projectile(f)
-		cd["second"] = 1.0 / float(it["aps"])
-		cd_max["second"] = cd["second"]
+		cd[sec_slot] = 1.0 / float(it["aps"])
+		cd_max[sec_slot] = cd[sec_slot]
 		vis_scale = Vector2(1.06, 0.95)
 		return
 	elif it["id"] == "mancinik_tasi":
@@ -2043,8 +2221,8 @@ func _throw_item(it: Dictionary) -> void:
 		p.on_explode = func(pos: Vector2) -> void:
 			level.quake(pos, r, float(it["dmg"]), it, self)
 		level.add_projectile(p)
-		cd["second"] = 1.0 / float(it["aps"])
-		cd_max["second"] = cd["second"]
+		cd[sec_slot] = 1.0 / float(it["aps"])
+		cd_max[sec_slot] = cd[sec_slot]
 		vis_scale = Vector2(1.1, 0.9)
 		return
 	else:
@@ -2055,8 +2233,8 @@ func _throw_item(it: Dictionary) -> void:
 	p.on_hit = func(e: Node) -> void:
 		_deal(e, float(it["dmg"]), it, {"kb": 90.0, "dir": facing, "stun": 0.25 if it["id"] == "coban_sapani" else 0.0})
 	level.add_projectile(p)
-	cd["second"] = 1.0 / float(it["aps"])
-	cd_max["second"] = cd["second"]
+	cd[sec_slot] = 1.0 / float(it["aps"])
+	cd_max[sec_slot] = cd[sec_slot]
 	vis_scale = Vector2(1.08, 0.94)
 
 
@@ -2069,7 +2247,7 @@ func _use_gadget(gs: String) -> void:
 		FX.text(center() + Vector2(0, -24), "hazır değil", Color(0.8, 0.8, 0.9), 7)
 		return
 	var cdv := float(it["cd"]) * (1.0 - ItemGen.aff(it, "bekleme") / 100.0)
-	var power := float(it.get("power", 1.0)) * Game.ongun_mult(it.get("ongun", "kartal"))
+	var power := float(it.get("power", 1.0)) * Game.item_mult(it)
 	var radius := 40.0 * (1.0 + ItemGen.aff(it, "genis") / 100.0)
 	match it["id"]:
 		"kara_barut", "od_testisi":
@@ -2271,7 +2449,7 @@ func _wolf_process(delta: float) -> void:
 	if wolf_t <= 0.0:
 		_end_wolf()
 		return
-	var it := slot("melee")
+	var it := slot(mel_slot)
 	var dir := Input.get_axis("sol", "sag")
 	if Input.is_action_just_pressed("zipla"):
 		jump_buf = 0.13
@@ -2428,25 +2606,34 @@ func _update_weapon_visual() -> void:
 		it = atk["item"]
 		pose = _swing_pose(atk["sw"], atk["t"] / atk["dur"])
 	elif charge_t > 0.2:
-		it = slot("melee")
+		it = slot(mel_slot)
 		pose = [-0.5, 1.95, -0.15, 1.0, 1.0]
 	elif aim_t >= 0.0:
-		it = slot("second")
+		it = slot(sec_slot)
 		var pull := clampf(aim_t / 0.55, 0.0, 1.0)
-		pose = [1.55, 0.05, 0.0, 1.0, 1.0 - 0.05 * pull]
+		# tam gerilince ok ucu hafifçe titrer (gerginlik)
+		var quiver := 0.012 * sin(aim_t * 70.0) if pull >= 1.0 else 0.0
+		pose = [1.55 + quiver, 0.05, 0.0, 1.0, 1.0 - 0.05 * pull]
+	elif bow_rel_t > 0.0 and slot(sec_slot).get("kind", "") == "bow":
+		it = slot(sec_slot)
+		var rk := bow_rel_t / BOW_REL
+		pose = [1.55 + 0.12 * rk, 0.05, -0.1 * rk, 1.0, 1.0 + 0.04 * rk]
 	elif throw_t >= 0.0:
-		it = slot("second")
+		it = slot(sec_slot)
 		var tk := clampf(throw_t / 0.28, 0.0, 1.0)
 		pose = _swing_pose(SWINGS["axe"], tk)
 	elif block_t >= 0.0:
-		it = slot("second")
+		it = slot(sec_slot)
 		is_shield = true
 		pose = [1.25, 0.9, 0.0, 1.0, 1.0]
 	elif cast_t > 0.0:
-		it = slot("second")
+		it = slot(sec_slot)
 		pose = [1.45, 0.1, -0.5, 1.0, 1.0]
 	var show := not pose.is_empty() and not it.is_empty() and roll_t <= 0.0 and hurt_t <= 0.0
 	arm_root.visible = show
+	if bow_str and (not show or it.get("kind", "") != "bow"):
+		bow_str.visible = false
+		_bow_nock_ok = false
 	if not show:
 		weapon.visible = false
 		shield_spr.visible = false
@@ -2475,7 +2662,7 @@ func _update_weapon_visual() -> void:
 		weapon.position = h
 		if it.get("kind", "") == "bow":
 			weapon.rotation = 0.0 if facing > 0 else PI
-			weapon.scale = Vector2(1, facing)
+			_update_bow(it, h)
 		else:
 			weapon.rotation = bd.angle()
 			weapon.scale = Vector2(clampf(bd.length(), 0.15, 1.0), facing)
@@ -2485,6 +2672,71 @@ func _update_weapon_visual() -> void:
 		shield_spr.position = h + Vector2(facing * 3, 0)
 		shield_spr.rotation = 0.0
 		shield_spr.scale = Vector2(facing, 1)
+
+
+func _bow_tips(it: Dictionary) -> Array:
+	## Yay sprite'ının üst ve alt ucu (pivot'a göre); görüntüden bir kez okunur.
+	var key := String(it["id"]) + "/" + String(it["material"])
+	if _bow_tip_cache.has(key):
+		return _bow_tip_cache[key]
+	var out := [Vector2(-2, -16), Vector2(-2, 16)]
+	var img: Image = Data.weapon_tex.diffuse_texture.get_image()
+	if img:
+		if img.is_compressed():
+			img.decompress()
+		var reg := Rect2i(Data.weapon_region(it["id"], it["material"]))
+		var piv := Data.weapon_pivot(it["id"])
+		var top := Vector2.INF
+		var bot := Vector2.INF
+		# uçlar: kabzanın (pivot) solunda kalan, en üst ve en alt dolu pikseller
+		for y in reg.size.y:
+			for x in range(0, int(piv.x) + 6):
+				if img.get_pixel(reg.position.x + x, reg.position.y + y).a > 0.5:
+					if top == Vector2.INF:
+						top = Vector2(x, y)
+					bot = Vector2(x, y)
+					break
+		if top != Vector2.INF:
+			out = [top - piv + Vector2(0.5, 0.5), bot - piv + Vector2(0.5, 0.5)]
+	_bow_tip_cache[key] = out
+	return out
+
+
+func _update_bow(it: Dictionary, h: Vector2) -> void:
+	## Yay: gerildikçe kollar esner (yatay sıkışma), kiriş gez noktasına geri çekilir, ok yayda durur;
+	## bırakınca kiriş sönümlü titrer ve yay geri teper.
+	var pull := clampf(aim_t / 0.55, 0.0, 1.0) if aim_t >= 0.0 else 0.0
+	var rk := clampf(bow_rel_t / BOW_REL, 0.0, 1.0) if aim_t < 0.0 else 0.0
+	var flex := 1.0 - 0.1 * pull
+	weapon.scale = Vector2(flex, facing)
+	weapon.position = h + Vector2(-facing * 2.0 * rk * rk, 0)
+	var tips := _bow_tips(it)
+	var t0: Vector2 = tips[0]
+	var t1: Vector2 = tips[1]
+	var top := weapon.position + Vector2(t0.x * flex * facing, t0.y * (1.0 - 0.05 * pull))
+	var bot := weapon.position + Vector2(t1.x * flex * facing, t1.y * (1.0 - 0.05 * pull))
+	var mid := (top + bot) * 0.5
+	var nock := mid + Vector2(-facing * (1.0 + 11.0 * pull), 0)
+	if rk > 0.0:
+		var tt := Time.get_ticks_msec() / 1000.0
+		nock.x = mid.x + facing * sin(tt * 75.0) * 2.5 * rk
+	bow_str.visible = true
+	bow_str.top = top
+	bow_str.bot = bot
+	bow_str.nock = nock.round()
+	bow_str.dir = facing
+	bow_str.arrow_on = aim_t >= 0.0 and not (String(it["id"]) in BAKED_ARROW_BOWS)
+	bow_str.glow = (0.6 + 0.4 * sin(aim_t * 18.0)) if (aim_t >= 0.0 and pull >= 1.0) else 0.0
+	match String(it["id"]):
+		"akinci_yayi":
+			bow_str.fletch = Color(0.75, 0.1, 0.16)
+			bow_str.arrow_head = Color(0.8, 0.82, 0.88)
+		_:
+			bow_str.fletch = Color(0.85, 0.25, 0.2)
+			bow_str.arrow_head = Color(0.88, 0.92, 0.98) if pull < 1.0 else Color(1.0, 0.9, 0.55)
+	bow_str.queue_redraw()
+	_bow_nock = nock
+	_bow_nock_ok = true
 
 
 func _place_bone(sp: Sprite2D, a: Vector2, b: Vector2, rest_len: float) -> void:
@@ -2537,7 +2789,7 @@ func take_hit(dmg: float, from: Node, projectile: Node = null, forced := false) 
 			from.apply_curse()
 		inv_t = 0.4
 		return false
-	var sh := slot("second")
+	var sh := slot(sec_slot)
 	var src_x: float = from.global_position.x if from else global_position.x + facing
 	var facing_src: bool = sign(src_x - global_position.x) == facing
 	if block_t >= 0.0 and sh.get("kind", "") == "shield" and facing_src:
@@ -2632,7 +2884,7 @@ func _parry(sh: Dictionary, from: Node, projectile: Node) -> void:
 			p.pierce = 2
 			p.trail_col = Color(0.5, 0.95, 1.0)
 			p.on_hit = func(e: Node) -> void:
-				_deal(e, 10.0 * mv / 100.0 * (1.0 + 0.6 * float(sh["tier"])), slot("melee"), {"kb": 120.0, "dir": facing})
+				_deal(e, 10.0 * mv / 100.0 * (1.0 + 0.6 * float(sh["tier"])), slot(mel_slot), {"kb": 120.0, "dir": facing, "scale_item": sh})
 			level.add_projectile(p)
 			if from and from.has_method("stun"):
 				from.stun(0.6)
@@ -2713,9 +2965,9 @@ func _arrow_rain(x: float, ground_y: float, dur: float, dmg: float, it: Dictiona
 func _cast_magic(it: Dictionary) -> void:
 	Ses.play("buyu", -4.0)
 	var mv := float(it.get("mech_v", 3))
-	var power := Game.ongun_mult(it.get("ongun", "kartal"))
-	cd["second"] = 1.0 / float(it["aps"])
-	cd_max["second"] = cd["second"]
+	var power := Game.item_mult(it)
+	cd[sec_slot] = 1.0 / float(it["aps"])
+	cd_max[sec_slot] = cd[sec_slot]
 	cast_t = 0.35
 	anim.show_frame("cast", 1)
 	vis_scale = Vector2(0.94, 1.06)

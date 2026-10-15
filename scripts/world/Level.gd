@@ -7,6 +7,7 @@ signal finished
 signal player_died
 signal scroll_requested(p: Pickup)
 signal npc_requested(id: String)
+signal slot_requested(p: Pickup)
 
 const TS := 24
 const W := 230
@@ -820,31 +821,53 @@ func nearest_item(pos: Vector2) -> Pickup:
 	return best
 
 
-func equip(p: Pickup) -> void:
+func slot_options(it: Dictionary) -> Array:
+	## Dead Cells gibi: silah ve kalkanlar iki silah yuvasından birine (J / K), teçhizat iki teçhizat yuvasından birine (U / I).
+	return ["g1", "g2"] if it.get("cat", "") == "gadgets" else ["melee", "second"]
+
+
+func natural_slot(it: Dictionary) -> String:
+	if it.get("cat", "") == "gadgets":
+		return "g1"
+	return "second" if Player.is_second_item(it) else "melee"
+
+
+func try_equip(p: Pickup) -> void:
+	## Boş uygun yuva varsa doğrudan oraya; ikisi de doluysa oyuncuya hangi yuvayı değiştireceği sorulur.
+	var slots: Dictionary = Game.run["slots"]
+	var nat := natural_slot(p.item)
+	if slots.get(nat, {}).is_empty():
+		equip(p, nat)
+		return
+	for sl in slot_options(p.item):
+		if slots.get(sl, {}).is_empty():
+			equip(p, sl)
+			return
+	slot_requested.emit(p)
+
+
+func equip(p: Pickup, slot := "") -> void:
 	var it: Dictionary = p.item
-	var slot := "melee"
-	var cat: String = it["cat"]
-	if cat == "weapons" and it["kind"] in ["bow", "throw", "magic"]:
-		slot = "second"
-	elif cat == "shields":
-		slot = "second"
-	elif cat == "gadgets":
-		var slots: Dictionary = Game.run["slots"]
-		slot = "g1" if slots["g1"].is_empty() else ("g2" if slots["g2"].is_empty() else "g1")
-		if not slots["g1"].is_empty() and not slots["g2"].is_empty() and Input.is_action_pressed("yukari"):
-			slot = "g2"
+	if slot == "":
+		slot = natural_slot(it)
 	var old: Dictionary = Game.run["slots"].get(slot, {})
 	Game.run["slots"][slot] = it
-	FX.text(player.center() + Vector2(0, -30), it["name"], Color.from_string(Data.items["rarities"][it["rarity"]]["color"], Color.WHITE), 8)
-	FX.ring(player.center(), 20, Color.from_string(Data.items["rarities"][it["rarity"]]["color"], Color.WHITE), 0.25)
+	var rcol := Color.from_string(Data.items["rarities"][it["rarity"]]["color"], Color.WHITE)
+	FX.text(player.center() + Vector2(0, -30), it["name"], rcol, 8)
+	FX.ring(player.center(), 20, rcol, 0.25)
+	FX.burst(player.center(), rcol, 10, 60, 0.4, 0.16, -60, true)
 	player.vis_scale = Vector2(0.9, 1.1)
-	Ses.play("esya")
+	if player.has_method("on_equip"):
+		player.on_equip()
+	Ses.play("esya_kusan")
 	if old.is_empty():
 		pickups.erase(p)
 		p.queue_free()
 	else:
+		# eski eşya yere düşer (biraz yana sekerek, hemen yeniden alınmasın diye)
 		p.item = old
-		p.velocity = Vector2(0, -120)
+		p.velocity = Vector2(-player.facing * 60.0, -150.0)
+		p.reset_ground()
 
 
 # ------------------------------------------------------------------ savaş yardımcıları
@@ -982,4 +1005,4 @@ func _process(_delta: float) -> void:
 			if p.kind == "tilsim":
 				scroll_requested.emit(p)
 			else:
-				equip(p)
+				try_equip(p)

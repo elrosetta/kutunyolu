@@ -110,8 +110,20 @@ func roll(id: String, tier: int = 0, material: String = "", rarity: int = -1, fl
 			ws2.append(r["weight"][t])
 		rar_i = rars.find(_wpick(rars, ws2))
 	var R: Dictionary = rars[rar_i]
+	# ongun: tek renk ya da iki renk ["kurt", "ayi"]; nadir eşyalar bazen ikinci bir renk kazanır
+	var base_on: Array = []
+	var bo: Variant = base.get("ongun", "kurt")
+	if bo is Array:
+		base_on = (bo as Array).duplicate()
+	else:
+		base_on = [String(bo)]
+	var on2 := String(base_on[1]) if base_on.size() > 1 else ""
+	if on2 == "" and rng.randf() < [0.0, 0.14, 0.28, 0.45][clampi(rar_i, 0, 3)]:
+		var others: Array = ["kurt", "kartal", "ayi"]
+		others.erase(String(base_on[0]))
+		on2 = String(others[rng.randi_range(0, others.size() - 1)])
 	var it := {"id": id, "cat": cat, "name_base": base["name"], "tier": t, "material": mat["id"], "rarity": rar_i,
-		"ongun": base.get("ongun", "kurt"), "affixes": [], "flaw": "", "epithet": ""}
+		"ongun": String(base_on[0]), "ongun2": on2, "affixes": [], "flaw": "", "epithet": ""}
 	var qs: Array = []
 	if cat == "weapons":
 		var dq := rng.randf_range(0.85, 1.15)

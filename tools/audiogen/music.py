@@ -5,6 +5,8 @@ import numpy as np
 from synth import SR, t_axis, env, exp_env, noise, fft_filter, sine, sweep, pluck, reverb, delay, distort, mix, place, fade
 
 MSR = 22050  # müzik örnekleme hızı (dosya boyutu)
+# biyom başına hedef yükseklik (synth.loudness, dB): savaş biyomları biraz önde, yurt/başlık sakin
+TARGET_DB = {'otuken': -15.0, 'bozkir': -14.5, 'sahmeran': -16.0, 'kaf': -15.5, 'tamu': -14.5, 'yurt': -16.5, 'baslik': -16.5}
 
 HICAZ = [0, 1, 4, 5, 7, 8, 10]
 HUSEYNI = [0, 2, 3, 5, 7, 9, 10]
@@ -59,15 +61,23 @@ def drips(dur, sr=MSR, seed=31, n=24):
     return reverb(x, 1.5, 0.5, sr)
 
 
-def melody(scale, root, bars, bpm, sr=MSR, seed=1, density=0.6, bright=0.5, octave=0, rest_p=0.25, decay=0.995):
-    """Makam üstünde yürüyen kopuz ezgisi: komşu adımlar çoğunlukta, arada sıçrama; eşlik için beşli dron."""
+def melody(scale, root, bars, bpm, sr=MSR, seed=1, density=0.6, bright=0.5, octave=0, rest_p=0.25, decay=0.995, ab=True):
+    """Makam üstünde yürüyen kopuz ezgisi: komşu adımlar çoğunlukta, arada sıçrama; eşlik için beşli dron.
+    ab: parça iki bölümlü (A/B) — ikinci yarı başka tohumla, biraz daha yoğun ve bir derece yukarıda gezinir (tekrar hissi azalır)."""
     rng = np.random.default_rng(seed)
+    rng_b = np.random.default_rng(seed + 1000)
     beat = 60.0 / bpm
     total = bars * 4 * beat
     x = np.zeros(int(total * sr))
     deg = 0
     t = 0.0
+    half = False
     while t < total - beat * 0.5:
+        if ab and not half and t >= total / 2:
+            half = True
+            rng = rng_b
+            rest_p = rest_p * 0.75
+            deg = 2
         step = rng.choice([-2, -1, -1, 0, 1, 1, 2, 3, -3], p=[0.08, 0.25, 0.1, 0.1, 0.25, 0.08, 0.06, 0.04, 0.04])
         deg = int(np.clip(deg + step, -3, 10))
         ln = rng.choice([0.5, 1.0, 1.0, 1.5, 2.0], p=[0.35, 0.3, 0.1, 0.15, 0.1]) * beat
@@ -92,14 +102,15 @@ def drone(root, dur, sr=MSR, fifth=True, lp=700):
     return pad(freqs, dur, sr, lp=lp)
 
 
-def rhythm(pattern, bars, bpm, sr=MSR, gain=1.0, swing=0.0):
-    """pattern: 16'lık dizi, 'D' dum, 'T' tek, 'K' ka, '.' sus, 'B' dev davul."""
+def rhythm(pattern, bars, bpm, sr=MSR, gain=1.0, swing=0.0, fill=None):
+    """pattern: 16'lık dizi, 'D' dum, 'T' tek, 'K' ka, '.' sus, 'B' dev davul. fill: her 4. ölçüde çalınan dolgu kalıbı."""
     beat = 60.0 / bpm
     total = bars * 4 * beat
     x = np.zeros(int(total * sr))
     cache = {k: drum(v, sr) for k, v in (('D', 'dum'), ('T', 'tek'), ('K', 'ka'), ('B', 'dev'))}
     for b in range(bars):
-        for i, ch in enumerate(pattern):
+        pat = fill if (fill and b % 4 == 3) else pattern
+        for i, ch in enumerate(pat):
             if ch == '.':
                 continue
             t = b * 4 * beat + i * beat / 4 + (swing * beat / 4 if i % 2 else 0)
@@ -119,54 +130,57 @@ def loopify(x, sr=MSR, xf=1.5):
 
 def track(biome, sr=MSR):
     if biome == 'otuken':
-        bpm, bars, root, scale = 72, 8, 50, HICAZ
+        bpm, bars, root, scale = 72, 16, 50, HICAZ
         mel = melody(scale, root + 12, bars, bpm, sr, seed=3, bright=0.45, rest_p=0.35)
         dr = drone(root, bars * 4 * 60 / bpm, sr, lp=600)
-        rh = rhythm('D...T.K.D..DT.K.', bars, bpm, sr, 0.6)
-        wn = wind(bars * 4 * 60 / bpm, sr, 21, 120, 900, 0.35)
+        rh = rhythm('D...T.K.D..DT.K.', bars, bpm, sr, 0.6, fill='D.T.T.K.D.TTK.KK')
+        wn = wind(bars * 4 * 60 / bpm, sr, 21, 120, 900, 0.18)
         x = mix(mel * 0.8, dr * 0.35, rh, wn)
         x = delay(x, 60 / bpm * 0.75, 0.3, 0.25, sr)
     elif biome == 'bozkir':
-        bpm, bars, root, scale = 104, 8, 55, HUSEYNI
+        bpm, bars, root, scale = 104, 16, 55, HUSEYNI
         mel = melody(scale, root + 12, bars, bpm, sr, seed=5, bright=0.7, rest_p=0.2, octave=0)
         mel2 = melody(scale, root, bars, bpm, sr, seed=6, bright=0.4, rest_p=0.55, decay=0.993)
         dr = drone(root, bars * 4 * 60 / bpm, sr, lp=900)
-        rh = rhythm('D.T.K.T.D.T.KKT.', bars, bpm, sr, 0.75, swing=0.1)
-        wn = wind(bars * 4 * 60 / bpm, sr, 22, 300, 2500, 0.3)
+        rh = rhythm('D.T.K.T.D.T.KKT.', bars, bpm, sr, 0.75, swing=0.1, fill='D.TTK.T.D.TKTKTK')
+        wn = wind(bars * 4 * 60 / bpm, sr, 22, 300, 2500, 0.15)
         x = mix(mel * 0.8, mel2 * 0.5, dr * 0.25, rh, wn)
     elif biome == 'sahmeran':
-        bpm, bars, root, scale = 64, 8, 45, KURDI
+        bpm, bars, root, scale = 64, 16, 45, KURDI
         mel = melody(scale, root + 24, bars, bpm, sr, seed=7, bright=0.3, rest_p=0.5, decay=0.997)
         dr = drone(root, bars * 4 * 60 / bpm, sr, lp=400)
-        rh = rhythm('B.......K...B.K.', bars, bpm, sr, 0.5)
+        rh = rhythm('B.......K...B.K.', bars, bpm, sr, 0.5, fill='B.......B...K.K.')
         dp = drips(bars * 4 * 60 / bpm, sr, 31, 20)
         x = mix(reverb(mel, 2.5, 0.5, sr) * 0.7, dr * 0.45, rh, dp * 0.6)
     elif biome == 'kaf':
-        bpm, bars, root, scale = 84, 8, 57, HUSEYNI
+        bpm, bars, root, scale = 84, 16, 57, HUSEYNI
         mel = melody(scale, root + 24, bars, bpm, sr, seed=9, bright=0.8, rest_p=0.4, decay=0.996)
         dr = drone(root, bars * 4 * 60 / bpm, sr, lp=1200)
-        rh = rhythm('D...K.T...K.T.K.', bars, bpm, sr, 0.45)
-        wn = wind(bars * 4 * 60 / bpm, sr, 23, 400, 4000, 0.6)
+        rh = rhythm('D...K.T...K.T.K.', bars, bpm, sr, 0.45, fill='D...K.T.D.K.TTKK')
+        wn = wind(bars * 4 * 60 / bpm, sr, 23, 400, 4000, 0.3)
         ch = pad([midi(root + 24), midi(root + 31), midi(root + 36)], bars * 4 * 60 / bpm, sr, lp=2500, wob=0.3, seed=4) * 0.12
         x = mix(reverb(mel, 2.0, 0.4, sr) * 0.7, dr * 0.3, rh, wn, ch)
     elif biome == 'tamu':
-        bpm, bars, root, scale = 92, 8, 43, HICAZ
+        bpm, bars, root, scale = 92, 16, 43, HICAZ
         mel = melody(scale, root + 12, bars, bpm, sr, seed=11, bright=0.5, rest_p=0.3)
         dr = distort(drone(root, bars * 4 * 60 / bpm, sr, lp=500), 2.5)
-        rh = rhythm('B.K.T.K.B.KKT.K.', bars, bpm, sr, 0.9)
+        rh = rhythm('B.K.T.K.B.KKT.K.', bars, bpm, sr, 0.9, fill='B.K.T.K.B.TTB.TT')
         wn = fft_filter(noise(bars * 4 * 60 / bpm, sr, 41), lo=60, hi=500, sr=sr) * 0.25
         x = mix(mel * 0.7, dr * 0.4, rh, wn)
     elif biome == 'yurt':  # Ulu Kayın: sakin, sıcak
-        bpm, bars, root, scale = 66, 8, 57, HUSEYNI
+        bpm, bars, root, scale = 66, 16, 57, HUSEYNI
         mel = melody(scale, root + 12, bars, bpm, sr, seed=13, bright=0.55, rest_p=0.4, decay=0.997)
         dr = drone(root, bars * 4 * 60 / bpm, sr, lp=800)
-        rh = rhythm('D.......T.......', bars, bpm, sr, 0.3)
+        rh = rhythm('D.......T.......', bars, bpm, sr, 0.3, fill='D.......T...T.K.')
         fire = fft_filter(noise(bars * 4 * 60 / bpm, sr, 51), lo=300, hi=3000, sr=sr) * 0.08
         x = mix(reverb(mel, 1.5, 0.3, sr) * 0.8, dr * 0.35, rh, fire)
     else:  # başlık
-        bpm, bars, root, scale = 60, 8, 50, HICAZ
+        bpm, bars, root, scale = 60, 16, 50, HICAZ
         mel = melody(scale, root + 12, bars, bpm, sr, seed=17, bright=0.4, rest_p=0.5, decay=0.997)
         dr = drone(root, bars * 4 * 60 / bpm, sr, lp=500)
         wn = wind(bars * 4 * 60 / bpm, sr, 61, 100, 1200, 0.4)
         x = mix(reverb(mel, 2.5, 0.5, sr) * 0.7, dr * 0.45, wn)
+    # karışım cilası: 60 Hz altı çamuru temizle, hafif doyurma ile yapıştır
+    x = fft_filter(x, lo=45, sr=sr, slope=1.5)
+    x = np.tanh(x / (np.max(np.abs(x)) + 1e-9) * 1.4) / math.tanh(1.4)
     return loopify(x, sr)

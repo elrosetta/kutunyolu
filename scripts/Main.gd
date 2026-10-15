@@ -11,6 +11,7 @@ var showcase := false
 var lab := false
 var _lab_i := 0
 var scroll_pickup: Pickup
+var slot_pickup: Pickup
 var _depth_forced := false
 
 
@@ -25,10 +26,14 @@ func _ready() -> void:
 	auto_test = OS.get_cmdline_user_args().has("--otomatik")
 	showcase = OS.get_cmdline_user_args().has("--sahne") or OS.get_cmdline_user_args().has("--savurus")
 	lab = OS.get_cmdline_user_args().has("--savurus")
+	for arg in OS.get_cmdline_user_args():
+		if String(arg).begins_with("--ekran="):
+			_ekran = String(arg).trim_prefix("--ekran=")
+			auto_test = false
 	_new_run()
 	if OS.get_cmdline_user_args().has("--yurt"):
 		_build_hub()  # yurt testi: doğrudan Ulu Kayın'da başla
-	if auto_test or showcase:
+	if auto_test or showcase or _ekran != "":
 		hud.mode = "play"
 		get_tree().paused = false
 	else:
@@ -38,6 +43,7 @@ func _ready() -> void:
 
 
 func _new_run() -> void:
+	Ses.low_hp(0.0)
 	Game.new_run()
 	Game.meta["runs"] = int(Game.meta.get("runs", 0)) + 1
 	Game.save_meta()
@@ -66,6 +72,7 @@ func _build_level() -> void:
 	level.finished.connect(_on_finished)
 	level.player_died.connect(_on_died)
 	level.scroll_requested.connect(_on_scroll)
+	level.slot_requested.connect(_on_slot_request)
 	hud.level = level
 	hud._card_t = 0.0
 
@@ -143,7 +150,30 @@ func _on_scroll(p: Pickup) -> void:
 	scroll_pickup = p
 	hud.sel = 0
 	hud.mode = "tilsim"
+	Ses.play("ui_ac")
 	get_tree().paused = true
+
+
+func _on_slot_request(p: Pickup) -> void:
+	## İki uygun yuva da dolu: hangisinin değişeceğini oyuncu seçer (oyun durur).
+	slot_pickup = p
+	var opts: Array = level.slot_options(p.item)
+	hud.slot_opts = opts
+	hud.sel = maxi(0, opts.find(level.natural_slot(p.item)))
+	hud.mode = "slot"
+	hud.open_anim()
+	Ses.play("ui_ac")
+	get_tree().paused = true
+
+
+func _finish_slot(slot: String) -> void:
+	if slot != "" and is_instance_valid(slot_pickup) and level:
+		level.equip(slot_pickup, slot)
+		Ses.play("esya_degis")
+	else:
+		Ses.play("ui_iptal")
+	slot_pickup = null
+	_start_play()
 
 
 func _apply_scroll(sel: int) -> void:
@@ -154,7 +184,8 @@ func _apply_scroll(sel: int) -> void:
 	Game.run["max_hp"] = float(Game.run["max_hp"]) + hp_gain
 	Game.run["hp"] = minf(float(Game.run["max_hp"]), float(Game.run["hp"]) + hp_gain + float(Game.run["max_hp"]) * 0.1)
 	Game.run["scrolls"] = int(Game.run.get("scrolls", 0)) + 1
-	Ses.play("tilsim")
+	Ses.play("tilsim_sec")
+	Ses.play("seviye", -4.0)
 	if level and level.player:
 		var col := Color.from_string(Data.items["ongun"][k]["color"], Color.WHITE)
 		FX.ring(level.player.center(), 40, col, 0.4)
@@ -193,20 +224,37 @@ func _unhandled_input(event: InputEvent) -> void:
 		"tilsim":
 			if event.is_action_pressed("sol"):
 				hud.sel = (hud.sel + 2) % 3
-				Ses.play("ui_sec")
+				Ses.play("ui_gez")
 			elif event.is_action_pressed("sag"):
 				hud.sel = (hud.sel + 1) % 3
-				Ses.play("ui_sec")
+				Ses.play("ui_gez")
 			elif event.is_action_pressed("etkiles") or go:
 				_apply_scroll(hud.sel)
+		"slot":
+			var opts: Array = hud.slot_opts
+			if event.is_action_pressed("sol") or event.is_action_pressed("sag") or event.is_action_pressed("yukari") or event.is_action_pressed("asagi"):
+				hud.sel = 1 - hud.sel
+				Ses.play("ui_gez")
+			elif event.is_action_pressed("saldiri1") and "melee" in opts:
+				_finish_slot("melee")
+			elif event.is_action_pressed("saldiri2") and "second" in opts:
+				_finish_slot("second")
+			elif event.is_action_pressed("techizat1") and "g1" in opts:
+				_finish_slot("g1")
+			elif event.is_action_pressed("techizat2") and "g2" in opts:
+				_finish_slot("g2")
+			elif event.is_action_pressed("etkiles") or go:
+				_finish_slot(String(opts[clampi(hud.sel, 0, opts.size() - 1)]))
+			elif event.is_action_pressed("duraklat") or event.is_action_pressed("yuvarlan"):
+				_finish_slot("")
 		"demirci":
 			var bps: Array = Game.meta.get("blueprints", [])
 			if event.is_action_pressed("sol") and bps.size() > 0:
 				hud.sel = (hud.sel + bps.size() - 1) % bps.size()
-				Ses.play("ui_sec")
+				Ses.play("ui_gez")
 			elif event.is_action_pressed("sag") and bps.size() > 0:
 				hud.sel = (hud.sel + 1) % bps.size()
-				Ses.play("ui_sec")
+				Ses.play("ui_gez")
 			elif event.is_action_pressed("etkiles") and bps.size() > 0:
 				var id: String = bps[clampi(hud.sel, 0, bps.size() - 1)]
 				if Game.unlock(id):
@@ -223,10 +271,10 @@ func _unhandled_input(event: InputEvent) -> void:
 			var keys: Array = Game.UMAY.keys()
 			if event.is_action_pressed("yukari") or event.is_action_pressed("sol"):
 				hud.sel = (hud.sel + keys.size() - 1) % keys.size()
-				Ses.play("ui_sec")
+				Ses.play("ui_gez")
 			elif event.is_action_pressed("asagi") or event.is_action_pressed("sag"):
 				hud.sel = (hud.sel + 1) % keys.size()
-				Ses.play("ui_sec")
+				Ses.play("ui_gez")
 			elif event.is_action_pressed("etkiles"):
 				var id: String = keys[hud.sel]
 				if Game.umay_buy(id):
@@ -421,7 +469,73 @@ func _showcase(delta: float) -> void:
 			_tap("sag" if pl.facing > 0 else "sol")
 
 
+var _ekran := ""
+var _ekran_t := 0
+
+
+func _debug_screen() -> void:
+	## --ekran=oyun|tilsim|yuva|duraklat|olum|umay|demirci : arayüz testleri ve ekran görüntüsü için
+	_ekran_t += 1
+	if _ekran in ["yay", "kilic"] and level and level.player:
+		# yay: 45. karede ger, 85. karede bırak; kılıç: 45/70/95. karelerde zincir vuruş
+		var pl0: Player = level.player
+		for a0 in _auto_pressed:
+			Input.action_release(a0)
+		_auto_pressed.clear()
+		for e in get_tree().get_nodes_in_group("dusman"):
+			if e.global_position.distance_to(pl0.global_position) > 60.0:
+				e.set_physics_process(false)
+		if _ekran_t == 40:
+			pl0.facing = 1
+			if _ekran == "yay":
+				Game.run["slots"]["second"] = ItemGen.roll("turk_yayi", 1, "demir", 1)
+			pl0.on_equip()
+		if _ekran == "yay":
+			if _ekran_t == 45:
+				Input.action_press("saldiri2")
+			elif _ekran_t == 85:
+				Input.action_release("saldiri2")
+		elif _ekran_t in [45, 70, 95]:
+			_tap("saldiri1")
+		return
+	if _ekran_t != 40 or level == null or level.player == null:
+		return
+	var pl: Player = level.player
+	Game.run["slots"]["second"] = ItemGen.roll("savas_baltasi", 2, "gumus", 2)
+	Game.run["slots"]["g2"] = ItemGen.roll("sifa_muskasi", 1, "tunc", 1)
+	Game.run["ongun"] = {"kurt": 3, "kartal": 1, "ayi": 2}
+	Game.run["gold"] = 245
+	Game.run["kut"] = 37
+	pl.kut = 65.0
+	var it := ItemGen.roll("dag_cekici", 2, "altin", 3)
+	level.drop_item(it, pl.global_position + Vector2(10, -20))
+	match _ekran:
+		"tilsim":
+			hud.sel = 0
+			hud.mode = "tilsim"
+			get_tree().paused = true
+		"yuva":
+			await get_tree().create_timer(0.4).timeout
+			var p := level.nearest_item(pl.global_position + Vector2(0, -10))
+			if p:
+				_on_slot_request(p)
+		"duraklat":
+			get_tree().paused = true
+		"olum":
+			_on_died()
+		"umay":
+			_on_npc("umay")
+		"demirci":
+			Game.meta["blueprints"] = ["saganak_yayi", "ayaz_kilici"]
+			_on_npc("demirci")
+		"baslik":
+			hud.mode = "title"
+
+
 func _physics_process(delta: float) -> void:
+	if _ekran != "":
+		_debug_screen()
+		return
 	if showcase:
 		_showcase(delta)
 		return

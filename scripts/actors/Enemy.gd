@@ -1,13 +1,14 @@
 class_name Enemy
 extends CharacterBody2D
 ## Ötüken düşmanları. Her yapay zekâ türü saldırıdan önce açıkça uyarır (titreme + "!").
-##   lunger       Kara Börü: koşar, çömelir, atılarak ısırır
-##   flyer_ranged Çor: havada süzülür, zehirli spor tükürür
-##   brute        Ağaç İyesi: ağır yumruk + oyuncunun altından kök fırlatır
+## (Kimlikler eski adlarıyla kalır; görünen adlar data/world.json'da.)
+##   lunger       Erlik Tazısı (kara_boru): koşar, çömelir, atılarak ısırır
+##   flyer_ranged Çor Ruhu (cor): havada süzülür, buhurdan fenerinden zehirli spor savurur
+##   brute        Kara İye (agac_iyesi): ağır yumruk + oyuncunun altından kök fırlatır
 ##   hopper       Balbal: uyanır, sekerek yaklaşır, taş kılıcını savurur; önden gelen vuruşları siper alır
-##   illusionist  Arçura: uzak durur, iki hayalet kopya salar, arkana ışınlanıp lanetli yaprak fırlatır
-##   grabber      Şürale: uzun kollarıyla yakalar, gıdıklar (sersemletir), fırlatır; tuşlara basarak kurtulursun
-## Sürü davranışı: ikinci kurt arkadan dolaşır; çor tependeyken dalış yapar; iye üç kök dalgası gönderir.
+##   illusionist  Kara Kam (arcura): uzak durur, iki hayalet kopya salar, arkana ışınlanıp lanet fırlatır
+##   grabber      Gulyabani (surale): uzun kollarıyla yakalar, sersemletir, fırlatır; tuşlara basarak kurtulursun
+## Sürü davranışı: ikinci tazı arkadan dolaşır; çor tependeyken dalış yapar; iye üç kök dalgası gönderir.
 
 var kind := "kara_boru"
 var sprite_kind := "kara_boru"  # çizilen temel yaratık (biyom reskinleri başka ada sahiptir)
@@ -60,8 +61,9 @@ var base_tint := Color(1, 1, 1)
 var poison := 0       # zehir yığını (en çok 5)
 var poison_t := 0.0
 var overlay: StatusOverlay
-## Düşmana özgü sıçrantı rengi (Erlik'in bozgunu: mor; çor: zehir yeşili; iye: özsu; balbal: taş tozu)
-const BLOOD := {"kara_boru": Color(0.45, 0.12, 0.5), "cor": Color(0.55, 0.85, 0.2), "agac_iyesi": Color(0.75, 0.5, 0.15), "balbal": Color(0.6, 0.6, 0.66)}
+## Düşmana özgü sıçrantı rengi (tazı: kor; çor: zehir yeşili; iye: Erlik moru özsu; balbal: taş tozu; kam: lanet moru; gulyabani: ölü irin)
+const BLOOD := {"kara_boru": Color(0.95, 0.42, 0.12), "cor": Color(0.55, 0.85, 0.2), "agac_iyesi": Color(0.6, 0.28, 0.72), "balbal": Color(0.6, 0.6, 0.66),
+		"arcura": Color(0.7, 0.25, 0.9), "surale": Color(0.5, 0.55, 0.42)}
 
 
 func blood_col() -> Color:
@@ -85,7 +87,7 @@ func setup(k: String, is_elite: bool, tier: int) -> void:
 		"kara_boru":
 			size = Vector2(34, 22)
 		"cor":
-			size = Vector2(20, 30)
+			size = Vector2(22, 34)
 			flying = true
 		"agac_iyesi":
 			size = Vector2(34, 74)
@@ -96,7 +98,7 @@ func setup(k: String, is_elite: bool, tier: int) -> void:
 		"arcura":
 			size = Vector2(18, 30)
 		"surale":
-			size = Vector2(26, 80)
+			size = Vector2(28, 62)
 			heavy = true
 
 
@@ -206,7 +208,7 @@ func take_hit(d: float, opts: Dictionary) -> bool:
 		FX.flash_light(center(), Color(1.0, 0.9, 0.6), 120.0, 1.6, 0.16)
 		FX.ring(center(), 18, Color(1.0, 0.85, 0.4), 0.2)
 	# ses: yaratığın türüne göre acı sesi + darbe
-	Ses.play(_hurt_sfx(), -4.0, 1.0, 0.1, 0.05)
+	Ses.play(_hurt_sfx(), -4.0, 1.0, 0.1, 0.05, center())
 	if guard_t > 0.0 and signf(dir) == -float(facing):
 		Ses.play("darbe_metal", -2.0)
 	elif sprite_kind == "balbal":
@@ -264,13 +266,13 @@ func _die(dir := 1.0, kb := 100.0, crit := false) -> void:
 	dead = true
 	remove_from_group("dusman")
 	if decoy:
-		FX.anim("leaf_gust", center(), 0.0, 0.8, Color(0.6, 0.9, 0.5))
-		FX.burst(center(), Color(0.5, 0.9, 0.4), 10, 90, 0.4, 0.2, 100)
-		FX.text(center() + Vector2(0, -26), "hayalet!", Color(0.6, 0.9, 0.5), 7)
+		FX.anim("smoke_puff", center(), 0.0, 0.8, Color(0.6, 0.35, 0.9), false)
+		FX.burst(center(), Color(0.75, 0.45, 1.0), 10, 90, 0.4, 0.2, 100)
+		FX.text(center() + Vector2(0, -26), "hayalet!", Color(0.8, 0.6, 1.0), 7)
 		queue_free()
 		return
 	Game.run["kills"] = int(Game.run.get("kills", 0)) + 1
-	Ses.play(_die_sfx(), 0.0, 1.0, 0.08)
+	Ses.play(_die_sfx(), 0.0, 1.0, 0.08, 0.03, center())
 	Game.hitstop(0.05 if not elite else 0.09)
 	if crit or elite:
 		Game.zoom_punch(0.05 if not elite else 0.08)
@@ -295,14 +297,30 @@ func _die(dir := 1.0, kb := 100.0, crit := false) -> void:
 	queue_free()
 
 
+func _windup_sfx() -> void:
+	## Saldırı uyarısı: her yaratığın kendi hazırlık sesi (yoksa genel)
+	var w := "hazirlik_" + sprite_kind
+	Ses.play(w if Ses.has(w) else "dusman_hazirlik", -8.0, 1.0, 0.12, 0.2, center())
+
+
+func _anchor_g(key: String, fallback: Vector2) -> Vector2:
+	## Sprite çapasının dünya konumu (fener, el...); yoksa yedek konum
+	var a: Variant = anim.anchor(key) if anim else null
+	if a == null:
+		return fallback
+	return global_position + (a as Vector2) * anim.scale
+
+
 func _hurt_sfx() -> String:
 	match sprite_kind:
 		"kara_boru":
 			return "kurt_can"
 		"cor":
 			return "cor_can"
-		"agac_iyesi", "surale":
+		"agac_iyesi":
 			return "agac_can"
+		"surale":
+			return "surale_can"
 		"balbal":
 			return "tas_can"
 		"arcura":
@@ -316,8 +334,10 @@ func _die_sfx() -> String:
 			return "kurt_olum"
 		"cor":
 			return "cor_olum"
-		"agac_iyesi", "surale":
+		"agac_iyesi":
 			return "agac_olum"
+		"surale":
+			return "surale_olum"
 		"balbal":
 			return "tas_olum"
 		"arcura":
@@ -556,7 +576,7 @@ func _ai_lunger(delta: float, player: Node, to_p: Vector2, dist: float) -> void:
 			if dist < 95.0 and absf(to_p.y) < 40.0 and cd <= 0.0 and is_on_floor():
 				_face(to_p)
 				state = "windup"
-				Ses.play("dusman_hazirlik", -8.0, 1.0, 0.12, 0.2)
+				_windup_sfx()
 				st = 0.45
 				velocity.x = 0.0
 		"windup":
@@ -610,7 +630,7 @@ func _ai_flyer(delta: float, player: Node, to_p: Vector2, dist: float) -> void:
 					FX.ghost(anim.base, Color(0.6, 1.0, 0.4, 0.4), 0.2)
 				elif cd <= 0.0 and dist < 260.0 and level.los(center(), player.center()):
 					state = "windup"
-					Ses.play("dusman_hazirlik", -8.0, 1.0, 0.12, 0.2)
+					_windup_sfx()
 					st = 0.6
 			var dv := (target - global_position)
 			velocity = velocity.lerp(dv.limit_length(1.0) * speed, clampf(2.5 * delta, 0.0, 1.0))
@@ -628,7 +648,7 @@ func _ai_flyer(delta: float, player: Node, to_p: Vector2, dist: float) -> void:
 				p.kind = "spore"
 				p.damage = dmg
 				p.source = self
-				p.position = center() + Vector2(facing * 8, -6)
+				p.position = _anchor_g("mouth", center() + Vector2(facing * 8, -6))
 				p.velocity = to_p.normalized() * 160.0
 				p.homing = 0.6
 				p.life = 3.0
@@ -676,12 +696,12 @@ func _ai_brute(delta: float, player: Node, to_p: Vector2, dist: float) -> void:
 			if cd <= 0.0:
 				if dist < 70.0 and absf(to_p.y) < 50.0:
 					state = "windup"
-					Ses.play("dusman_hazirlik", -8.0, 1.0, 0.12, 0.2)
+					_windup_sfx()
 					st = 0.75
 					set_meta("move", "slam")
 				elif dist < 230.0 and player.is_on_floor():
 					state = "windup"
-					Ses.play("dusman_hazirlik", -8.0, 1.0, 0.12, 0.2)
+					_windup_sfx()
 					st = 0.6
 					set_meta("move", "roots")
 					set_meta("target", player.global_position)
@@ -772,7 +792,7 @@ func _ai_illusionist(delta: float, player: Node, to_p: Vector2, dist: float) -> 
 			anim.play("run" if absf(velocity.x) > 10.0 else "idle")
 			if cd <= 0.0 and dist < 240.0 and level.los(center(), player.center()):
 				state = "windup"
-				Ses.play("dusman_hazirlik", -8.0, 1.0, 0.12, 0.2)
+				_windup_sfx()
 				st = 0.55
 				_face(to_p)
 		"windup":
@@ -797,21 +817,23 @@ func _ai_illusionist(delta: float, player: Node, to_p: Vector2, dist: float) -> 
 						g.anim.modulate = Color(0.7, 1.0, 0.7, 0.55)
 						g.set_meta("rush", true)
 					# kendisi oyuncunun arkasına ışınlanır
-					FX.anim("smoke_puff", center(), 0.0, 0.7, Color(0.6, 0.9, 0.5), false)
+					FX.anim("smoke_puff", center(), 0.0, 0.7, Color(0.55, 0.3, 0.8), false)
 					var nx: float = player.global_position.x - float(player.facing) * 70.0
 					var ty: int = level.surface_y(int(nx / 24.0))
 					if abs(ty * 24 - global_position.y) < 120:
 						global_position = Vector2(nx, ty * 24.0 - 1)
-					FX.anim("smoke_puff", center(), 0.0, 0.7, Color(0.6, 0.9, 0.5), false)
-					FX.anim("leaf_gust", center(), 0.0, 0.9, Color(0.6, 0.9, 0.5))
+					FX.anim("smoke_puff", center(), 0.0, 0.7, Color(0.55, 0.3, 0.8), false)
+					FX.anim("arcane_parry", center(), 0.0, 0.8, Color(0.75, 0.4, 1.0))
+					Ses.play("kam_davul", -6.0, 1.0, 0.06, 0.03, center())
 					_face(player.center() - center())
 				else:
 					var p := Projectile.new()
 					p.team = "e"
-					p.kind = "spore"
+					p.kind = "curse"
 					p.damage = dmg
 					p.source = self
-					p.position = center() + Vector2(facing * 10, -4)
+					p.position = _anchor_g("hand", center() + Vector2(facing * 10, -4))
+					Ses.play("kam_ilahi", -8.0, 1.0, 0.06, 0.03, center())
 					p.velocity = to_p.normalized() * 150.0
 					p.homing = 1.2
 					p.life = 2.5
@@ -854,7 +876,7 @@ func _ai_grabber(delta: float, player: Node, to_p: Vector2, dist: float) -> void
 			anim.play("walk" if absf(velocity.x) > 4.0 else "idle")
 			if cd <= 0.0 and dist < 78.0 and absf(to_p.y) < 50.0:
 				state = "windup"
-				Ses.play("dusman_hazirlik", -8.0, 1.0, 0.12, 0.2)
+				_windup_sfx()
 				st = 0.5
 		"windup":
 			velocity.x = 0.0
@@ -929,7 +951,7 @@ func _ai_hopper(delta: float, player: Node, to_p: Vector2, dist: float) -> void:
 			if cd <= 0.0 and is_on_floor() and guard_t <= 0.0:
 				if dist < 60.0 and absf(to_p.y) < 40.0:
 					state = "windup"
-					Ses.play("dusman_hazirlik", -8.0, 1.0, 0.12, 0.2)
+					_windup_sfx()
 					st = 0.6
 				elif not _wall_or_ledge():
 					state = "hop"

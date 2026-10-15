@@ -1,6 +1,7 @@
 """Bütün üretilmiş görselleri Godot projesine yazar (albedo + normal map + JSON meta).
 
 Kullanım:  python export_assets.py            (proje kökü: bu dosyanın iki üstü)
+           python export_assets.py --creatures [kimlik ...]   yalnızca yaratık sprite'ları (varsayılan: hepsi)
 Sanatçı çizimleri geldiğinde aynı dosya adlarıyla değiştirmek yeterli: oyun JSON meta'yı okur.
 """
 import json
@@ -85,6 +86,9 @@ def main():
     if '--weapons' in sys.argv:
         _weapons_only()
         return
+    if '--creatures' in sys.argv:
+        _creatures_only([a for a in sys.argv[1:] if not a.startswith('-')])
+        return
     # kahraman
     export_sheet('bengu', bengu.ANIMS, lambda an, i: bengu.render_frame(an, i), (96, 80), (44, 74))
     # oyunda sürülen ön kol parçaları: üst kol, ön kol, yumruk (her biri aşağıyı gösterir, pivot üstte)
@@ -98,9 +102,8 @@ def main():
                'upper_len': bengu.UPPER_LEN, 'fore_len': bengu.FORE_LEN, 'parts': ['upper', 'fore', 'fist', 'upper_b', 'fore_b', 'fist_b']},
               open(os.path.join(A, 'sprites', 'bengu_kol.json'), 'w', encoding='utf-8'), indent=1)
     # yaratıklar
-    for nm_, (draw, anims, cell, feet) in creatures.CREATURES.items():
-        an2 = {k: (v[0], v[1], k in ('idle', 'run', 'walk')) for k, v in anims.items()}
-        export_sheet(nm_, an2, lambda an, i, nm_=nm_: creatures.render_creature(nm_, an, i), cell, feet)
+    for nm_ in creatures.CREATURES:
+        _export_creature(nm_)
     # yurt NPC'leri
     for nm_ in yurt.NPC_STYLES:
         an2 = {k: (v[0], v[1], True) for k, v in yurt.NPC_ANIMS.items()}
@@ -159,6 +162,17 @@ def main():
     save(alb, os.path.join(A, 'weapons', 'weapons.png')); save(nrm, os.path.join(A, 'weapons', 'weapons_n.png')); save(glo, os.path.join(A, 'weapons', 'weapons_e.png'))
     json.dump(wmeta, open(os.path.join(A, 'weapons', 'weapons.json'), 'w', encoding='utf-8'), indent=1)
     print('weapons', alb.shape)
+
+
+def _export_creature(nm_):
+    draw, anims, cell, feet = creatures.CREATURES[nm_]
+    an2 = {k: (v[0], v[1], k in ('idle', 'run', 'walk')) for k, v in anims.items()}
+    export_sheet(nm_, an2, lambda an, i, nm_=nm_: creatures.render_creature(nm_, an, i), cell, feet)
+
+
+def _creatures_only(names):
+    for nm_ in (names or list(creatures.CREATURES.keys())):
+        _export_creature(nm_)
 
 
 def _weapons_only():

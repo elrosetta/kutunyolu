@@ -1,7 +1,8 @@
 """Katmanlı ses tasarımı: gerçek CC0 kayıtlar (Kenney Impact/RPG Audio, OGA Swishes, OGA RPG Sound Pack) + sentez tatlandırıcı.
 Silah türüne göre savuruş ve darbe sesleri, yaratık sesleri, adımlar, toplama. Kaynak kayıtlar SRC klasöründe beklenir:
   SRC/swishes/swish-N.wav, SRC/rpgpack/RPG Sound Pack/..., SRC/rpg/Audio/*.ogg (Kenney RPG), SRC/impact/Audio/*.ogg (Kenney Impact)
-Kullanım: python layer.py tools/audiogen/src   (çıktı: assets/audio/sfx/*.wav)"""
+Kullanım: python layer.py tools/audiogen/src   (çıktı: assets/audio/sfx/*.wav)
+Not (v9): olağan üretim export_audio.py üzerinden yapılır; o, bu katmanları pro.py ile geçersiz kılar ve yükseklik eşitler."""
 import os
 import sys
 import glob
@@ -12,7 +13,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from synth import SR, t_axis, exp_env, env, noise, fft_filter, sine, sweep, reverb, fade, normalize, write_wav, place
 import sfx as SY
 
-SRC = sys.argv[1] if len(sys.argv) > 1 else '.'
+SRC = sys.argv[1] if len(sys.argv) > 1 and os.path.isdir(sys.argv[1]) else os.path.join(os.path.dirname(os.path.abspath(__file__)), 'src')
 OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..', 'assets', 'audio', 'sfx')
 _cache = {}
 
