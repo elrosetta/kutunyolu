@@ -256,9 +256,9 @@ def frozen_fall(L, x, top_y, base_y, w, seed, rock=ROCK, rock_d=ROCK_D, sky=None
     draw_cliff = cliff
     if not draw_cliff:
         # yalnızca kaya yüzündeki oyuk: buzun arkasında koyu kanal
-        ch = smooth_path([(ox - w * 0.6, oy + 6), (ox - w * 0.5, oy + hh * 0.5), (ox - w * 0.7, oy + hh + 6), (ox + w * 0.7, oy + hh + 6),
-                          (ox + w * 0.5, oy + hh * 0.5), (ox + w * 0.6, oy + 6), (ox, oy - 4)], True, 0.4)
-        sk.path(ch, rock_d, 0.9, 3)
+        ch = smooth_path([(ox - w * 0.48, oy + 8), (ox - w * 0.52, oy + hh * 0.5), (ox - w * 0.58, oy + hh + 4), (ox + w * 0.58, oy + hh + 4),
+                          (ox + w * 0.52, oy + hh * 0.5), (ox + w * 0.48, oy + 8), (ox, oy + 2)], True, 0.5)
+        sk.path(ch, rock_d, 0.6, 6)
     else:
         sk.path(cp, rock)
     # kaya yüzeyi: dikey kırık yüzler

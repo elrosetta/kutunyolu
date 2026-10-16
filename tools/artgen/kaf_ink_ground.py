@@ -255,7 +255,7 @@ def soil_texture(seed=600, S=1024):
     # buz damarları: ince, dalgalı, parlak turkuaz
     vn = noise(S, S, 0, seed + 12, sx=26, sy=14) + 0.35 * noise(S, S, 0, seed + 14, sx=6, sy=6)
     vein = np.clip(1 - np.abs(vn) / 0.03, 0, 1) * smoothstep(0.15, 0.5, noise(S, S, 0, seed + 13, sx=90, sy=90))
-    rgb = mix(rgb, c01((140, 220, 245)), (vein * 0.6)[..., None])
+    rgb = mix(rgb, c01((140, 220, 245)), (vein * 0.32)[..., None])
     br = noise(S, S, 0, seed + 3, sx=24, sy=2.2)
     rgb *= (1 + 0.05 * br[..., None])
 
