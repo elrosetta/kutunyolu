@@ -53,6 +53,31 @@ func _draw() -> void:
 	var x0 := -float(icons.size() - 1) * 4.5
 	for i in icons.size():
 		_icon(icons[i], Vector2(x0 + i * 9.0, y))
+	# v19 Kut Alma: infaz edilebilir yaratığın başında nabız gibi atan kızıl mühür (halka + çapraz kesik)
+	if host.has_method("exec_ok") and host.exec_ok():
+		_exec_mark(Vector2(0.0, -sz.y * host.base_scale.y - (24.0 if icons.size() > 0 else 14.0)))
+
+
+func _exec_mark(p: Vector2) -> void:
+	## Hedef mührü: ortada kızıl elmas (aşağıyı, yaratığı gösterir), çevresinde içe doğru atan dört mürekkep köşeli
+	## ayraç — "yasak" işaretine benzemesin diye halka / çapraz çizgi yok
+	var pulse := 0.5 + 0.5 * sin(_t * 12.0)
+	var ink := Color(0.1, 0.02, 0.03, 0.92)
+	var red := Color(1.0, 0.2 + 0.25 * pulse, 0.14, 1.0)
+	var d := 3.6 + 0.8 * pulse
+	var dia := PackedVector2Array([p + Vector2(0, -d), p + Vector2(d * 0.8, 0), p + Vector2(0, d * 1.5), p + Vector2(-d * 0.8, 0)])
+	var dia_o := PackedVector2Array([p + Vector2(0, -d - 1.6), p + Vector2(d * 0.8 + 1.4, 0), p + Vector2(0, d * 1.5 + 2.0), p + Vector2(-d * 0.8 - 1.4, 0)])
+	draw_colored_polygon(dia_o, ink)
+	draw_colored_polygon(dia, red)
+	draw_line(p + Vector2(-0.6, -d * 0.5), p + Vector2(-0.6, d * 0.6), Color(1.0, 0.9, 0.75, 0.9), 1.0, true)
+	var r := 9.5 - 2.0 * pulse
+	for k in 4:
+		var a := PI * 0.25 + k * PI * 0.5
+		var c := p + Vector2(cos(a), sin(a)) * r
+		var t1 := Vector2(cos(a + PI * 0.75), sin(a + PI * 0.75)) * 3.2
+		var t2 := Vector2(cos(a - PI * 0.75), sin(a - PI * 0.75)) * 3.2
+		draw_polyline(PackedVector2Array([c + t1, c, c + t2]), ink, 2.6, true)
+		draw_polyline(PackedVector2Array([c + t1 * 0.85, c, c + t2 * 0.85]), red, 1.3, true)
 
 
 func _icon(kind: String, p: Vector2) -> void:
