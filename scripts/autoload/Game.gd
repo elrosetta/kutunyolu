@@ -68,12 +68,26 @@ var base_zoom := 1.0
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
+	_movie = Engine.get_write_movie_path() != ""
+	_movie_clock = Time.get_ticks_msec() / 1000.0
 	_setup_input()
 	load_meta()
 
 
+## Zaman kaynağı: gerçek zaman; --write-movie çekiminde kare saati (çekim gerçek zamandan yavaş işlenir; duraklama ve
+## ağır çekim kayıtta oyundaki süresiyle görünsün diye ölçeksiz kare süreleri toplanır).
+var _movie := false
+var _movie_clock := 0.0
+
+
+func clock() -> float:
+	return _movie_clock if _movie else Time.get_ticks_msec() / 1000.0
+
+
 func _process(delta: float) -> void:
-	var now := Time.get_ticks_msec() / 1000.0
+	if _movie:
+		_movie_clock += delta / maxf(0.001, Engine.time_scale)
+	var now := clock()
 	var ts := 1.0
 	if now < _hitstop_until:
 		ts = 0.05
@@ -130,7 +144,7 @@ func shake_dir(amount: float, dir := Vector2.ZERO) -> void:
 
 func rumble(strong := 0.5, weak := 0.3, dur := 0.12) -> void:
 	## Oyun kolu titreşimi: güçlü motor (alçak gürleme) / zayıf motor (tiz vızıltı)
-	var now := Time.get_ticks_msec() / 1000.0
+	var now := clock()
 	for d in Input.get_connected_joypads():
 		Input.start_joy_vibration(d, weak, strong, dur)
 	_rumble_until = maxf(_rumble_until, now + dur)
@@ -151,7 +165,7 @@ func zoom_punch(amount := 0.05) -> void:
 
 func hitstop(duration: float) -> void:
 	## Vuruş duraklaması: gerçek zamanlı; tekrar tekrar çağrılınca uzar.
-	var now := Time.get_ticks_msec() / 1000.0
+	var now := clock()
 	_hitstop_until = maxf(_hitstop_until, now + duration)
 
 
@@ -160,7 +174,7 @@ func slowmo(scale_v: float, duration: float) -> void:
 	## v17: üst üste gelen çağrılar birbirini ezmez — kısa ve sert bir ağır çekim (0,3 / 80 ms) uzun ve hafif bir
 	## ağır çekimin (0,5 / 450 ms) kalanını sertleştirmez, uzun olan da kısa olanın ölçeğini gevşetmez: her an
 	## süresi dolmamış çağrıların en yavaşı geçerli.
-	var now := Time.get_ticks_msec() / 1000.0
+	var now := clock()
 	_slows = _slows.filter(func(s: Array) -> bool: return float(s[1]) > now)
 	_slows.append([scale_v, now + duration])
 	_slow_until = maxf(_slow_until, now + duration)

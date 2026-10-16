@@ -17,7 +17,7 @@ var _n := 0
 
 
 static func play(targets: Array, strength := 1.0, frames := 2, force := false) -> void:
-	var now := Time.get_ticks_msec() / 1000.0
+	var now := Game.clock()
 	if FX.root == null or _active != null or (not force and now - _last_t < COOLDOWN):
 		return
 	_last_t = now

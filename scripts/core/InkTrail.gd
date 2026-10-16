@@ -107,7 +107,7 @@ const HEAVIES := ["gurz", "civili_topuz", "dag_cekici", "kor_cekici", "savas_bal
 const POLES := ["teber", "erlik_tirpani", "kayin_asasi"]
 const SPEARS := ["kargi", "tulpar_mizragi"]
 const WHIPS := ["kement", "od_kamcisi", "erlik_zinciri"]
-const THRUSTS := ["thrust", "pole_thrust", "lunge", "lunge_long", "stab_heavy", "flurry"]
+const THRUSTS := ["thrust", "pole_thrust", "pole_thrust_lo", "lunge", "lunge_long", "stab_heavy", "flurry"]
 const WHIP_SW := ["whip_crack", "whip_side"]
 
 

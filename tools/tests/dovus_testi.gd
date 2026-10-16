@@ -21,6 +21,9 @@ var _kick_max := 0.0
 var _track := false
 
 const WEAPONS := ["ikiz_bicak", "yatagan", "alp_kilici", "kargi", "ulu_kilic", "dag_cekici"]
+## v18 tempo tablosu: her silah sınıfından bir temsilci (basış→temas, zincir aralığı)
+const TEMPO_WEAPONS := ["ikiz_bicak", "bori_hanceri", "yatagan", "alp_kilici", "pala", "kargi", "kement", "teber", "erlik_tirpani",
+	"gurz", "savas_baltasi", "ulu_kilic", "dag_cekici"]
 const ACTS := ["saldiri1", "saldiri2", "zipla", "yuvarlan", "sag", "sol", "yukari", "asagi", "techizat1", "techizat2", "sise", "kut"]
 
 
@@ -182,6 +185,15 @@ func _idle_check(tag: String) -> void:
 		_p("TAKILDI %s: %s" % [tag, ", ".join(bad)])
 
 
+func _at_contact() -> bool:
+	## savuruş temas anına (ck) ulaştı mı (v18; eski sürümde vuruş penceresinin başı)
+	if pl.atk.is_empty() or pl.atk.get("phase", "") == "charge":
+		return false
+	var k := float(pl.atk["t"]) / float(pl.atk["dur"])
+	var ck: float = pl._contact_k(pl.atk["sw"]) if pl.has_method("_contact_k") else float(pl.atk["sw"]["hit"][0])
+	return k >= ck - 0.0001 and pl.atk.get("phase", "") != "wind"
+
+
 func _ms(fr: int) -> String:
 	return "yok" if fr < 0 else "%d kare (%d ms)" % [fr, int(round(fr * 1000.0 / 60.0))]
 
@@ -192,6 +204,14 @@ func _run() -> void:
 	pl = lv.player
 	spot = _find_spot()
 	_p("arena=%s stil=%s" % [str(spot), "v2" if OS.get_cmdline_user_args().has("--stil=v2") else "v1"])
+	var ks := ""
+	for arg in OS.get_cmdline_user_args():
+		if String(arg).begins_with("--klip="):
+			ks = String(arg).trim_prefix("--klip=")
+	if ks != "":
+		await _klip_silahlar(ks.split(","))
+		get_tree().quit()
+		return
 	if OS.get_cmdline_user_args().has("--klip"):
 		await _klip()
 		get_tree().quit()
@@ -204,11 +224,14 @@ func _run() -> void:
 		var l_start := await _until(func() -> bool: return not pl.atk.is_empty(), 30)
 		Input.action_release("saldiri1")
 		var l_strike := await _until(func() -> bool: return pl.atk.get("phase", "") == "act", 120)
+		var l_ck := 0
+		if not _at_contact():
+			l_ck = await _until(func() -> bool: return _at_contact(), 60) + 1
 		var l_rec := await _until(func() -> bool: return pl.atk.is_empty() or pl.atk.get("phase", "") == "rec", 120)
 		var l_end := await _until(func() -> bool: return pl.atk.is_empty(), 120)
 		var strike_total := l_start + 1 + l_strike + 1
-		var cancel_total := strike_total + l_rec + 1
-		_p("%s: basış→saldırı=%s basış→vuruş=%s basış→iptal_edilebilir=%s kuyruk=%s" % [w, _ms(l_start), _ms(strike_total), _ms(cancel_total), _ms(l_end + 1)])
+		var cancel_total := strike_total + l_ck + l_rec + 1
+		_p("%s: basış→saldırı=%s basış→vuruş=%s basış→temas=%s basış→iptal_edilebilir=%s kuyruk=%s" % [w, _ms(l_start), _ms(strike_total), _ms(strike_total + l_ck), _ms(cancel_total), _ms(l_end + 1)])
 		await _idle_check(w + "/tek")
 		# ara bellek: ilk savuruşun farklı anlarında bir kez bas (kısa dokunuş) -> ikinci savuruş gelmeli
 		var honoured := 0
@@ -236,6 +259,42 @@ func _run() -> void:
 		_p("%s: seri_basış 20 basış → %d savuruş, %d ağır" % [w, _swings, _heavies])
 		await _idle_check(w + "/seri")
 
+	# ---------------------------------------------------------------- 1b) tempo: basış→temas ve zincir aralığı (seri basış)
+	var tline := ""
+	for w in TEMPO_WEAPONS:
+		if OS.get_cmdline_user_args().has("--iz") and w != "gurz":
+			continue
+		await _reset(w)
+		var contacts: Array = []
+		var cur: Dictionary = {}
+		var seen := false
+		var first_ck := -1
+		for i in 300:
+			if OS.get_cmdline_user_args().has("--iz") and not pl.atk.is_empty():
+				_p("  iz %s k=%.3f ph=%s s=%s step=%s" % [w, float(pl.atk["t"]) / float(pl.atk["dur"]), pl.atk.get("phase", ""), pl.atk["c"]["s"], str(pl.atk["step"])])
+			if i % 3 == 0 and contacts.size() < 4:
+				Input.action_press("saldiri1")
+			elif i % 3 == 1:
+				Input.action_release("saldiri1")
+			await _f()
+			if not is_same(pl.atk, cur):
+				cur = pl.atk
+				seen = false
+			if not pl.atk.is_empty() and not seen and _at_contact():
+				seen = true
+				contacts.append(i)
+				if first_ck < 0:
+					first_ck = i + 1
+			if contacts.size() >= 4:
+				break
+		Input.action_release("saldiri1")
+		var gaps: Array = []
+		for j in range(1, contacts.size()):
+			gaps.append(int(round((int(contacts[j]) - int(contacts[j - 1])) * 1000.0 / 60.0)))
+		_p("tempo %s: basış→temas=%s zincir aralıkları(ms)=%s" % [w, _ms(first_ck), str(gaps)])
+		tline += "%s %d/%s | " % [w, int(first_ck * 1000.0 / 60.0), str(gaps)]
+		await _idle_check("tempo/" + w)
+	_p("TEMPO " + tline)
 	# ---------------------------------------------------------------- 2) iptaller (alp kılıcı)
 	var w0 := "alp_kilici"
 	await _reset(w0)
@@ -498,3 +557,42 @@ func _klip() -> void:
 	await _until(func() -> bool: return pl.atk.get("phase", "") == "act", 60)
 	await _tap("zipla", 3)
 	await _f(60)
+
+
+func _klip_silahlar(list: Array) -> void:
+	## --dovus --klip=alp_kilici,ikiz_bicak,... : her silahta önde iki düşmana tam zincir (her savuruşun temas anında
+	## yeni basış: en hızlı akış), kısa ara, sonra basılı tutulan ağır saldırı. Çıktıda "[dovus] klip <silah> kare=N".
+	for w in list:
+		await _reset(String(w))
+		_track = false
+		if not OS.get_cmdline_user_args().has("--klip_bos"):
+			for dx in [40.0, 66.0]:
+				var e := _enemy(dx)
+				e.max_hp = 99999.0
+		await _f(14)
+		_p("klip %s zincir kare=%d" % [w, Engine.get_frames_drawn()])
+		var n := 0
+		var cur: Dictionary = {}
+		Input.action_press("saldiri1")
+		var rel := 2
+		for i in 240:
+			await _f()
+			if i == rel:
+				Input.action_release("saldiri1")
+			if not is_same(pl.atk, cur):
+				cur = pl.atk
+				if not cur.is_empty():
+					n += 1
+			if _at_contact() and n < 6 and i > rel + 1 and not Input.is_action_pressed("saldiri1"):
+				Input.action_press("saldiri1")
+				rel = i + 2
+			if n >= 6 and pl.atk.is_empty():
+				break
+		_release_all()
+		await _f(24)
+		_p("klip %s agir kare=%d" % [w, Engine.get_frames_drawn()])
+		Input.action_press("saldiri1")
+		await _f(40)
+		Input.action_release("saldiri1")
+		await _until(func() -> bool: return pl.atk.is_empty(), 120)
+		await _f(24)
