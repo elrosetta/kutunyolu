@@ -15,7 +15,7 @@ INK = (21, 22, 29)          # mavi-siyah mürekkep #15161d
 
 # Çizim ölçeği: çizim kodu "mantıksal" piksellerle yazılır, çıktı K kat çözünürlükte üretilir (skia tuvali ölçeklenir,
 # numpy ızgaraları mantıksal koordinatı K sıklıkta örnekler). Paralaks/ön plan (ekran uzayı) K = 1; dünya uzayı
-# dokuları (zemin, süsler) K = 1,5: mantıksal 2 doku pikseli / dünya birimi -> 3 (v2 kamerası 1,5x yakın, 1080p'de 1:1).
+# dokuları (zemin, süsler) K = 2,0: mantıksal 2 doku pikseli / dünya birimi -> 4 (v2 kamerası 2,0 yakın, 1080p'de 1:1).
 K = 1.0
 
 
@@ -218,6 +218,55 @@ def blade(x, y, h, lean, w, curl=0.35, n=10):
     return ribbon(pts, ws)
 
 
+def blade_tip(x, y, h, lean, w, frac=0.3, curl=0.35, n=10):
+    """Ot yaprağının ucu (blade ile aynı eğri, son `frac` bölümü): mürekkep uçlu ot için üstüne koyu çizilir."""
+    tip = (x + lean * h, y - h)
+    ctrl = (x + lean * h * curl, y - h * 0.62)
+    m = n * 2
+    pts = bezier((x, y), ctrl, tip, m)
+    ws = (w * (1 - np.linspace(0, 1, m) ** 1.3) + 0.35) * 1.08
+    k0 = int(m * (1 - frac))
+    return ribbon(pts[k0:], ws[k0:])
+
+
+def blade_spine(x, y, h, lean, w, curl=0.35, n=10, side=1.0):
+    """Ot yaprağının gölge kenarı boyunca ince mürekkep çizgisi (yaprağın ortasından uca, incelerek)."""
+    tip = (x + lean * h, y - h)
+    ctrl = (x + lean * h * curl, y - h * 0.62)
+    pts = bezier((x, y), ctrl, tip, n)
+    d = np.gradient(pts, axis=0)
+    ln = np.maximum(np.hypot(d[:, 0], d[:, 1]), 1e-6)
+    nrm = np.stack([-d[:, 1] / ln, d[:, 0] / ln], 1)
+    ws = w * (1 - np.linspace(0, 1, n) ** 1.3) + 0.35
+    q = pts + nrm * (ws[:, None] * 0.32 * side)
+    k0 = n // 3
+    return ribbon(q[k0:], np.linspace(0.75, 0.25, n - k0))
+
+
+def facet_shade(u, v, seed, n=8, light=(-0.6, -0.8), lz=0.75, tilt=0.35, sphere=0.3):
+    """Yontulmuş taş yüzeyleri: Voronoi hücreleri, her hücre kendi düz normaliyle (merkezindeki küre normali +
+    rastgele eğim) aydınlanır. -> (ndl, kenar uzaklığı (u birimi), hücre kimliği). u, v elips birimli (-1..1)."""
+    rng = np.random.default_rng(seed)
+    cu = rng.uniform(-0.95, 0.95, n)
+    cv = rng.uniform(-1.0, 0.7, n)
+    d = (u[..., None] - cu) ** 2 + (v[..., None] - cv) ** 2
+    srt = np.sort(d, -1)
+    idx = np.argmin(d, -1)
+    edge = np.sqrt(srt[..., 1]) - np.sqrt(srt[..., 0])
+    fx = cu * 1.05 + rng.normal(0, tilt, n)
+    fy = cv * 1.05 + rng.normal(0, tilt, n) - 0.15
+    fz = np.sqrt(np.clip(1 - cu * cu - cv * cv, 0.08, 1)) + 0.25
+    ln = np.sqrt(fx * fx + fy * fy + fz * fz)
+    fx, fy, fz = fx / ln, fy / ln, fz / ln
+    lx, ly = light
+    ll = math.sqrt(lx * lx + ly * ly + lz * lz)
+    f_ndl = (fx * lx + fy * ly + fz * lz) / ll
+    sz = np.sqrt(np.clip(1 - u * u - v * v, 0.02, 1))
+    s_ndl = (u * lx + v * ly + sz * lz) / ll
+    ndl = f_ndl[idx] * (1 - sphere) + s_ndl * sphere
+    return ndl.astype(np.float32), edge.astype(np.float32), idx
+
+
 def leaf_shape(cx, cy, length, width, ang):
     """Mızrak biçimli yaprak (söğüt/huş/bambu benzeri), açı radyan."""
     ca, sa = math.cos(ang), math.sin(ang)
@@ -373,6 +422,12 @@ def trunk(H, W, base_y, x0, width, seed, kind='pine', lean=0.0, bend=0.0, top_y=
                     x_in = edge_x + light_side * ln
                     pts = [(edge_x, y_ + ln * 0.35), ((edge_x + x_in) / 2, y_ + ln * 0.15), (x_in, y_)]
                     sk.path(ribbon(pts, [1.3, 1.0, 0.2]), ink, rng.uniform(0.3, 0.55) * detail)
+                    if detail > 0.7 and k % 2 == 0 and rng.random() < 0.6:
+                        # çapraz tarama: en koyu kenarda ters eğik kısa darbe
+                        ln2 = ln * rng.uniform(0.45, 0.7)
+                        x2 = edge_x + light_side * ln2
+                        pts2 = [(edge_x, y_ - ln2 * 0.1), ((edge_x + x2) / 2, y_ + ln2 * 0.2), (x2, y_ + ln2 * 0.45)]
+                        sk.path(ribbon(pts2, [1.1, 0.8, 0.2]), ink, rng.uniform(0.25, 0.45) * detail)
             yy += rng.uniform(40, 110)
     # kök boğazında koyu, pürüzlü taban (huşun kara alt kabuğu, çamın kalın kabuğu)
     if detail > 0.45:

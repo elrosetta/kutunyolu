@@ -10,6 +10,8 @@ var level: Node
 var _strips: Array = []
 var _vh := 540.0
 var _base_y := 0.0
+var _scroll := 0.0     # ParallaxBG ile aynı: yakınlık değişince sıçramayan birikimli kayma
+var _last_cx := INF
 
 
 func _ready() -> void:
@@ -104,11 +106,17 @@ func _process(_delta: float) -> void:
 	for a in actors:
 		var sp: Vector2 = (a as Node2D).get_global_transform_with_canvas().origin + Vector2(0, -24)
 		holes.append(Vector2(sp.x / vp.x, sp.y / vp.y))
+	var z: float = Game.base_zoom * float(cam.get("fit") if cam.get("fit") != null else 1.0)
+	if _last_cx == INF:
+		_scroll = c.x * z
+	else:
+		_scroll += (c.x - _last_cx) * z
+	_last_cx = c.x
 	var n_holes := holes.size()
 	holes.resize(6)
 	for S in _strips:
 		var w: float = S["w"]
-		var off := -fposmod(c.x * float(S["fx"]) * Game.base_zoom, w)
+		var off := -fposmod(_scroll * float(S["fx"]), w)
 		var y: float
 		if S["bottom"]:
 			# alt kenara yaslı; kamera yükselince şerit biraz aşağı kayar (derinlik), alçalınca yükselmez

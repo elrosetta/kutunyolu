@@ -1733,9 +1733,18 @@ func _spawn_player() -> void:
 	player.level = self
 	player.position = Vector2(5 * TS, surface_y(5) * TS - 2)
 	actors.add_child(player)
-	camera = Camera2D.new()
-	camera.position_smoothing_enabled = true
-	camera.position_smoothing_speed = 7.0
+	# stil v2 mürekkep ortamı: yakın çekim kamera (art "camera_zoom", stil_v2.json; CameraV2: öncü kayma, dikey pencere,
+	# boss sığdırma). v1 çerçevesi değişmez: oyuncunun çocuğu Camera2D + Player._look_ahead.
+	var v2cam := ink()
+	if v2cam:
+		var cv := CameraV2.new()
+		cv.level = self
+		cv.player = player
+		camera = cv
+	else:
+		camera = Camera2D.new()
+		camera.position_smoothing_enabled = true
+		camera.position_smoothing_speed = 7.0
 	camera.limit_left = 0
 	camera.limit_top = 0
 	camera.limit_right = W * TS
@@ -1743,9 +1752,11 @@ func _spawn_player() -> void:
 	for h in heights:
 		deepest = maxi(deepest, int(h))
 	camera.limit_bottom = mini(H, deepest + 4) * TS
-	player.add_child(camera)
-	camera.position = Vector2(0, -40)
-	# stil v2 mürekkep ortamı: kamera yakın (art "camera_zoom", stil_v2.json); v1 çerçevesi değişmez
+	if v2cam:
+		add_child(camera)
+	else:
+		player.add_child(camera)
+		camera.position = Vector2(0, -40)
 	Game.base_zoom = float(art.get("camera_zoom", 1.0)) if ink() else 1.0
 	camera.zoom = Vector2.ONE * Game.base_zoom
 	camera.process_mode = Node.PROCESS_MODE_ALWAYS

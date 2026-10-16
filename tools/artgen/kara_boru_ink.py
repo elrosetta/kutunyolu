@@ -13,17 +13,17 @@ from rig import fk_leg, lerp2, chain
 import wolfkit as wk
 from creatures import HOUND_ANIMS
 
-TEX = 3.0
-CELL = (240, 168)
-FEET = (108, 156)
+TEX = 4.0
+CELL = (320, 224)       # dünya 80 x 56 (texel 4)
+FEET = (144, 208)
 ANIMS = {k: (v[0], v[1], k in ('idle', 'run'), True) for k, v in HOUND_ANIMS.items()}
 
-FURK = Ink('#3a3548', '#181522', '#68607e', '#0e0c16', name='tazı postu')
-FURK_B = Ink('#2a2440', '#14111e', '#433c5c', '#0b0a12', name='uzak post')
+FURK = Ink('#3a3548', '#181522', '#68607e', '#0e0c16', kind='fur', name='tazı postu')
+FURK_B = Ink('#2a2440', '#14111e', '#433c5c', '#0b0a12', kind='fur', name='uzak post')
 SMOKE = Ink('#5a5470', '#262236', '#8a84a6', name='duman yele')
 BONE = Ink('#e2d6b4', '#8c7c5c', '#fffbe8', '#5a4c38', name='kemik')
 RUST = Ink('#9a5a34', '#4a2416', '#d08a52', name='paslı zincir')
-IRON = Ink('#5e6070', '#2a2a36', '#a0a4b8', name='demir')
+IRON = Ink('#5e6070', '#2a2a36', '#a0a4b8', kind='metal', name='demir')
 CLAW = Ink('#d8ccb0', '#7a6c52', '#ffffff', name='tırnak')
 EMBER = (1.0, 0.56, 0.16)
 EMBER_HOT = (1.0, 0.86, 0.45)

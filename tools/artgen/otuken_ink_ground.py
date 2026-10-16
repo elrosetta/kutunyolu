@@ -2,7 +2,7 @@
 ön plan siluet şeritleri ve yaprak parçacığı.
 
 Karo atlası v1 yerleşimini korur (16 sütun x 3 zemin satırı, örtü satırı, platform satırı); hücre mantıksal 48 piksel =
-24 dünya birimi, çıktı inkkit.K (1,5) katı: 72 doku pikseli (v2 kamerası 1,5x yakın, 1080p'de 1:1). İki doku:
+24 dünya birimi, çıktı inkkit.K (2,0) katı: 96 doku pikseli (v2 kamerası 2,0 yakın, 1080p'de 1:1). İki doku:
   otuken_v2.png       : RGBA sanat katmanı (ot bandı, mürekkep konturu, gömülü kayalar, ot öbekleri, tahta platform)
   otuken_v2_mask.png  : R = toprak kaplaması (dünya uzayı toprak dokusu burada görünür), G = kenar gölgesi (AO)
 Oyunda ground_ink.gdshader: renk = sanat (alfa) ÜSTÜNE toprak(dünya konumu) x derinlik kararması; alfa = max(kaplama, sanat).
@@ -14,7 +14,7 @@ from scipy import ndimage
 
 import inkkit_ortam as ik
 
-from inkkit_ortam import (INK, Layer, Sk, blade, blob, c01, fbm, leaf_shape, mix, noise, premul, ribbon, smooth_path,
+from inkkit_ortam import (INK, Layer, Sk, blade, blade_tip, blade_spine, facet_shade, blob, c01, fbm, leaf_shape, mix, noise, premul, ribbon, smooth_path,
                     smoothstep, bezier, poly_path)
 
 C = 48                 # atlas hücresi (mantıksal piksel; çıktı ik.P(C))
@@ -182,10 +182,13 @@ def rock_small(seed, rx, ry, base=(108, 112, 104)):
     ys, xs = (np.mgrid[0:cov.shape[0], 0:cov.shape[1]].astype(np.float32) + 0.5) / ik.K
     u = (xs - cx) / rx
     v = (ys - cy) / ry
-    ndl = -0.55 * u - 0.75 * v + 0.35 * np.sqrt(np.clip(1 - u * u - v * v, 0, 1))
-    tone = np.where(ndl > 0.45, 1.2, np.where(ndl > 0.0, 0.92, 0.62)).astype(np.float32)
-    tone = ndimage.gaussian_filter(tone, 0.6)
+    # yontulmuş taş: 4-6 düz yüz, gölgeye bakan yüz kenarında mürekkep
+    ndl, fedge, _ = facet_shade(u, v, seed + 9, n=max(4, int(rx / 3)), tilt=0.45, sphere=0.25)
+    tone = np.where(ndl > 0.72, 1.22, np.where(ndl > 0.4, 0.95, np.where(ndl > 0.12, 0.72, 0.55))).astype(np.float32)
+    tone = ndimage.gaussian_filter(tone, 0.5)
     rgb = c01(base)[None, None, :] * tone[..., None]
+    ew = np.clip(1.0 - fedge * rx * ik.K / (1.1 * ik.K), 0, 1)
+    rgb = mix(rgb, c01(INK)[None, None, :], (ew * np.clip((0.45 - ndl) * 3.0, 0, 1) * 0.8)[..., None])
     out = premul(rgb, cov)
     ink = Sk(w, h)
     ink.path(path, INK, 1.0, 0, 2.2)
@@ -204,7 +207,13 @@ def grass_tuft(seed, kind):
         h = rng.uniform(6, hmax)
         r = rng.random()
         c = GRASS_DARK if r < 0.4 else (GRASS_TOP if r < 0.65 else (GRASS_TIP if r < 0.78 else GRASS_MID))
-        sk.path(blade(x, C + 1, h, rng.uniform(-0.6, 0.6), rng.uniform(1.6, 3.0)), c, rng.uniform(0.8, 1.0))
+        ln_, wd_ = rng.uniform(-0.6, 0.6), rng.uniform(1.6, 3.0)
+        sk.path(blade(x, C + 1, h, ln_, wd_), c, rng.uniform(0.8, 1.0))
+        q_ = rng.random()
+        if q_ < 0.3:      # mürekkep uç
+            sk.path(blade_tip(x, C + 1, h, ln_, wd_, rng.uniform(0.2, 0.4)), INK, rng.uniform(0.55, 0.9))
+        elif q_ < 0.5:    # gölge kenarında ince mürekkep
+            sk.path(blade_spine(x, C + 1, h, ln_, wd_, side=1.0 if ln_ < 0 else -1.0), INK, rng.uniform(0.45, 0.75))
     if kind in (2, 5):
         # küçük eğrelti filizi
         x0, y0 = rng.uniform(14, C - 14), C + 1
@@ -395,11 +404,14 @@ def meadow_texture(seed=650, S=512):
         h = rng.uniform(10, 30)
         c = cols[int(rng.choice(len(cols), p=wts / wts.sum()))]
         pth_args = (rng.uniform(-0.45, 0.45), rng.uniform(1.4, 3.0))
+        tip = rng.random()
         for dx in (-S, 0, S):
             for dy in (-S, 0, S):
                 xx, yy = x + dx, y + dy
                 if -40 < xx < S + 40 and -10 < yy < S + 40:
                     sk.path(blade(xx, yy, h, pth_args[0], pth_args[1]), c, 0.9)
+                    if tip < 0.12:
+                        sk.path(blade_tip(xx, yy, h, pth_args[0], pth_args[1], 0.28), INK, 0.6)
     bl = sk.snap()
     L.a = bl + L.a * (1 - bl[..., 3:4])
     return L

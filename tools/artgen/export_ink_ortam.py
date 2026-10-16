@@ -55,19 +55,25 @@ detect_3d/compress_to=1
 """
 
 
+# Ayrıntılı büyük dokular VRAM sıkıştırmalı (BPTC/BC7 yüksek kalite, ~4 kat az bellek); yumuşak geçişli saydam
+# katmanlar (gök, sis, pus, hüzme) ve veri dokuları (maske) bantlaşmasın diye kayıpsız kalır.
+VRAM = {'otuken_v2_1_far.png', 'otuken_v2_2_farmid.png', 'otuken_v2_3_mid.png', 'otuken_v2_6_near.png',
+        'otuken_v2_soil.png', 'otuken_v2_meadow.png'}
+
+
 def save(arr8, sub, name):
     from PIL import Image
     path = os.path.join(A, sub, name)
     Image.fromarray(arr8, 'RGBA').save(path, optimize=True)
     imp = path + '.import'
     rel = 'assets/%s/%s' % (sub, name)
-    # mevcut .import'u (uid'li) koru, yalnızca mipmap ayarını aç; yoksa şablon yaz
-    if os.path.exists(imp):
-        txt = open(imp, encoding='utf-8').read()
-        if 'mipmaps/generate=false' in txt:
-            open(imp, 'w', encoding='utf-8').write(txt.replace('mipmaps/generate=false', 'mipmaps/generate=true'))
-    else:
-        open(imp, 'w', encoding='utf-8').write(IMPORT_TMPL.format(rel=rel))
+    # mevcut .import'u (uid'li) koru, yalnızca mipmap ve sıkıştırma ayarını düzelt; yoksa şablon yaz
+    txt = open(imp, encoding='utf-8').read() if os.path.exists(imp) else IMPORT_TMPL.format(rel=rel)
+    new = txt.replace('mipmaps/generate=false', 'mipmaps/generate=true')
+    if name in VRAM:
+        new = new.replace('compress/mode=0', 'compress/mode=2').replace('compress/high_quality=false', 'compress/high_quality=true')
+    if new != txt or not os.path.exists(imp):
+        open(imp, 'w', encoding='utf-8', newline='').write(new)
     print('  %s/%s %dx%d' % (sub, name, arr8.shape[1], arr8.shape[0]), flush=True)
 
 
@@ -78,7 +84,7 @@ def to8(a):
     return (np.clip(np.concatenate([rgb, al], -1), 0, 1) * 255 + 0.5).astype(np.uint8)
 
 
-BG = [('0_sky', 'layer_sky'), ('1_far', 'layer_far'), ('2_farmid', 'layer_farmid'), ('3_mid', 'layer_mid'),
+BG = [('0_sky', 'layer_sky'), ('1_far', 'layer_far'), ('2_farmid', 'layer_farmid'), ('2b_haze', 'layer_haze'), ('3_mid', 'layer_mid'),
       ('4_fog', 'layer_fogband'), ('5_shafts', 'layer_shafts'), ('6_near', 'layer_near')]
 
 
@@ -95,7 +101,7 @@ def export_bg(only=None):
         print('    %.1fs' % (time.time() - t))
 
 
-WORLD_K = 1.5   # dünya uzayı dokuları: mantıksal 2 -> 3 doku pikseli / dünya birimi (v2 kamera yakınlığı 1,5)
+WORLD_K = 2.0   # dünya uzayı dokuları: mantıksal 2 -> 4 doku pikseli / dünya birimi (v2 kamera yakınlığı 2,0; 1080p 1:1)
 
 
 def export_ground():

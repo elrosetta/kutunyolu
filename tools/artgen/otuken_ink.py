@@ -12,7 +12,7 @@ import os
 import numpy as np
 from PIL import Image
 
-from inkkit_ortam import (INK, Layer, Sk, apply_fog, blade, blob, c01, fbm, leaf_shape, mix, noise, poly_path, premul,
+from inkkit_ortam import (INK, Layer, Sk, apply_fog, blade, blade_tip, blade_spine, facet_shade, blob, c01, fbm, leaf_shape, mix, noise, poly_path, premul,
                     ribbon, save_png, smooth_path, smoothstep, trunk, bezier)
 
 H = 1080
@@ -131,8 +131,12 @@ def foliage(sk, cx, cy, r, seed, col, hi=None, n=40, leaf=(9, 17), droop=0.5, in
         else:
             c = tuple(np.array(col) * rng.uniform(0.8, 1.15))
         sk.path(leaf_shape(x, y, ln, ln * 0.38, ang), c, 1.0)
-        if ink_a > 0 and rng.random() < 0.3:
+        if ink_a > 0 and rng.random() < 0.55:
             sk.path(leaf_shape(x, y, ln, ln * 0.38, ang), INK, ink_a, 0, 0.8)
+            if ln > 11 and rng.random() < 0.6:   # orta damar
+                ca, sa = math.cos(ang), math.sin(ang)
+                sk.path(ribbon([(x + ca * ln * 0.1, y + sa * ln * 0.1), (x + ca * ln * 0.5, y + sa * ln * 0.5),
+                                (x + ca * ln * 0.85, y + sa * ln * 0.85)], [0.9, 0.7, 0.2]), INK, ink_a * 0.8)
 
 
 def _branches_for(L, seed, xs, w_avg, base_y, fog, amount, bark, leaf_col, leaf_hi, ink_k, dark_top):
@@ -154,11 +158,21 @@ def _branches_for(L, seed, xs, w_avg, base_y, fog, amount, bark, leaf_col, leaf_
             wd = np.linspace(rng.uniform(5, 9) * (w_avg / 60) ** 0.6, 1.2, 12)
             k = 1 - dark_top * (1 - smoothstep(0, 520, y0))
             bc = tuple(np.array(bark) * k)
+            twigs = []
+            for _t in range(int(rng.integers(2, 5))):
+                j = int(rng.integers(3, 10))
+                tq = pts[j]
+                ta = math.atan2(pts[j + 1][1] - pts[j - 1][1], pts[j + 1][0] - pts[j - 1][0]) + rng.choice([-1, 1]) * rng.uniform(0.5, 1.0)
+                tl = rng.uniform(16, 40)
+                te = (tq[0] + math.cos(ta) * tl, tq[1] + math.sin(ta) * tl)
+                twigs.append((bezier(tq, ((tq[0] + te[0]) / 2, (tq[1] + te[1]) / 2 - 4), te, 6), wd[j] * 0.45))
             for dx in (0, L.w, -L.w):
                 q = pts + np.array([dx, 0])
                 sk.path(ribbon(q, wd), bc, 1.0)
                 if ink_k > 0.3:
                     sk.path(ribbon(q, wd), INK, 0.9, 0, 1.2 * ink_k)
+                for tp, tw in twigs:
+                    sk.path(ribbon(tp + np.array([dx, 0]), np.linspace(max(1.0, tw), 0.4, 6)), bc if ink_k <= 0.3 else INK, 0.9)
             # yaprak öbekleri
             for t in (0.6, 1.0):
                 q = pts[int(t * 11)]
@@ -289,7 +303,7 @@ def mounds(L, seed, base_y, n, rx, ry, col, fog, blur=6.0, jit=20):
 
 
 def grass_field(L, seed, y0, y1, density, col_top, col_bot, hmin, hmax, wmin=2.0, wmax=4.5, fog=None, lean=0.35,
-                dark_strokes=0.25, light_strokes=0.2, fill=True, fill_blur=3):
+                dark_strokes=0.25, light_strokes=0.2, fill=True, fill_blur=3, ink_tips=0.0):
     """Otluk: dolgu gradyanı + binlerce kavisli yaprak darbesi (koyu ve açık)."""
     rng = np.random.default_rng(seed)
     W = L.w
@@ -331,7 +345,12 @@ def grass_field(L, seed, y0, y1, density, col_top, col_bot, hmin, hmax, wmin=2.0
             c = np.minimum(base_c * rng.uniform(1.18, 1.45) + 0.03, 1)
         else:
             c = base_c * rng.uniform(0.85, 1.1)
-        sk2.path(blade(x, y, h, rng.uniform(-lean, lean), rng.uniform(wmin, wmax)), tuple(c * 255), rng.uniform(0.75, 1.0))
+        ln_, wd_ = rng.uniform(-lean, lean), rng.uniform(wmin, wmax)
+        sk2.path(blade(x, y, h, ln_, wd_), tuple(c * 255), rng.uniform(0.75, 1.0))
+        if ink_tips > 0 and rng.random() < ink_tips:
+            sk2.path(blade_tip(x, y, h, ln_, wd_, rng.uniform(0.18, 0.4)), INK, rng.uniform(0.5, 0.85))
+        elif ink_tips > 0 and rng.random() < ink_tips * 0.6:
+            sk2.path(blade_spine(x, y, h, ln_, wd_, side=1.0 if ln_ < 0 else -1.0), INK, rng.uniform(0.4, 0.7))
     bl = sk2.snap()[:, pad:pad + W]
     # kenar sarması (blade'ler pad içinde tekrar çizilmedi; yatay döşemede kenar farkı ince ot çizgisi kadardır)
     out.a = bl + out.a * (1 - bl[..., 3:4])
@@ -398,20 +417,23 @@ def rock(seed, rx, ry, base=(92, 98, 90), moss=(84, 120, 82), ink_w=3.0, light_d
     ys, xs = (np.mgrid[0:cov.shape[0], 0:cov.shape[1]].astype(np.float32) + 0.5) / ik.K
     u = (xs - cx) / rx
     v = (ys - cy) / ry
-    nz = np.sqrt(np.clip(1 - u * u - v * v, 0.02, 1))
-    lx, ly = light_dir
-    lz = 0.75
-    ll = math.sqrt(lx * lx + ly * ly + lz * lz)
     nzf = fbm(w, h, [5, 2], seed + 2, wrap=False)
-    ndl = (u * lx + v * ly + nz * lz) / ll + 0.12 * nzf
-    tone = np.where(ndl > 0.82, 1.22, np.where(ndl > 0.5, 1.0, np.where(ndl > 0.15, 0.74, 0.52))).astype(np.float32)
+    # yontulmuş yüzeyler (Voronoi düz normalleri) + hafif küre gölgesi
+    ndl, fedge, fid = facet_shade(u, v, seed + 4, n=max(6, int(rx / 7)), light=light_dir)
+    ndl = ndl + 0.08 * nzf
+    tone = np.where(ndl > 0.8, 1.24, np.where(ndl > 0.5, 1.0, np.where(ndl > 0.18, 0.74, 0.5))).astype(np.float32)
     from scipy import ndimage
-    tone = ndimage.gaussian_filter(tone, 0.8)
+    tone = ndimage.gaussian_filter(tone, 0.6)
+    # yüz kenarları: gölgeye bakan yüzlerin kenarında mürekkep, ışıktakilerde açık yontu çizgisi
+    ew = np.clip(1.0 - fedge * rx * ik.K / (1.3 * ik.K), 0, 1) * cov
+    tone = np.where(ndl > 0.55, tone * (1 + 0.22 * ew), tone)
     col = c01(base)[None, None, :] * tone[..., None]
     col *= (1 + 0.06 * nzf[..., None])
     # yosun: tepede, düzensiz alt sınır
     mossm = smoothstep(-0.05, 0.12, -v - 0.35 + 0.25 * nzf) * cov
     col = mix(col, c01(moss)[None, None, :] * (0.75 + 0.35 * tone[..., None]), (mossm * 0.85)[..., None])
+    ink_e = ew * np.clip((0.5 - ndl) * 2.5, 0, 1) * 0.85
+    col = mix(col, c01(INK)[None, None, :], ink_e[..., None])
     out = premul(col, cov)
     sk = Sk(w, h)
     sk.path(path, INK, 1.0, 0, ink_w)
@@ -486,7 +508,7 @@ def layer_mid(seed=40):
         place(L, r, rng.uniform(0, WL), 664 + rng.uniform(-6, 8), fog_amount(0.32, 0.2, 650, 40))
     ferns(L, seed + 2, 662, 34, 60, (58, 88, 60), fog_amount(0.25, 0.25, 655, 40))
     grass_field(L, seed + 3, 652, 760, 0.45, (112, 150, 110), (52, 72, 54), 10, 28, 1.6, 3.2,
-                fog=fog_amount(0.12, 0.38, 650, 26))
+                fog=fog_amount(0.12, 0.38, 650, 26), ink_tips=0.18)
     return L
 
 
@@ -515,7 +537,24 @@ def layer_near(seed=50):
         place(L, r, rng.uniform(0, WL), 712 + rng.uniform(-4, 10), fog_amount(0.05, 0.25, 700, 30))
     ferns(L, seed + 2, 712, 30, 90, (50, 80, 54), fog_amount(0.05, 0.22, 700, 40))
     grass_field(L, seed + 3, 700, 900, 1.1, (104, 140, 98), (40, 54, 42), 16, 46, 2.0, 4.2,
-                fog=fog_amount(0.22, 0.32, 705, 50), dark_strokes=0.35)
+                fog=fog_amount(0.22, 0.32, 705, 50), dark_strokes=0.35, ink_tips=0.3)
+    return L
+
+
+def layer_haze(seed=65):
+    """Orta derinlik pusu (v15): uzak-orta ile orta katman arasında yükselen, kopuk sis tülleri. Gövdelerin alt yarısını
+    yer yer yutar, derinlik katmanları arasında hava boşluğu hissi verir (yavaş sürüklenir, nefes alır)."""
+    W = WL
+    ys = np.arange(H, dtype=np.float32)[:, None]
+    n1 = noise(W, H, 0, seed, sx=220, sy=40)
+    n2 = noise(W, H, 0, seed + 1, sx=70, sy=24)
+    n3 = noise(W, H, 0, seed + 2, sx=18, sy=60)      # dikey tüller
+    band = np.exp(-((ys - 560) / 120.0) ** 2) * 0.8 + np.exp(-((ys - 430) / 90.0) ** 2) * 0.3
+    a = band * np.clip(0.35 + 0.7 * n1 + 0.3 * n2 + 0.2 * n3, 0, 1)
+    a = np.clip(a * 0.42, 0, 0.5).astype(np.float32)
+    rgb = np.repeat(SKY[:, None, :], W, 1) * 0.75 + c01(MINT)[None, None, :] * 0.25
+    L = Layer(W, H)
+    L.a = premul(rgb, a)
     return L
 
 

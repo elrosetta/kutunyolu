@@ -23,6 +23,10 @@ var ray_color := Color(0.62, 0.8, 1.0, 0.07)
 var _layers: Array = []
 var _rays: Array = []
 var _base_y := 0.0
+## yatay kaydırma birikimi: ekran pikseli cinsinden kamera yolu (yakınlık x dünya yolu). Yakınlık değişirse (boss
+## sığdırma, CameraV2.fit) katman sıçramaz, yalnızca o andan sonraki kayma hızı değişir. Sabit yakınlıkta c.x x z'ye eşit.
+var _scroll := 0.0
+var _last_cx := INF
 
 
 var _vh := 540.0
@@ -87,7 +91,12 @@ func _process(_delta: float) -> void:
 	var vp := get_viewport().get_visible_rect().size
 	var t := Time.get_ticks_msec() / 1000.0
 	# kamera yakınlığı (stil v2): oyun alanı ekranda z kat hızlı kayar, katmanlar da aynı oranda (derinlik hissi korunur)
-	var z: float = Game.base_zoom
+	var z: float = Game.base_zoom * float(cam.get("fit") if cam.get("fit") != null else 1.0)
+	if _last_cx == INF:
+		_scroll = c.x * z
+	else:
+		_scroll += (c.x - _last_cx) * z
+	_last_cx = c.x
 	for L in _layers:
 		var fx: float = L["fx"]
 		var w: float = L["w"]
@@ -97,7 +106,7 @@ func _process(_delta: float) -> void:
 			var kp: float = L["k"]
 			L["copies"][0].scale = Vector2(maxf(kp, kp * vp.x / w), maxf(kp, vp.y / _vh * kp))
 			continue
-		var off := -fposmod(c.x * fx * z + t * float(L["drift"]), w)
+		var off := -fposmod(_scroll * fx + t * float(L["drift"]), w)
 		for k in L["copies"].size():
 			L["copies"][k].position = Vector2(off + k * w, y)
 		match L["kind"]:

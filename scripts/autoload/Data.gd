@@ -177,6 +177,22 @@ func sprite(sprite_name: String) -> Dictionary:
 		(meta["tex"] as CanvasTexture).texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
 	var gp := "res://assets/sprites/%s_e.png" % sid
 	meta["glow_tex"] = load(gp) if ResourceLoader.exists(gp) else null
+	# sayfalı sayfa (tools/artgen/export_ink.py, json "pages" > 1): satırlar sırayla <ad>.png, <ad>_p1.png ... dokularına
+	# bölünür (her biri en çok 4096 px). "page_texs"/"page_glows" sayfa dokuları; SpriteAnim satırın sayfasını seçer.
+	var pages := int(meta.get("pages", 1))
+	if pages > 1:
+		var texs: Array = [meta["tex"]]
+		var glows: Array = [meta["glow_tex"]]
+		for k in range(1, pages):
+			var pid := "%s_p%d" % [sid, k]
+			var ct := canvas_tex("res://assets/sprites/%s.png" % pid, "")
+			if is_linear(meta):
+				ct.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
+			texs.append(ct)
+			var gpk := "res://assets/sprites/%s_e.png" % pid
+			glows.append(load(gpk) if ResourceLoader.exists(gpk) else null)
+		meta["page_texs"] = texs
+		meta["page_glows"] = glows
 	_sprites[sprite_name] = meta
 	return meta
 

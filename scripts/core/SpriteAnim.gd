@@ -139,7 +139,16 @@ func _process(delta: float) -> void:
 func _apply() -> void:
 	var a: Dictionary = meta["anims"][anim]
 	var cell: Array = meta["cell"]
-	var r := Rect2(frame * float(cell[0]), float(a["row"]) * float(cell[1]), float(cell[0]), float(cell[1]))
+	var row := int(a["row"])
+	if meta.has("page_texs"):
+		# sayfalı sayfa: satırın sayfası (Data.sprite); kopyalar (hayalet, ceset, vuruş karesi) base.texture'ı izler
+		var pr := maxi(1, int(meta.get("page_rows", 9999)))
+		var pg := mini(row / pr, (meta["page_texs"] as Array).size() - 1)
+		row -= pg * pr
+		base.texture = meta["page_texs"][pg]
+		if glow and meta["page_glows"][pg] != null:
+			glow.texture = meta["page_glows"][pg]
+	var r := Rect2(frame * float(cell[0]), float(row) * float(cell[1]), float(cell[0]), float(cell[1]))
 	base.region_rect = r
 	if glow:
 		glow.region_rect = r

@@ -1,7 +1,7 @@
 {
- "tile": 72,
+ "tile": 96,
  "world_tile": 24,
- "density": 3.0,
+ "density": 4.0,
  "cols": 16,
  "ground_rows": 3,
  "overlay_row": 3,
@@ -15,8 +15,8 @@
  "ink": true,
  "filter": "linear_mipmap",
  "mask": "otuken_v2_mask.png",
- "soil_size": 1536,
- "soil_density": 3.0,
+ "soil_size": 2048,
+ "soil_density": 4.0,
  "meadow": "otuken_v2_meadow.png",
  "glow": null,
  "not": "v2 mürekkep zemini: sanat RGBA + R=toprak kaplaması, G=kenar gölgesi (CanvasTexture normal yuvasında)"

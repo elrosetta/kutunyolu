@@ -651,6 +651,8 @@ func _ready() -> void:
 	if Data.is_linear(arm_meta):  # stil v2 mürekkep-cel kol parçaları: gövdeyle aynı süzgeç ve ışık
 		arm_tex.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
 		am.shader = Data.INK_SHADER
+		if arm_meta.has("alt_row"):  # ışığı aynalanmış ikinci satır: ink_char parçanın açısına göre karıştırır
+			am.set_shader_parameter("alt_uv", Vector2(0.0, float(arm_meta["cell"][1]) * float(arm_meta["alt_row"]) / float(arm_tex.get_height())))
 	arm_root = Node2D.new()
 	arm_root.visible = false
 	anim.add_child(arm_root)

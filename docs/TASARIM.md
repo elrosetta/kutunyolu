@@ -655,12 +655,23 @@ Yalnızca dikey kesit: Bengü (boşta, koşu, yukarıdan kesiş; diğer animasyo
 ### Ötüken v2 "mürekkep" ortamı (el çizimi çizgi roman görünümü)
 
 Piksel sanat değil: kenar yumuşatmalı, boyalı dokular + değişken kalınlıklı mavi-siyah mürekkep (#15161d).
-**Kamera:** v2 mürekkep ortamında taban yakınlık 1,5 (`stil_v2.json` "camera_zoom", `Game.base_zoom`; zoom_punch bunun üstüne
-çarpılır): ekranda 640x360 dünya birimi, karakterler 1,5 kat büyük (referanstaki oran). v1 çerçevesi (960x540, 1,0) değişmez.
-Paralaks ve ön plan kayma çarpanları yakınlıkla çarpılır (derinlik hissi aynı kalır).
-**Doku yoğunluğu:** dünya uzayı (zemin atlası 72 px hücre, toprak/çayır, süsler, kule parçaları) 3 doku pikseli / dünya birimi;
-ekran uzayı katmanlar (paralaks, ön plan) 1080 yükseklik: **1080p'de 1 doku pikseli = 1 ekran pikseli**. Üreticiler mantıksal
-piksellerle yazılır, `inkkit.K` (dünya dokularında 1,5) çıktı çözünürlüğünü ölçekler.
+**Kamera (v15):** v2 mürekkep ortamında taban yakınlık **2,0** (`stil_v2.json` "camera_zoom", `Game.base_zoom`; zoom_punch
+bunun üstüne çarpılır): ekranda 480x270 dünya birimi, Bengü 1080p'de ~225 px (ekranın ~%21'i; referansta ayakta ninja
+~%20). Ölçüm: idle karesi 56 dünya birimi; 1,5'te ~168 px (%15,5) "çok uzak" bulunmuştu. v1 çerçevesi (960x540, 1,0) değişmez.
+`scripts/world/CameraV2.gd` (yalnızca ink ortamında; Level'ın çocuğu, oyuncunun değil): baktığın/koştuğun yöne yumuşak
+öncü kayma (58 birim + hız; saldırıda donar), yakın uyanık düşman arkadaysa öncü kısalır, yerdeyken ayaklar ekranın
+~%69'unda (merkez ayakların 50 birim üstü: zemin ve yakın düşmanlar görünür), zıplamada dikey pencere (64 yukarı / 18 aşağı),
+hızlı düşüşte aşağı bakış (54 birim), Camera2D konum yumuşatması 6 + sınır yumuşatması, ışınlanmada (>220 birim) anında
+oturur. **Boss arenası:** boss ve oyuncu (+ boss boyu) sığsın diye yakınlık `fit` ile en çok 0,62'ye (taban x0,62 = 1,24)
+düşer, merkez ikisinin arasına kayar ama oyuncu ekranın iç yarısında kalır; boss en geniş çerçeveye bile sığmayacak kadar
+uzaktaysa normal yakın kamera. Yurt v2 sanatı olmadığından v1 kamerasıyla kalır.
+Paralaks ve ön plan kayması birikimli (`_scroll += Δx · yakınlık · fit`): yakınlık değişince katmanlar sıçramaz; sabit
+yakınlıkta eski formülle aynı (v1 birebir).
+**Doku yoğunluğu (v15):** dünya uzayı (zemin atlası 96 px hücre, toprak 2048², çayır 1024², süsler, kule parçaları)
+**4 doku pikseli / dünya birimi** (`export_ink_ortam.WORLD_K` 2,0); ekran uzayı katmanlar (paralaks, ön plan) 1080 yükseklik:
+**1080p'de 1 doku pikseli = 1 ekran pikseli**. Üreticiler mantıksal piksellerle yazılır, `inkkit.K` çıktı çözünürlüğünü ölçekler.
+Ayrıntılı büyük dokular (paralaks 1/2/3/6, toprak, çayır) BPTC (BC7 yüksek kalite); gök, sis, pus, hüzme ve maske kayıpsız.
+v2 dokularının tahmini VRAM'i (mipmap dahil) 220 MB'tan ~205 MB'a indi (daha yüksek çözünürlüğe rağmen).
 Bütün v2 ortam dokuları doğrusal süzgeç + mipmap (`.import` mipmaps açık, düğümde `TEXTURE_FILTER_LINEAR_WITH_MIPMAPS`);
 v1 yolu hiç değişmez (en yakın komşu, piksel keskin). Yalnızca `--stil=v2` ve `assets/tiles/otuken_v2.json` "ink": true iken.
 
@@ -668,10 +679,14 @@ v1 yolu hiç değişmez (en yakın komşu, piksel keskin). Yalnızca `--stil=v2`
   `inkkit.py` (skia-python + numpy): önçarpılmış katman, döşenebilir gürültü, değişken kalınlık fırça darbesi (`ribbon`), ot yaprağı,
   mızrak yaprak, organik kontur, analitik ağaç gövdesi (`trunk`: silindirik gölge, sisten kenar ışığı, iki yanda değişken mürekkep,
   çam = kırık dikey sırt + levha çatlağı, huş = mercimek izi + dal yarası, gölge tarafında çizgi roman taraması, pürüzlü kök
-  boğazı), satır başına sis karıştırma. `otuken_ink.py` paralaks katmanları, `otuken_ink_ground.py` zemin/ön plan,
+  boğazı; v15: en koyu kenarda çapraz tarama), satır başına sis karıştırma. v15 ayrıntı: yaprakların yarısından çoğu
+  mürekkep konturlu ve orta damarlı, dallarda mürekkep sürgünler, otluk/çayır/ot öbeklerinde mürekkep uçlu ve gölge
+  kenarı çizgili yapraklar (`blade_tip`, `blade_spine`), kayalar yontulmuş düz yüzeyli (`facet_shade`: Voronoi yüzeyleri,
+  gölgeye bakan yüz kenarında mürekkep). `otuken_ink.py` paralaks katmanları, `otuken_ink_ground.py` zemin/ön plan,
   `otuken_ink_decor.py` süsler. Tümü yordamsal; dışarıdan doku yok.
 * **Paralaks** (`data/stil_v2.json` "otuken": "bg", "bg_fx", "bg_kind"): 0 gök/uzak sis (1920x1080, sabit; ay ışığının süzüldüğü
   parıltı, tepe yaprak gölgesi), 1 uzak gövdeler (3840x1080, x0,06), 2 uzak-orta gövde + dal + çalı tümsekleri (x0,13),
+  2b orta derinlik pusu (v15: yükselen kopuk sis tülleri, "fog", x0,18, 3 px/sn sürüklenir),
   3 orta gövdeler + sise gömülü ahşap gözetleme kulesi + balballar + kayalar + eğreltiler + otluk (x0,24), 4 sürüklenen yer sisi
   ("fog": 7 px/sn kayar, yavaş nefes alır), 5 ışık hüzmeleri ("add": toplamalı, çapraz, nefes alır), 6 yakın koyu gövdeler + tepeden
   sarkan yaprak kümeleri + balballar + kayalar + otluk (x0,44). Atmosfer perspektifi: her katman `SKY` rampasına (zeytin-teal sis,
@@ -707,8 +722,28 @@ artık bu yönde: `bengu_v2` ve `kara_boru_v2` (`bengu_kol_v2` dahil) `tools/art
   darbesi; ışık yanında ~1.5 px, gölge/alt yanda ~4 px (1080p), düşük frekanslı baskı değişimi; dış silüete +0.5 px.
   Bütün gövdeye büyük kütle gölgesi (`form`), isteğe bağlı iç kenar ışığı (`rim`, tazıda açık). Mürekkep #15161d.
   Işık sol üstten (`LIGHT`). 3x süper örnekleme + kutu küçültme; çıktı albedo + ışıma (göz, kor) PNG.
-* **Yoğunluk:** `texel` 3 (dünya 640x360 x3 = 1080p'de 1 doku pikseli = 1 ekran pikseli). Bengü hücresi 288x240
-  (dünya 96x80, ayak 132,222), tazı 240x168, kol parçası 42x51 (pivot 21,10.5; yumruk 21,25.5).
+* **Yoğunluk (v15):** `texel` 4 (dünya 480x270 x4 = 1080p'de 1 doku pikseli = 1 ekran pikseli). Bengü hücresi 384x320
+  (dünya 96x80, ayak 176,296), tazı 320x224, kol parçası 56x68 (pivot 28,14; yumruk 28,34). Çizgi genişlikleri `lw` =
+  (k/3)^0.85 ile ölçeklenir (göreli olarak biraz daha ince, daha çok ayrıntı).
+* **Sayfalar:** `export_ink.py` sayfayı en çok 4096 px yüksek parçalara böler (`<ad>.png`, `<ad>_p1.png` ... + `_e`;
+  json "page_rows", "pages"). `Data.sprite` sayfa dokularını yükler ("page_texs"/"page_glows"), `SpriteAnim._apply` satırın
+  sayfasını seçer; hayalet/ceset/vuruş karesi `base.texture`'ı kopyaladığı için kendiliğinden doğru. Sayfasız json (v1) aynen.
+  Bengü: 3 sayfa (3072x3840, 3072x3840, 3072x2560) BPTC + mipmap; 16384 (ve eski GPU'lardaki 8192) sınırının altında.
+* **Kalite katmanı (v15, `inkkit.py`):** kontur ışık yanında incelir ve yer yer kırılır (boşluğun uçları sivrilir), gölge
+  yanında kalınlaşır, dış kenarı kuru fırça gibi pürüzlü; sert cel gölgesinin ışık yanına taşan bulanık ikincil yarı ton
+  (`soft`); büyük parçalarda gölgenin uzak kenarında yansıyan ışık (`bounce`); metalde ışıklı kenara paralel karanlık ufuk
+  yansıması + keskin beyaz parlama + küçük ışıltı (`kind='metal'`); postta kenardan içe sivri kıl darbeleri (`kind='fur'`,
+  koyu postta açık tonla); bitirişte dolgular içinde %4,5 çapraz fırça/kâğıt dokusu (karede sabit, `paper_grain`).
+* **Kol iskeleti gölgesi (düzeltildi):** `bengu_kol_v2.png` iki satır: 0. satır sol üst ışık, 1. satır ışığı parça
+  ekseninde aynalanmış çizim (json "alt_row"). `ink_char.gdshader` (`alt_uv`) parçanın ekrandaki dönüşünü, esnemesini ve
+  flip_h'sini UV/dünya türevlerinden çözer; dünya ışığı dokuda hangi yandan geliyorsa o çizimi seçer (yumuşak geçiş). Kol
+  başın üstüne kalksa ya da Bengü sola dönse de gölge ışığın tersinde kalır. Gövde sprite'larında `alt_uv` 0 (kapalı).
+* **Kol biçimi:** "kütük" kol yerine anatomik profil: omuz kası şişkin üst kol, dirsek içinde zikzak kumaş kıvrımları,
+  dirsek çıkıntısı ve bileğe incelen ön kol, sırma kol ağzı, çapraz bağcıklı deri siper + çelik şerit, parmak araları ve
+  sarılı başparmağı okunan eldivenli yumruk.
+* **Yuvarlanma:** bütün gövdeyi döndürmek yerine dalış -> top (sırt kıvrılır: gövde ekseni %32 kısalır, uyluklar göğüste,
+  baldırlar katlı, kollar baldırları sarar, baş içeride, top %14 büzülür ve yere değerek döner) -> açılıp çömelerek kalkış
+  (`bengu_ink._roll`, 8 kare, zamanlama aynı). Işık dünyada sabit (dönüş çizimden önce uygulanır).
 * **Oyunda:** json `"filter": "linear"` olan sprite'lar (`Data.is_linear`) CanvasTexture'da `LINEAR_WITH_MIPMAPS`
   ile ve `shaders/ink_char.gdshader` ile çizilir (`SpriteAnim`, `Player` kol iskeleti; hayalet/ceset/vuruş karesi aynı
   CanvasTexture'ı kullandığından süzgeci miras alır). `.import`: mipmap açık; büyük sayfalar (bengu_v2, _e) VRAM
@@ -728,9 +763,9 @@ artık bu yönde: `bengu_v2` ve `kara_boru_v2` (`bengu_kol_v2` dahil) `tools/art
 * **Araçlar:** `preview_ink.py out.png [--mod m] [--zoom 2] [--all | --anim ad | anim:kare ...]`,
   `compare_ink.py referans.png out.png anim:kare ...` (referansla aynı 1080p ölçeğinde). Karşılaştırmalar:
   `rec_v14/karakter/` (depo dışı).
-* **Bilinen eksikler:** silah atlası, efektler ve diğer yaratıklar hâlâ piksel; ön kol iskeleti parçalarının gölgesi
-  parça yerelinde çizili (kol başın üstüne kalkınca ışık yönü dönmüş görünür); yüz/el ayrıntısı 1080p'de küçük
-  (oyun kamerası karakteri ~115 px gösteriyor, referansta ~185 px: kamera yakınlaştırması ortam tarafında).
+* **Bilinen eksikler:** silah atlası, efektler ve diğer yaratıklar hâlâ piksel (2,0 yakınlıkta piksel silahlar daha
+  belirgin); kol gölgesi iki çizim arasında karışır (kol tam dikeyken ara ton); 1440p/4K için v2 HD paketi yok (texel 4
+  1080p'ye göre; 1440p'de 1,33x büyütülür).
 
 ### Yaygınlaştırma planı (onay sonrası)
 

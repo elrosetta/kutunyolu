@@ -5,6 +5,7 @@
    "otuken_v2_0_sky",
    "otuken_v2_1_far",
    "otuken_v2_2_farmid",
+   "otuken_v2_2b_haze",
    "otuken_v2_3_mid",
    "otuken_v2_4_fog",
    "otuken_v2_5_shafts",
@@ -25,6 +26,11 @@
     0.13,
     0.06,
     0.0
+   ],
+   [
+    0.18,
+    0.08,
+    3.0
    ],
    [
     0.24,
@@ -51,6 +57,7 @@
    "",
    "",
    "",
+   "fog",
    "",
    "fog",
    "add",
@@ -129,6 +136,6 @@
   "leaf_tex": "res://assets/bg/otuken_v2_leaf.png",
   "leaf_amount": 34,
   "pollen_amount": 16,
-  "camera_zoom": 1.5
+  "camera_zoom": 2.0
  }
 }

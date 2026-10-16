@@ -15,9 +15,35 @@ uniform float moon_shade : hint_range(0.0, 1.0) = 0.0;
 uniform float light_k : hint_range(0.0, 2.0) = 0.85;
 // noktasal ışık katkı çarpanı (ocak, çıra, Kut)
 uniform float point_k : hint_range(0.0, 2.0) = 0.9;
+// Kol iskeleti parçaları (bengu_kol_v2.json "alt_row"): dokunun ikinci satırı aynı parçanın ışığı parça ekseninde
+// aynalanmış çizimi. alt_uv = o satırın UV kayması (0 = kapalı, gövde sprite'ları). Parçanın ekrandaki dönüşü, esnemesi ve
+// flip_h'si UV türevlerinden çözülür: dünya ışığı (sol üst) dokuda hangi yandan geliyorsa o çizim seçilir (yumuşak geçiş).
+// Böylece kol başın üstüne kalksa ya da karakter sola dönse de gölge hep ışığın tersinde kalır.
+uniform vec2 alt_uv = vec2(0.0);
+uniform vec2 world_light = vec2(-0.74, -0.67);
+varying vec2 wpos;
+varying vec4 vcol;
+
+void vertex() {
+	wpos = (MODEL_MATRIX * vec4(VERTEX, 0.0, 1.0)).xy;
+	vcol = COLOR;
+}
 
 void fragment() {
-	vec4 c = COLOR * tint;
+	vec4 c = COLOR;
+	if (alt_uv != vec2(0.0)) {
+		// UV = A * dünya + b (afin): A = dUV * inverse(dDünya), ekran türevlerinden
+		mat2 du = mat2(dFdx(UV), dFdy(UV));
+		mat2 dw = mat2(dFdx(wpos), dFdy(wpos));
+		float det = determinant(dw);
+		if (abs(det) > 1e-8) {
+			vec2 l_px = (du * inverse(dw) * normalize(world_light)) / TEXTURE_PIXEL_SIZE;
+			float w = smoothstep(-0.28, 0.28, normalize(l_px + vec2(1e-6)).x);
+			vec4 b = texture(TEXTURE, UV + alt_uv) * vcol;
+			c = mix(c, b, w);
+		}
+	}
+	c *= tint;
 	c.rgb = mix(c.rgb, flash_color.rgb, flash);
 	COLOR = c;
 }

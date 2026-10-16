@@ -1,7 +1,7 @@
 """inkkit: mürekkep + cel gölge karakter çizim takımı (stil v2 "çizgi roman", Shinobi: Art of Vengeance yönü).
 
 Piksel sanat DEĞİL: Skia ile kenar yumuşatmalı vektör çizim, 1080p'de 1 doku pikseli = 1 ekran pikseli
-(dünya 640x360 x3 => doku yoğunluğu `k` = 3). Oyunda doğrusal süzgeç + mipmap ile gösterilir.
+(v15: dünya 480x270 x4 => doku yoğunluğu `k` = 4; önce 640x360 x3). Oyunda doğrusal süzgeç + mipmap ile gösterilir.
 
 Model (her parça = kapalı bir yol):
   1. düz taban rengi
@@ -13,7 +13,13 @@ Model (her parça = kapalı bir yol):
 Bitirişte: dış silüete ek kalın kontur (alt/gölge yanında daha kalın), içte ince soğuk kenar ışığı (arka kenar),
 düz-yumuşak normal haritası (yalnızca silüet kenarında eğim: sahne ışıkları kenarı hafifçe yakar), ışıma katmanı.
 
-Koordinatlar dünya biriminde (y aşağı), orijin ayak noktası; tüm genişlikler 1080p ekran pikseli (px) cinsinden.
+Koordinatlar dünya biriminde (y aşağı), orijin ayak noktası; tüm genişlikler 1080p ekran pikseli (px) cinsinden,
+`lw` ile ölçeklenir (k = 4: v2 kamerası 2,0 yakın, 1080p'de 1 doku pikseli = 1 ekran pikseli; çizgiler (k/3)^0.85 kalın).
+
+Kalite katmanı (v15): kontur ışık yanında incelir ve yer yer kırılır (uçları sivrilen boşluk), gölge yanında kalınlaşır ve
+dış kenarı kuru fırça gibi pürüzlenir; sert cel gölgesinin ışık yanına taşan bulanık ikincil yarı ton; gölgenin en uzak
+kenarında yansıyan ışık bandı (bounce); metalde karanlık ufuk yansıması + keskin beyaz parlama ve yıldız ışıltı; postta
+(kind='fur') kenardan içe doğru sivri kıl darbeleri; bitirişte dolguların içinde çok hafif fırça/kâğıt dokusu (grain).
 """
 import colorsys
 import math
@@ -26,6 +32,7 @@ SD_K = 1.45        # gölge kayması çarpanı (hepsi için)
 GRAD = 0.10        # parça içi değer geçişi (0 = düz)
 INK = (0x15 / 255, 0x16 / 255, 0x1d / 255)
 LIGHT = (-0.74, -0.67)      # ışığa doğru (sol üst)
+GRAIN = 0.045               # dolgu içi fırça/kâğıt dokusu genliği (bitiriş)
 
 
 # ------------------------------------------------------------------ renk
@@ -243,8 +250,10 @@ class InkCanvas:
 
     Çizim çağrıları (z, sıra) ile kuyruğa alınır; finish() sıralayıp çizer, küçültür ve son işlemleri yapar."""
 
-    def __init__(self, w, h, ox, oy, k=3.0, ss=3, light=LIGHT):
+    def __init__(self, w, h, ox, oy, k=3.0, ss=3, light=LIGHT, lw=None):
         self.w, self.h, self.ox, self.oy, self.k, self.ss = w, h, ox, oy, k, ss
+        # çizgi kalınlığı ölçeği: genişlikler k=3 (1,5 yakınlık) için yazıldı; daha yoğun dokuda biraz daha ince göreli çizgi
+        self.lw = lw if lw is not None else (k / 3.0) ** 0.85
         self.surf = skia.Surface(int(w * ss), int(h * ss))
         self.c = self.surf.getCanvas()
         self.c.clear(skia.Color4f(0, 0, 0, 0))
@@ -276,8 +285,8 @@ class InkCanvas:
         return v * self.k * self.ss
 
     def px(self, v):
-        """1080p pikseli -> cihaz"""
-        return v * self.ss
+        """1080p pikseli (k=3 ölçeğinde) -> cihaz"""
+        return v * self.ss * self.lw
 
     # ---- yol kurucular (dünya biriminde girdi, cihaz yolu döner)
     def capsule(self, p0, p1, r0, r1):
@@ -310,11 +319,13 @@ class InkCanvas:
 
     def shape(self, path, mat, z=0.0, sd=None, hi=0.0, ol=1.0, ol_side=1.0, cast=0.0, cast_col=(0.62, 0.6, 0.78),
               shadows=(), lights=(), details=(), hatch=0.0, hatch_ang=None, light=None, flat=False, deep=0.0,
-              noshadow=False, glow=None, grad=GRAD):
+              noshadow=False, glow=None, grad=GRAD, soft=None, bounce=0.0, spec=None, fur=None):
         """Bir parçayı çiz. sd: gölge kayması (dünya, None = biçimden), hi: parlama hilali (dünya),
         ol: kontur çarpanı, cast: alttakine düşen gölge (dünya), shadows: ek gölge yolları (cihaz; parçaya kırpılır),
         details: [(tür, veri, ...)] kırpılmış ayrıntılar: ('ink', pts_dünya, px, taper) | ('shade', yol) | ('hi', yol)
-        | ('col', yol, rgb) | ('stroke', pts_dünya, px, rgb, taper), hatch: derin gölgede tarama yoğunluğu."""
+        | ('col', yol, rgb) | ('stroke', pts_dünya, px, rgb, taper), hatch: derin gölgede tarama yoğunluğu.
+        soft: ikincil yumuşak yarı ton alfası (None = 0.38), bounce: gölge uzak kenarında yansıyan ışık alfası,
+        spec: metal parlaması (None = metalde 1), fur: post kılı yoğunluğu (None = kind 'fur' ise 1)."""
         L = light or self.L
         if path is None or path.isEmpty():
             return
@@ -336,7 +347,18 @@ class InkCanvas:
                 shp = diff(path, moved(path, L[0] * d, L[1] * d))
                 for s in shadows:
                     shp = union(shp, s)
+                sa = 0.38 if soft is None else soft
+                if sa > 0:   # ikincil yumuşak geçiş: sert gölgenin ışık yanına taşan bulanık yarı ton (iki tonlu cel)
+                    wide = diff(path, moved(path, L[0] * d * 1.75, L[1] * d * 1.75))
+                    sp_ = skia.Paint(AntiAlias=True, Color4f=_c4(mix(mat.base, mat.shadow, 0.6), sa))
+                    sp_.setMaskFilter(skia.MaskFilter.MakeBlur(skia.BlurStyle.kNormal_BlurStyle, max(0.6, d * 0.3)))
+                    c.drawPath(wide, sp_)
                 c.drawPath(shp, skia.Paint(AntiAlias=True, Color4f=_c4(mat.shadow)))
+                if bounce > 0:   # yansıyan ışık: gölgenin en uzak kenarında ince, yumuşak açık bant
+                    far = diff(path, moved(path, L[0] * d * 0.32, L[1] * d * 0.32))
+                    bp_ = skia.Paint(AntiAlias=True, Color4f=_c4(mix(mat.shadow, mat.base, 0.55), bounce))
+                    bp_.setMaskFilter(skia.MaskFilter.MakeBlur(skia.BlurStyle.kNormal_BlurStyle, max(0.5, d * 0.07)))
+                    c.drawPath(far, bp_)
                 if deep > 0:
                     dp = diff(path, moved(path, L[0] * d * deep, L[1] * d * deep))
                     c.drawPath(dp, skia.Paint(AntiAlias=True, Color4f=_c4(mat.deep)))
@@ -357,6 +379,12 @@ class InkCanvas:
                 c.drawPath(hp, skia.Paint(AntiAlias=True, Color4f=_c4(mat.hi)))
             for lp in lights:
                 c.drawPath(lp, skia.Paint(AntiAlias=True, Color4f=_c4(mat.hi)))
+            sp = (1.0 if mat.kind == 'metal' else 0.0) if spec is None else spec
+            if sp > 0 and not flat:
+                self._metal(c, path, b, L, d, mat, sp, hi)
+            fr = (1.0 if mat.kind == 'fur' else 0.0) if fur is None else fur
+            if fr > 0:
+                self._fur(c, path, L, mat, fr, seed=(z * 7.31) % 6.283)
             if hatch > 0 and shp is not None:
                 self._hatch(c, diff(path, moved(path, L[0] * d * 0.55, L[1] * d * 0.55)), hatch, hatch_ang)
             for dt in details:
@@ -368,15 +396,10 @@ class InkCanvas:
                 self._outline(c, path, ol, ol_side, L, seed=(z * 12.9898) % 6.283)
         self._q(z, fn)
 
-    def _outline(self, c, path, ol, side, L, seed=0.0):
-        """Fırça konturu: yol boyunca örneklenir; kalınlık = taban x (0.8..1.2 düşük frekanslı fırça baskısı)
-        + gölge yanında (normal ışığa ters baktıkça) dışa doğru kalınlaşma. Işık yanında ince, gölge/alt yanda kalın."""
-        w0 = self.px(1.5) * ol
-        ex = self.px(2.4) * ol * side
-        out = skia.Path()
-        out.setFillType(skia.PathFillType.kWinding)
+    def _contours(self, path, step):
+        """Yolun her konturu için (P, T, N dışa, n, uzunluk) örnekleri."""
+        out = []
         pm = skia.PathMeasure(path, True, 1.0)
-        step = self.px(1.1)
         while True:
             Ln = pm.getLength()
             if Ln > step * 3:
@@ -395,13 +418,41 @@ class InkCanvas:
                     votes += -1 if path.contains(float(q[0]), float(q[1])) else 1
                 if votes < 0:
                     N = -N
-                sarc = np.arange(n) * (Ln / n) / self.ss
+                out.append((P, T, N, n, Ln))
+            if not pm.nextContour():
+                break
+        return out
+
+    def _outline(self, c, path, ol, side, L, seed=0.0):
+        """Fırça konturu: yol boyunca örneklenir; kalınlık = taban x (0.8..1.2 düşük frekanslı fırça baskısı)
+        + gölge yanında (normal ışığa ters baktıkça) dışa doğru kalınlaşma. Işık yanında ince ve yer yer kırık
+        (boşluğun iki ucu sivrilir), gölge/alt yanda kalın ve dış kenarı kuru fırça gibi hafif pürüzlü."""
+        w0 = self.px(1.5) * ol
+        ex = self.px(2.4) * ol * side
+        out = skia.Path()
+        out.setFillType(skia.PathFillType.kWinding)
+        step = self.px(1.1)
+        rng = np.random.default_rng(int(abs(seed) * 1000) + 17)
+        for P, T, N, n, Ln in self._contours(path, step):
+            if True:
+                sarc = np.arange(n) * (Ln / n) / (self.ss * self.lw)
                 nz = 0.5 + 0.32 * np.sin(sarc * 0.11 + seed) + 0.18 * np.sin(sarc * 0.29 + seed * 1.7)
                 sh = np.clip(N[:, 0] * -L[0] + N[:, 1] * -L[1], 0, 1) ** 1.2
-                w = w0 * (0.8 + 0.4 * nz) + ex * sh
+                lf = np.clip(N[:, 0] * L[0] + N[:, 1] * L[1], 0, 1)
+                w = w0 * (0.8 + 0.4 * nz) * (1.0 - 0.3 * lf) + ex * sh
+                # kırık çizgi: ışığa bakan yanda seyrek boşluklar (uçlar yumuşakça incelir)
+                if Ln / self.ss > 40:
+                    brk = np.sin(sarc * (6.283 / 83.0) + seed * 7.0) + 0.55 * np.sin(sarc * (6.283 / 31.0) + seed * 3.1)
+                    gap = np.clip((brk - 0.95) / 0.35, 0, 1) * np.clip((lf - 0.35) / 0.35, 0, 1)
+                    gap = gap * gap * (3 - 2 * gap)
+                    w = w * (1.0 - 0.93 * gap)
                 win = np.minimum(w * 0.5, w0 * 0.55)
+                # kuru fırça: kalın gölge yanının dış kenarı yüksek frekanslı pürüz (kıl izleri)
+                rag = ndimage.gaussian_filter1d(rng.standard_normal(n), 1.2, mode='wrap')
+                rag = rag / (rag.std() + 1e-6)
+                ext = (w - win) * (1.0 + 0.16 * rag * np.clip(sh * 1.4 - 0.3, 0, 1))
                 inner = P - N * win[:, None]
-                outer = P + N * (w - win)[:, None]
+                outer = P + N * np.maximum(0.0, ext)[:, None]
                 for i in range(n):
                     j = (i + 1) % n
                     q = [outer[i], outer[j], inner[j], inner[i]]
@@ -413,9 +464,62 @@ class InkCanvas:
                     out.lineTo(*q[2])
                     out.lineTo(*q[3])
                     out.close()
-            if not pm.nextContour():
-                break
         c.drawPath(out, skia.Paint(AntiAlias=True, Color4f=_c4(INK)))
+
+    def _metal(self, c, path, b, L, d, mat, amt, hi):
+        """Metal: ışıklı kenara paralel karanlık ufuk yansıması + keskin beyaz parlama + küçük yıldız ışıltı."""
+        R_ = 0.5 * min(b.width(), b.height())
+        if R_ < self.px(1.5):
+            return
+        dd = max(d, self.px(2.0))
+        band = diff(isect(path, moved(path, -L[0] * dd * 0.55, -L[1] * dd * 0.55)),
+                    moved(path, -L[0] * dd * 1.05, -L[1] * dd * 1.05))
+        bpn = skia.Paint(AntiAlias=True, Color4f=_c4(mat.deep, 0.42 * amt))
+        bpn.setMaskFilter(skia.MaskFilter.MakeBlur(skia.BlurStyle.kNormal_BlurStyle, max(0.5, dd * 0.06)))
+        c.drawPath(band, bpn)
+        hs = self.u(hi) * 0.45 if hi > 0 else self.px(1.2)
+        glint = diff(path, moved(path, -L[0] * hs, -L[1] * hs))
+        cx, cy = b.centerX(), b.centerY()
+        big = max(b.width(), b.height())
+        gc = (cx + L[0] * R_ * 0.75, cy + L[1] * R_ * 0.75)
+        win_ = ellipse_path(gc, big * 0.42, big * 0.42)
+        c.drawPath(isect(glint, win_), skia.Paint(AntiAlias=True, Color4f=_c4((1.0, 1.0, 0.98), 0.95 * min(1.0, amt))))
+        if amt >= 1.0 and R_ > self.px(7.0):   # küçük dört kollu ışıltı (yatay kol uzun)
+            sx, sy = cx + L[0] * R_ * 0.6, cy + L[1] * R_ * 0.6
+            ln = min(R_ * 0.45, self.px(4.0))
+            for a, k_ in ((0.0, 1.0), (math.pi * 0.5, 0.6)):
+                dx, dy = math.cos(a) * ln * k_, math.sin(a) * ln * k_
+                c.drawPath(taper_path([(sx - dx, sy - dy), (sx, sy), (sx + dx, sy + dy)], self.px(1.2), (0.5, 0.5)),
+                           skia.Paint(AntiAlias=True, Color4f=_c4((1.0, 1.0, 1.0), 0.8)))
+
+    def _fur(self, c, path, L, mat, amt, seed=0.0):
+        """Post kılları: kenardan içe, hafif eğik, sivri uçlu kısa darbeler. Gölge yanında mürekkep, ortada gölge
+        tonu, ışık yanında seyrek ve açık (kenar ışığını bölen kıl uçları)."""
+        rng = np.random.default_rng(int(abs(seed) * 977) + 5)
+        step = self.px(3.0) / max(0.3, amt)
+        ink_p, sh_p, hi_p = skia.Path(), skia.Path(), skia.Path()
+        for P, T, N, n, Ln in self._contours(path, step):
+            for i in range(n):
+                if rng.random() < 0.18:
+                    continue
+                sh = float(np.clip(N[i, 0] * -L[0] + N[i, 1] * -L[1], -1, 1))
+                ln = self.px(rng.uniform(3.5, 7.5)) * (0.7 + 0.5 * amt)
+                tilt = rng.uniform(0.25, 0.6) * (1 if (i % 2) else -1) * 0.6 + 0.35
+                p0 = P[i] + N[i] * self.px(0.6)
+                p1 = P[i] - N[i] * ln * 0.55 + T[i] * ln * tilt * 0.5
+                p2 = P[i] - N[i] * ln + T[i] * ln * tilt
+                st = taper_path([tuple(p0), tuple(p1), tuple(p2)], self.px(rng.uniform(0.9, 1.4)), (0.05, 0.85))
+                if sh > 0.25:
+                    ink_p.addPath(st)
+                elif sh > -0.35:
+                    sh_p.addPath(st)
+                elif rng.random() < 0.5:
+                    hi_p.addPath(st)
+        dark = (0.3 * mat.base[0] + 0.55 * mat.base[1] + 0.15 * mat.base[2]) < 0.35
+        # koyu postta kıllar açık tonla (parlama rengi) okunur, açık postta gölge tonuyla
+        c.drawPath(sh_p, skia.Paint(AntiAlias=True, Color4f=_c4(mat.hi if dark else mat.shadow, 0.55 if dark else 0.8)))
+        c.drawPath(ink_p, skia.Paint(AntiAlias=True, Color4f=_c4(INK, 0.85)))
+        c.drawPath(hi_p, skia.Paint(AntiAlias=True, Color4f=_c4(mat.hi if dark else mat.shadow, 0.7 if dark else 0.45)))
 
     def _hatch(self, c, region, dens, ang=None):
         b = region.getBounds()
@@ -499,7 +603,7 @@ class InkCanvas:
 
     # ---- bitiriş
     def finish(self, outer=1.1, outer_shift=(0.45, 0.75), rim=0.0, rim_col=(0.62, 0.86, 1.0), rim_dir=(0.8, -0.6),
-               rim_w=1.4, normal_edge=3.0, normal_tilt=0.55, form=None):
+               rim_w=1.4, normal_edge=3.0, normal_tilt=0.55, form=None, grain=GRAIN):
         for z, s, fn in sorted(self.ops, key=lambda o: (o[0], o[1])):
             fn(self.c)
         ss = self.ss
@@ -526,9 +630,10 @@ class InkCanvas:
                                                    alphaType=skia.AlphaType.kPremul_AlphaType).astype(np.float32) / 255.0
         A = img[..., 3]
         # dış silüet konturu: alfa genişletilir (alt/gölge yanına kayık), mürekkep altta
+        lw = self.lw
         if outer > 0:
-            sh = ndimage.shift(A, (outer_shift[1] * ss, outer_shift[0] * ss), order=1, mode='constant')
-            dil = ndimage.grey_dilation(np.maximum(A, sh), footprint=disk(outer * ss))
+            sh = ndimage.shift(A, (outer_shift[1] * ss * lw, outer_shift[0] * ss * lw), order=1, mode='constant')
+            dil = ndimage.grey_dilation(np.maximum(A, sh), footprint=disk(outer * ss * lw))
             dil = np.clip(dil, 0, 1)
             ink = np.zeros_like(img)
             ink[..., :3] = np.array(INK, np.float32) * dil[..., None]
@@ -537,9 +642,9 @@ class InkCanvas:
             A = img[..., 3]
         # içte ince soğuk kenar ışığı (arka kenar): siluetin rim_dir yanında, konturun hemen içinde
         if rim > 0:
-            inner = ndimage.grey_erosion(A, footprint=disk((outer + 2.3) * ss))
+            inner = ndimage.grey_erosion(A, footprint=disk((outer + 2.3) * ss * lw))
             dx, dy = rim_dir
-            m = np.clip(inner - ndimage.shift(inner, (-dy * rim_w * ss, -dx * rim_w * ss), order=1, mode='constant'), 0, 1)
+            m = np.clip(inner - ndimage.shift(inner, (-dy * rim_w * ss * lw, -dx * rim_w * ss * lw), order=1, mode='constant'), 0, 1)
             m = m * rim
             col = np.array(rim_col, np.float32)
             rgb = img[..., :3]
@@ -549,12 +654,36 @@ class InkCanvas:
         img = img[:h * ss, :w * ss].reshape(h, ss, w, ss, 4).mean(axis=(1, 3))
         a = img[..., 3:4]
         rgb = np.where(a > 1e-4, img[..., :3] / np.maximum(a, 1e-4), 0)
+        if grain > 0:   # dolgu içi fırça/kâğıt dokusu: karede sabit (kâğıt), koyularda (mürekkep) kendiliğinden kaybolur
+            rgb = rgb * (1.0 + grain * paper_grain(h, w)[..., None])
         rgba = np.concatenate([np.clip(rgb, 0, 1), np.clip(a, 0, 1)], -1)
         em = self.esurf.makeImageSnapshot().toarray(colorType=skia.ColorType.kRGBA_8888_ColorType,
                                                    alphaType=skia.AlphaType.kPremul_AlphaType).astype(np.float32) / 255.0
         em = em[:h * ss, :w * ss].reshape(h, ss, w, ss, 4).mean(axis=(1, 3))
         nm = soft_normal(rgba[..., 3], normal_edge, normal_tilt)
         return rgba, nm, em
+
+
+_GRAIN = {}
+
+
+def paper_grain(h, w, seed=11):
+    """Yaklaşık [-1, 1] doku: çapraz yönlü fırça izleri (uzun, yumuşak) + ince kâğıt tanesi. Boyuta göre önbellekli."""
+    key = (h, w, seed)
+    if key in _GRAIN:
+        return _GRAIN[key]
+    rng = np.random.default_rng(seed)
+    m = int(math.hypot(h, w)) + 8
+    f = ndimage.gaussian_filter(rng.standard_normal((m, m)).astype(np.float32), (0.9, 7.0), mode='wrap')
+    f = ndimage.rotate(f, 32.0, reshape=False, order=1, mode='wrap')
+    y0, x0 = (m - h) // 2, (m - w) // 2
+    f = f[y0:y0 + h, x0:x0 + w]
+    f = f / (f.std() + 1e-6)
+    g = ndimage.gaussian_filter(rng.standard_normal((h, w)).astype(np.float32), 0.7)
+    g = g / (g.std() + 1e-6)
+    out = np.clip(0.75 * f + 0.35 * g, -2.5, 2.5) / 2.5
+    _GRAIN[key] = out.astype(np.float32)
+    return _GRAIN[key]
 
 
 def soft_normal(A, edge=3.0, tilt=0.55):

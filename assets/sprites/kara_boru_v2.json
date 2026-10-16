@@ -1,13 +1,13 @@
 {
  "cell": [
-  240,
-  168
+  320,
+  224
  ],
  "origin": [
-  108,
-  156
+  144,
+  208
  ],
- "texel": 3.0,
+ "texel": 4.0,
  "filter": "linear",
  "anims": {
   "idle": {
@@ -164,5 +164,7 @@
    "arm": true
   }
  },
- "glow": true
+ "glow": true,
+ "page_rows": 18,
+ "pages": 1
 }
