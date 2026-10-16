@@ -624,3 +624,41 @@ Eski tasarım `eski-tasarim-v13` git etiketinde saklı.
   ortalama parlaklık 0,32 → 0,16 (kırpılan piksel %15 → %1,3), Kaf 0,19 → 0,10, gece biyomları biraz açıldı. `soil.py`
   `_ao_dither`: gölgeli yandan ve çıkıntı altından noktalı ortam kapatma; `bg_hd.py` katman başına renk derecelendirme ve pus;
   `env_forest.py` süslerin yere değdiği yerde 3 basamak koyulaşma.
+
+## Stil v2 denemesi: "gerçekçi piksel" (Shinobi: Art of Vengeance yönü)
+
+Yalnızca dikey kesit: Bengü (boşta, koşu, yukarıdan kesiş; diğer animasyonlar v1 pozlarıyla v2 çizimi) ve Kararan Ötüken
+(karo atlası, toprak dokusu, orta orman katmanı). v1 sanatı olduğu gibi durur; eski tasarım `eski-tasarim-v13` etiketinde.
+
+* **Seçim:** `-- --stil=v2`. `Data.stil_id(kimlik, yol_kalıbı)` bir varlığın `<kimlik>_v2` sürümü varsa onu, yoksa v1'i verir:
+  `Data.sprite()` (bengu -> bengu_v2), `Player` kol iskeleti (bengu_kol -> bengu_kol_v2), `Level._tile_id()` (otuken -> otuken_v2:
+  atlas, `_n`, `_soil`, `_soil_n`, json), paralaks katmanları (otuken_3_mid -> otuken_3_mid_v2). Eksik dosya = v1'e düşer, karışık
+  kullanım güvenli. HD paketlerinde (assets_hd) v2 dosyası yok: v2 dokuları temel boyutta yüklenir.
+* **Üretim:** `cd tools/artgen && python export_v2.py [--bengu|--otuken]` yalnızca `_v2` dosyalarını yazar.
+  `style_v2.py`: 7 tonlu rampa (`tones`), malzeme türü (`M2(..., kind=cloth|leather|metal|fur|skin)`: kumaş geniş bant/mat,
+  deri dar orta ton + kısa parlama, metal gök/yer yansıması + keskin parlama), yansıyan ışık (gölgedeki aşağı bakan yüzey +1 ton),
+  ışığa dönüklüğe göre 1-2 piksel ay kenar ışığı, seçici kontur (`VCanvas2`).
+* **Bengü v2** (`bengu_v2.py`): ~7 baş boy (bacak 12+11.8, gövde 17, kol 10+9.4; v1: 10.5+10.5, 14, 8.5+8), daha küçük ve anatomik
+  kurt başı, diz boyu kaftan (pliler, altın sırma etek), çelik lamel yelek + omuzluk + dizlik, geniş kemer ve altın plakalar,
+  uzun çizme, ak post yaka, ince çift kuyruklu atkı. Doku yoğunluğu 2x (v1: 1.5x): 1080p'de 1 doku pikseli = 1 ekran pikseli.
+* **Ötüken v2** (`otuken_v2.py`): toprak = çarpıtılmış katmanlar (sert kil dışa, humus içe), yükseklikten normal + ay ışığı ile
+  7 ton, kesik tortul çizgileri, yontulmuş yüzlü (6 yön) gömülü kayalar (üst/sağ kenarda ay parıltısı, altında temas gölgesi),
+  seyrek çakıl, kök ve çatlaklar; v1'deki eş boy "konfeti" çakıl yok. Atlas v1 yerleşimi + v2 paleti. Orta katman: üç iç derinlik
+  (uzak sıra pusa gömülü), sıralar arası yer sisi, ağaç kenarında ay ışığı, oyun alanından koyu (değer x0,78), 96 renk.
+* **Test:** `--ekran=kilic --silah=alp_kilici --stil=v2 --bekle=4.6 --seri=10 --aralik=0.12 --goruntu=x.png` tek açılışta 10 kare
+  (`x_0.png` ...). `Ayarlar._snap`: `--bekle` (varsayılan 6 sn), `--seri`, `--aralik`. Karşılaştırmalar: `docs/stil_v2/` (.gdignore).
+
+### Yaygınlaştırma planı (onay sonrası)
+
+1. **Ortak altyapı:** `style_v2` malzeme kütüphanesi (`materials_v2`: kumaş/deri/metal/post/kemik/taş rampaları) ve poz yardımcıları;
+   v2 kol iskeleti tüm silahlı animasyonlarda gözden geçirilir (`--savurus` laboratuvarında 20 savuruş).
+2. **Bengü tamamı:** zıplama, düşme, yuvarlanma, çömelme, yay, fırlatma, kalkan ve 13 arketip gövdesi v2 oranlarına göre yeniden
+   kurgulanır (şu an v1 pozlarıyla çiziliyor); Bozkurt biçimi (`bengu_kurt`) ve ruh kurdu aynı ışık/kenar kuralıyla.
+3. **Yaratıklar** (creatures*.py, wolfkit): önce sık görülenler (kara_boru, cor, balbal, agac_iyesi), sonra seçkinler ve bosslar
+   (kara_boru_han, erlik_han). Her biri `_v2` adıyla; kimlik başına bir oturum.
+4. **Biyomlar:** her biyom için toprak üreticisi (`otuken_v2.soil_texture_v2` parametreli hale getirilir: katman dizisi, kaya
+   rampaları, kök/kristal/lav ekleri), atlas paleti ve 5-6 paralaks katmanının tamamı; sırayla bozkir, sahmeran, kaf, tamu, yurt.
+5. **Süsler, silahlar, efektler:** decor (dilek ağacı, çıra, kaya...), 48 silah atlası (metal türü özellikle kazanır), vuruş efektleri.
+6. **HD paketleri:** v2 Bengü zaten 1080p'de 1:1; 4K için `export_hd.py` v2 dosyalarını da üretir (manifest'e `_v2` girişleri).
+7. **Geçiş:** her şey v2'de bitince `--stil` varsayılanı v2 olur (Ayarlar'da "Görsel stil" seçeneği), v1 dosyaları bir sürüm daha
+   kalır, sonra `eski-tasarim-v16` etiketiyle arşivlenip silinir.
