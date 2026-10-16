@@ -1563,6 +1563,8 @@ func _perfect_dodge(from: Node) -> void:
 	FX.text(center() + Vector2(0, -44), "KUSURSUZ KAÇIŞ", Color(0.75, 0.95, 1.0), 9)
 	FX.ring(center(), 36, Color(0.7, 0.95, 1.0), 0.3)
 	FX.flash_light(center(), Color(0.7, 0.95, 1.0), 140.0, 1.4, 0.25)
+	if FX.ink():
+		InkFX.flourish(center(), "dodge", 2)
 	for i in 4:
 		FX.ghost(anim.base, Color(0.65, 0.92, 1.0, 0.45), 0.35)
 	if from and is_instance_valid(from) and "center" in from:
@@ -2036,6 +2038,8 @@ func _sample_trail(it: Dictionary, c: Dictionary, k: float) -> void:
 		if _trail == null:
 			return
 		_trail.life = 0.08 + 0.06 * _weight(it)
+		if _trail is InkTrail:  # stil v2: silah sınıfına / savuruşa göre mürekkep fırçası tasarımı
+			(_trail as InkTrail).setup(it, atk, _weight(it))
 	var R := _reach(it)
 	var sw: Dictionary = atk["sw"]
 	var prev_k: float = float(_trail_prev[0]) if _trail_prev.size() > 0 else k
@@ -3539,22 +3543,40 @@ func _update_weapon_visual() -> void:
 	var has_sprite := Data.has_weapon_sprite(it.get("id", ""))
 	weapon.visible = has_sprite and not is_shield
 	shield_spr.visible = has_sprite and is_shield
+	var wsc := 1.0
 	if weapon.visible:
-		weapon.region_rect = Data.weapon_region(it["id"], it["material"])
-		weapon.offset = -Data.weapon_pivot(it["id"])
+		wsc = _apply_wspr(weapon, it)
 		weapon.position = h
 		if it.get("kind", "") == "bow":
 			weapon.rotation = 0.0 if facing > 0 else PI
 			_update_bow(it, h)
 		else:
 			weapon.rotation = bd.angle()
-			weapon.scale = Vector2(clampf(bd.length(), 0.15, 1.0), facing) * Data.wscale()
+			weapon.scale = Vector2(clampf(bd.length(), 0.15, 1.0), facing) * wsc
 	if shield_spr.visible:
-		shield_spr.region_rect = Data.weapon_region(it["id"], it["material"])
-		shield_spr.offset = -Data.weapon_pivot(it["id"])
+		var ssc := _apply_wspr(shield_spr, it)
 		shield_spr.position = h + Vector2(facing * 3, 0)
 		shield_spr.rotation = 0.0
-		shield_spr.scale = Vector2(facing, 1) * Data.wscale()
+		shield_spr.scale = Vector2(facing, 1) * ssc
+
+
+var _wmat_ink: ShaderMaterial
+
+
+func _apply_wspr(spr: Sprite2D, it: Dictionary) -> float:
+	## Silah sprite'ı: doku sayfası, bölge, pivot (Data.weapon_sprite; stil v2'de mürekkep-cel atlas + ink_char
+	## gölgelendiricisi, v1'de piksel atlas + toon). Dönen: sprite ölçeği (1 / doku yoğunluğu).
+	var d: Dictionary = Data.weapon_sprite(String(it["id"]), String(it["material"]))
+	if spr.texture != d["tex"]:
+		spr.texture = d["tex"]
+		if d["linear"]:
+			if _wmat_ink == null:
+				_wmat_ink = ShaderMaterial.new()
+				_wmat_ink.shader = Data.INK_SHADER
+			spr.material = _wmat_ink
+	spr.region_rect = d["region"]
+	spr.offset = -(d["pivot"] as Vector2)
+	return float(d["scale"])
 
 
 func _bow_tips(it: Dictionary) -> Array:
@@ -3563,22 +3585,24 @@ func _bow_tips(it: Dictionary) -> Array:
 	if _bow_tip_cache.has(key):
 		return _bow_tip_cache[key]
 	var out := [Vector2(-2, -16), Vector2(-2, 16)]
-	var img: Image = Data.weapon_image()
+	var wd: Dictionary = Data.weapon_sprite(String(it["id"]), String(it["material"]))
+	var img: Image = Data.weapon_sprite_image(wd)
+	var wsc: float = wd["scale"]
 	if img:
-		var reg := Rect2i(Data.weapon_region(it["id"], it["material"]))
-		var piv := Data.weapon_pivot(it["id"])
+		var reg := Rect2i(wd["region"])
+		var piv: Vector2 = wd["pivot"]
 		var top := Vector2.INF
 		var bot := Vector2.INF
 		# uçlar: kabzanın (pivot) solunda kalan, en üst ve en alt dolu pikseller
 		for y in reg.size.y:
-			for x in range(0, int(piv.x) + 6):
+			for x in range(0, mini(reg.size.x, int(piv.x) + int(6.0 / (wsc * 2.0)))):
 				if img.get_pixel(reg.position.x + x, reg.position.y + y).a > 0.5:
 					if top == Vector2.INF:
 						top = Vector2(x, y)
 					bot = Vector2(x, y)
 					break
 		if top != Vector2.INF:
-			out = [(top - piv + Vector2(0.5, 0.5)) * Data.wscale(), (bot - piv + Vector2(0.5, 0.5)) * Data.wscale()]
+			out = [(top - piv + Vector2(0.5, 0.5)) * wsc, (bot - piv + Vector2(0.5, 0.5)) * wsc]
 	_bow_tip_cache[key] = out
 	return out
 
@@ -3589,7 +3613,7 @@ func _update_bow(it: Dictionary, h: Vector2) -> void:
 	var pull := clampf(aim_t / 0.55, 0.0, 1.0) if aim_t >= 0.0 else 0.0
 	var rk := clampf(bow_rel_t / BOW_REL, 0.0, 1.0) if aim_t < 0.0 else 0.0
 	var flex := 1.0 - 0.1 * pull
-	weapon.scale = Vector2(flex, facing) * Data.wscale()
+	weapon.scale = Vector2(flex, facing) * float(Data.weapon_sprite(String(it["id"]), String(it["material"]))["scale"])
 	weapon.position = h + Vector2(-facing * 2.0 * rk * rk, 0)
 	var tips := _bow_tips(it)
 	var t0: Vector2 = tips[0]
@@ -3780,6 +3804,8 @@ func _parry(sh: Dictionary, from: Node, projectile: Node) -> void:
 	FX.sparks(center() + Vector2(facing * 12, 0), Vector2(facing, -0.5), Color(1.0, 0.95, 0.6), 14, 240.0)
 	FX.flash_light(center() + Vector2(facing * 12, 0), Color(1.0, 0.9, 0.5), 180.0, 2.2, 0.25)
 	FX.anim("arcane_parry", center() + Vector2(facing * 10, 0), 0.0, 1.0, Color(1.0, 0.95, 0.6))
+	if FX.ink():
+		InkFX.flourish(center() + Vector2(facing * 12, 0), "parry", 9)
 	FX.text(center() + Vector2(0, -30), "SAVUŞTURMA", Color(1.0, 0.9, 0.5), 9)
 	vis_scale = Vector2(0.88, 1.1)
 	add_kut(15)

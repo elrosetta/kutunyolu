@@ -37,12 +37,19 @@ func _ready() -> void:
 		var mt: Node = load("res://tools/tests/mekanik_testi.gd").new()
 		mt.set("main", self)
 		add_child(mt)
+	var firca := false
+	for arg in OS.get_cmdline_user_args():
+		firca = firca or String(arg).begins_with("--firca")
+	if firca:  # stil v2 mürekkep fırçası laboratuvarı (tools/tests/firca_testi.gd)
+		var ft: Node = load("res://tools/tests/firca_testi.gd").new()
+		ft.set("main", self)
+		add_child(ft)
 	for arg in OS.get_cmdline_user_args():
 		if String(arg) == "--boss":
 			_build_boss("kara_boru_han")
 		elif String(arg).begins_with("--boss="):
 			_build_boss(String(arg).trim_prefix("--boss="))
-	if auto_test or showcase or _ekran != "" or OS.get_cmdline_user_args().has("--mekanik"):
+	if auto_test or showcase or _ekran != "" or firca or OS.get_cmdline_user_args().has("--mekanik"):
 		hud.mode = "play"
 		get_tree().paused = false
 	else:

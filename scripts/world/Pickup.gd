@@ -54,11 +54,20 @@ func reset_ground() -> void:
 
 func _refresh() -> void:
 	if spr and not item.is_empty() and Data.has_weapon_sprite(item["id"]):
-		spr.region_rect = Data.weapon_region(item["id"], item["material"])
-		spr.offset = -Data.weapon_pivot(item["id"])
-		var cell: Array = Data.weapon_meta["cell"]
+		var wd: Dictionary = Data.weapon_sprite(item["id"], item["material"])  # stil v2: mürekkep-cel atlas
+		if spr.texture != wd["tex"]:
+			spr.texture = wd["tex"]
+			if wd["linear"]:
+				var lm := ShaderMaterial.new()
+				lm.shader = Data.INK_SHADER
+				spr.material = lm
+		spr.scale = Vector2.ONE * float(wd["scale"])
+		spr.region_rect = wd["region"]
+		spr.offset = -(wd["pivot"] as Vector2)
+		# kabzası solda olan silahlar (pivot hücre solunda) yerde ortalanır (v1 kaydırması dünya biriminde korunur)
 		if Data.weapon_pivot(item["id"]).x < 30 * Data.weapon_texel:
-			spr.offset.x += 16.0 - float(cell[0]) / 2.0 + 16.0
+			var cell: Array = Data.weapon_meta["cell"]
+			spr.offset.x += (16.0 - float(cell[0]) / 2.0 + 16.0) * Data.wscale() / float(wd["scale"])
 	if light and not item.is_empty():
 		light.color = Color.from_string(Data.items["rarities"][int(item["rarity"])]["color"], Color.WHITE)
 
