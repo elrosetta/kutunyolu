@@ -763,20 +763,22 @@ kızıl çekirdek, turuncu-kızıl gövde, siyah fırça izleri, zerreler). Yaln
   sırası, A erime gürültüsü), renk paletten. Şekiller: patlama yıldızları, yönlü patlama, kritik damgası, fırça
   dokunuşları, damlalar, ensō, iki kesik izi, yönlü sıçrantı, kıvılcım yıldızı, kuru halka, pençe, yer sıçrantısı.
   `InkFX.hit` (kesik izi savuruş yönünde: taze izin uç yönünden; yönlü yıldız; kademe 1+ fırça dokunuşu; kademe 2
-  arkaya sıçrantı), `stamp` (kritik: siyah damga + kızıl patlama + beyaz-sıcak kesik), `slam` (yer sıçrantısı,
-  GroundSlamFX ile birlikte), `flourish` (savuşturma: ensō + kıvılcım; kusursuz kaçış: ayaz ensō + halka), `ring`,
+  arkaya sıçrantı), `stamp` (kritik: siyah damga + kızıl patlama + beyaz-sıcak kesik), `slam` (yer sıçrantısı;
+  GroundSlamFX v2'de yalnızca sarsıntı/ışık ve yumuşak toz verir, piksel flaş/şok/moloz/çatlak çizmez), `flourish` (savuşturma: ensō + kıvılcım; kusursuz kaçış: ayaz ensō + halka), `ring`,
   `kill`. Açılış ilk karede %62 hazır (hitstop'ta zaman durur; donmuş karede boş kalmaz). Vuruş izden önce işlendiği
   için palet ilk karelerde yakındaki taze izden alınır (`auto_pal`). FX yönlendirmeleri: `slash_sprite` (yay/çizgi/
   halka/x: iz zaten çizer; spark_m / crit_burst / kill_flash → mürekkep; boss arc_* → `InkTrail.auto_arc`),
   `impact_sprite`, `impact`, `slash` (düşman yayı → kendiliğinden süpürülen fırça), `ring`, `ground_slam` (+ mürekkep
   sıçrantısı), darbe animasyonları (`FX.INK_ANIM`: PVFX piksel kareleri yerine mürekkep), parçacık ve kalan
-  animasyonlarda doğrusal süzgeç (yakın kamerada bloklaşmasın). Player'da savuşturma ve kusursuz kaçışa birer satır.
+  animasyonlarda doğrusal süzgeç (yakın kamerada bloklaşmasın). Player'da savuşturma ve kusursuz kaçışa birer satır;
+  `_slash_fx` v2'de erken döner (bitiriş/ağır/özel savuruşların büyük hilali izin katmanlarıyla çizilir).
 * **Silahlar** (`tools/artgen/weapons_ink.py` → `assets/weapons/weapons_v2.json` + `weapons_v2_<n>.png`): geometri
   v1 `weapons_myth.draw_item` ile birebir (aynı kimlik, pivot, dünya boyu); hacim tuvali 2x süper örneklemle
   rasterlanıp mürekkep-cel boyanır: düz taban + tek sert gölge tonu + ışığa bakan pah için açık ton, metal/taşta
   küçük keskin parlama ve bıçak boyunun %62'sinde çift çapraz çizgi roman parıltısı, alttakine düşen gölge,
   dış silüet ışık yanında ince / gölge yanında kalın mürekkep (#15161d), parçaların üst üste geldiği yerde ince iç
-  çizgi; ahşap damarı, sargı, süs, ışıyan damarlar v1 boyamasından. Doku 4 piksel / dünya birimi (v2 kamerası 2x:
+  çizgi; ahşap damarı, sargı, süs, ışıyan damarlar v1 boyamasından; kılıç bıçaklarının kökünde kazınmış koçboynuzu
+  süsü (koyu oyuk + altında ışık çizgisi). Doku 4 piksel / dünya birimi (v2 kamerası 2x:
   1080p'de 1:1). Eşya başına 11 malzemeye ortak sıkı kırpma, raf paketleme, 4096 genişlikte sayfalar (şu an tek
   sayfa 4096x1920; 4096x8192 dolunca yeni sayfa). `Data.weapon_sprite(kimlik, malzeme)` → {tex, region, pivot,
   scale, linear}: Player kol iskeleti (`_apply_wspr`, ink_char gölgelendiricisi), Projectile, Pickup kullanır;
