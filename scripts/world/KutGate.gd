@@ -7,6 +7,9 @@ var _t := 0.0
 var _ink := false
 var _swirls: Array = []
 var _front: Sprite2D
+## v2: false ise yalnızca eşik ve girdap (yurtta taç kapı kemeri zaten çerçeve); portal_scale girdap boyu
+var frame := true
+var portal_scale := 1.0
 
 
 func _ready() -> void:
@@ -15,6 +18,7 @@ func _ready() -> void:
 		_ink = true
 		var back := SusV2.decor_sprite("kut_kapi_arka", false)
 		if back:
+			back.scale *= portal_scale
 			add_child(back)
 		for i in 2:
 			var sw := SusV2.decor_sprite("kut_kapi_girdap", false)
@@ -24,13 +28,14 @@ func _ready() -> void:
 			sw.scale *= 1.0 if i == 0 else 0.72
 			sw.self_modulate = Color(0.7, 1.4, 1.4, 0.85) if i == 0 else Color(1.0, 1.6, 1.5, 0.7)
 			var holder := Node2D.new()
-			holder.position = Vector2(0, -36)
-			holder.scale = Vector2(0.86, 1.3)
+			holder.position = Vector2(0, -36 * portal_scale)
+			holder.scale = Vector2(0.86, 1.3) * portal_scale
 			add_child(holder)
 			holder.add_child(sw)
 			_swirls.append(sw)
-		_front = SusV2.decor_sprite("kut_kapi", true, Color(1.5, 1.6, 1.6))
-		add_child(_front)
+		if frame:
+			_front = SusV2.decor_sprite("kut_kapi", true, Color(1.5, 1.6, 1.6))
+			add_child(_front)
 
 
 func _process(delta: float) -> void:

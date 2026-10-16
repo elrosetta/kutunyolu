@@ -727,7 +727,7 @@ bunun üstüne çarpılır): ekranda 480x270 dünya birimi, Bengü 1080p'de ~225
 hızlı düşüşte aşağı bakış (54 birim), Camera2D konum yumuşatması 6 + sınır yumuşatması, ışınlanmada (>220 birim) anında
 oturur. **Boss arenası:** boss ve oyuncu (+ boss boyu) sığsın diye yakınlık `fit` ile en çok 0,62'ye (taban x0,62 = 1,24)
 düşer, merkez ikisinin arasına kayar ama oyuncu ekranın iç yarısında kalır; boss en geniş çerçeveye bile sığmayacak kadar
-uzaktaysa normal yakın kamera. Yurt v2 sanatı olmadığından v1 kamerasıyla kalır.
+uzaktaysa normal yakın kamera. Yurt v2'de kendi mürekkep sanatıyla 1,6 yakınlıkta (data/yurt_v2.json).
 Paralaks ve ön plan kayması birikimli (`_scroll += Δx · yakınlık · fit`): yakınlık değişince katmanlar sıçramaz; sabit
 yakınlıkta eski formülle aynı (v1 birebir).
 **Doku yoğunluğu (v15):** dünya uzayı (zemin atlası 96 px hücre, toprak 2048², çayır 1024², süsler, kule parçaları)
@@ -892,6 +892,52 @@ kızıl çekirdek, turuncu-kızıl gövde, siyah fırça izleri, zerreler). Yaln
 * **Test:** `-- --stil=v2 --firca[=silah,silah:malzeme,...] [--firca_bos]` (`tools/tests/firca_testi.gd`: her silahta
   3'lü zincir, basılı ağır saldırı; sonunda savuşturma ve kusursuz kaçış; "[firca] ... kare=N ekran=x,y" satırları).
   Çekimler ve referans yan yana karşılaştırmaları `rec_v15/firca/` (depo dışı).
+
+### Stil v2 mürekkep: Ulu Kayın Yurdu, ortak süsler, toplanabilirler, mermiler, tehlikeler, efektler
+
+Piksel kalan dünya nesnelerinin mürekkep-cel karşılıkları. Hepsi yordamsal (skia-python + numpy), `--stil=v2` dışında
+v1 çizimi aynen durur. Üretim: `cd tools/artgen && python export_sus.py [--yurt [ad...]|--yurt-bg|--suslar|--atlas|--tehlike|--efekt]`.
+
+* **Ortak takım** `tools/artgen/inkprop.py`: `Prop` (dünya biriminde InkCanvas, `TEX` = 4 doku pikseli / dünya birimi,
+  köken ayak noktası), gece malzemeleri (ak keçe, kilim kızılı, lacivert, firuze çini, altın, tunç, demir, kayın kabuğu...),
+  alev (`flame`: ışıma katmanına da yazar), koçboynuzu (`ram_motif`), püskül, ot tutamı. Süs meta biçimi `decor_v2.json` ile
+  aynı ama ayrı dosyada: `assets/decor/sus_v2.json` (`Level._decor_v2` ikisini birleştirir; biyom süsleriyle dosya çakışmaz).
+* **Ulu Kayın Yurdu** (`yurt_ink.py`, adlar v1 + `_v2`, köken/dünya boyu v1 ile uyumlu, yerleşim `_place_hub` ortak):
+  han otağı (silindirik duvar gölgesi + saçak, kavisli kilim kuşakları, kolan ipleri, altın kaburgalar, koçboynuzlu kızıl kapı,
+  kapı aralığından sızan ışık, tündükte tuğ), süslü yurt, dilek kayını (çaputlar rüzgârda, ışıyan kut yaprakları), kuş başlıklı
+  Umay heykelli sunak, ışıyan çağlayanlı pınar, demirhane (kor ağızlı taş ocak, saçak, alet askısı, silah sehpası, körük, fıçı),
+  örs ve kızgın kılıç, bürküt tüneği, eğerli doru at, Ozan'ın kilimi + minderler + kopuz, yer kilimleri, taş yol, seki,
+  mangal / kandil / fener / kazan (alevler `_e` ışıma, titrer), kızıl ve gök tuğlar, balballar, Orhun runlu kurgan, güneş
+  kurslu taç kapı. `Level._hub_prop` v2'de `_hub_prop_ink` (env_ink, doğrusal + mipmap, ışıma nefes alır); bayrakçık dizileri
+  kenar yumuşatmalı, mürekkep konturlu, alt uçları cel gölgeli.
+* **Yurt paralaksı** (`yurt_ink_bg.py`, `data/yurt_v2.json`): 0 gök (çivit, kuzey ışığı perdeleri, samanyolu, Ülker, Demir
+  Kazık, mürekkep konturlu hilal), 1 karlı sıradağlar ve ardında göğü tutan Ulu Kayın (ak gövde, dallar, yaprak kütleleri
+  kuzey ışığıyla kenarlı, ışıyan kut yaprakları), 2 uzak oba (kapısı yanan yurtlar, duman, tuğ, kamp ateşi, at sürüsü),
+  3 huş korusu + fenerli çit + balballar, 4 sürüklenen gece sisi. `yurt_v2.json` yurdun art değerlerini ezer (ışık, derecelendirme,
+  ön plan otları) ve **kamerayı v2'ye alır**: `camera_zoom` 1,6 (yurt vitrin: biraz daha geniş kadraj; CameraV2).
+* **Ortak süsler** (`sus_ink.py` DECOR): Tengri sunağı (lütuf odası `_decor("sunak")`), Kut Kapısı (`KutGate.gd`: kemer +
+  karanlık eşik + ters dönen iki kut girdabı; v2'de piksel `rift_portal` oynamaz; yurtta yalnızca eşik + girdap, çerçeve taç
+  kapı), Davul Totemi (`Totem.gd`: gövde ezilip zıplar, tüyler salınır), ruh taşı kapağı (`Alem`: mor damarlı kara taş,
+  Erlik mührü nabız gibi atar, yeraltında saydamlaşır), Ülgen'in altın bulutları (`Alem._CloudVis`, 4 çeşit).
+* **Atlas** (`assets/fx/ink/sus_v2.png` + `_e` + json; `scripts/world/SusV2.gd`): altın sikke (döner), kut damlası, şifa otu,
+  tılsım (kaide + salınan muska), parşömen, eşya kaidesi, don ruhu, ruh kuşu (iki kare), oklar (6 tür, serbest açıyla döner;
+  saplanan ok düşmanda kalır), sapan taşı, kaya, buz, ateş topu, spor, lanet, tüy, hayalet kartal, yel dalgası, yer dalgası,
+  kök. `Pickup` / `Projectile` v2'de sprite kullanır, `_draw` yalnızca nadirlik zerrelerini ve kenar yumuşatmalı izi çizer.
+* **Tehlike karoları** `assets/tiles/hazards_v2.png` (+ `_e`, 96 px hücre, 2 kare): diken, zehir, lav, buz; biyomdan bağımsız,
+  `Level._build_hazards` v2'de doğrusal süzgeçli env_ink ile döşer.
+* **Efektler** (`sus_fx.py`, `assets/fx/anim/<ad>_v2.png` + `anim_v2.json`): smoke_puff, radiant_heal, hush_lock,
+  focus_charge, splash_crown, landing_dust; kare sayısı / hız / pivot v1 ile aynı, hücre 384 (texel 4). `AnimFX` v2'de bunları
+  seçer (`tex_k`), `FX.anim` ölçeği çarpar. Kök dikenleri, alev gölü, yer uyarısı v2'de kenar yumuşatmalı mürekkep çizimi;
+  darbe karesi siluetleri doğrusal süzgeçli.
+* **Gizli oda ganimeti (düzeltme, iki stilde):** eşya, şifa ve altın kapağın (cover, z 6) altında (z 5) çizilir, bu dünyadan
+  görünmez ve ışığı yanmaz; yalnızca yeraltındayken ya da odanın içindeyken görünür ve alınır (`Alem.loot_open`, altın
+  mıknatısı ve `Level.nearest_item` buna uyar).
+* **Test:** `-- --stil=v2 --yurt --sus=yurt --cikti=<klasör>` (yurdun 9 durağı), `-- --stil=v2 --sus=dunya --cikti=<klasör>`
+  (toplanabilirler, mermiler, Kut Kapısı, bulut, ruh taşı, oda; "kapak üstü altın farkı=0" kontrolü). `tools/tests/sus_testi.gd`.
+  Çekimler `rec_v16/sus/` (depo dışı).
+* **Kalanlar:** NPC'ler (yaratık sırası), ceset/erime, hasar sayıları (arayüz) bu bölümün dışında.
+
+
 
 ### Yaygınlaştırma planı (onay sonrası)
 

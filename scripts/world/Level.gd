@@ -520,6 +520,9 @@ func _place_hub() -> void:
 	exit_pos = Vector2(ex * TS + TS / 2.0, surface_y(ex) * TS)
 	var gate := KutGate.new()
 	gate.position = exit_pos
+	if ink() and not _decor_v2("yh_kapi").is_empty():
+		gate.frame = false  # v2: taç kapı kemeri çerçeve; içinde yalnızca eşik ve kut girdabı
+		gate.portal_scale = 1.45
 	decor_root.add_child(gate)
 	var portal := FX.anim("rift_portal", exit_pos + Vector2(0, -34), 0.0, 1.0, Color(0.6, 1.0, 1.0, 0.85))
 	if portal:
