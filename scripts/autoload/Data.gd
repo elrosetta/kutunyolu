@@ -79,10 +79,9 @@ func weapon_image() -> Image:
 	return _weapon_img
 
 
-## Görsel stil (deneme): -- --stil=v2 ile bir varlığın "_v2" adlı sürümü varsa o yüklenir, yoksa v1 kalır
-## (bengu -> bengu_v2, bengu_kol -> bengu_kol_v2, otuken karoları -> otuken_v2, otuken_3_mid -> otuken_3_mid_v2).
-## v2 sanatı: tools/artgen/style_v2.py, export_v2.py. v1 dosyaları olduğu gibi durur.
-var stil := "v1"
+## Görsel stil: varsayılan v2 (elle çizilmiş mürekkep + cel). Bir varlığın "_v2" adlı sürümü varsa o yüklenir, yoksa v1 kalır
+## (bengu -> bengu_v2, otuken karoları -> otuken_v2 ...). Eski piksel görünüm: -- --stil=v1. v1 dosyaları olduğu gibi durur.
+var stil := "v2"
 
 
 func stil_id(id: String, probe: String) -> String:

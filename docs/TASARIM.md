@@ -1315,3 +1315,7 @@ Animasyon adları, kare sayıları, fps, döngü bayrakları ve çapa adları v1
 7. **Geçiş:** her şey v2'de bitince `--stil` varsayılanı v2 olur (Ayarlar'da "Görsel stil" seçeneği), v1 dosyaları bir sürüm daha
    kalır, sonra `eski-tasarim-v16` etiketiyle arşivlenip silinir.
 
+
+## Varsayılan görsel stil: v2 (mürekkep)
+
+Oyun artık varsayılan olarak v2 mürekkep + cel tarzında açılır (`Data.stil = "v2"`). Eski piksel görünüm: `-- --stil=v1`.
