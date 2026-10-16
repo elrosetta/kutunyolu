@@ -24,6 +24,39 @@ static var _dot_tex: Texture2D
 static var _tex_cache: Dictionary = {}
 
 
+## v2'de mürekkebe çevrilen darbe animasyonları (PVFX piksel kareleri) -> InkFX.hit türü
+const INK_ANIM := {"crescent_slash": "cut", "resonant_break": "blunt", "mass_release": "blunt", "earth_rupture": "blunt",
+	"electric_impact": "magic", "spectral_bloom": "magic", "void_implosion": "magic", "arcane_parry": "magic",
+	"frost_nova": "magic", "acid_splash": "magic", "ember_jet": "magic", "warm_explosion": "magic", "leaf_gust": "magic",
+	"solar_shrapnel": "pierce", "tether_catch": "magic"}
+
+
+static func ink() -> bool:
+	## Stil v2 mürekkep efektleri (InkTrail / InkFX); v1 piksel efektleri değişmez.
+	return Data.stil == "v2"
+
+
+static func _ink_slash_sprite(n: String, pos: Vector2, rot: float, scale_v: Vector2, col: Color, flip_v: bool) -> void:
+	## v2: büyük piksel kesik sprite'ları yerine mürekkep. Oyuncu savuruşlarının yayı/çizgisi/halkası mürekkep izinin
+	## katmanlarıyla zaten çizilir (InkTrail); burada yalnızca vuruş işaretleri ve başkalarının (boss) yayları kalır.
+	var p := InkFX.pal_from_color(col)
+	match n:
+		"spark_m":
+			InkFX.hit("spark", pos, Vector2.from_angle(rot), p, 0, 0.9)
+		"crit_burst":
+			InkFX.stamp(pos)
+		"kill_flash":
+			InkFX.kill(pos, scale_v.x > 1.2)
+		"arc_heavy", "arc", "arc_thin":
+			# oyuncu dışı (boss) yay: kendiliğinden süpürülen fırça hilali
+			if InkTrail.active == null or not is_instance_valid(InkTrail.active) or InkTrail.active.tip_dir() == Vector2.ZERO:
+				var r := 0.4 * float(SlashFX.meta()[n]["w"]) * absf(scale_v.x)
+				var f := 1 if scale_v.x >= 0.0 else -1
+				var a0 := -2.3 + rot * f
+				var a1 := 0.9 + rot * f
+				InkTrail.auto_arc(pos, r, a1 if flip_v else a0, a0 if flip_v else a1, 0.09, p, f, n == "arc_heavy")
+
+
 static func tex(n: String) -> Texture2D:
 	## Kenney Particle Pack (CC0) dokuları: assets/fx/k_<ad>.png (64x64)
 	if not _tex_cache.has(n):
@@ -35,8 +68,15 @@ static func anim(n: String, pos: Vector2, rot := 0.0, scale_v := 1.0, col := Col
 	## PVFX Foundry (CC0) kare animasyonu oynat; bittiğinde kendini siler.
 	if root == null or not AnimFX.has(n):
 		return null
+	if ink() and INK_ANIM.has(n):
+		# v2: piksel darbe animasyonları yerine mürekkep. Oyuncunun taze savuruşunda kesik/sıçrantı zaten var.
+		if not InkFX._near_player_swing(pos) and n != "crescent_slash":
+			InkFX.hit(INK_ANIM[n], pos, Vector2.from_angle(rot) * (-1.0 if flip_h else 1.0), InkFX.pal_from_color(col), 1, clampf(scale_v * 1.4, 0.6, 2.0))
+		return null
 	var a := AnimFX.new()
 	a.setup(n, additive)
+	if ink():
+		a.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
 	a.position = pos
 	a.rotation = rot
 	a.scale = Vector2(scale_v, scale_v)
@@ -127,6 +167,8 @@ static func _particles(pos: Vector2, col: Color, amount: int, life: float, addit
 	g.set_color(1, Color(1, 1, 1, 0))
 	p.color_ramp = g
 	p.z_index = z
+	if ink():
+		p.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR  # v2 yakın kamera: piksel parçacık dokusu bloklaşmasın
 	var m := CanvasItemMaterial.new()
 	m.light_mode = CanvasItemMaterial.LIGHT_MODE_UNSHADED
 	if additive:
@@ -348,6 +390,9 @@ static func slash_sprite(n: String, pos: Vector2, rot := 0.0, scale_v := Vector2
 	## Prosedürel kesik sprite'ı (arc / arc_thin / arc_heavy / arc_short / line / ring / x / impact_*).
 	if root == null or not SlashFX.has(n):
 		return null
+	if ink():
+		_ink_slash_sprite(n, pos, rot, scale_v, col, flip_v)
+		return null
 	var s := SlashFX.new()
 	s.setup(n, true, pivot)
 	s.position = pos
@@ -365,6 +410,9 @@ static func slash_sprite(n: String, pos: Vector2, rot := 0.0, scale_v := Vector2
 
 static func impact_sprite(kind: String, pos: Vector2, dir: Vector2, col: Color, size := 1.0) -> void:
 	## Silah sınıfına göre darbe sprite'ı: cut (kılıç), blunt (çekiç), pierce (mızrak), magic (ruh/büyü)
+	if ink():
+		InkFX.hit(kind, pos, dir, InkFX.pal_from_color(col), 2 if size >= 1.25 else 1, clampf(size, 0.6, 1.8))
+		return
 	var rot := dir.angle() if kind != "blunt" and dir.length() > 0.01 else 0.0
 	slash_sprite("impact_" + kind, pos, rot, Vector2(size, size), col.lerp(Color.WHITE, 0.3), false, Vector2(-1, -1), null, 30.0)
 
@@ -394,6 +442,9 @@ static func decal(n: String, pos: Vector2, rot := 0.0, life := 9.0, scale_v := 1
 
 static func impact(pos: Vector2, dir: Vector2, col: Color, size := 1.0) -> void:
 	if root == null:
+		return
+	if ink():
+		InkFX.hit("spark", pos, dir, InkFX.pal_from_color(col), 0 if size < 1.2 else 1, clampf(size, 0.5, 1.6))
 		return
 	var s := ImpactFX.new()
 	s.position = pos
@@ -430,6 +481,11 @@ static func ghost(src: Sprite2D, col: Color, life := 0.25, z := 1) -> void:
 static func trail(col: Color, width := 1.0) -> WeaponTrail:
 	if root == null:
 		return null
+	if ink():
+		var it := InkTrail.acquire(root)
+		it.col = col
+		it.width_mul = width
+		return it
 	var t := WeaponTrail.new()
 	t.col = col
 	t.width_mul = width
@@ -480,6 +536,9 @@ static func shock_line(pos: Vector2, half_w: float, col := Color(0.6, 0.55, 0.5,
 static func slash(pos: Vector2, facing: int, a0: float, a1: float, radius: float, width: float, col: Color, life := 0.14) -> void:
 	if root == null:
 		return
+	if ink():
+		InkTrail.auto_arc(pos, radius, a0, a1, life * 0.6, InkFX.pal_from_color(col), facing, width > 9.0)
+		return
 	var s := SlashArc.new()
 	s.position = pos
 	s.facing = facing
@@ -495,6 +554,9 @@ static func slash(pos: Vector2, facing: int, a0: float, a1: float, radius: float
 static func ring(pos: Vector2, radius: float, col: Color, life := 0.3, aspect := 1.0) -> void:
 	## aspect < 1: yere yatık (perspektifli) halka; yer şoklarında kullanılır.
 	if root == null:
+		return
+	if ink():
+		InkFX.ring(pos, radius, InkFX.pal_from_color(col), life, aspect)
 		return
 	var r := RingFX.new()
 	r.position = pos
@@ -611,6 +673,8 @@ static func ground_slam(pos: Vector2, facing := 1, power := 1.0, col := Color(1.
 	## juice: kısa aşağı yönlü sarsıntı + itiş + titreşim + yerel ışık (ses çağırana aittir).
 	if root == null:
 		return null
+	if ink():
+		InkFX.slam(pos, facing, power, InkFX.pal_from_color(col) if col.s >= 0.45 else InkFX.player_pal)
 	var g := GroundSlamFX.new()
 	g.position = pos
 	g.facing = 1 if facing >= 0 else -1
@@ -619,6 +683,7 @@ static func ground_slam(pos: Vector2, facing := 1, power := 1.0, col := Color(1.
 	g.metal = metal
 	g.fire = fire
 	g.juice = juice
+	g.ink = ink()
 	root.add_child(g)
 	return g
 

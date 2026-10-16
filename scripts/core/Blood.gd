@@ -6,6 +6,9 @@ extends Node2D
 ##  - ölümde et parçaları saçılır; uçarken arkalarında kan bırakır, yere düşünce sekip yapışır.
 ## Lekeler bölüm boyunca kalır (kalıcı; çok birikince en eskileri silinir).
 ## Pikseller 2/3 dünya pikseli: 1080p'de 2x2 ekran pikseli (zemin dokularıyla aynı ızgara).
+## Stil v2 (`ink`): aynı fizik, mürekkep çizimi (shaders/ink_blood.gdshader): damla = hız yönünde gözyaşı fırça
+## zerresi, leke = koyu kenarlı düzensiz mürekkep lekesi + uydu noktalar, duvar akıntısı = incelen fırça izi,
+## et parçası = mürekkep konturlu parça. Her katman tek üçgen dizisi (tek çizim çağrısı).
 
 const PX := 2.0 / 3.0
 const MAX_DROPS := 900
@@ -24,6 +27,8 @@ var _drips: Array = []  # [pos: Vector2, speed: float, life: float, col: Color]
 # et parçaları
 var _gibs: Array = []  # {p, v, col, s, rot, w, bounces, trail}
 var stains: _Stains
+static var ink := false
+const INK_SHADER: Shader = preload("res://shaders/ink_blood.gdshader")
 
 
 static func sys() -> Blood:
@@ -37,8 +42,16 @@ static func sys() -> Blood:
 	var bl := Blood.new()
 	bl.level = lv
 	bl.z_index = 24
+	ink = Data.stil == "v2"
+	var im: ShaderMaterial = null
+	if ink:
+		im = ShaderMaterial.new()
+		im.shader = INK_SHADER
+		bl.material = im
 	lv.add_child(bl)
 	bl.stains = _Stains.new()
+	bl.stains.ink = ink
+	bl.stains.material = im
 	bl.stains.z_index = 1
 	lv.add_child(bl.stains)
 	lv.set_meta("blood", bl)
@@ -153,7 +166,7 @@ func _physics_process(delta: float) -> void:
 				var wp := Vector2(wx if v.x > 0.0 else wx, np.y)
 				stains.add(wp, _c[i], 1, false)
 				if randf() < 0.3:
-					_drips.append([wp, randf_range(6.0, 16.0), randf_range(0.6, 2.2), _c[i]])
+					_drips.append([wp, randf_range(6.0, 16.0), randf_range(0.6, 2.2), _c[i], stains.add_run(wp, _c[i]) if ink else null])
 		_life[i] -= delta
 		if hit or _life[i] <= 0.0 or np.y > level.H * TS + 50.0:
 			_remove(i)
@@ -169,7 +182,10 @@ func _physics_process(delta: float) -> void:
 		var nw := old + Vector2(0, float(dr[1]) * delta)
 		dr[1] = maxf(2.0, float(dr[1]) * (1.0 - 0.6 * delta))
 		dr[2] = float(dr[2]) - delta
-		if int(old.y / PX) != int(nw.y / PX):
+		if ink:
+			if dr[4] != null:
+				stains.grow_run(dr[4], nw.y)
+		elif int(old.y / PX) != int(nw.y / PX):
 			stains.add(nw, (dr[3] as Color).darkened(0.1), 1, false)
 		dr[0] = nw
 		if float(dr[2]) <= 0.0 or _cell_at(nw + Vector2(0, 2)) == 1 and _cell_at(nw + Vector2(2, 0)) != 1 and _cell_at(nw - Vector2(2, 0)) != 1:
@@ -232,7 +248,32 @@ func _remove(i: int) -> void:
 	_sz.resize(last)
 
 
+func _ink_draw() -> void:
+	var pts := PackedVector2Array()
+	var uvs := PackedVector2Array()
+	var cols := PackedColorArray()
+	var idx := PackedInt32Array()
+	for i in _p.size():
+		var p := _p[i]
+		var v := _v[i]
+		var sp := v.length()
+		var d := v / sp if sp > 1.0 else Vector2.DOWN
+		var w := PX * _sz[i] * 0.85
+		var L := w * (1.5 + minf(sp, 400.0) * 0.008)
+		_Stains.quad(pts, uvs, cols, idx, p + d * L * 0.25, d * L, d.orthogonal() * w, _c[i], i % 64, 0)
+	for g in _gibs:
+		var n: int = g["s"]
+		var sz := float(n) * PX * 1.7
+		var ax := Vector2.from_angle(float(g["rot"]))
+		_Stains.quad(pts, uvs, cols, idx, g["p"], ax * sz, ax.orthogonal() * sz * 0.8, g["col"], int(absf(float(g["w"])) * 7.0) % 64, 3)
+	if not idx.is_empty():
+		RenderingServer.canvas_item_add_triangle_array(get_canvas_item(), idx, pts, cols, uvs)
+
+
 func _draw() -> void:
+	if ink:
+		_ink_draw()
+		return
 	for i in _p.size():
 		var p := _p[i]
 		var v := _v[i]
@@ -275,8 +316,73 @@ class _Stains:
 	var cols := PackedColorArray()
 	var _dirty := false
 	var _age_t := 0.0
+	# stil v2 mürekkep lekeleri: biçim başına bir dörtgen [merkez, boy, renk, tohum, tür]
+	var ink := false
+	const MAX_INK := 1600
+	var _ik: Array = []
+	var _runs: Array = []  # duvar akıntıları: [üst, alt_y, renk, tohum, genişlik]
+
+	static func quad(pts: PackedVector2Array, uvs: PackedVector2Array, cols: PackedColorArray, idx: PackedInt32Array, c: Vector2, ax: Vector2, ay: Vector2, col: Color, seed: int, kind: int) -> void:
+		## c merkez; ax: u ekseni (tam uzunluk), ay: v ekseni (tam uzunluk). UV'de tohum ve tür kodlanır.
+		var st := pts.size()
+		var ox := float(seed) * 2.0
+		var oy := float(kind) * 2.0
+		pts.append(c - ax * 0.5 - ay * 0.5)
+		pts.append(c + ax * 0.5 - ay * 0.5)
+		pts.append(c - ax * 0.5 + ay * 0.5)
+		pts.append(c + ax * 0.5 + ay * 0.5)
+		uvs.append(Vector2(ox, oy))
+		uvs.append(Vector2(ox + 1.0, oy))
+		uvs.append(Vector2(ox, oy + 1.0))
+		uvs.append(Vector2(ox + 1.0, oy + 1.0))
+		for k in 4:
+			cols.append(col)
+		idx.append_array([st, st + 1, st + 2, st + 1, st + 3, st + 2])
+
+	func _ink_add(c: Vector2, size: Vector2, col: Color, kind: int) -> void:
+		_ik.append([c, size, col, randi() % 64, kind])
+		if _ik.size() > MAX_INK:
+			_ik = _ik.slice(_ik.size() - MAX_INK + 200)
+		_dirty = true
+
+	func add_run(p: Vector2, col: Color) -> Array:
+		var r := [p, p.y, col.darkened(0.08), randi() % 64, randf_range(0.9, 1.6)]
+		_runs.append(r)
+		if _runs.size() > 260:
+			_runs = _runs.slice(60)
+		_dirty = true
+		return r
+
+	func grow_run(r: Array, y: float) -> void:
+		if y > float(r[1]) + 0.3:
+			r[1] = y
+			_dirty = true
 
 	func add(p: Vector2, col: Color, spread: int, surface: bool) -> void:
+		if ink:
+			var ci := col.darkened(0.06)
+			if surface:
+				# yakındaki taze lekeye düşen damla onu büyütür: zemin kenarında ince kırmızı çizgi yerine
+				# seyrek, iri, düzensiz mürekkep lekeleri
+				var sy := p.y - PX * 0.5
+				for k in range(_ik.size() - 1, maxi(-1, _ik.size() - 48), -1):
+					var e: Array = _ik[k]
+					var ec: Vector2 = e[0]
+					var es: Vector2 = e[1]
+					if int(e[4]) == 1 and absf(ec.y + es.y * 0.18 - sy) < 1.2 and absf(ec.x - p.x) < es.x * 0.5 + 1.5:
+						var nw := minf(es.x + float(spread) * 0.45 + 0.6, 15.0)
+						var nh := clampf(nw * 0.4, 1.8, 4.2)
+						e[1] = Vector2(nw, nh)
+						e[0] = Vector2(lerpf(ec.x, p.x, 0.2), sy - nh * 0.18)
+						_dirty = true
+						return
+				var w := float(spread) * 1.2 + randf_range(2.2, 3.4)
+				var h := clampf(w * 0.4, 1.6, 3.6)
+				_ink_add(Vector2(p.x, sy - h * 0.18), Vector2(w, h), ci, 1)
+			else:
+				var r := randf_range(1.1, 1.9)
+				_ink_add(p, Vector2(r, r * randf_range(0.9, 1.3)), ci, 1)
+			return
 		var base := Vector2(floorf(p.x / PX) * PX, floorf(p.y / PX) * PX)
 		var c := col.darkened(0.1)
 		if not surface:
@@ -311,6 +417,10 @@ class _Stains:
 		_dirty = true
 
 	func add_chunk(p: Vector2, col: Color, n: int) -> void:
+		if ink:
+			var s := float(n) * PX * 1.7
+			_ink_add(p, Vector2(s, s * 0.7), col, 3)
+			return
 		var base := Vector2(floorf(p.x / PX) * PX, floorf(p.y / PX) * PX)
 		for yy in n:
 			for xx in n + 1:
@@ -336,12 +446,31 @@ class _Stains:
 				var c := cols[i]
 				if c.v > 0.12:
 					cols[i] = c.darkened(0.035)
+			for e in _ik:
+				if (e[2] as Color).v > 0.12:
+					e[2] = (e[2] as Color).darkened(0.035)
 			_dirty = true
 		if _dirty:
 			_dirty = false
 			queue_redraw()
 
 	func _draw() -> void:
+		if ink:
+			var pa := PackedVector2Array()
+			var ua := PackedVector2Array()
+			var ca := PackedColorArray()
+			var ia := PackedInt32Array()
+			for e in _ik:
+				var sz: Vector2 = e[1]
+				quad(pa, ua, ca, ia, e[0], Vector2(sz.x, 0), Vector2(0, sz.y), e[2], e[3], e[4])
+			for r in _runs:
+				var top: Vector2 = r[0]
+				var L := float(r[1]) - top.y + 1.2
+				var w := float(r[4])
+				quad(pa, ua, ca, ia, top + Vector2(0, L * 0.5 - 0.4), Vector2(w, 0), Vector2(0, L), r[2], r[3], 2)
+			if not ia.is_empty():
+				RenderingServer.canvas_item_add_triangle_array(get_canvas_item(), ia, pa, ca, ua)
+			return
 		var s := Vector2(PX, PX)
 		for i in pts.size():
 			draw_rect(Rect2(pts[i], s), cols[i])

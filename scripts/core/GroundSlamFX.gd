@@ -21,6 +21,7 @@ var metal := true
 var fire := false
 var juice := true
 var life := 1.3
+var ink := false   # stil v2: piksel flaş/şok/moloz/çatlak çizilmez; görsel InkFX.slam fırça sıçrantısı + yumuşak toz
 
 const GAP := 9999.0
 const T_FLASH := 0.034
@@ -102,6 +103,14 @@ func _ready() -> void:
 	_W = int(_R) + 48
 	_palette()
 	_sample_ground()
+	if ink:
+		# v2 yakın kamerada 1 px dünya ızgarası 4 ekran pikseline büyür: piksel katmanlar yerine mürekkep
+		visible = false
+		for side: int in [-1, 1]:
+			FX.dust(global_position + Vector2(side * 6.0, -2.0), Vector2(side, -0.45), 3 + int(2.0 * power), 0.3 + 0.12 * power)
+		if juice:
+			_juice()
+		return
 	_build()
 	_make_crack()
 	if juice:

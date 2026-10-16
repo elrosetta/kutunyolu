@@ -111,6 +111,7 @@ func _ready() -> void:
 	tile_meta = load_json("res://assets/tiles/otuken.json")
 	weapon_tex = canvas_tex("res://assets/weapons/weapons.png", "res://assets/weapons/weapons_n.png")
 	weapon_glow = load("res://assets/weapons/weapons_e.png")
+	_load_weapon_stil()
 	# piksel yazı tipi (tools/artgen/pixfont.py): 13 = 1x, 26 = 2x, 39 = 3x; yalnızca tam sayı ölçek
 	pixel_font = load("res://assets/ui/pixel.fnt")
 	if pixel_font:
@@ -251,6 +252,65 @@ func weapon_region(item_id: String, mat_id: String) -> Rect2:
 func weapon_pivot(item_id: String) -> Vector2:
 	var p: Array = weapon_meta["items"][item_id]["pivot"]
 	return Vector2(p[0], p[1])
+
+
+## Stil v2 mürekkep-cel silah atlası (tools/artgen/weapons_ink.py): weapons_<stil>.json + sayfalar
+## (weapons_<stil>_<n>.png). Eşya başına sıkı kırpma, pivot kırpma içinde; doğrusal süzgeç + mipmap.
+## Arayüz simgeleri (PixUI) v1 piksel atlasında kalır; dünyadaki silah sprite'ları weapon_sprite() kullanır.
+var weapon_stil: Dictionary = {}
+var _wst_pages: Array = []
+var _wst_imgs: Dictionary = {}
+var _wspr_cache: Dictionary = {}
+
+
+func _load_weapon_stil() -> void:
+	if stil == "v1":
+		return
+	var jp := "res://assets/weapons/weapons_%s.json" % stil
+	if not FileAccess.file_exists(jp):
+		return
+	weapon_stil = load_json(jp)
+	for pg in weapon_stil.get("pages", []):
+		var ct := CanvasTexture.new()
+		ct.diffuse_texture = load("res://assets/weapons/%s" % pg)
+		ct.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
+		_wst_pages.append(ct)
+
+
+func weapon_sprite(item_id: String, mat_id: String) -> Dictionary:
+	## Dünyadaki silah sprite'ı: {tex, region, pivot, scale, linear, page}. Stil atlasında varsa o (v2), yoksa v1.
+	var key := item_id + "/" + mat_id
+	if _wspr_cache.has(key):
+		return _wspr_cache[key]
+	var d := {}
+	var its: Dictionary = weapon_stil.get("items", {})
+	if its.has(item_id) and not _wst_pages.is_empty():
+		var e: Dictionary = its[item_id]
+		var ms: Dictionary = e["m"]
+		var m: Array = ms.get(mat_id, ms.values()[0])
+		var sz: Array = e["size"]
+		var pv: Array = e["pivot"]
+		d = {"tex": _wst_pages[int(m[0])], "region": Rect2(float(m[1]), float(m[2]), float(sz[0]), float(sz[1])),
+			"pivot": Vector2(float(pv[0]), float(pv[1])), "scale": 1.0 / float(weapon_stil.get("texel", 4.0)),
+			"linear": true, "page": int(m[0])}
+	else:
+		d = {"tex": weapon_tex, "region": weapon_region(item_id, mat_id), "pivot": weapon_pivot(item_id), "scale": wscale(),
+			"linear": false, "page": -1}
+	_wspr_cache[key] = d
+	return d
+
+
+func weapon_sprite_image(d: Dictionary) -> Image:
+	## weapon_sprite() sözlüğünün doku görüntüsü (yay uçları gibi piksel taramaları için)
+	var p := int(d.get("page", -1))
+	if p < 0:
+		return weapon_image()
+	if not _wst_imgs.has(p):
+		var img: Image = (_wst_pages[p] as CanvasTexture).diffuse_texture.get_image()
+		if img.is_compressed():
+			img.decompress()
+		_wst_imgs[p] = img
+	return _wst_imgs[p]
 
 
 func enemy_def(id: String) -> Dictionary:

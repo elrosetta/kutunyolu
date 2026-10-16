@@ -43,16 +43,17 @@ func _ready() -> void:
 	z_index = 20
 	if atlas_item != "" and Data.has_weapon_sprite(atlas_item):
 		spr = Sprite2D.new()
-		spr.texture = Data.weapon_tex
+		var wd: Dictionary = Data.weapon_sprite(atlas_item, atlas_mat)  # stil v2: mürekkep-cel atlas
+		spr.texture = wd["tex"]
 		spr.region_enabled = true
-		spr.region_rect = Data.weapon_region(atlas_item, atlas_mat)
+		spr.region_rect = wd["region"]
 		spr.centered = false
-		spr.offset = -Data.weapon_pivot(atlas_item)
-		spr.scale = Vector2.ONE * Data.wscale()
+		spr.offset = -(wd["pivot"] as Vector2)
+		spr.scale = Vector2.ONE * float(wd["scale"])
 		if kind == "javelin":
-			spr.offset.x -= 20 * Data.weapon_texel
+			spr.offset.x -= 10.0 / float(wd["scale"])
 		var m := ShaderMaterial.new()
-		m.shader = Game.toon_shader
+		m.shader = Data.INK_SHADER if wd["linear"] else Game.toon_shader
 		spr.material = m
 		add_child(spr)
 	if kind == "arrow":
