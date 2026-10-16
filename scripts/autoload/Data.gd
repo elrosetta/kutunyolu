@@ -173,10 +173,22 @@ func sprite(sprite_name: String) -> Dictionary:
 	var sid := stil_id(sprite_name, "res://assets/sprites/%s.json")
 	var meta := load_json("res://assets/sprites/%s.json" % sid)
 	meta["tex"] = canvas_tex("res://assets/sprites/%s.png" % sid, "res://assets/sprites/%s_n.png" % sid)
+	if is_linear(meta):
+		(meta["tex"] as CanvasTexture).texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
 	var gp := "res://assets/sprites/%s_e.png" % sid
 	meta["glow_tex"] = load(gp) if ResourceLoader.exists(gp) else null
 	_sprites[sprite_name] = meta
 	return meta
+
+
+## Stil v2 mürekkep-cel sprite'ları (tools/artgen/inkkit.py; json "filter": "linear"): kenar yumuşatmalı çizim,
+## doğrusal süzgeç + mipmap ile ve ink_char.gdshader ile çizilir (piksel-AA ve 3 bantlı toon ışığı yok).
+## CanvasTexture süzgeci onu kullanan her düğüme (hayalet, ceset, vuruş karesi) geçer.
+const INK_SHADER: Shader = preload("res://shaders/ink_char.gdshader")
+
+
+static func is_linear(meta: Dictionary) -> bool:
+	return String(meta.get("filter", "")) == "linear"
 
 
 func decor(decor_name: String) -> Dictionary:

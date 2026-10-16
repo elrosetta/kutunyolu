@@ -51,7 +51,7 @@ func setup(src: Sprite2D, vel: Vector2, col: Color) -> void:
 	add_child(spr)
 	global_transform = src.global_transform
 	var sz := src.region_rect.size if src.region_enabled else Vector2(src.texture.get_size())
-	_half = sz * 0.25
+	_half = sz * 0.25 * src.scale.abs()  # doku yoğunluğu (SpriteAnim texel) dünya boyuna çevrilir
 	var c := src.position + (Vector2.ZERO if src.centered else sz * 0.5)
 	spr.position = src.position - c
 	position = src.global_position - src.position + c

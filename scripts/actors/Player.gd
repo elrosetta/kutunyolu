@@ -648,6 +648,9 @@ func _ready() -> void:
 	var arm_tex := Data.canvas_tex("res://assets/sprites/%s.png" % kol, "")
 	var am := ShaderMaterial.new()
 	am.shader = Game.toon_shader
+	if Data.is_linear(arm_meta):  # stil v2 mürekkep-cel kol parçaları: gövdeyle aynı süzgeç ve ışık
+		arm_tex.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
+		am.shader = Data.INK_SHADER
 	arm_root = Node2D.new()
 	arm_root.visible = false
 	anim.add_child(arm_root)

@@ -1,7 +1,7 @@
 """Stil v2 dışa aktarımı: v1 dosyalarına DOKUNMAZ, yalnızca *_v2 adlı varlıkları yazar.
 
-Kullanım:  python export_v2.py               (hepsi)
-           python export_v2.py --bengu       assets/sprites/bengu_v2.{png,json} (+_n, _e) ve bengu_kol_v2.{png,json}
+Kullanım:  python export_v2.py               (hepsi: Ötüken)
+           python export_v2.py --bengu-piksel   ARŞİV: piksel v2 Bengü (bengu_v2 artık export_ink.py ile mürekkep-cel)
            python export_v2.py --otuken      assets/tiles/otuken_v2* ve assets/bg/otuken_v2_*.png
 Adlandırma: v1 kimliğinin sonuna "_v2" (bengu -> bengu_v2, bengu_kol -> bengu_kol_v2, otuken -> otuken_v2,
 otuken_3_mid -> otuken_3_mid_v2). Oyunda: -- --stil=v2 (Data.stil_id): _v2 sürümü varsa o, yoksa v1 kullanılır.
@@ -38,7 +38,7 @@ def export_otuken():
 def main():
     args = sys.argv[1:]
     every = not any(a.startswith('--') for a in args)
-    if every or '--bengu' in args:
+    if '--bengu-piksel' in args:   # arşiv: piksel v2 Bengü (mürekkep-cel sürümün üstüne yazar; bkz. export_ink.py)
         export_bengu()
     if every or '--otuken' in args:
         export_otuken()

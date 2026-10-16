@@ -1,17 +1,18 @@
 {
  "cell": [
-  24,
-  30
+  42,
+  51
  ],
  "pivot": [
-  12,
-  6
+  21,
+  10.5
  ],
  "fist_pivot": [
-  12,
-  9
+  21,
+  25.5
  ],
- "texel": 2.0,
+ "texel": 3.0,
+ "filter": "linear",
  "upper_len": 10.0,
  "fore_len": 9.4,
  "parts": [

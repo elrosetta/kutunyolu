@@ -634,7 +634,7 @@ Yalnızca dikey kesit: Bengü (boşta, koşu, yukarıdan kesiş; diğer animasyo
   `Data.sprite()` (bengu -> bengu_v2), `Player` kol iskeleti (bengu_kol -> bengu_kol_v2), `Level._tile_id()` (otuken -> otuken_v2:
   atlas, `_n`, `_soil`, `_soil_n`, json), paralaks katmanları (otuken_3_mid -> otuken_3_mid_v2). Eksik dosya = v1'e düşer, karışık
   kullanım güvenli. HD paketlerinde (assets_hd) v2 dosyası yok: v2 dokuları temel boyutta yüklenir.
-* **Üretim:** `cd tools/artgen && python export_v2.py [--bengu|--otuken]` yalnızca `_v2` dosyalarını yazar.
+* **Üretim:** `cd tools/artgen && python export_v2.py [--otuken]` (Ötüken) ve `python export_ink.py [--bengu|--kara_boru]` (karakterler, mürekkep-cel; aşağıya bkz.) yalnızca `_v2` dosyalarını yazar.
   `style_v2.py`: 7 tonlu rampa (`tones`), malzeme türü (`M2(..., kind=cloth|leather|metal|fur|skin)`: kumaş geniş bant/mat,
   deri dar orta ton + kısa parlama, metal gök/yer yansıması + keskin parlama), yansıyan ışık (gölgedeki aşağı bakan yüzey +1 ton),
   ışığa dönüklüğe göre 1-2 piksel ay kenar ışığı, seçici kontur (`VCanvas2`).
@@ -647,6 +647,44 @@ Yalnızca dikey kesit: Bengü (boşta, koşu, yukarıdan kesiş; diğer animasyo
   (uzak sıra pusa gömülü), sıralar arası yer sisi, ağaç kenarında ay ışığı, oyun alanından koyu (değer x0,78), 96 renk.
 * **Test:** `--ekran=kilic --silah=alp_kilici --stil=v2 --bekle=4.6 --seri=10 --aralik=0.12 --goruntu=x.png` tek açılışta 10 kare
   (`x_0.png` ...). `Ayarlar._snap`: `--bekle` (varsayılan 6 sn), `--seri`, `--aralik`. Karşılaştırmalar: `docs/stil_v2/` (.gdignore).
+
+### Stil v2 "mürekkep-cel" karakterler (çizgi roman; piksel sanatın yerini alır)
+
+Referans yeniden okundu: Shinobi: Art of Vengeance piksel sanat değil, el çizimi çizgi roman / animasyon. v2 karakterleri
+artık bu yönde: `bengu_v2` ve `kara_boru_v2` (`bengu_kol_v2` dahil) `tools/artgen/export_ink.py` ile üretilir
+(`bengu_v2.py` piksel sürümü arşiv olarak durur; `export_v2.py --bengu` çalıştırılırsa piksel sürüm geri yazılır).
+
+* **Çizim takımı** `tools/artgen/inkkit.py` (skia-python): her parça kapalı bir vektör yol. Düz taban + tek sert gölge
+  tonu (yol − ışığa kaydırılmış kopyası: ışığın tersinde hilal; gölge tonu mor-maviye kayar) + küçük sert parlama +
+  isteğe bağlı derin gölge bandı, kumaş kıvrımı (`fold`: gölge kaması + incelen mürekkep çizgisi), seyrek tarama,
+  parça içi hafif değer geçişi, alttakine düşen gölge (`cast`, kModulate). Kontur: yol boyunca örneklenen fırça
+  darbesi; ışık yanında ~1.5 px, gölge/alt yanda ~4 px (1080p), düşük frekanslı baskı değişimi; dış silüete +0.5 px.
+  Bütün gövdeye büyük kütle gölgesi (`form`), isteğe bağlı iç kenar ışığı (`rim`, tazıda açık). Mürekkep #15161d.
+  Işık sol üstten (`LIGHT`). 3x süper örnekleme + kutu küçültme; çıktı albedo + ışıma (göz, kor) PNG.
+* **Yoğunluk:** `texel` 3 (dünya 640x360 x3 = 1080p'de 1 doku pikseli = 1 ekran pikseli). Bengü hücresi 288x240
+  (dünya 96x80, ayak 132,222), tazı 240x168, kol parçası 42x51 (pivot 21,10.5; yumruk 21,25.5).
+* **Oyunda:** json `"filter": "linear"` olan sprite'lar (`Data.is_linear`) CanvasTexture'da `LINEAR_WITH_MIPMAPS`
+  ile ve `shaders/ink_char.gdshader` ile çizilir (`SpriteAnim`, `Player` kol iskeleti; hayalet/ceset/vuruş karesi aynı
+  CanvasTexture'ı kullandığından süzgeci miras alır). `.import`: mipmap açık; büyük sayfalar (bengu_v2, _e) VRAM
+  sıkıştırmalı (BPTC), küçükler kayıpsız. v1 sprite'ları değişmedi (en yakın komşu + toon_light).
+* **Işık kararı:** normal haritası YOK. toon_light normalden 3 bant çıkarır; cel gölgesi zaten dokuda olduğundan
+  düz yüzey tek banda düşer ve gölge iki kez uygulanır. ink_char ışığı yalnızca renk/şiddet olarak taşır (ay için
+  `light_k` 0.85, noktasal ışık `point_k` 0.9, `moon_shade`, `flash`, `tint` aynı adlarla). Böylece çizilmiş ışık
+  yönü bozulmaz, sahne ışığı (çıra, Kut) karakteri renklendirir.
+* **Bengü (`bengu_ink.py`):** iskelet ve çapalar v2 ile aynı (kol 10 + 9.4, gövde 17, kalça -23.6); bacak 13 + 12.6
+  (ninja oranı), baş x0.9. Kaftan uyluk ortasına kısaldı (bol çivit şalvar görünür, çizme baldır ortasında), etek
+  önü dizleri izler (adım açılınca uyluğun üstünden gerilir). Pozlar: geniş/alçak bekleme, ninja koşusu (sprint:
+  kollar geride), sıçrama/düşüş/iniş/çömelme/yaralanma yeniden kurgulandı; saldırı gövdeleri v1/v2 anahtarlarından
+  `dynamic()` ile (daha açık adım, derin diz, fazla eğilme) türetilir, zamanlama aynı (Player.SWINGS uyumlu). Yere
+  basan pozlarda kalça yüksekliği ayaklardan çözülür (`ground`, FOOT_Y -2.1). Çarpışma kutuları değişmedi.
+* **Erlik Tazısı (`kara_boru_ink.py`):** creatures.draw_hound iskeleti/pozları ve `mouth` çapası; koyu post, kemik
+  zırh, dumanlı yele (kor uçlar), kor göz/ağız ışıması, soğuk ay kenar ışığı.
+* **Araçlar:** `preview_ink.py out.png [--mod m] [--zoom 2] [--all | --anim ad | anim:kare ...]`,
+  `compare_ink.py referans.png out.png anim:kare ...` (referansla aynı 1080p ölçeğinde). Karşılaştırmalar:
+  `rec_v14/karakter/` (depo dışı).
+* **Bilinen eksikler:** silah atlası, efektler ve diğer yaratıklar hâlâ piksel; ön kol iskeleti parçalarının gölgesi
+  parça yerelinde çizili (kol başın üstüne kalkınca ışık yönü dönmüş görünür); yüz/el ayrıntısı 1080p'de küçük
+  (oyun kamerası karakteri ~115 px gösteriyor, referansta ~185 px: kamera yakınlaştırması ortam tarafında).
 
 ### Yaygınlaştırma planı (onay sonrası)
 

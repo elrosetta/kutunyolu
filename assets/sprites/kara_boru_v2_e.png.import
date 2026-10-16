@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://bege47n3h236r"
-path="res://.godot/imported/bengu_v2_n.png-27a76b894ea388dad3e08f4b18352828.ctex"
+uid="uid://bb143jklp5dq"
+path="res://.godot/imported/kara_boru_v2_e.png-6b26ae0319e4e17360cec28ceded6ae0.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/sprites/bengu_v2_n.png"
-dest_files=["res://.godot/imported/bengu_v2_n.png-27a76b894ea388dad3e08f4b18352828.ctex"]
+source_file="res://assets/sprites/kara_boru_v2_e.png"
+dest_files=["res://.godot/imported/kara_boru_v2_e.png-6b26ae0319e4e17360cec28ceded6ae0.ctex"]
 
 [params]
 
@@ -23,7 +23,7 @@ compress/rdo_quality_loss=0.0
 compress/hdr_compression=1
 compress/normal_map=0
 compress/channel_pack=0
-mipmaps/generate=false
+mipmaps/generate=true
 mipmaps/limit=-1
 roughness/mode=0
 roughness/src_normal=""

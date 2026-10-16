@@ -27,12 +27,15 @@ func setup(sprite_name: String) -> void:
 	base.region_enabled = true
 	base.centered = false
 	mat = ShaderMaterial.new()
-	mat.shader = Game.toon_shader
+	var ink := Data.is_linear(meta)  # stil v2 mürekkep-cel: doğrusal süzgeç + mipmap, düz ışık
+	mat.shader = Data.INK_SHADER if ink else Game.toon_shader
 	base.material = mat
 	add_child(base)
 	if meta.get("glow_tex") != null:
 		glow = Sprite2D.new()
 		glow.texture = meta["glow_tex"]
+		if ink:
+			glow.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
 		glow.region_enabled = true
 		glow.centered = false
 		var gm := CanvasItemMaterial.new()
