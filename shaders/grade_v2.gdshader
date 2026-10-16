@@ -15,9 +15,16 @@ uniform float contrast = 1.06;
 uniform vec3 shadow_tint = vec3(0.92, 0.82, 1.0);
 uniform vec3 mid_tint = vec3(0.95, 1.04, 1.0);
 uniform vec3 lift = vec3(0.012, 0.02, 0.022);
+// ısı dalgası (Tamu): ekran UV'si yatayda kıvrılır, alta doğru güçlenir; 0 = kapalı (Ötüken, Şahmeran)
+uniform float heat = 0.0;
 
 void fragment() {
-	vec3 lin = texture(screen_tex, SCREEN_UV).rgb;
+	vec2 suv = SCREEN_UV;
+	if (heat > 0.0) {
+		float k = heat * smoothstep(0.15, 1.0, suv.y);
+		suv.x += sin(suv.y * 90.0 + TIME * 3.1) * k + sin(suv.y * 37.0 - TIME * 1.7 + suv.x * 9.0) * k * 0.6;
+	}
+	vec3 lin = texture(screen_tex, suv).rgb;
 	vec3 c = pow(max(lin, vec3(0.0)), vec3(1.0 / 2.2));
 	vec3 g = c;
 	float l = dot(g, vec3(0.299, 0.587, 0.114));

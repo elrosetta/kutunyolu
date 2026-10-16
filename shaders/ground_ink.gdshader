@@ -19,6 +19,11 @@ uniform float deep_amount : hint_range(0.0, 1.0) = 0.8;
 // ay (yönlü ışık) ve noktasal ışıkların katkı çarpanları
 uniform float moon_gain : hint_range(0.0, 2.0) = 0.6;
 uniform float point_gain : hint_range(0.0, 2.0) = 1.0;
+// ışıyan damarlar (Şahmeran kristal, Tamu lav; yalnızca emit_gain > 0 olan biyomlar): dünya uzayı, toprakla aynı ızgara.
+// emit_pulse = (genlik, hız): damarlar yavaşça nabız atar, faz dünya konumuna göre kayar.
+uniform sampler2D soil_e : source_color, filter_linear_mipmap, repeat_enable, hint_default_black;
+uniform float emit_gain = 0.0;
+uniform vec2 emit_pulse = vec2(0.25, 1.2);
 
 varying vec2 world_pos;
 varying vec4 vcol;
@@ -47,6 +52,12 @@ void fragment() {
 	s = mix(s, deep_color.rgb, smoothstep(0.0, 1.0, d) * deep_amount);
 	float a = art.a + cov * (1.0 - art.a);
 	vec3 pm = art.rgb * art.a + s * cov * (1.0 - art.a);
+	if (emit_gain > 0.0) {
+		vec4 e = texture(soil_e, suv);
+		float ph = TIME * emit_pulse.y + world_pos.x * 0.004 + world_pos.y * 0.007;
+		float k = emit_gain * (1.0 - emit_pulse.x + emit_pulse.x * sin(ph)) * (1.0 - 0.75 * d) * (1.0 - mk.g * 0.5);
+		pm += e.rgb * e.a * k * cov * (1.0 - art.a);
+	}
 	COLOR = vec4(pm / max(a, 1e-4), a) * vcol;
 	// düz normal (maske normal haritası DEĞİL); üst yüzeyler hafif yukarı bakar
 	NORMAL_MAP = vec3(0.5, 0.62, 0.92);
