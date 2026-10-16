@@ -339,9 +339,13 @@ def draw(cv, p, front_arm=True, back_arm=True):
 
     # ---- ön etek (diz boyu; önü açık kaftan dizleri izler: adım açılınca etek uyluğun üstünden gerilir)
     kf, _ = fk_leg((hip[0] + 1, hip[1]), p['lf'][0], p['lf'][1], L_THIGH, L_SHIN)
+    raised = p['lf'][0] > 0.95       # diz göğse çekilmiş (sıçrama, tekme): ön bacak açık kaftanın önünden çıkar
+    if raised:
+        kf = (hip[0] + 4.0, hip[1] + 9.0)
     kb, _ = fk_leg(hip, p['lb'][0], p['lb'][1], L_THIGH, L_SHIN)
-    F = (max(hip[0] + 5.6, kf[0] + 2.6) + sk * 1.6, min(bot, kf[1] + 1.6))
-    B = (min(hip[0] - 6.4, kb[0] - 2.4) + sk * 2.8, min(bot, kb[1] + 1.8) - 0.6)
+    # dizler kalçaya yaklaşınca (sıçrama, yuvarlanma) etek kutulaşmasın: uç en az kalçanın 5 birim altında
+    F = (min(hip[0] + 11.0, max(hip[0] + 5.6, kf[0] + 2.6)) + sk * 1.6, max(hip[1] + 5.0, min(bot, kf[1] + 1.6)))
+    B = (max(hip[0] - 11.0, min(hip[0] - 6.4, kb[0] - 2.4)) + sk * 2.8, max(hip[1] + 4.6, min(bot, kb[1] + 1.8) - 0.6))
     wav = [(F[0], F[1], 0.0)]
     for j, t in enumerate((0.2, 0.4, 0.6, 0.8)):
         q = lerp2(F, B, t)
@@ -383,7 +387,7 @@ def draw(cv, p, front_arm=True, back_arm=True):
              BOOT, z=6.0, sd=1.0, hi=0.25, details=[('ink', [(pc[0] - 1.6, pc[1] - 0.4), (pc[0] + 1.6, pc[1] - 0.6)], 1.2)])
 
     # ---- ön bacak
-    k, f = _leg(cv, (hip[0] + 1, hip[1]), p['lf'], 1.0, True, kz=2.6)
+    k, f = _leg(cv, (hip[0] + 1, hip[1]), p['lf'], 6.0 if raised else 1.0, True, kz=7.0 if raised else 2.6)
     out['foot_f'] = f
 
     # ---- ak post yaka (omuzları saran)
@@ -511,8 +515,8 @@ def _sprint(t):
              sk=-1.2, pk=-1.5, bp=t * 2.5, tw=0.4 * math.sin(ph), hdy=0.6 + 0.3 * math.sin(2 * ph - 0.9), sx=-0.6)
 
 
-JUMP = keyed((0.0, P(bob=-1.0, lean=0.4, lf=(1.35, 2.0), lb=(-0.75, 0.45), af=(-0.6, 1.5), ab=(-1.1, 0.5), sk=-1.0, pk=-1.3, hdy=-0.2)),
-             (1.0, P(bob=-2.0, lean=0.46, lf=(1.6, 2.4), lb=(-0.45, 1.2), af=(-0.8, 1.8), ab=(-1.4, 0.7), sk=-1.2, pk=-1.5, hdy=-0.4)))
+JUMP = keyed((0.0, P(bob=-1.0, lean=0.5, lf=(1.15, 1.35), lb=(-0.95, 0.25), af=(-1.1, 0.6), ab=(-1.4, 0.4), sk=-1.1, pk=-1.4, hdy=-0.2, sx=-0.5)),
+             (1.0, P(bob=-2.0, lean=0.42, lf=(1.4, 1.9), lb=(-0.6, 0.9), af=(-0.7, 1.2), ab=(-1.1, 0.7), sk=-1.2, pk=-1.5, hdy=-0.4)))
 FALL = keyed((0.0, P(bob=-1.0, lean=0.12, lf=(0.85, 1.0), lb=(-0.1, 1.4), af=(1.4, 1.0), ab=(-1.3, 0.5), sk=0.7, pk=0.9)),
              (1.0, P(bob=0.0, lean=0.0, lf=(0.5, 0.4), lb=(-0.4, 0.9), af=(1.8, 0.7), ab=(-1.7, 0.4), sk=1.1, pk=1.25, hdy=0.3)))
 LAND = keyed((0.0, P(bob=3.0, lean=0.42, lf=(1.05, 1.9), lb=(-0.75, 1.3), af=(0.7, 1.0), ab=(-0.7, 0.9), sk=0.5, pk=0.6, hdy=0.6)),
