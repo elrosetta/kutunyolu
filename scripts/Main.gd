@@ -37,12 +37,17 @@ func _ready() -> void:
 		var mt: Node = load("res://tools/tests/mekanik_testi.gd").new()
 		mt.set("main", self)
 		add_child(mt)
+	if OS.get_cmdline_user_args().has("--dovus"):
+		# dövüş akıcılığı testi (tools/tests/dovus_testi.gd): betikli girdiyle gecikme / iptal / ara bellek ölçümü
+		var dt: Node = load("res://tools/tests/dovus_testi.gd").new()
+		dt.set("main", self)
+		add_child(dt)
 	for arg in OS.get_cmdline_user_args():
 		if String(arg) == "--boss":
 			_build_boss("kara_boru_han")
 		elif String(arg).begins_with("--boss="):
 			_build_boss(String(arg).trim_prefix("--boss="))
-	if auto_test or showcase or _ekran != "" or OS.get_cmdline_user_args().has("--mekanik"):
+	if auto_test or showcase or _ekran != "" or OS.get_cmdline_user_args().has("--mekanik") or OS.get_cmdline_user_args().has("--dovus"):
 		hud.mode = "play"
 		get_tree().paused = false
 	else:

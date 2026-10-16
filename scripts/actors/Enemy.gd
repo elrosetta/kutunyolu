@@ -391,6 +391,10 @@ func take_hit(d: float, opts: Dictionary) -> bool:
 		_slam_t = 0.3
 	if not heavy or opts.get("stagger", false) or crit:
 		hurt_t = 0.16 if not heavy else 0.08
+		# v17 takas yok: sarsılan yaratığın süren saldırısı (sıçrama, hücum, çakma teması) kesilir; vurduğun düşman
+		# aynı anda sana çarpıp can götürmez. Ağırlar ve bosslar sarsılmadıkça saldırısını sürdürür (önceden okunur).
+		if contact and not is_boss:
+			contact = false
 		velocity.x = dir * kb * (0.4 if heavy else 1.0)
 		if not flying and not heavy and not opts.has("launch"):
 			velocity.y = minf(velocity.y, -kb * 0.25)
