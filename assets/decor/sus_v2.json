@@ -1,0 +1,428 @@
+{
+ "bulut_1_v2": {
+  "size": [
+   376,
+   136
+  ],
+  "origin": [
+   188,
+   32
+  ],
+  "texel": 4.0
+ },
+ "bulut_2_v2": {
+  "size": [
+   376,
+   136
+  ],
+  "origin": [
+   188,
+   32
+  ],
+  "texel": 4.0
+ },
+ "bulut_3_v2": {
+  "size": [
+   376,
+   136
+  ],
+  "origin": [
+   188,
+   32
+  ],
+  "texel": 4.0
+ },
+ "bulut_4_v2": {
+  "size": [
+   376,
+   136
+  ],
+  "origin": [
+   188,
+   32
+  ],
+  "texel": 4.0
+ },
+ "kut_kapi_arka_v2": {
+  "size": [
+   392,
+   416
+  ],
+  "origin": [
+   196,
+   400
+  ],
+  "texel": 4.0,
+  "glow": true
+ },
+ "kut_kapi_girdap_v2": {
+  "size": [
+   208,
+   208
+  ],
+  "origin": [
+   104,
+   104
+  ],
+  "texel": 4.0
+ },
+ "kut_kapi_v2": {
+  "size": [
+   392,
+   416
+  ],
+  "origin": [
+   196,
+   400
+  ],
+  "texel": 4.0,
+  "glow": true
+ },
+ "ruh_tasi_v2": {
+  "size": [
+   320,
+   120
+  ],
+  "origin": [
+   160,
+   16
+  ],
+  "texel": 4.0,
+  "glow": true
+ },
+ "sunak_v2": {
+  "size": [
+   304,
+   336
+  ],
+  "origin": [
+   152,
+   320
+  ],
+  "texel": 4.0,
+  "glow": true
+ },
+ "totem_tuy_v2": {
+  "size": [
+   80,
+   80
+  ],
+  "origin": [
+   40,
+   72
+  ],
+  "texel": 4.0
+ },
+ "totem_v2": {
+  "size": [
+   136,
+   216
+  ],
+  "origin": [
+   68,
+   208
+  ],
+  "texel": 4.0
+ },
+ "yh_at_v2": {
+  "size": [
+   464,
+   352
+  ],
+  "origin": [
+   232,
+   336
+  ],
+  "texel": 4.0
+ },
+ "yh_balbal_1_v2": {
+  "size": [
+   128,
+   256
+  ],
+  "origin": [
+   64,
+   248
+  ],
+  "texel": 4.0
+ },
+ "yh_balbal_2_v2": {
+  "size": [
+   128,
+   256
+  ],
+  "origin": [
+   64,
+   248
+  ],
+  "texel": 4.0,
+  "glow": true
+ },
+ "yh_cadir_v2": {
+  "size": [
+   600,
+   496
+  ],
+  "origin": [
+   300,
+   480
+  ],
+  "texel": 4.0,
+  "glow": true
+ },
+ "yh_demirhane_v2": {
+  "size": [
+   656,
+   512
+  ],
+  "origin": [
+   320,
+   496
+  ],
+  "texel": 4.0,
+  "glow": true
+ },
+ "yh_fener_v2": {
+  "size": [
+   176,
+   432
+  ],
+  "origin": [
+   48,
+   416
+  ],
+  "texel": 4.0,
+  "glow": true
+ },
+ "yh_hali_1_v2": {
+  "size": [
+   400,
+   40
+  ],
+  "origin": [
+   200,
+   28
+  ],
+  "texel": 4.0
+ },
+ "yh_hali_2_v2": {
+  "size": [
+   400,
+   40
+  ],
+  "origin": [
+   200,
+   28
+  ],
+  "texel": 4.0
+ },
+ "yh_hali_sergi_v2": {
+  "size": [
+   536,
+   392
+  ],
+  "origin": [
+   264,
+   376
+  ],
+  "texel": 4.0
+ },
+ "yh_kandil_v2": {
+  "size": [
+   128,
+   416
+  ],
+  "origin": [
+   64,
+   400
+  ],
+  "texel": 4.0,
+  "glow": true
+ },
+ "yh_kapi_v2": {
+  "size": [
+   704,
+   728
+  ],
+  "origin": [
+   352,
+   712
+  ],
+  "texel": 4.0,
+  "glow": true
+ },
+ "yh_kartal_v2": {
+  "size": [
+   232,
+   392
+  ],
+  "origin": [
+   112,
+   376
+  ],
+  "texel": 4.0,
+  "glow": true
+ },
+ "yh_kayin_v2": {
+  "size": [
+   816,
+   960
+  ],
+  "origin": [
+   400,
+   944
+  ],
+  "texel": 4.0,
+  "glow": true
+ },
+ "yh_kazan_v2": {
+  "size": [
+   240,
+   280
+  ],
+  "origin": [
+   120,
+   264
+  ],
+  "texel": 4.0,
+  "glow": true
+ },
+ "yh_kurgan_v2": {
+  "size": [
+   496,
+   280
+  ],
+  "origin": [
+   248,
+   264
+  ],
+  "texel": 4.0,
+  "glow": true
+ },
+ "yh_mangal_v2": {
+  "size": [
+   160,
+   240
+  ],
+  "origin": [
+   80,
+   224
+  ],
+  "texel": 4.0,
+  "glow": true
+ },
+ "yh_ors_v2": {
+  "size": [
+   208,
+   168
+  ],
+  "origin": [
+   96,
+   160
+  ],
+  "texel": 4.0,
+  "glow": true
+ },
+ "yh_otag_v2": {
+  "size": [
+   848,
+   744
+  ],
+  "origin": [
+   424,
+   728
+  ],
+  "texel": 4.0,
+  "glow": true
+ },
+ "yh_pinar_v2": {
+  "size": [
+   536,
+   488
+  ],
+  "origin": [
+   264,
+   472
+  ],
+  "texel": 4.0,
+  "glow": true
+ },
+ "yh_seki_v2": {
+  "size": [
+   144,
+   124
+  ],
+  "origin": [
+   16,
+   116
+  ],
+  "texel": 4.0
+ },
+ "yh_sunak_v2": {
+  "size": [
+   360,
+   424
+  ],
+  "origin": [
+   180,
+   408
+  ],
+  "texel": 4.0,
+  "glow": true
+ },
+ "yh_tug_k_v2": {
+  "size": [
+   240,
+   696
+  ],
+  "origin": [
+   52,
+   680
+  ],
+  "texel": 4.0
+ },
+ "yh_tug_m_v2": {
+  "size": [
+   240,
+   696
+  ],
+  "origin": [
+   52,
+   680
+  ],
+  "texel": 4.0
+ },
+ "yh_yol_1_v2": {
+  "size": [
+   312,
+   56
+  ],
+  "origin": [
+   156,
+   28
+  ],
+  "texel": 4.0
+ },
+ "yh_yol_2_v2": {
+  "size": [
+   312,
+   56
+  ],
+  "origin": [
+   156,
+   28
+  ],
+  "texel": 4.0
+ },
+ "yh_yol_3_v2": {
+  "size": [
+   312,
+   56
+  ],
+  "origin": [
+   156,
+   28
+  ],
+  "texel": 4.0
+ }
+}

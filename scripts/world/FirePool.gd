@@ -40,6 +40,15 @@ func _process(delta: float) -> void:
 
 func _draw() -> void:
 	var a := clampf(life, 0.0, 1.0)
+	if Data.stil == "v2":
+		# mürekkep alev dilleri: kenar yumuşatmalı sivri alevler (toplamalı), içte sarı çekirdek
+		for k in 7:
+			var x := -radius + k * radius / 3.0
+			var h := 7.0 + absf(sin(_t * 9.0 + k * 1.7)) * 9.0
+			var sw := sin(_t * 7.0 + k) * 2.0
+			draw_colored_polygon(PackedVector2Array([Vector2(x - 4, 0), Vector2(x - 2.5, -h * 0.5), Vector2(x + sw, -h), Vector2(x + 2.5, -h * 0.45), Vector2(x + 4, 0)]), Color(1.3, 0.5, 0.14, 0.55 * a))
+			draw_colored_polygon(PackedVector2Array([Vector2(x - 2, 0), Vector2(x - 1, -h * 0.35), Vector2(x + sw * 0.6, -h * 0.62), Vector2(x + 1, -h * 0.3), Vector2(x + 2, 0)]), Color(1.6, 1.1, 0.45, 0.75 * a))
+		return
 	for k in 7:
 		var x := -radius + k * radius / 3.0
 		var h := 6.0 + absf(sin(_t * 9.0 + k * 1.7)) * 8.0

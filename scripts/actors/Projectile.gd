@@ -37,6 +37,11 @@ var _wobble := 0
 const ARROW_DIRS := 32
 const ARROW_VARIANTS := ["normal", "altin", "od", "sel", "kizil", "dusman"]
 static var _arrow_tex: Texture2D
+## stil v2: mürekkep-cel mermi sprite'ı (SusV2 atlası); serbest açıyla döner, iz kenar yumuşatmalı fırça çizgisi
+var ink_spr: Sprite2D
+const INK_KIND := {"stone": ["tas", true], "stone_big": ["tas_buyuk", true], "ice": ["buz", true], "fireball": ["ates_topu", false],
+	"spore": ["spor", false], "curse": ["lanet", false], "feather": ["tuy", true], "eagle": ["kartal_ruhu", false],
+	"wave": ["dalga", false], "ground_wave": ["yer_dalgasi", false], "root": ["kok", true]}
 
 
 func _ready() -> void:
@@ -56,7 +61,22 @@ func _ready() -> void:
 		m.shader = Data.INK_SHADER if wd["linear"] else Game.toon_shader
 		spr.material = m
 		add_child(spr)
-	if kind == "arrow":
+	if kind == "arrow" and SusV2.on():
+		if arrow_variant == "":
+			arrow_variant = "dusman" if team != "p" else {"altin": "altin", "od": "od", "sel": "sel", "kizil": "kizil"}.get(fx_kind, "normal")
+		ink_spr = SusV2.sprite("ok_" + arrow_variant, true)
+		if ink_spr:
+			add_child(ink_spr)
+			_set_arrow_frame(velocity.angle())
+	elif spr == null and SusV2.on() and INK_KIND.has(kind):
+		ink_spr = SusV2.sprite(INK_KIND[kind][0], INK_KIND[kind][1], Color(1.5, 1.4, 1.3))
+		if ink_spr:
+			add_child(ink_spr)
+			if kind == "wave":
+				ink_spr.modulate = Color(0.75, 0.92, 1.2)
+			elif kind == "ground_wave":
+				ink_spr.modulate = get_meta("col", Color(1.0, 0.8, 0.5))
+	if kind == "arrow" and ink_spr == null:
 		if _arrow_tex == null:
 			_arrow_tex = Data.tex("res://assets/fx/arrows.png")
 		arrow_spr = Sprite2D.new()
@@ -87,6 +107,9 @@ func _ready() -> void:
 
 
 func _set_arrow_frame(ang: float, nudge := 0) -> void:
+	if ink_spr and kind == "arrow":
+		ink_spr.rotation = ang + nudge * 0.07
+		return
 	if arrow_spr == null:
 		return
 	var d := (int(roundf(fposmod(ang, TAU) / TAU * ARROW_DIRS)) + nudge + ARROW_DIRS) % ARROW_DIRS
@@ -107,6 +130,17 @@ func _embed(wall: bool) -> void:
 
 func _stick_into(e: Node) -> void:
 	## Düşmanın gövdesine saplanan ok: düşmanla birlikte hareket eder, kısa süre sonra söner.
+	if ink_spr and is_instance_valid(e):
+		var s3 := ink_spr.duplicate() as Sprite2D
+		s3.z_index = 5
+		e.add_child(s3)
+		s3.global_position = global_position + velocity.normalized() * 4.0
+		s3.global_rotation = velocity.angle()
+		var tw3 := s3.create_tween()
+		tw3.tween_interval(0.9)
+		tw3.tween_property(s3, "modulate:a", 0.0, 0.35)
+		tw3.tween_callback(s3.queue_free)
+		return
 	if arrow_spr == null or not is_instance_valid(e):
 		return
 	var s2 := Sprite2D.new()
@@ -338,7 +372,32 @@ func _explode() -> void:
 	queue_free()
 
 
+func _ink_tick() -> void:
+	match kind:
+		"ice", "fireball":
+			ink_spr.global_rotation = velocity.angle() if velocity.length() > 1.0 else ink_spr.global_rotation
+		"ground_wave":
+			ink_spr.flip_h = velocity.x < 0.0
+			ink_spr.scale = Vector2(0.25, 0.25 * (0.75 + 0.35 * absf(sin(_t * 14.0))))
+			ink_spr.position.y = 14.0
+		"spore", "curse":
+			var k := 0.25 * (1.0 + sin(_t * 18.0) * 0.12)
+			ink_spr.scale = Vector2(k, k)
+
+
 func _draw() -> void:
+	if ink_spr:
+		_ink_tick()
+		# v2 iz: kenar yumuşatmalı, kuyruğa doğru incelen ve solan fırça çizgisi
+		if trail_col.a > 0.0 and _trail.size() >= 2:
+			var n2 := _trail.size()
+			var prev2: Vector2 = to_local(_trail[0])
+			for i in range(1, n2):
+				var cur2: Vector2 = to_local(_trail[i])
+				var f2 := 1.0 - float(i) / n2
+				draw_line(prev2, cur2, Color(trail_col.r, trail_col.g, trail_col.b, trail_col.a * f2 * 0.8), (2.2 if fx_kind != "" else 1.4) * f2 + 0.3, true)
+				prev2 = cur2
+		return
 	if trail_col.a > 0.0 and _trail.size() >= 2:
 		# piksel iz: geçmiş konumlar boyunca tam sayı karelere oturan, kuyruğa doğru incelen/solan noktalar
 		var n := _trail.size()

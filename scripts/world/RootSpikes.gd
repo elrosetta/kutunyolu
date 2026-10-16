@@ -33,6 +33,24 @@ func _draw() -> void:
 	var k := clampf(_t / 0.12, 0.0, 1.0) * (1.0 - clampf((_t - 0.45) / 0.25, 0.0, 1.0))
 	var bark := Color(0.42, 0.28, 0.18)
 	var lite := Color(0.62, 0.44, 0.28)
+	if Data.stil == "v2":
+		# mürekkep kökler: kenar yumuşatmalı kıvrık sivri kökler, mürekkep konturu, ışık yanında açık şerit, yan dikenler
+		var ink := Color(0.08, 0.085, 0.11)
+		for i in 5:
+			var x := -14.0 + i * 7.0
+			var h := (26.0 + 14.0 * absf(sin(i * 2.1))) * k
+			var bend := sin(i * 1.7) * 4.0 * k
+			var pts := PackedVector2Array([Vector2(x - 3.4, 1), Vector2(x - 2.2, -h * 0.45), Vector2(x - 0.6 + bend, -h * 0.8), Vector2(x + bend * 1.3, -h),
+				Vector2(x + 1.2 + bend, -h * 0.75), Vector2(x + 2.4, -h * 0.4), Vector2(x + 3.4, 1)])
+			draw_colored_polygon(pts, bark)
+			draw_polyline(pts, ink, 1.3, true)
+			draw_line(Vector2(x - 1.6, -2), Vector2(x - 0.8 + bend * 0.8, -h * 0.7), lite, 0.9, true)
+			if h > 18.0:
+				var sy := -h * 0.5
+				var sp := PackedVector2Array([Vector2(x + 1.8, sy), Vector2(x + 6.0, sy - 5.0), Vector2(x + 2.2, sy - 2.5)])
+				draw_colored_polygon(sp, bark)
+				draw_polyline(sp, ink, 0.8, true)
+		return
 	for i in 5:
 		var x := -14.0 + i * 7.0
 		var h := (26.0 + 14.0 * absf(sin(i * 2.1))) * k

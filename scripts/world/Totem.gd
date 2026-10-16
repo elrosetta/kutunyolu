@@ -9,10 +9,21 @@ var life := 10.0
 var _t := 0.0
 var _beat := 0.4
 var _pulse := 0.0
+## stil v2: mürekkep totem (sus_v2 "totem" gövde + "totem_tuy" salınan tüyler); vuruşta davul ezilip zıplar
+var _body: Sprite2D
+var _plume: Sprite2D
 
 
 func _ready() -> void:
 	z_index = 3
+	if SusV2.on():
+		_body = SusV2.decor_sprite("totem")
+		_plume = SusV2.decor_sprite("totem_tuy")
+		if _body:
+			add_child(_body)
+		if _plume:
+			_plume.position = Vector2(0, -39)
+			add_child(_plume)
 	FX.dust(global_position, Vector2.UP, 6, 0.3)
 	if level:
 		level.add_light(Vector2(0, -16), Color(1.0, 0.75, 0.45), 80.0, 0.9, self)
@@ -40,6 +51,14 @@ func _physics_process(delta: float) -> void:
 
 
 func _draw() -> void:
+	if _body:
+		var k := 1.0 + _pulse * 0.16
+		_body.scale = Vector2(k, 1.0 / k) * 0.25
+		_body.position.y = 0.0
+		if _plume:
+			_plume.position = Vector2(0, -39 * (1.0 / k) - 4.0 * _pulse)
+			_plume.rotation = sin(_t * 3.0) * 0.12
+		return
 	var sq := 1.0 + _pulse * 0.18
 	# direk
 	draw_rect(Rect2(-2, -26, 4, 26), Color(0.35, 0.22, 0.14))

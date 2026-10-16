@@ -68,6 +68,8 @@ static func anim(n: String, pos: Vector2, rot := 0.0, scale_v := 1.0, col := Col
 	## PVFX Foundry (CC0) kare animasyonu oynat; bittiğinde kendini siler.
 	if root == null or not AnimFX.has(n):
 		return null
+	if n == "rift_portal" and ink() and SusV2.on():
+		return null  # v2: Kut Kapısı girdabını kendisi çizer (KutGate.gd, sus_v2 "kut_kapi_girdap")
 	if ink() and INK_ANIM.has(n):
 		# v2: piksel darbe animasyonları yerine mürekkep. Oyuncunun taze savuruşunda kesik/sıçrantı zaten var.
 		if not InkFX._near_player_swing(pos) and n != "crescent_slash":
@@ -77,9 +79,11 @@ static func anim(n: String, pos: Vector2, rot := 0.0, scale_v := 1.0, col := Col
 	a.setup(n, additive)
 	if ink():
 		a.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
+	if ink() and a.tex_k != 1.0:
+		a.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
 	a.position = pos
 	a.rotation = rot
-	a.scale = Vector2(scale_v, scale_v)
+	a.scale = Vector2(scale_v, scale_v) * a.tex_k
 	a.modulate = col
 	a.flip_h = flip_h
 	if follow:

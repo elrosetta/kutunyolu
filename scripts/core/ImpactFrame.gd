@@ -58,7 +58,8 @@ func _build(targets: Array, strength: float) -> void:
 		s.offset = src.offset
 		s.flip_h = src.flip_h
 		s.flip_v = src.flip_v
-		s.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+		# stil v2: mürekkep sprite'ları doğrusal süzgeçli (yakın kamerada siluet kenarı bloklaşmasın)
+		s.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS if Data.stil == "v2" else CanvasItem.TEXTURE_FILTER_NEAREST
 		var m := ShaderMaterial.new()
 		m.shader = Game.toon_shader
 		m.set_shader_parameter("flash", 1.0)
@@ -80,7 +81,7 @@ func _build(targets: Array, strength: float) -> void:
 					w.hframes = ch.hframes
 					w.vframes = ch.vframes
 					w.frame = ch.frame
-					w.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+					w.texture_filter = s.texture_filter
 					w.material = m
 					w.transform = ct * ch.get_global_transform()
 					add_child(w)

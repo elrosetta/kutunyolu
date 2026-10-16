@@ -42,6 +42,13 @@ func _ready() -> void:
 		var dt: Node = load("res://tools/tests/dovus_testi.gd").new()
 		dt.set("main", self)
 		add_child(dt)
+	var sus := false
+	for arg in OS.get_cmdline_user_args():
+		sus = sus or String(arg).begins_with("--sus=")
+	if sus:  # stil v2 süs / toplanabilir / âlem çekimi (tools/tests/sus_testi.gd)
+		var st: Node = load("res://tools/tests/sus_testi.gd").new()
+		st.set("main", self)
+		add_child(st)
 	var firca := false
 	for arg in OS.get_cmdline_user_args():
 		firca = firca or String(arg).begins_with("--firca")
@@ -54,7 +61,7 @@ func _ready() -> void:
 			_build_boss("kara_boru_han")
 		elif String(arg).begins_with("--boss="):
 			_build_boss(String(arg).trim_prefix("--boss="))
-	if auto_test or showcase or _ekran != "" or firca or OS.get_cmdline_user_args().has("--mekanik") or OS.get_cmdline_user_args().has("--dovus"):
+	if auto_test or showcase or _ekran != "" or firca or sus or OS.get_cmdline_user_args().has("--mekanik") or OS.get_cmdline_user_args().has("--dovus"):
 		hud.mode = "play"
 		get_tree().paused = false
 	else:

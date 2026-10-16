@@ -138,7 +138,15 @@ func _build_slabs() -> void:
 		b.position = d.get_center()
 		b.add_child(cs)
 		level.add_child(b)
-		slabs.append({"body": b, "rect": d, "cs": cs})
+		var vis: Sprite2D = null
+		if SusV2.on():
+			# v2: mürekkep ruh taşı levhası (mor damarlı kara taş, ışıyan Erlik mührü), kapağın üstünde
+			vis = SusV2.decor_sprite("ruh_tasi", true, Color(1.4, 1.1, 1.8))
+			if vis:
+				vis.position = Vector2(d.get_center().x, d.position.y + 3.0)
+				vis.z_index = 1
+				add_child(vis)
+		slabs.append({"body": b, "rect": d, "cs": cs, "vis": vis})
 
 
 func _build_clouds() -> void:
@@ -252,15 +260,47 @@ func _add_bird(pos: Vector2) -> void:
 
 
 func _room_loot(r: Dictionary) -> void:
-	## Gizli oda: Erlik'in sakladığı hazine (eşya kaidesi + şifa + altın), kandil ışığı
+	## Gizli oda: Erlik'in sakladığı hazine (eşya kaidesi + şifa + altın), kandil ışığı.
+	## Ganimet kapağın (cover, z 6) ALTINDA çizilir ve yalnızca yeraltından (ya da odanın içinden) görünür/alınır:
+	## bu dünyadan bakınca toprağın içinde eşya görünmez, kapağın üstünden altın mıknatısla çekilmez (loot_open).
 	var rm: Rect2 = r["room"]
 	var floor_y := rm.end.y
+	var loot: Array = []
 	var it := ItemGen.random_drop(int(Game.run.get("tier", 0)) + 1)
-	level.drop_item(it, Vector2(rm.get_center().x, floor_y - 30), true)
-	level.drop_orb("sifa", Vector2(rm.position.x + 24, floor_y - 8))
+	if not it.is_empty():
+		level.drop_item(it, Vector2(rm.get_center().x, floor_y - 30), true)
+		loot.append(level.pickups[-1])
+	var orbs := [["sifa", Vector2(rm.position.x + 24, floor_y - 8)]]
 	for i in 6:
-		level.drop_orb("gold", Vector2(rm.position.x + 40 + i * 14, floor_y - 10))
-	level.add_light(Vector2(rm.get_center().x, floor_y - 30), YER_COL, 120.0, 0.9)
+		orbs.append(["gold", Vector2(rm.position.x + 40 + i * 14, floor_y - 10)])
+	for o in orbs:
+		var p := Pickup.new()
+		p.kind = o[0]
+		p.level = level
+		p.position = o[1]
+		p.velocity = Vector2(randf_range(-30, 30), randf_range(-60, -20))
+		level.add_child(p)
+		loot.append(p)
+	for p in loot:
+		p.set_meta("oda", rooms.find(r))
+		p.z_index = 5
+		p.modulate.a = 0.0
+		if p.light:
+			p.light.enabled = false
+	r["loot"] = loot
+	r["light"] = level.add_light(Vector2(rm.get_center().x, floor_y - 30), YER_COL, 120.0, 0.9)
+	(r["light"] as PointLight2D).enabled = false
+
+
+func loot_open(p: Node) -> bool:
+	## Gizli oda ganimeti alınabilir mi: oyuncu yeraltındaysa ya da odanın içindeyse
+	var pl: Node = level.player
+	if pl == null or not p.has_meta("oda"):
+		return true
+	if String(pl.get("realm")) == "yer":
+		return true
+	var i := int(p.get_meta("oda"))
+	return i >= 0 and i < rooms.size() and (rooms[i]["room"] as Rect2).grow(6.0).has_point(pl.center())
 
 
 func _build_overlay() -> void:
@@ -397,6 +437,26 @@ func _process(delta: float) -> void:
 		_motes.global_position = level.player.global_position + Vector2(0, -60)
 	if cover:
 		cover.modulate.a = lerpf(1.0, 0.12, _yer)
+	for sl in slabs:
+		var sv: Sprite2D = sl.get("vis")
+		if sv:
+			sv.modulate.a = lerpf(1.0, 0.35, _yer)
+			var g := sv.get_node_or_null("glow") as Sprite2D
+			if g:
+				g.self_modulate.a = (0.55 + 0.35 * sin(_t * 2.4)) * (1.0 + _yer * 0.6)
+	# gizli oda ganimeti: kapağın altında; yalnızca yeraltından (ya da odanın içinden) görünür
+	var pl2: Node = level.player
+	for r in rooms:
+		var inside := pl2 != null and (r["room"] as Rect2).grow(6.0).has_point(pl2.center())
+		var vis := maxf(_yer, 1.0 if inside else 0.0)
+		for p in r.get("loot", []):
+			if is_instance_valid(p):
+				p.modulate.a = vis
+				if p.light:
+					p.light.enabled = vis > 0.05
+		if r.has("light") and is_instance_valid(r["light"]):
+			(r["light"] as PointLight2D).enabled = vis > 0.05
+			(r["light"] as PointLight2D).energy = 0.9 * vis
 	for c in clouds:
 		var v: Node2D = c["vis"]
 		v.alpha = lerpf(0.16, 1.0, _gok)
@@ -418,6 +478,8 @@ func _process(delta: float) -> void:
 
 func _draw() -> void:
 	## Ruh taşlarının üstünde nabız gibi atan mühür izleri (gizli odanın ipucu)
+	if SusV2.on():
+		return
 	var pulse := 0.35 + 0.25 * sin(_t * 2.4)
 	for s in slabs:
 		var d: Rect2 = s["rect"]
@@ -442,7 +504,17 @@ class _CloudVis:
 	var _t := 0.0
 	var spr: Sprite2D
 
+	var _ink_y := 0.0
+
 	func _ready() -> void:
+		if SusV2.on():
+			# v2: mürekkep altın bulut (sus_v2 "bulut_1..4"), görünen üst yüzey çarpışma yüzeyine oturur
+			spr = SusV2.decor_sprite("bulut_%d" % (absi(seed_v) % 4 + 1), false)
+			if spr:
+				_ink_y = 5.0
+				spr.position = Vector2(0, _ink_y)
+				add_child(spr)
+				return
 		var r := RandomNumberGenerator.new()
 		r.seed = seed_v
 		var W := 126
@@ -506,5 +578,5 @@ class _CloudVis:
 		_t += delta
 		var bob := roundf(sin(_t * 1.6 + seed_v) * 1.5 * lit)
 		if spr:
-			spr.position.y = 2.0 + bob
+			spr.position.y = (_ink_y if _ink_y != 0.0 else 2.0) + (sin(_t * 1.6 + seed_v) * 1.5 * lit if _ink_y != 0.0 else bob)
 			spr.modulate = Color(0.8 + 0.12 * lit, 0.78 + 0.1 * lit, 0.8, alpha)
