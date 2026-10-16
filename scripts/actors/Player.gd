@@ -337,9 +337,9 @@ const COMBOS := {
 	# gerilir: aşağıda biten iniş yükselişin hazırlığıdır, yukarıda biten yükseliş baş üstü inişin) (üçüncü vuruş kritik)
 	"alp_kilici": {"chain": [{"s": "diag_down", "mult": 1.0, "kb": 110.0, "dash": 10.0}, {"s": "diag_up", "mult": 1.0, "kb": 110.0}, {"s": "step_down", "mult": 1.35, "kb": 240.0, "dash": 30.0, "last": true}],
 		"pause": {"s": "cross_x", "mult": 1.1, "kb": 150.0, "name": "Alp Çaprazı"}},
-	# Yıldırım Kılıcı (katana): çekiş → geri sıçrayış → hücum; ağır: şimşek hamlesi
+	# Yıldırım Kılıcı (katana): çekiş → geri sıçrayış → hücum; ağır: şimşek hamlesi; v19 bekleme: Şimşek Çekişi (kesin kritik)
 	"yildirim_kilici": {"chain": [{"s": "iai", "mult": 1.0, "kb": 100.0, "dash": 20.0}, {"s": "backstep", "mult": 1.0, "kb": 90.0, "backstep": true}, {"s": "lunge", "mult": 1.35, "kb": 200.0, "dash": 80.0, "last": true}],
-		"pause": {"s": "flurry", "mult": 0.8, "kb": 70.0, "name": "Şimşek Dişleri"}},
+		"pause": {"s": "iai", "mult": 1.5, "kb": 140.0, "dash": 70.0, "crit": true, "name": "Şimşek Çekişi"}},
 	# Pala (kasap): çapraz doğrama → ters el → tam gövde çark; çarkta tuş basılıysa 1,2 sn döner, iki yanı biçer
 	"pala": {"chain": [{"s": "diag_down", "mult": 1.0, "kb": 100.0, "dash": 15.0}, {"s": "back", "mult": 1.05, "kb": 110.0}, {"s": "spin_2h", "mult": 1.2, "kb": 160.0, "spin_hold": true, "last": true}],
 		"pause": {"s": "lunge", "mult": 1.5, "kb": 200.0, "dash": 70.0, "name": "Pala Akını"}},
@@ -350,17 +350,17 @@ const COMBOS := {
 	"ayaz_kilici": {"chain": [{"s": "sweep_low", "mult": 1.0, "kb": 100.0}, {"s": "step_down", "mult": 1.4, "kb": 220.0, "slam": true, "last": true}],
 		"pause": {"s": "spin_2h", "mult": 1.3, "kb": 160.0, "name": "Ayaz Halkası"}},
 	# Ulu Kılıç (dev kılıç): baş üstü iniş → tam gövde çark; savuruş boyunca süper zırh (atk.super_armor)
-	"ulu_kilic": {"chain": [{"s": "overhead_2h", "mult": 1.0, "kb": 220.0, "slam": true, "sa": true}, {"s": "spin_2h", "mult": 1.25, "kb": 260.0, "sa": true, "last": true}],
+	"ulu_kilic": {"chain": [{"s": "overhead_2h", "mult": 1.0, "kb": 220.0, "slam": true, "sa": true}, {"s": "spin_2h", "mult": 1.25, "kb": 260.0, "sa": true, "last": true, "fc": true}],
 		"pause": {"s": "helicopter", "mult": 1.5, "kb": 260.0, "sa": true, "name": "Ulu Çark"}},
-	# Ruh Kılıcı: her kesik ruh hilali salar; üçüncü vuruş yükselen kesik (havaya atar)
-	"ruh_kilici": {"chain": [{"s": "diag_down", "mult": 1.0, "kb": 80.0, "wave": true}, {"s": "back", "mult": 1.0, "kb": 80.0, "wave": true}, {"s": "rise", "mult": 1.2, "kb": 60.0, "launch": 220.0, "wave": true, "last": true}],
+	# Ruh Kılıcı: her kesik ruh hilali salar; v19: düz → iniş → yükselen kesik (havaya atar; palayla aynı açılmasın)
+	"ruh_kilici": {"chain": [{"s": "horiz", "mult": 1.0, "kb": 80.0, "wave": true}, {"s": "down", "mult": 1.0, "kb": 80.0, "wave": true}, {"s": "rise", "mult": 1.2, "kb": 60.0, "launch": 220.0, "wave": true, "last": true}],
 		"pause": {"s": "spin", "mult": 1.2, "kb": 120.0, "wave": true, "name": "Ruh Fırtınası"}},
 	# Ay Palası (dansçı): beşli zincir, her adım hızlanır; geri sıçrayışla aradan çıkar, çift saplamayla biter
 	"ay_palasi": {"chain": [{"s": "twirl", "mult": 1.0, "kb": 40.0}, {"s": "dual_r", "mult": 1.0, "kb": 40.0}, {"s": "dual_l", "mult": 1.0, "kb": 40.0}, {"s": "backstep", "mult": 1.0, "kb": 60.0, "backstep": true}, {"s": "thrust", "mult": 1.4, "kb": 150.0, "double": true, "last": true}],
 		"pause": {"s": "flurry", "mult": 0.85, "kb": 50.0, "name": "Ay Dansı"}},
 	# --- ağır silahlar
-	# Gürz: yel değirmeni → sıçrayıp çakma; ağır (basılı tut) sersemletir
-	"gurz": {"chain": [{"s": "windmill", "mult": 1.0, "kb": 280.0, "shock": true}, {"s": "slam", "mult": 1.2, "kb": 300.0, "slam": true, "shock": true, "last": true}],
+	# Gürz (v19): kısa baş üstü ezme → yel değirmeni → sıçrayıp çakma (üçlü, Nutcracker gibi; bitiriş kesin kritik); ağır sersemletir
+	"gurz": {"chain": [{"s": "heavy", "mult": 0.9, "kb": 200.0}, {"s": "windmill", "mult": 1.0, "kb": 280.0, "shock": true}, {"s": "slam", "mult": 1.25, "kb": 300.0, "slam": true, "shock": true, "last": true, "fc": true}],
 		"pause": {"s": "slam", "mult": 1.7, "kb": 320.0, "shock": true, "slam": true, "name": "Dağ Devirici"}},
 	# Çivili Topuz: hızlı iniş → aparkat (havaya) → sıçrayıp çakma (zırh kırığı biriktirir)
 	"civili_topuz": {"chain": [{"s": "down", "mult": 1.0, "kb": 200.0}, {"s": "uppercut_2h", "mult": 1.1, "kb": 160.0, "launch": 320.0}, {"s": "slam", "mult": 1.2, "kb": 280.0, "slam": true, "shock": true, "last": true}],
@@ -373,7 +373,7 @@ const COMBOS := {
 		"pause": {"s": "spin_2h", "mult": 1.35, "kb": 180.0, "name": "Balta Çarkı"}},
 	# --- sırıklar
 	# Teber: geniş sırık süpürmesi → alçak biçme (çelme) → baş üstü iniş
-	"teber": {"chain": [{"s": "pole_sweep", "mult": 1.0, "kb": 120.0}, {"s": "sweep_low", "mult": 1.05, "kb": 60.0, "trip": true}, {"s": "overhead_2h", "mult": 1.5, "kb": 260.0, "slam": true, "last": true}],
+	"teber": {"chain": [{"s": "pole_sweep", "mult": 1.0, "kb": 120.0}, {"s": "sweep_low", "mult": 1.05, "kb": 60.0, "trip": true}, {"s": "overhead_2h", "mult": 1.5, "kb": 260.0, "slam": true, "last": true, "fc": true}],
 		"pause": {"s": "helicopter", "mult": 1.2, "kb": 200.0, "name": "Teber Çarkı"}},
 	# Erlik Tırpanı: biçme düşmanı kendine çeker → alçak süpürme → tam gövde çark; bekleme: büyük biçme (çekiş)
 	"erlik_tirpani": {"chain": [{"s": "reap", "mult": 1.0, "kb": 30.0, "pull": 240.0}, {"s": "sweep_low", "mult": 1.1, "kb": 140.0}, {"s": "spin_2h", "mult": 1.3, "kb": 180.0, "last": true}],
@@ -401,8 +401,8 @@ const COMBOS := {
 	# Yılan Kılıcı: ters el → saplama → alçak süpürme (çelme); her vuruş zehir
 	"yilan_kilici": {"chain": [{"s": "reverse_grip", "mult": 1.0, "kb": 90.0}, {"s": "thrust", "mult": 1.0, "kb": 120.0}, {"s": "sweep_low", "mult": 1.3, "kb": 140.0, "trip": true, "last": true}],
 		"pause": {"s": "twirl", "mult": 1.1, "kb": 100.0, "venom": true, "name": "Yılan Dansı"}},
-	# Kor Çekici: yel değirmeni → baş üstü iniş (kor gölü)
-	"kor_cekici": {"chain": [{"s": "windmill", "mult": 1.0, "kb": 280.0, "shock": true}, {"s": "overhead_2h", "mult": 1.2, "kb": 240.0, "slam": true, "last": true}],
+	# Kor Çekici (v19): çekiç yerde sürüklenir, kor saçarak alttan kalkar (yakar, hafif kaldırır) → baş üstü iniş (kor gölü, bitiriş kesin kritik)
+	"kor_cekici": {"chain": [{"s": "ground_drag", "mult": 1.0, "kb": 160.0, "launch": 140.0, "burn": 2.0}, {"s": "overhead_2h", "mult": 1.25, "kb": 240.0, "slam": true, "last": true, "fc": true}],
 		"pause": {"s": "slam", "mult": 1.7, "kb": 320.0, "shock": true, "slam": true, "name": "Kor Yağmuru"}},
 	# Rüzgâr Kılıcı (hava): çekiş → geri sıçrayış → yükselen kesik (havaya atar; havadaki düşmana kritik)
 	"ruzgar_kilici": {"chain": [{"s": "iai", "mult": 1.0, "kb": 70.0, "dash": 20.0}, {"s": "backstep", "mult": 1.0, "kb": 70.0, "backstep": true}, {"s": "rise", "mult": 1.2, "kb": 60.0, "launch": 300.0, "last": true}],
@@ -425,6 +425,41 @@ const COMBOS := {
 		"pause": {"s": "cross_x", "mult": 1.3, "kb": 220.0, "name": "Bozgun Çaprazı"}},
 }
 const COMBOS_EXTRA := {}
+
+## ------------------------------------------------------------------ v19 DÖVÜŞ: yeni mekanikler
+## Ayrıntı: docs/TASARIM.md "Dövüş v19". Süreler gerçek saniye (Game.clock(): vuruş donması / ağır çekim sırasında da akar).
+##   Kut Yankısı   isabetin hemen ardından (donmanın içinde ya da ~150 ms içinde) basılan saldırı: sıradaki vuruş daha
+##                 hızlı gerilir, daha sert vurur ve arkasından altın bir mürekkep "yankı" kesiği gelir. İsabetten ÖNCE
+##                 basmak (tuşa ezbere basmak) yankıyı bozar. Art arda üç yankı: Kut Mührü (sıradaki isabet kesin kritik).
+##                 Usul vuruşuna da denk gelirse çift yankı.
+##   Çarpışma      savuruşun ilk anlarında (bıçak önünde dönerken) gelen darbe / mermi bıçağa çarpar: hasar yok, saldıran
+##                 sersemler, mermi geri sekiştirilir; sıradaki vuruş kesin kritik ("karşılık").
+##   Karşı Vuruş   saldırı hazırlığındaki ("!") düşmana isabet: hazırlığı keser (ağırlarınki de), kesin kritik.
+##   Kut Alma      duruşu kırılmış / sersemlemiş / donmuş ve canı az düşman (kırmızı mürekkep mührü) saldırıyla infaz edilir:
+##                 kısa ağır çekim, silaha özgü bitiriş, can + Kut.
+##   İsabet iptali isabetten kısa süre sonra zıplama ve ikincil, kilidi keser (hava kombosuna / yaya geçiş).
+const V19 := {
+	"yk_win": 0.15,          # isabetten sonra yankı penceresi
+	"yk_wind": 0.55,         # yankılı vuruşun hazırlığı (ve tutuşu) bu orana iner
+	"yk_mult": 1.3,          # yankılı vuruş hasarı
+	"yk_echo": 0.35,         # yankı kesiğinin hasarı (vuruşun oranı)
+	"yk_echo_delay": 0.07,
+	"yk_seal": 3,            # art arda bu kadar yankı: Kut Mührü
+	"pr_win": 0.16,          # savuruş vuruşa başladıktan bu kadar sonrasına dek çarpışma (savuşturma)
+	"pr_stun": 0.8,
+	"pr_stun_heavy": 0.45,
+	"pr_riposte": 1.2,       # çarpışmadan sonra karşılık (kesin kritik) penceresi
+	"ex_hp": 0.3,            # infaz: canın bu oranı altında (seçkinde ex_hp_elite)
+	"ex_hp_elite": 0.18,
+	"ex_reach": 20.0,        # silah eriminin bu kadar ötesine dek infaz başlar
+	"ex_heal": 0.04,
+	"ex_kut": 12.0,
+	"hc_cancel": 0.05,       # isabetten bu kadar sonra zıplama / ikincil kilidi keser
+	"fin_hs": 0.02,          # zincir bitirişine ek duraklama
+}
+## İnfaz (Kut Alma) savuruşu silah sınıfına göre (_tempo_class)
+const EXEC_SW := {"hancer": "cross_dash", "duello": "iai", "kilic": "iai", "mizrak": "stab_heavy", "kirbac": "whip_crack",
+	"uzun": "reap", "agir": "overhead_2h", "dev": "overhead_2h"}
 const CHAIN_WINDOW := 0.28   # bu süre içinde basarsan zincir sürer
 const PAUSE_WINDOW := 0.95   # 0.28 - 0.95 sn arası bekleyip basarsan bekleme bitirişi
 
@@ -753,6 +788,14 @@ var since_atk := 9.0       # son saldırının bitişinden beri geçen süre (zi
 var last_step := -1
 var _pause_ready_fx := false
 var cast_t := 0.0
+# v19 dövüş (V19): Kut Yankısı, Çarpışma karşılığı, infaz
+var _yk_contact := -9.0     # son onaylı isabetin anı (Game.clock); yankı penceresi buradan sayılır
+var _yk_early := false      # bu savuruşta isabetten önce saldırıya basıldı (yankı bozulur)
+var _yk_ready := -9.0       # yankı basışının anı: sıradaki savuruş (0,5 sn içinde başlarsa) yankılı
+var yk_n := 0               # art arda yankı sayısı (V19.yk_seal'da Kut Mührü)
+var _yk_seal := false       # Kut Mührü: sıradaki isabet kesin kritik
+var riposte_t := 0.0        # çarpışmadan sonra karşılık penceresi
+var v19_stats := {"yanki": 0, "muhur": 0, "carpisma": 0, "karsi": 0, "infaz": 0, "kirilma": 0}  # test sayaçları
 
 
 func _ready() -> void:
@@ -1321,6 +1364,7 @@ func _physics_process(delta: float) -> void:
 	sec_buf -= delta
 	momentum_t -= delta
 	rolled_t -= delta
+	riposte_t -= delta
 	if momentum_t <= 0.0:
 		momentum = 0
 	if spirit_t > 0.0:
@@ -1440,6 +1484,7 @@ func _physics_process(delta: float) -> void:
 		if lightning and atk.is_empty() and drink_t <= 0.0:
 			charge_t = 0.0  # basılı tutma başladı: kısa dokunuş = kombo, uzun = şimşek hamlesi
 		else:
+			_yk_on_press()  # v19 Kut Yankısı: basış isabetin hemen ardından mı?
 			melee_buf = float(FLOW["buf_melee"])
 	if charge_t >= 0.0:
 		charge_t += delta
@@ -1505,7 +1550,7 @@ func _physics_process(delta: float) -> void:
 	var sec := slot(sec_slot)
 	var sec_kind: String = sec.get("kind", "")
 	# v17: ikincil (yay / fırlatma / büyü / kalkan) basışı saldırı toparlanmasını keser; ara bellekten çıkar
-	if sec_buf > 0.0 and sec_kind != "" and not atk.is_empty() and atk["phase"] == "rec" and melee_buf <= 0.0:
+	if sec_buf > 0.0 and sec_kind != "" and not atk.is_empty() and (atk["phase"] == "rec" or _hit_cancel_ok()) and melee_buf <= 0.0:
 		_cancel_attack()
 	var sec_press := sec_buf > 0.0 and sec_act != ""
 	if atk.is_empty() and drink_t <= 0.0:
@@ -1875,6 +1920,8 @@ func _jump_cancels() -> bool:
 	var ph: String = atk["phase"]
 	if ph == "rec" or ph == "charge":
 		return true
+	if _hit_cancel_ok():
+		return true  # v19 isabet iptali: vuruş oturdu, kilidin kalanı zıplamayla kesilir (hava kombosuna geçiş)
 	if ph != "wind" or atk.get("super_armor", false) or atk.has("dash_px"):
 		return false
 	var w := _weight(atk["item"])
@@ -2158,6 +2205,12 @@ func _start_attack(step: int) -> void:
 		c = chain[step]
 	# yön tuşuyla özel hamleler (zinciri bozmaz, araya girer): dalış, göğe savurma, akın kesiği, dönüş kesiği, diz biçen
 	var sp := _special_move(it)
+	# v19 Kut Alma: önde duruşu kırık / sersem ve canı az bir düşman varsa saldırı infaza döner (dalış hariç)
+	var ex_t: Node = null
+	if not sp.get("plunge", false):
+		ex_t = _exec_target(it)
+		if ex_t != null:
+			sp = _exec_move(it)
 	if not sp.is_empty():
 		c = sp
 		is_pause = false
@@ -2169,6 +2222,9 @@ func _start_attack(step: int) -> void:
 		anim.set_facing(facing)
 	elif not c.get("plunge", false):
 		_assist_face(it, c)
+	if ex_t != null:
+		facing = int(signf(ex_t.global_position.x - global_position.x)) if absf(ex_t.global_position.x - global_position.x) > 1.0 else facing
+		anim.set_facing(facing)
 	var sw: Dictionary = SWINGS[c["s"]]
 	var spd_mult := 1.0 + ItemGen.aff(it, "hiz") / 100.0
 	if it.get("mech_id", "") == "ivme":
@@ -2187,6 +2243,15 @@ func _start_attack(step: int) -> void:
 	var flowing: bool = (not atk.is_empty() and not atk.get("heavy", false)) or (since_atk < 0.12 and _last_pose_ok)
 	var from_pose: Array = _last_pose.duplicate() if (flowing and _last_pose_ok) else []
 	var ph := _phase_times(it, c, sw, flowing and not is_pause, spd_mult, "pause" if is_pause else "")
+	# v19 Kut Yankısı: zamanında basılan vuruş daha kısa gerilir (hazırlık ve tutuş V19.yk_wind)
+	var yanki := ex_t == null and Game.clock() - _yk_ready < 0.5
+	_yk_ready = -9.0
+	_yk_early = false
+	if yanki:
+		ph[0] = float(ph[0]) * float(V19["yk_wind"])
+		ph[4] = float(ph[4]) * float(V19["yk_wind"])
+	elif ex_t == null:
+		yk_n = 0
 	var total := float(ph[0]) + float(ph[1]) + float(ph[2]) + float(ph[3])
 	if c.get("special", false):
 		_move_label(String(c.get("name", "")), Color(0.75, 0.95, 1.0), 8)
@@ -2203,7 +2268,11 @@ func _start_attack(step: int) -> void:
 	atk["held"] = _mel_down_t >= 0.0
 	# v15 süper zırh: dev kılıç / dağ çekici savuruşları sarsılmaz (bayrağı take_hit / koordinatör okur)
 	atk["super_armor"] = bool(c.get("sa", false))
-	_usul_press()
+	var on_beat := _usul_press()
+	if yanki:
+		_yk_begin(on_beat)
+	if ex_t != null:
+		_exec_begin(ex_t)
 	combo_step = step
 	melee_buf = 0.0
 	_pause_ready_fx = false
@@ -2294,10 +2363,366 @@ func combo_break(reason := "") -> void:
 	combo_n = 0
 	combo_rank = 0
 	combo_t = 0.0
+	yk_n = 0
+	_yk_seal = false
 
 
 func combo_mult() -> float:
 	return 1.0 + minf(0.45, 0.015 * float(combo_n))
+
+
+# ------------------------------------------------------------------ v19 dövüş mekanikleri (V19)
+func _hit_cancel_ok() -> bool:
+	## İsabet iptali: savuruş bir düşmana oturduktan V19.hc_cancel sonra kilidin kalanı zıplama ya da ikincil ile
+	## kesilir (Dead Cells'te kilit yuvarlanmayla kesilir; burada vuruş "onaylanınca" zıplama da keser: fırlatma →
+	## zıpla → hava kombosu akar). İnfaz, dalış ve şimşek hamlesi kesilmez.
+	if atk.is_empty() or atk["phase"] != "act" or not atk.has("hit_at"):
+		return false
+	var c: Dictionary = atk["c"]
+	if c.get("exec", false) or c.get("plunge", false) or atk.has("dash_px"):
+		return false
+	return Game.clock() - float(atk["hit_at"]) >= float(V19["hc_cancel"])
+
+
+func _yk_on_press() -> void:
+	## Kut Yankısı: saldırı basışı savuruşun ilk isabetinden sonraki V19.yk_win içinde mi (vuruş donması da sayılır)?
+	## İsabetten önce (hazırlıkta / süpürmede) basmak bu savuruşun yankısını bozar: ödül tuşa ezbere basmaya değil,
+	## vuruşun oturduğunu görüp basmaya.
+	var now := Game.clock()
+	if not atk.is_empty() and not atk.get("heavy", false) and not atk.has("hit_at") and atk["phase"] in ["wind", "act"]:
+		_yk_early = true
+		return
+	# pencere vuruş donması bittiğinde başlar (donma 35-170 ms sürebilir; donmada basmak da sayılır)
+	var open_t := maxf(_yk_contact, minf(Game._hitstop_until, _yk_contact + 0.25))
+	if _yk_contact > 0.0 and not _yk_early and now - open_t <= float(V19["yk_win"]):
+		_yk_ready = now
+		_yk_contact = -9.0
+
+
+func _yk_begin(on_beat: bool) -> void:
+	## Yankılı savuruş başladı: seri sayılır; V19.yk_seal'da Kut Mührü (sıradaki isabet kesin kritik).
+	## Usul vuruşuna da denk geldiyse iki yankı kesiği.
+	yk_n += 1
+	v19_stats["yanki"] = int(v19_stats["yanki"]) + 1
+	atk["yanki"] = 2 if on_beat else 1
+	var col := Color(1.0, 0.84, 0.42)
+	if yk_n >= int(V19["yk_seal"]):
+		yk_n = 0
+		_yk_seal = true
+		v19_stats["muhur"] = int(v19_stats["muhur"]) + 1
+		_move_label("KUT MÜHRÜ", col, 10)
+		Ses.play("usul_seri" if Ses.has("usul_seri") else "seviye", -5.0, 1.15)
+		FX.ring(center(), 30, col, 0.3)
+		anim.set_flash(0.5)
+		get_tree().create_timer(0.06).timeout.connect(func() -> void: anim.set_flash(0.0))
+	else:
+		_move_label("YANKI" + (" ×2" if on_beat else "") + (" %d" % yk_n if yk_n > 1 else ""), col, 7)
+	Ses.play("kut_tane" if Ses.has("kut_tane") else "seviye", -7.0, 1.2 + 0.15 * yk_n, 0.02, 0.0)
+	FX.ghost(anim.base, Color(1.0, 0.85, 0.45, 0.5), 0.2)
+
+
+func _yk_cue(hp: Vector2) -> void:
+	## İsabet anı işareti: elde küçük altın halka — "şimdi bas" (yankı penceresi açıldı)
+	var hand := arm_root.to_global(_hand_local)
+	if FX.ink():
+		InkFX.ring(hand.lerp(hp, 0.35), 9.0, 9, 0.14)
+	else:
+		FX.ring(hand.lerp(hp, 0.35), 9.0, Color(1.0, 0.85, 0.45), 0.14)
+
+
+func _yk_echo(it: Dictionary, c: Dictionary, n: int) -> void:
+	## Yankı kesiği: savuruşun altın mürekkep yansıması V19.yk_echo_delay sonra aynı yayı yeniden süpürür ve
+	## kutudaki herkese vuruşun V19.yk_echo oranında vurur (usulde iki kez)
+	for i in n:
+		var t := get_tree().create_timer(float(V19["yk_echo_delay"]) * (i + 1), false, true)
+		t.timeout.connect(_yk_echo_strike.bind(it, String(c["s"]), float(c.get("kb", 80.0)), i))
+
+
+func _yk_echo_strike(it: Dictionary, sname: String, kb: float, i: int) -> void:
+	if dead or not is_inside_tree():
+		return
+	var R := _reach(it)
+	var box := _swing_box(sname, R).grow(6.0)
+	var cpos := center() + Vector2(0, -4)
+	var sw: Dictionary = SWINGS.get(sname, {})
+	# yankı izi: savuruşun kendi yayı (kolun vuruş penceresindeki pozları) altın mürekkeple, biraz daha uzun bıçakla
+	# yeniden süpürülür — oyuncu kendi kesiğinin "yansımasını" görür
+	if FX.ink() and not sw.is_empty():
+		_yk_echo_trail(it, sw, R * (1.15 + 0.1 * i))
+	elif sname in InkTrail.THRUSTS or sname in ["whip_crack", "whip_side", "cross_dash"]:
+		FX.streak(Vector2(global_position.x + facing * 4.0, cpos.y), Vector2(global_position.x + facing * (R + 30.0), cpos.y), Color(1.0, 0.85, 0.45), 0.14)
+	else:
+		FX.slash(cpos, facing, -2.1, 0.9, R + 16.0, 3.0, Color(1.0, 0.85, 0.45), 0.14)
+	FX.ghost(anim.base, Color(1.0, 0.85, 0.45, 0.35), 0.16)
+	Ses.play("savur_hafif" if Ses.has("savur_hafif") else "savur_kilic", -9.0, 1.35 + 0.1 * i, 0.04, 0.0)
+	var any := false
+	for e in get_tree().get_nodes_in_group("dusman"):
+		if not is_instance_valid(e) or e.dead or not box.intersects(e.hurt_rect()):
+			continue
+		if "realm" in e and String(e.realm) != realm:
+			continue
+		any = true
+		var hp: Vector2 = e.hurt_rect().intersection(box).get_center()
+		_deal(e, float(it["dmg"]) * float(V19["yk_echo"]), it, {"kb": kb * 0.4, "dir": signf(e.center().x - global_position.x) if sw.get("around", false) else float(facing), "sfx_done": true, "feel_done": true, "poise": 0.5})
+		if FX.ink():
+			InkFX.hit("cut", hp, Vector2(facing, -0.3), 9, 0, 0.9)
+		else:
+			FX.impact(hp, Vector2(facing, -0.3), Color(1.0, 0.85, 0.45), 0.7)
+		combo_add(e)
+	if any:
+		Game.hitstop(0.018)
+		Ses.play("darbe_hafif" if Ses.has("darbe_hafif") else "darbe_kesik", -7.0, 1.3, 0.05, 0.0)
+
+
+func _v19_opts(e: Node, c: Dictionary, opts: Dictionary) -> String:
+	## Yakın vuruşun v19 seçenekleri (_deal öncesi): duruş hasarı, infaz, Kut Mührü, karşılık, karşı vuruş, bitiriş
+	## kritiği. Dönen etiket isabetten sonra efekt için (_v19_after_hit).
+	var tag := ""
+	var w := _weight(atk["item"])
+	# duruş hasarı (Enemy.POISE): hançer ~1,2 · kılıç ~1,7 · dev 2,5; bitiriş / ağır saldırı +1
+	opts["poise"] = 1.0 + 1.5 * w + (1.0 if opts.get("last", false) or atk.get("heavy", false) else 0.0)
+	if c.has("burn"):
+		opts["burn"] = float(c["burn"])
+	if c.get("exec", false) and e == atk.get("exec_t"):
+		opts["exec"] = true
+		opts["force_crit"] = true
+		return "infaz"
+	if _yk_seal:
+		_yk_seal = false
+		opts["force_crit"] = true
+		tag = "muhur"
+	if riposte_t > 0.0 and not atk.get("clashed", false):   # karşılık sıradaki savuruşta (çarpışan savuruşun kendisinde değil)
+		riposte_t = 0.0
+		opts["force_crit"] = true
+		tag = "karsilik"
+	if _counter_ok(e):
+		opts["force_crit"] = true
+		opts["counter"] = true
+		if not e.is_boss:
+			opts["stun"] = maxf(float(opts.get("stun", 0.0)), 0.35 if e.heavy else 0.5)
+		tag = "karsi"
+	if c.get("fc", false) and not atk.get("pause", false):
+		opts["force_crit"] = true
+		if tag == "":
+			tag = "fc"
+	return tag
+
+
+func _v19_after_hit(e: Node, it: Dictionary, c: Dictionary, hp: Vector2, hdir: Vector2, tag: String, first_hit: bool, _killed: bool) -> void:
+	## İsabetten sonra: yankı penceresi (ilk isabet anı), yankı kesiği, etiket efektleri, bitiriş vurgusu
+	if not atk.has("hit_at"):
+		atk["hit_at"] = Game.clock()
+		_yk_contact = float(atk["hit_at"])
+		if not c.get("exec", false):
+			_yk_cue(hp)
+		if int(atk.get("yanki", 0)) > 0:
+			_yk_echo(it, c, int(atk["yanki"]))
+	match tag:
+		"infaz":
+			_exec_reward(e, hp)
+		"muhur":
+			FX.text(hp + Vector2(0, -26), "MÜHÜR!", Color(1.0, 0.84, 0.42), 8)
+			if FX.ink():
+				InkFX.stamp(hp, 9)
+		"karsilik":
+			FX.text(hp + Vector2(0, -26), "karşılık!", Color(1.0, 0.9, 0.5), 8)
+		"karsi":
+			v19_stats["karsi"] = int(v19_stats["karsi"]) + 1
+			FX.text(hp + Vector2(0, -28), "KARŞI VURUŞ", Color(1.0, 0.55, 0.35), 8)
+			if FX.ink():
+				InkFX.flourish(hp, "parry", 0)
+			Ses.play("darbe_metal" if Ses.has("darbe_metal") else "darbe_kunt", -6.0, 0.9)
+	if first_hit and c.get("last", false) and not atk.get("pause", false):
+		_finisher_fx(it, hp, hdir)
+
+
+func _yk_echo_trail(it: Dictionary, sw: Dictionary, L: float) -> void:
+	## Yankı fırçası: vuruş penceresinin pozlarından (hit0 → hit1) altın paletli InkTrail; 0,06 sn'de süpürülür
+	var t := InkTrail.acquire(FX.root)
+	if t == null:
+		return
+	t.pal = 9
+	t.style = InkTrail.weapon_class(String(it.get("id", "")))
+	t.w_frac = 0.7
+	t.life = 0.24
+	t.layered = 1
+	t.fleck_k = 1.3
+	t._apply_mat()
+	var h0 := float(sw["hit"][0])
+	var h1 := float(sw["hit"][1])
+	var pts: Array = []
+	var xf := arm_root.global_transform
+	for j in 19:
+		var k := lerpf(h0, h1, float(j) / 18.0)
+		var pp := _pose_points(_swing_pose(sw, k))
+		var bd: Vector2 = pp[3]
+		pts.append([xf * ((pp[2] as Vector2) + bd * L * 0.3), xf * ((pp[2] as Vector2) + bd * L)])
+	var tw := t.create_tween()
+	tw.tween_method(func(v: float) -> void:
+		var n := clampi(int(v), 0, pts.size() - 1)
+		while int(t.get_meta("yk_i", 0)) <= n:
+			var q: Array = pts[int(t.get_meta("yk_i", 0))]
+			t.add(q[0], q[1])
+			t.set_meta("yk_i", int(t.get_meta("yk_i", 0)) + 1), 0.0, float(pts.size() - 1), 0.06)
+	tw.tween_callback(func() -> void:
+		t.remove_meta("yk_i")
+		t.done = true)
+
+
+func _finisher_fx(it: Dictionary, hp: Vector2, hdir: Vector2) -> void:
+	## Zincir bitirişi (Dead Cells'in son vuruşu gibi): ayrı bir olay olarak okunur — büyük mürekkep sıçrantısı,
+	## kısa yakınlaşma, ek duraklama (HIT_FEEL orta kademesinin üstüne V19.fin_hs)
+	if FX.ink():
+		InkFX.hit(_impact_kind(it) if _impact_kind(it) != "magic" else "cut", hp, hdir, InkFX.weapon_pal(it), 2, 1.25 + 0.3 * _weight(it))
+		InkFX.ring(hp, 22.0 + 10.0 * _weight(it), InkFX.weapon_pal(it), 0.24)
+	else:
+		FX.ring(hp, 20.0 + 10.0 * _weight(it), weapon_color(it), 0.22)
+	Game.zoom_punch(0.02 + 0.015 * _weight(it))
+
+
+func _counter_ok(e: Node) -> bool:
+	## Karşı vuruş: düşman saldırı hazırlığında ("!" uyarısı) ve bu hazırlıkta henüz karşılanmadı
+	if not ("state" in e) or String(e.state) != "windup":
+		return false
+	var last: float = float(e.get_meta("v19_cv", -9.0))
+	if Game.clock() - last < 0.9:
+		return false
+	e.set_meta("v19_cv", Game.clock())
+	return true
+
+
+func _exec_target(it: Dictionary) -> Node:
+	## Kut Alma hedefi: erim + V19.ex_reach içinde, infaz edilebilir (Enemy.exec_ok) en yakın düşman; önde olan
+	## yeğlenir, yön tuşu ters yöne basılıysa arkadaki seçilmez.
+	var R := _reach(it) + float(V19["ex_reach"])
+	var din := Input.get_axis("sol", "sag")
+	var best: Node = null
+	var bs := INF
+	for e in _foes_near(R):
+		if not e.has_method("exec_ok") or not e.exec_ok():
+			continue
+		var dx: float = e.global_position.x - global_position.x
+		if din != 0.0 and absf(dx) > 6.0 and signf(dx) != signf(din):
+			continue
+		var score := absf(dx) + (0.0 if signf(dx) == float(facing) or absf(dx) < 4.0 else 30.0)
+		if score < bs:
+			bs = score
+			best = e
+	return best
+
+
+func _exec_move(it: Dictionary) -> Dictionary:
+	## İnfaz savuruşu: silah sınıfının en okunur bitirişi (kılıç çekiş kesiği, hançer içinden geçiş, mızrak deliş,
+	## ağır baş üstü ezme, uzun sap biçme, kırbaç şaklaması)
+	var cls := _tempo_class(it)
+	var c := {"s": String(EXEC_SW.get(cls, "iai")), "mult": 1.0, "kb": 260.0, "special": true, "exec": true, "tm": 0.85, "name": ""}
+	if cls == "hancer":
+		c["through"] = true
+	if cls in ["agir", "dev"]:
+		c["slam"] = true
+	return c
+
+
+func _exec_begin(e: Node) -> void:
+	## İnfaz başladı: kısa ağır çekim (hazırlık bir "nefes" gibi okunur), dokunulmazlık, hedefte kızıl mürekkep halkası
+	atk["exec_t"] = e
+	atk["super_armor"] = true
+	inv_t = maxf(inv_t, 0.5)
+	Game.slowmo(0.35, 0.18)
+	if FX.ink():
+		InkFX.ring(e.center(), 28.0, 0, 0.28)
+	else:
+		FX.ring(e.center(), 28.0, Color(1.0, 0.35, 0.3), 0.28)
+	FX.ghost(anim.base, Color(1.0, 0.4, 0.35, 0.45), 0.22)
+	Ses.play("savur_hazirlik" if Ses.has("savur_hazirlik") else "savur_dev", -6.0, 0.9)
+
+
+func _exec_strike() -> void:
+	## Vuruş anı: hedefe doğru atıl (aradaki boşluk kapanır), iz kesin isabet eder (_melee_hits zorlar)
+	var e: Node = atk.get("exec_t")
+	if e == null or not is_instance_valid(e) or e.dead:
+		return
+	var gap: float = absf(e.global_position.x - global_position.x) - float(e.size.x) * 0.5 - _reach(atk["item"]) * 0.55
+	if gap > 0.0 and not atk.get("through", false):
+		velocity.x = float(facing) * clampf(gap * 9.0, 120.0, 720.0)
+	for i in 2:
+		FX.ghost(anim.base, Color(1.0, 0.45, 0.4, 0.4), 0.2)
+
+
+func _exec_reward(e: Node, hp: Vector2) -> void:
+	## İnfaz ödülü: can, Kut, büyük mürekkep damgası, darbe karesi
+	v19_stats["infaz"] = int(v19_stats["infaz"]) + 1
+	heal(max_hp() * float(V19["ex_heal"]))
+	add_kut(float(V19["ex_kut"]))
+	if FX.ink():
+		InkFX.stamp(hp, 0)
+		InkFX.kill(hp, true)
+	FX.text(hp + Vector2(0, -30), "KUT ALINDI", Color(1.0, 0.42, 0.34), 9)
+	FX.flash_light(hp, Color(1.0, 0.5, 0.4), 170.0, 2.0, 0.22)
+	ImpactFrame.play([self, e], 1.0, 3, true)
+	Game.zoom_punch(0.07)
+	Game.slowmo(0.3, 0.12)
+	Game.rumble(0.7, 0.3, 0.16)
+	Ses.play("olum_vurus" if Ses.has("olum_vurus") else "darbe_kritik", -1.0, 0.95)
+	Ses.play("usul_dum" if Ses.has("usul_dum") else "seviye", -6.0, 0.8)
+
+
+func _clash(from: Node, projectile: Node, facing_src: bool) -> bool:
+	## Çarpışma (yakın dövüşle savuşturma): savuruş vuruşa başladıktan V19.pr_win içinde (bıçak önünde dönerken)
+	## gelen darbe ya da mermi, bıçağın kutusuna değiyorsa bıçağa çarpar. Bossların yakın darbeleri karşılanmaz
+	## (mermileri karşılanır).
+	if atk.is_empty() or atk["phase"] != "act" or not atk.has("strike_at") or not facing_src:
+		return false
+	if Game.clock() - float(atk["strike_at"]) > float(V19["pr_win"]):
+		return false
+	var box := _swing_box(String(atk["c"]["s"]), _reach(atk["item"])).grow(10.0)
+	if projectile != null and is_instance_valid(projectile):
+		if not box.has_point(projectile.global_position):
+			return false
+	elif from != null and is_instance_valid(from) and from.has_method("hurt_rect"):
+		if "is_boss" in from and from.is_boss:
+			return false
+		if not box.intersects(from.hurt_rect()):
+			return false
+	else:
+		return false
+	_clash_fx(from, projectile)
+	return true
+
+
+func _clash_fx(from: Node, projectile: Node) -> void:
+	v19_stats["carpisma"] = int(v19_stats["carpisma"]) + 1
+	atk["clashed"] = true
+	var p := center() + Vector2(facing * 14, -2)
+	inv_t = maxf(inv_t, 0.25)
+	riposte_t = float(V19["pr_riposte"])
+	Game.hitstop(0.08)
+	Game.slowmo(0.35, 0.16)
+	Game.kick(Vector2(-facing, 0), 4.0)
+	Game.rumble(0.4, 0.45, 0.1)
+	FX.sparks(p, Vector2(facing, -0.5), Color(1.0, 0.92, 0.6), 14, 240.0)
+	FX.flash_light(p, Color(1.0, 0.9, 0.55), 150.0, 2.0, 0.2)
+	if FX.ink():
+		InkFX.flourish(p, "parry", 9)
+	else:
+		FX.anim("arcane_parry", p, 0.0, 0.9, Color(1.0, 0.95, 0.6))
+	FX.text(center() + Vector2(0, -34), "ÇARPIŞMA", Color(1.0, 0.9, 0.5), 9)
+	Ses.play("ors" if Ses.has("ors") else "darbe_metal", -3.0, 1.15)
+	Ses.play("darbe_metal" if Ses.has("darbe_metal") else "darbe_kunt", -5.0, 1.25)
+	add_kut(8.0)
+	vis_scale = Vector2(0.9, 1.08)
+	if projectile != null and is_instance_valid(projectile) and projectile.has_method("reflect"):
+		projectile.reflect(facing, 1.2)
+	elif from != null and is_instance_valid(from):
+		var hv: bool = "heavy" in from and from.heavy
+		if from.has_method("stun"):
+			from.stun(float(V19["pr_stun_heavy"]) if hv else float(V19["pr_stun"]))
+		if "velocity" in from:
+			from.velocity.x = float(facing) * (60.0 if hv else 170.0)
+		if "contact" in from:
+			from.contact = false
+		if "_did_hit" in from:
+			from._did_hit = true
 
 
 func debug_swing(sw_name: String, item_id := "alp_kilici") -> void:
@@ -2676,6 +3101,9 @@ func _on_strike_start() -> void:
 		FX.flash_light(center(), Color(1.0, 0.85, 0.5), 140.0, 1.4, 0.2)
 	if c["s"] in ["thrust", "lunge", "lunge_long", "pole_thrust_lo"]:
 		_thrust_streak(it)
+	atk["strike_at"] = Game.clock()   # v19 çarpışma penceresi buradan
+	if atk.has("exec_t"):
+		_exec_strike()
 	if c.has("pull"):
 		# çekiş savuruşu: uçtan içeri doğru akan parlak çizgi (tırpan / kanca)
 		var R0 := _reach(it)
@@ -3088,10 +3516,11 @@ func _melee_hits() -> void:
 	var around: bool = sw.get("around", false)
 	var hold: float = atk.get("hold", 0.0)
 	var heavy_w: bool = it.get("id", "") in HEAVY
+	var ex_e: Node = atk.get("exec_t") if atk.has("exec_t") and is_instance_valid(atk["exec_t"]) else null
 	for e in get_tree().get_nodes_in_group("dusman"):
 		if not is_instance_valid(e) or e.dead or atk["hit"].has(e):
 			continue
-		if box.intersects(e.hurt_rect()):
+		if box.intersects(e.hurt_rect()) or e == ex_e:
 			atk["hit"].append(e)
 			var opts := {"kb": float(c["kb"]), "step": atk["step"], "last": c.get("last", false) or atk.get("pause", false)}
 			var dist := absf(e.center().x - global_position.x)
@@ -3134,6 +3563,9 @@ func _melee_hits() -> void:
 			opts["hit_n"] = atk["hit"].size()
 			opts["sfx_done"] = true
 			opts["feel_done"] = true
+			var v19_tag := _v19_opts(e, c, opts)
+			if int(atk.get("yanki", 0)) > 0:
+				mult *= float(V19["yk_mult"])
 			_deal(e, float(it["dmg"]) * mult, it, opts)
 			# v15 çekiş: tırpan / kanca düşmanı kendine çeker (ağırlar yerinde kalır, çekilme penceresi açılır)
 			if c.has("pull") and is_instance_valid(e) and not e.dead and not e.heavy and not e.flying:
@@ -3203,6 +3635,7 @@ func _melee_hits() -> void:
 				_deal(e, float(it["dmg"]) * mult * 0.7, it, opts2)
 				FX.impact(hp + Vector2(facing * 6, -6), hdir, weapon_color(it), 0.8)
 			combo_add(e)
+			_v19_after_hit(e, it, c, hp, hdir, v19_tag, first_hit, killed)
 			if not is_on_floor():
 				air_hang = 0.28
 			# hitstop: kademe + şarj + kombo (en çok %35) — 120 ms üstü "takılma" gibi okunur, sınır.
@@ -3216,6 +3649,8 @@ func _melee_hits() -> void:
 				# ağır silah "oturarak" vursun)
 				base_hs = lerpf(0.055, 0.08, clampf((_weight(it) - 0.3) / 0.7, 0.0, 1.0))
 			var hs := minf(0.12, (base_hs + (0.03 * hold if atk.get("heavy", false) else 0.0)) * hs_k) + (0.03 if killed else 0.0)
+			if c.get("last", false) and not atk.get("pause", false):
+				hs += float(V19["fin_hs"])   # v19: zincir bitirişi ayrı bir olay
 			if first_hit:
 				Game.hitstop(hs)
 			else:
@@ -4235,6 +4670,9 @@ func take_hit(dmg: float, from: Node, projectile: Node = null, forced := false) 
 	var sh := slot(sec_slot)
 	var src_x: float = from.global_position.x if from else global_position.x + facing
 	var facing_src: bool = sign(src_x - global_position.x) == facing
+	# v19 Çarpışma: savuruşun ilk anlarında bıçağa değen darbe / mermi karşılanır
+	if not forced and _clash(from, projectile, facing_src):
+		return false
 	var blocked := false
 	if block_t >= 0.0 and sh.get("kind", "") == "shield" and facing_src:
 		blocked = true

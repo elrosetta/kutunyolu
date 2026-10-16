@@ -260,14 +260,18 @@ func take_hit(d: float, opts: Dictionary) -> bool:
 		d *= 1.25
 	if armor_break > 0:
 		d *= 1.0 + armor_mv / 100.0 * armor_break
-	if guard_t > 0.0 and signf(float(opts.get("dir", 1))) == -float(facing):
+	# v19: duruşu kırık yaratık fazla hasar alır; infaz (Kut Alma) siperi / kalkanı / kabuğu aşar ve kesin öldürür
+	var exe: bool = opts.get("exec", false)
+	if broken_t > 0.0:
+		d *= float(POISE["break_dmg"])
+	if guard_t > 0.0 and not exe and signf(float(opts.get("dir", 1))) == -float(facing):
 		# Balbal siperi: önden gelen darbe taşa çarpar
 		d *= 0.3
 		opts["stagger"] = false
 		FX.sparks(center() + Vector2(facing * 10, -4), Vector2(facing, -0.6), Color(0.85, 0.85, 1.0), 6, 150.0)
 		FX.text(center() + Vector2(0, -30), "siper", Color(0.8, 0.8, 0.95), 7)
 	# kalkanlı bekçi: önden gelen darbeler kalkana çarpar; ağır vuruş ya da 3 darbe kalkanı düşürür (sersemler, açık kalır)
-	if (ai == "shield" or ai == "charger") and guard_hp > 0 and state != "stagger" and signf(float(opts.get("dir", 1))) == -float(facing) and not opts.get("behind", false):
+	if (ai == "shield" or ai == "charger") and not exe and guard_hp > 0 and state != "stagger" and signf(float(opts.get("dir", 1))) == -float(facing) and not opts.get("behind", false):
 		var heavy_hit: bool = opts.get("heavy", false) or float(opts.get("kb", 60.0)) >= 250.0
 		guard_hp -= 3 if heavy_hit else 1
 		var sp := center() + Vector2(facing * 14, -2)
@@ -289,7 +293,7 @@ func take_hit(d: float, opts: Dictionary) -> bool:
 			velocity.x = facing * -40.0
 		return false
 	# tosbağa: kabuktayken dokunulmaz; dışarıdayken darbe alınca kabuğa çekilme şansı
-	if ai == "turtle":
+	if ai == "turtle" and not exe:
 		if state in ["shell", "spin"]:
 			d *= 0.08
 			FX.sparks(center() + Vector2(float(opts.get("dir", 1)) * -16, -6), Vector2(-float(opts.get("dir", 1)), -0.6), Color(0.7, 0.9, 1.0), 6, 160.0)
@@ -307,6 +311,8 @@ func take_hit(d: float, opts: Dictionary) -> bool:
 		_reveal()
 	if decoy:
 		d = 9999.0
+	if exe:
+		d = maxf(d, hp + 1.0)
 	if state == "dormant":
 		_wake()
 	hp -= d
@@ -396,6 +402,16 @@ func take_hit(d: float, opts: Dictionary) -> bool:
 	var now := Game.clock()
 	if now - _flinch_last > float(POISE["window"]):
 		_flinch_n = 0
+	# v19 duruş kırılması: diretirken (zincirle doldu) büyük vuruş (bitiriş / kritik / ağır / karşı vuruş) duruşu kırar;
+	# ağır yaratık sarsılmasa da her vuruşun duruş hasarını (opts.poise, silah ağırlığıyla) biriktirir, dolunca kırılır
+	if not is_boss and hp > 0.0 and now - _break_last > float(POISE["break_cd"]):
+		if heavy:
+			# yakın vuruş kendi duruş hasarını verir; diğerleri (ok, patlama) 0,6, itmesiz süreğen hasar (kor gölü) hiç
+			poise_pts += float(opts.get("poise", 0.6 if float(opts.get("kb", 0.0)) > 0.0 else 0.0))
+			if poise_pts >= float(POISE["heavy_pts"]) * (1.6 if elite else 1.0) or (opts.get("counter", false) and crit):
+				_guard_break(dir)
+		elif big_hit and now < _poise_until:
+			_guard_break(dir)
 	var armored: bool = now < _poise_until and not big_hit and not is_boss
 	if armored and (not heavy or opts.get("stagger", false) or crit):
 		# direniyor: hasar ve küçük itme, sarsılma yok, hazırlık sürer
@@ -542,7 +558,14 @@ var _hit_tilt := 0.0
 ## v18 duruş (Dead Cells esinli): hızlı zincirler yaratığı sonsuza dek kilitlemesin. Kısa sürede art arda sarsılan
 ## yaratık bir an "diretir" (sarsılmaz, hazırlığı sürer); büyük vuruş (bitiriş, kritik, ağır) direnci yine kırar.
 ## Hafif vuruş hazırlığı iptal etmez, yalnızca geciktirir (sarsılma süresince yapay zekâ durur).
-const POISE := {"n": 4, "n_elite": 2, "window": 0.9, "armor": 0.75, "flinch": 0.12, "flinch_big": 0.2}
+## v19: diretme 0,75 → 0,6 sn (hızlı zincir daha az "duvara" çarpar), hafif sarsılma 0,12 → 0,1, büyük 0,2 → 0,24 (bitiriş
+## daha belirgin itsin). Duruş kırılması: diretirken gelen büyük vuruş ya da ağır yaratıkta biriken duruş hasarı
+## (heavy_pts; seçkinde ×1,6) → break_stun sn sersemleme (ağırda break_stun_heavy), bu sürede ×break_dmg hasar; bekleme break_cd.
+const POISE := {"n": 4, "n_elite": 2, "window": 0.9, "armor": 0.6, "flinch": 0.1, "flinch_big": 0.24,
+	"heavy_pts": 7.0, "heavy_decay": 2.0, "break_stun": 0.9, "break_stun_heavy": 0.7, "break_dmg": 1.25, "break_cd": 2.2}
+var poise_pts := 0.0     # v19: ağır yaratıkta biriken duruş hasarı (sn'de heavy_decay söner)
+var broken_t := 0.0      # v19: duruşu kırık (sersem, fazla hasar alır, infaz edilebilir)
+var _break_last := -9.0
 var _flinch_n := 0
 var _flinch_last := -9.0
 var _poise_until := -9.0
@@ -616,6 +639,40 @@ func _wall_slam() -> void:
 	velocity.x = n.x * 60.0
 	if hp <= 0.0:
 		_die(n.x, 120.0, false)
+
+
+func _guard_break(dir: float) -> void:
+	## v19 duruş kırıldı: sersemler (hazırlık kesilir), kısa süre fazla hasar alır; canı azsa oyuncu infaz edebilir
+	## (exec_ok, StatusOverlay kızıl mühür çizer)
+	_break_last = Game.clock()
+	_poise_until = -9.0
+	_flinch_n = 0
+	poise_pts = 0.0
+	var t := float(POISE["break_stun_heavy"] if heavy else POISE["break_stun"])
+	broken_t = t
+	stun(t)
+	contact = false
+	FX.text(center() + Vector2(0, -size.y * 0.5 - 14.0), "DURUŞ KIRILDI", Color(1.0, 0.8, 0.45), 8)
+	if FX.ink():
+		InkFX.ring(center(), 20.0 + size.y * 0.15, 9, 0.3)
+		InkFX.hit("blunt", center(), Vector2(dir, -0.2), 9, 1, 0.9)
+	else:
+		FX.ring(center(), 20.0 + size.y * 0.15, Color(1.0, 0.85, 0.45), 0.3)
+	Ses.play("darbe_kunt", -4.0, 0.8)
+	Game.hitstop(0.03)
+	vis_scale = Vector2(0.8, 1.15)
+	if level and level.player and "v19_stats" in level.player:
+		level.player.v19_stats["kirilma"] = int(level.player.v19_stats["kirilma"]) + 1
+
+
+func exec_ok() -> bool:
+	## v19 Kut Alma: duruşu kırık / sersem / donmuş ya da kalkanı düşmüş ve canı az (Player.V19.ex_hp; seçkinde
+	## ex_hp_elite) yaratık infaz edilebilir. Bosslar ve hayaletler hariç.
+	if dead or is_boss or decoy or max_hp <= 0.0:
+		return false
+	if not (broken_t > 0.0 or stun_t > 0.0 or state == "stagger" or freeze_t > 0.0):
+		return false
+	return hp <= max_hp * float(Player.V19["ex_hp_elite"] if elite else Player.V19["ex_hp"])
 
 
 # ------------------------------------------------------------------ yapay zekâ
@@ -755,6 +812,8 @@ func _physics_process(delta: float) -> void:
 
 func _tick_status(delta: float) -> void:
 	stun_t = maxf(0.0, stun_t - delta)
+	broken_t = maxf(0.0, broken_t - delta)
+	poise_pts = maxf(0.0, poise_pts - float(POISE["heavy_decay"]) * delta)
 	pulled_t = maxf(0.0, pulled_t - delta)
 	root_t = maxf(0.0, root_t - delta)
 	freeze_t = maxf(0.0, freeze_t - delta)

@@ -1397,3 +1397,121 @@ ok, `FX.burst` parıltıları). Yeni sistem `scripts/actors/Okculuk.gd` (durum +
 geç bırakış, basılı tutma, 10 Hz seri basış; akış (vuruşta yay, gerilirken saldırı / yuvarlanma, yuvarlanırken yay, Akıncı
 yuvarlanma atışı), ok sökme + hazır ok, ok toplama (dökülen / yere saplanan), süzülüş, takılma denetimi. Ekran görüntüleri:
 `godot --path . -- --yay --boss --pencere=1920x1080 --yay_goruntu=C:/mutlak/klasor`.
+
+Oyun artık varsayılan olarak v2 mürekkep + cel tarzında açılır (`Data.stil = "v2"`). Eski piksel görünüm: `-- --stil=v1`.
+
+
+## Dövüş v19: silah kimlikleri, Kut Yankısı, Çarpışma, Karşı Vuruş, Kut Alma, duruş kırılması
+
+Geri bildirim: "silah, kombo, yay-ok mekanikleri çok daha iyi olmalı; başka mekanikler de ekleyelim." v18 temposu Dead Cells
+ölçeğine indirilmişti (ölçüm aşağıda); v19 her silahı kendine özgü bir "karakter" olarak bitirir ve ritmi ödüllendiren yeni
+mekanikler ekler. Yay / mermi tarafı ayrı daldadır (bu bölüm yalnızca yakın dövüş).
+
+### Araştırma: Dead Cells yakın silah kritik koşulları (deadcells.wiki.gg, Melee Weapons)
+
+Her silahın tek ve okunur bir kritik koşulu var; silahın nasıl oynandığını o belirler: Balanced Blade art arda 10 isabette kritik
+(kombo rampası), Assassin's Dagger arkadan, Spite Sword son 8 sn'de hasar aldıysan, Broadsword zincirin 2. ve 3. vuruşu
+(bitiriş kritiği), War Spear aynı anda birden çok hedefe, Impaler duvara dayalı hedefe, Flawless 15 sn hasar almadıysan, Rapier
+yuvarlanma ya da savuşturmadan hemen sonra, Symmetrical Lance hızlı iki öldürmeden sonra 6 sn, Frantic Sword canın %50 altındayken,
+Flint basılı tutup bırakınca, Nutcracker sersemlemiş / donmuş / köklenmiş hedefe, Sadist's Stiletto kanayan / zehirli hedefe.
+Kaynak: https://deadcells.wiki.gg/wiki/Melee_Weapons . Bizim 27 silahımızın her birinin zaten kendi kritik koşulu vardı (`mech`);
+v19 bunları zincir biçimiyle hizaladı, tekrar eden zincirleri ayırdı ve Broadsword tarzı "bitiriş kritiği"ni (`fc`) ağır
+silahlara verdi.
+
+### Silah kimlikleri (`Player.COMBOS`)
+
+v19 değişiklikleri: **Gürz** üçlü oldu (kısa baş üstü ezme → yel değirmeni → sıçrayıp çakma; Nutcracker gibi), **Kor Çekici**
+yerde sürüklenen çekiçle kor saçarak alttan kalkar (yakar, hafif kaldırır; daha önce hiçbir silahın kullanmadığı `ground_drag`)
+→ baş üstü iniş, **Ruh Kılıcı** palayla aynı açılmasın diye düz → iniş → yükseliş, **Yıldırım Kılıcı** bekleme bitirişi Şimşek
+Çekişi (kesin kritik, ileri atılır; eskiden yedi silahla aynı "seri saplama"ydı). Bitiriş kritiği (`fc`, zincirin son vuruşu
+kesin kritik): Ulu Kılıç, Gürz, Kor Çekici, Teber. Her zincir bitirişi (`last`) ayrı bir olay: büyük mürekkep sıçrantısı + silah
+paletinde halka + kısa yakınlaşma + 20 ms ek duraklama (`_finisher_fx`, `V19.fin_hs`).
+
+Zamanlar `--dovus --boss` ölçümü (60 Hz, ±1-2 kare; "temas" = isabetin başladığı kare; zincir aralığı = 20 Hz seri basışta ardışık
+temaslar, düşmansız).
+
+| Silah | Zincir (uzunluk: biçimler) | Kritik koşulu | Basış→temas / zincir aralığı (ms) |
+|---|---|---|---|
+| İkiz Bıçak | 4: sol kesik → sağ kesik → tırmık → çapraz içinden geçiş | yuvarlanmadan sonraki N vuruş | 100 / 100-183 |
+| Böri Hançeri | 4: sol → sağ → ters el → çapraz geçiş (arkaya düşer) | arkadan, sersem, kalkansız | 83 / 100-117 |
+| Kurt Pençeleri | 3: tırmık → ters el → yükseliş (fırlatır) | havadaki düşman; havada sıçrar | 67 / 117-183 |
+| Ay Palası | 5: çevrim → sağ → sol → geri sıçrayış → çift saplama | 5. vuruş; zincir hızlanır | 67 / 83-200 |
+| Yatağan | 4: ters el → düz → geri sıçrayış (kesin kritik) → hücum | ivme 5 yükte | 100 / 150-183 |
+| Rüzgâr Kılıcı | 3: çekiş → geri sıçrayış → yükseliş | havadaki düşman; 3. kesik yel bıçağı | 117 / 167-217 |
+| Alp Kılıcı | 3: çapraz iniş → çapraz yükseliş → adımlı baş üstü | 3. vuruş | 133 / 183-233 |
+| Pala | 3: çapraz iniş → ters el → çark (basılı: 1,2 sn) | kanayan düşman | 133 / 200 (+çark) |
+| Ruh Kılıcı | 3: düz → iniş → yükseliş (her kesik ruh hilali) | uzaktan (hilal) | 117 / 167-217 |
+| Yılan Kılıcı | 3: ters el → saplama → alçak süpürme (çelme) | 3 zehir yükünde | 117 / 167-217 |
+| Ayaz Kılıcı | 2: alçak süpürme → adımlı iniş | donmuş düşman | 117 / 217-233 |
+| Yıldırım Kılıcı | 3: çekiş → geri sıçrayış → hücum; bekleme Şimşek Çekişi | şimşek hamlesinde 2. delişten | 133 / 200-283 |
+| Kargı | 3: saplama → alçak saplama → alttan süpürme | koşarak hücum | 133 / 167-200 |
+| Tulpar Mızrağı | 3: saplama → saplama → uzun hamle (ileri taşır) | koşarken her saplama | 150 / 183-250 |
+| Kement | 2: şaklama → yan şaklama | uçtan; çekilmiş düşman | 167 / 250-267 |
+| Od Kamçısı | 3: şaklama → alçak süpürme → şaklama | yanan düşman; uçtan | 167 / 200-250 |
+| Teber | 3: sırık süpürmesi → alçak biçme → baş üstü (`fc`) | uçtan (geniş yay) | 183 / 250-317 |
+| Erlik Tırpanı | 3: biçme (çeker) → alçak süpürme → çark | canı %30 altı | 217 / 267-500 |
+| Ulu Kayın Asası | 3: sırık süpürmesi → çevrim → aparkat | sersemlemiş; duvara çarptırır | 183 / 233-483 |
+| Gürz | 3: ezme → yel değirmeni → çakma (`fc`) | sersemlemiş | 250 / 367-467 |
+| Çivili Topuz | 3: iniş → aparkat (fırlatır) → çakma | 3 zırh kırığında | 283 / 383-533 |
+| Savaş Baltası | 2: kanca (çeker) → fırlat | geri dönen balta | 250 / 400 |
+| İkiz Balta | 3: sol → sağ (çift) → çark | kanama 3+ | 250 / 333-583 |
+| Ulu Kılıç | 2: baş üstü → çark (`fc`), süper zırh | iki düşmana denk gelirse | 400 / 517-850 |
+| Bozgun Kılıcı | 3: çapraz → çark (sa) → adımlı iniş (sa) | canı %35 altı | 350 / 400-817 |
+| Dağ Çekici | 2: baş üstü (şok, sa) → aparkat | havadaki düşman (yere çakar) | 367 / 517-567 |
+| Kor Çekici | 2: yerde sürükle (kor) → baş üstü (`fc`, kor gölü) | yanan düşman | 350 / 533-567 |
+
+(Pala'nın 3. aralığı seri basışta çark tutuşuna denk gelirse 1,2 sn'ye uzar; v18'de de koşudan koşuya 383-1667 ms oynuyordu.)
+
+### Yeni mekanikler (`Player.V19`, Player.gd "v19 dövüş mekanikleri" bölümü)
+
+* **Kut Yankısı** (saldırı tuşu, zamanlama): savuruş bir düşmana oturduğu anda elde küçük altın halka belirir. O an (vuruş
+  donmasının içinde ya da donma bittikten sonraki 150 ms içinde) yeniden basarsan sıradaki vuruş **yankılı** olur: hazırlığı
+  ve tutuşu %55'e iner (zincir akar), hasarı ×1,3 ve 70 ms sonra savuruşun kendi yayı altın mürekkeple yeniden süpürülür
+  (`_yk_echo_trail`: kolun vuruş penceresindeki pozlarından ayrı bir InkTrail), kutudaki herkese vuruşun %35'i kadar vurur.
+  İsabetten ÖNCE basmak (hazırlıkta / süpürmede tuşa ezbere basmak) o savuruşun yankısını bozar; geç basış sıradan zincirdir.
+  Art arda üç yankı: **Kut Mührü** (sıradaki isabet kesin kritik + altın damga). Usul vuruşuna da denk gelirse iki yankı kesiği
+  ("YANKI ×2"). Usul müziğin ritmini, Yankı kendi vuruşunun ritmini ödüllendirir; ikisi birlikte en güçlüsü.
+* **Çarpışma** (yakın savuşturma; kalkan gerekmez): savuruş vuruşa başladıktan sonraki 160 ms içinde (bıçak önünde dönerken)
+  gelen yakın darbe ya da mermi, bıçağın kutusuna değiyorsa bıçağa çarpar: hasar yok, ÇARPIŞMA + altın ensō, örs sesi, 80 ms
+  duraklama + kısa ağır çekim, Kut +8. Saldıran 0,8 sn sersemler (ağır 0,45) ve geri itilir; mermi ×1,2 hasarla seker. Sonraki
+  savuruşun ilk isabeti kesin kritik ("karşılık!", 1,2 sn). Bossların yakın darbeleri karşılanmaz (mermileri karşılanır).
+  Kalkan savuşturması (`_parry`) aynen sürer.
+* **Karşı Vuruş**: saldırı hazırlığındaki ("!" uyarısı yanıp sönen) düşmana isabet hazırlığı keser (ağır yaratıkta bile;
+  sersemletir 0,5 / 0,35 sn), kesin kritik, kızıl ensō + "KARŞI VURUŞ". Aynı hazırlıkta bir kez. Bosslarda yalnız kritik.
+* **Kut Alma** (infaz): duruşu kırılmış, sersemlemiş, donmuş ya da kalkanı düşmüş ve canı %30'un altında (seçkinde %18) yaratığın
+  başında nabız gibi atan kızıl mühür belirir (elmas + dört köşeli ayraç; `StatusOverlay._exec_mark`). Erim + 20 px içindeyken
+  saldırı tuşu (yön tuşu ters değilse) infaza döner: kısa ağır çekim, dokunulmazlık, silah sınıfına göre bitiriş (kılıç çekiş
+  kesiği, hançer içinden geçiş, mızrak deliş, uzun sap biçme, kırbaç şaklaması, ağır silah baş üstü ezme; `EXEC_SW`), hedefe
+  atılış ve kesin isabet; siper / kalkan / kabuk aşılır, ölüm kesin. Ödül: canın %4'ü, Kut +12, mürekkep damgası + darbe karesi,
+  "KUT ALINDI".
+* **İsabet iptali**: vuruş oturduktan 50 ms sonra kilidin kalanı zıplama ve ikincil (yay, fırlatma, büyü, kalkan) ile kesilir:
+  Göğe Savur / aparkat → zıpla → hava kombosu kesintisiz akar (eskiden vuruş anındaki zıplama toparlanmayı beklerdi).
+
+### Duruş (`Enemy.POISE`) v19
+
+Diretme 0,75 → 0,6 sn, hafif sarsılma 0,12 → 0,1 sn, büyük 0,2 → 0,24 sn (bitiriş daha belirgin iter). **Duruş kırılması**
+(`Enemy._guard_break`): hafif yaratık zincirle diretmeye girdikten sonra gelen büyük vuruş (bitiriş, kritik, ağır, karşı vuruş)
+duruşu kırar; ağır yaratık sarsılmasa da her yakın vuruşun duruş hasarını biriktirir (hançer ~1,2 · kılıç ~1,7 · dev silah 2,5;
+bitiriş +1; ok / patlama 0,6; kor gölü 0) ve 7 puanda (seçkinde 11) kırılır, sn'de 2 puan söner. Kırılınca "DURUŞ KIRILDI",
+0,9 sn sersemleme (ağırda 0,7), bu sürede ×1,25 hasar, 2,2 sn bekleme. Döngü: zincir → diretme → bitiriş kırar → canı azsa
+Kut Alma. Ağır silahlar ağır yaratıkları çok daha çabuk kırar. Boss kuralı değişmedi.
+
+### Kontroller (ek)
+
+| Eylem | Nasıl |
+|---|---|
+| Kut Yankısı | isabet anında (altın halka) saldırıya yeniden bas; erken basma |
+| Çarpışma | düşmanın darbesine / merminin önüne doğru savur (vuruşun ilk 160 ms'i) |
+| Karşı Vuruş | "!" uyarısındaki düşmana vur |
+| Kut Alma | kızıl mühürlü düşmana yakınken saldırı |
+| İsabet iptali | isabetten sonra zıpla / ikincil |
+
+### Test
+
+`-- --dovus --boss` (tools/tests/dovus_testi.gd): tempo bölümü artık 27 yakın silahın hepsini ölçer; yeni "v19" bölümü: yankı
+(isabetten 1 kare sonra bas → yankılı; hazırlıkta erken basış → yok; 300 ms geç → yok), üç silahta yankı serisi ve Kut Mührü,
+çarpışma (hasar yok, düşman 0,8 sn sersem, karşılık 1,2 sn; toparlanmada gelen darbe hasar verir), karşı vuruş, altı silah
+sınıfında infaz (50-383 ms'de öldü), duruş kırılması (ikiz bıçak → tazı 0,57 sn, Alp → tazı 1,57 sn, Dağ Çekici → Kara İye
+1,72 sn), isabet iptali (isabetten 4 kare sonra zıplama 1 kare). `--v19` yalnızca bu bölümü koşar. TAKILMA=0.
+`-- --dovus --boss --klip19 --pencere=1920x1080 --anlik=<klasör>` (headless değil) yeni hamlelerin gösterisini oynatır ve anlık
+görüntüler kaydeder (`--yanki_kare`: yankı kesiğini kare kare).

@@ -41,6 +41,10 @@ const TUT := {
 	"agir": [[["J", "basılı tut: ağır vuruş"], ["bekle+J", "bitiriş"]], "Her silahın kendi zinciri var. İki vuruştan sonra kısa bekleyip J: silahın özel bitirişi. J'yi basılı tut: şarjlı ağır vuruş."],
 	"usul": [[["J", "vuruşa denk"]], "Müzik aksak usulde çalıyor (sağdaki ölçer). Saldırıyı vuruşa denk getirirsen hasar artar, seri Kut verir."],
 	"kacis": [[["L", "son anda yuvarlan"]], "Kusursuz Kaçış: darbenin isabet edeceği an yuvarlanırsan zaman yavaşlar ve sıradaki vuruşun kesin kritik olur."],
+	# v19 dövüş
+	"yanki": [[["J", "isabet anında"]], "Kut Yankısı: vuruş oturunca elde altın halka belirir; o an yeniden bas. Sıradaki vuruş hızlanır, altın bir yankı kesiği gelir. Üç yankı: Kut Mührü. Erken basma!"],
+	"infaz": [[["J", "kızıl mühürlü düşmana"]], "Kut Alma: duruşu kırılmış ya da sersemlemiş, canı azalmış düşmanın başında kızıl mühür var. Yakınken saldır: tek hamlede infaz, can ve Kut kazanırsın."],
+	"carpisma": [[["J", "darbesine doğru savur"]], "Çarpışma: düşmanın darbesi ya da mermisi savuruşunun ilk anında bıçağına değerse karşılanır. Saldıran sersemler, sıradaki vuruşun kesin kritik."],
 }
 var back_mode := "title"   # ayarlar ekranı kapanınca dönülecek mod
 
@@ -197,6 +201,16 @@ func _tut_tick(delta: float) -> void:
 		_tut_show("agir")
 	if _tut_id == "" and float(Game.run.get("time", 0.0)) > 40.0 and Ses.has_method("usul_now") and not Ses.usul_now().is_empty():
 		_tut_show("usul")
+	# v19: Kut Yankısı (ilk zincirlerden sonra), Çarpışma (ilk çarpışmada), Kut Alma (mühürlü düşman yakında)
+	if _tut_id == "" and "v19_stats" in pl and Engine.get_process_frames() % 10 == 0:
+		if int(pl.v19_stats.get("carpisma", 0)) > 0:
+			_tut_show("carpisma")
+		elif int(pl.combo_n) >= 4 and float(Game.run.get("time", 0.0)) > 20.0:
+			_tut_show("yanki")
+		for e in get_tree().get_nodes_in_group("dusman"):
+			if is_instance_valid(e) and e.has_method("exec_ok") and e.global_position.distance_to(pl.global_position) < 140.0 and e.exec_ok():
+				_tut_show("infaz")
+				break
 	# dünya nesneleri: yeraltı kapağı, don ruhu, ruh kuşu
 	if level.alem and pl.realm == "":
 		var d: Dictionary = level.alem.nearest_door(pl.global_position, 100.0)

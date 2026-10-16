@@ -22,8 +22,11 @@ var _track := false
 
 const WEAPONS := ["ikiz_bicak", "yatagan", "alp_kilici", "kargi", "ulu_kilic", "dag_cekici"]
 ## v18 tempo tablosu: her silah sınıfından bir temsilci (basış→temas, zincir aralığı)
-const TEMPO_WEAPONS := ["ikiz_bicak", "bori_hanceri", "yatagan", "alp_kilici", "pala", "kargi", "kement", "teber", "erlik_tirpani",
-	"gurz", "savas_baltasi", "ulu_kilic", "dag_cekici"]
+## v19: tüm yakın dövüş silahları (silah başına basış→temas ve zincir aralığı raporu)
+const TEMPO_WEAPONS := ["ikiz_bicak", "bori_hanceri", "kurt_pencesi", "ay_palasi", "yatagan", "ruzgar_kilici", "alp_kilici", "pala",
+	"ruh_kilici", "yilan_kilici", "ayaz_kilici", "yildirim_kilici", "kargi", "tulpar_mizragi", "kement", "od_kamcisi", "teber",
+	"erlik_tirpani", "kayin_asasi", "gurz", "civili_topuz", "savas_baltasi", "ikiz_balta", "ulu_kilic", "bozgun_kilici", "dag_cekici",
+	"kor_cekici"]
 const ACTS := ["saldiri1", "saldiri2", "zipla", "yuvarlan", "sag", "sol", "yukari", "asagi", "techizat1", "techizat2", "sise", "kut"]
 
 
@@ -212,11 +215,20 @@ func _run() -> void:
 		await _klip_silahlar(ks.split(","))
 		get_tree().quit()
 		return
+	if OS.get_cmdline_user_args().has("--klip19"):
+		await _klip19()
+		get_tree().quit()
+		return
 	if OS.get_cmdline_user_args().has("--klip"):
 		await _klip()
 		get_tree().quit()
 		return
 	var sum := {}
+	if OS.get_cmdline_user_args().has("--v19"):
+		await _v19()
+		_p("TAKILMA=%d" % stuck)
+		get_tree().quit()
+		return
 	# ---------------------------------------------------------------- 1) gecikme, kilit, ara bellek (her silah)
 	for w in WEAPONS:
 		await _reset(w)
@@ -295,6 +307,8 @@ func _run() -> void:
 		tline += "%s %d/%s | " % [w, int(first_ck * 1000.0 / 60.0), str(gaps)]
 		await _idle_check("tempo/" + w)
 	_p("TEMPO " + tline)
+	# ---------------------------------------------------------------- 1c) v19 mekanikleri
+	await _v19()
 	# ---------------------------------------------------------------- 2) iptaller (alp kılıcı)
 	var w0 := "alp_kilici"
 	await _reset(w0)
@@ -517,6 +531,188 @@ func _run() -> void:
 const ROLL_PROBE := 0.25
 
 
+func _pin(e: Node, dx: float) -> void:
+	## Düşmanı yerinde tut (geri itme testi bozmasın)
+	if is_instance_valid(e) and not e.dead:
+		e.global_position.x = spot.x + dx
+		e.velocity.x = 0.0
+
+
+func _hit_wait(e: Node, dx: float, max_f := 60) -> int:
+	## Süren savuruş bir düşmana oturana dek bekle (düşman yerinde tutulur)
+	for n in max_f:
+		await _f()
+		_pin(e, dx)
+		if pl.atk.has("hit_at"):
+			return n
+	return -1
+
+
+func _v19() -> void:
+	## v19: Kut Yankısı, Çarpışma, Karşı Vuruş, Kut Alma (infaz), duruş kırılması, isabet iptali
+	# --- Kut Yankısı: isabetten 1 kare sonra bas → sıradaki savuruş yankılı
+	await _reset("alp_kilici")
+	var e := _enemy(26.0)
+	await _f(4)
+	await _tap("saldiri1", 2)
+	await _hit_wait(e, 26.0)
+	await _f(1)
+	await _tap("saldiri1", 2)
+	var yk := await _until(func() -> bool: return int(pl.atk.get("yanki", 0)) > 0, 40)
+	_p("v19 yankı: isabetten 1 kare sonra bas → yankılı=%s" % ("EVET" if yk >= 0 else "hayır"))
+	await _until(func() -> bool: return pl.atk.is_empty(), 120)
+	await _f(30)
+	# erken basış (hazırlıkta) + isabette yeniden basış → yankı yok
+	await _reset("alp_kilici")
+	e = _enemy(26.0)
+	await _f(4)
+	await _tap("saldiri1", 2)
+	await _f(1)
+	await _tap("saldiri1", 1)
+	await _hit_wait(e, 26.0)
+	await _tap("saldiri1", 2)
+	var yk2 := await _until(func() -> bool: return int(pl.atk.get("yanki", 0)) > 0, 30)
+	_p("v19 yankı: hazırlıkta erken basış sonra isabette bas → yankılı=%s (beklenen: hayır)" % ("EVET" if yk2 >= 0 else "hayır"))
+	await _until(func() -> bool: return pl.atk.is_empty(), 120)
+	await _f(30)
+	# geç basış (isabetten 300 ms sonra) → yankı yok
+	await _reset("alp_kilici")
+	e = _enemy(26.0)
+	await _f(4)
+	await _tap("saldiri1", 2)
+	await _hit_wait(e, 26.0)
+	await _f(18)
+	await _tap("saldiri1", 2)
+	var yk3 := await _until(func() -> bool: return int(pl.atk.get("yanki", 0)) > 0, 30)
+	_p("v19 yankı: isabetten 300 ms sonra bas → yankılı=%s (beklenen: hayır)" % ("EVET" if yk3 >= 0 else "hayır"))
+	await _until(func() -> bool: return pl.atk.is_empty(), 120)
+	await _idle_check("v19/yanki")
+	# üç yankı → Kut Mührü; yankılı vuruşun basış→temas süresi
+	for w in ["ikiz_bicak", "alp_kilici", "dag_cekici"]:
+		await _reset(w)
+		e = _enemy(24.0)
+		await _f(4)
+		var m0 := int(pl.v19_stats["muhur"])
+		var hp_track := e.hp
+		await _tap("saldiri1", 2)
+		var cont: Array = []
+		var prev: Dictionary = {}
+		var since := 0
+		for i in 5:
+			# yeni bir savuruşun isabetini bekle (basıştan isabete süre; yankılıysa "Y")
+			var got := false
+			for n in 150:
+				await _f()
+				since += 1
+				_pin(e, 24.0)
+				if n == 1:
+					Input.action_release("saldiri1")
+				if not pl.atk.is_empty() and not is_same(pl.atk, prev) and pl.atk.has("hit_at"):
+					got = true
+					break
+			if not got:
+				break
+			prev = pl.atk
+			if i > 0:
+				cont.append(("Y" if pl.atk.get("yanki", 0) else "-") + str(int(round(since * 1000.0 / 60.0))))
+			await _f(1)
+			Input.action_press("saldiri1")
+			since = 0
+		Input.action_release("saldiri1")
+		await _until(func() -> bool: return pl.atk.is_empty(), 150)
+		_p("v19 yankı serisi %s: yankı=%d mühür=%d, yankı basışından isabete (Y=yankılı, ms)=%s, hasar=%d" % [w, int(pl.v19_stats["yanki"]), int(pl.v19_stats["muhur"]) - m0, str(cont), int(hp_track - e.hp)])
+		await _idle_check("v19/seri/" + w)
+	# --- Çarpışma: vuruşun ilk anında gelen darbe bıçağa çarpar
+	await _reset("alp_kilici")
+	var foe := _enemy(30.0)
+	await _f(4)
+	await _tap("saldiri1", 2)
+	await _until(func() -> bool: return pl.atk.get("phase", "") == "act", 60)
+	var hp0 := float(Game.run["hp"])
+	pl.inv_t = 0.0  # adımın kısa dokunulmazlığı ölçümü bozmasın
+	var took: bool = pl.take_hit(5.0, foe)
+	_p("v19 çarpışma: hasar alındı=%s, düşman sersem=%.2f sn, karşılık=%.2f sn" % [str(took), foe.stun_t, pl.riposte_t])
+	await _until(func() -> bool: return pl.atk.is_empty(), 120)
+	await _tap("saldiri1", 2)
+	var k0 := int(pl.v19_stats["carpisma"])
+	await _until(func() -> bool: return pl.atk.is_empty(), 120)
+	_p("v19 çarpışma sayısı=%d (hp %.0f→%.0f)" % [k0, hp0, float(Game.run["hp"])])
+	await _idle_check("v19/carpisma")
+	# geç darbe (vuruş penceresinden sonra): çarpışma yok
+	await _reset("alp_kilici")
+	foe = _enemy(30.0)
+	await _f(4)
+	await _tap("saldiri1", 2)
+	await _until(func() -> bool: return pl.atk.get("phase", "") == "rec", 60)
+	pl.inv_t = 0.0
+	var took2: bool = pl.take_hit(5.0, foe)
+	_p("v19 çarpışma: toparlanmada gelen darbe → hasar alındı=%s (beklenen: true)" % str(took2))
+	await _idle_check("v19/carpisma_gec")
+	# --- Karşı vuruş: hazırlıktaki düşmana isabet
+	await _reset("alp_kilici")
+	foe = _enemy(26.0)
+	await _f(4)
+	foe.state = "windup"
+	foe.st = 9.0
+	var kv := int(pl.v19_stats["karsi"])
+	await _tap("saldiri1", 2)
+	await _hit_wait(foe, 26.0)
+	await _f(2)
+	_p("v19 karşı vuruş: sayıldı=%s, düşman durumu=%s sersem=%.2f" % [str(int(pl.v19_stats["karsi"]) > kv), foe.state, foe.stun_t])
+	await _until(func() -> bool: return pl.atk.is_empty(), 120)
+	await _idle_check("v19/karsi")
+	# --- Kut Alma: sersem + canı az düşman, her silah sınıfından biri
+	for w in ["alp_kilici", "ikiz_bicak", "kargi", "kement", "teber", "dag_cekici"]:
+		await _reset(w)
+		foe = _enemy(34.0)
+		await _f(4)
+		foe.max_hp = 100.0
+		foe.hp = 20.0
+		foe.stun(3.0)
+		var ok0: bool = foe.exec_ok()
+		await _tap("saldiri1", 2)
+		var n0 := int(pl.v19_stats["infaz"])
+		var exn := await _until(func() -> bool: return int(pl.v19_stats["infaz"]) > n0, 90)
+		_p("v19 infaz %s: işaret=%s, %s sonra öldü, savuruş=%s" % [w, str(ok0), _ms(exn), String(pl.atk.get("c", {}).get("s", "-"))])
+		await _until(func() -> bool: return pl.atk.is_empty(), 120)
+		await _idle_check("v19/infaz/" + w)
+	# --- Duruş kırılması: ağır yaratık (biriken duruş hasarı) ve hafif yaratık (diretirken bitiriş)
+	for pair in [["dag_cekici", "agac_iyesi"], ["alp_kilici", "kara_boru"], ["ikiz_bicak", "kara_boru"]]:
+		await _reset(String(pair[0]))
+		foe = _enemy(28.0, String(pair[1]))
+		await _f(4)
+		var b0 := int(pl.v19_stats["kirilma"])
+		var first_break := -1
+		for i in 240:
+			if i % 3 == 0:
+				Input.action_press("saldiri1")
+			elif i % 3 == 1:
+				Input.action_release("saldiri1")
+			await _f()
+			_pin(foe, 28.0)
+			if first_break < 0 and int(pl.v19_stats["kirilma"]) > b0:
+				first_break = i
+				break
+		_release_all()
+		_p("v19 duruş kırılması %s → %s: %s sonra kırıldı" % [pair[0], pair[1], _ms(first_break)])
+		await _until(func() -> bool: return pl.atk.is_empty(), 150)
+		await _idle_check("v19/kirilma/" + String(pair[0]))
+	# --- İsabet iptali: isabetten 4 kare sonra zıpla
+	for w in ["alp_kilici", "dag_cekici"]:
+		await _reset(w)
+		foe = _enemy(26.0)
+		await _f(4)
+		await _tap("saldiri1", 2)
+		await _hit_wait(foe, 26.0, 90)
+		await _f(3)
+		Input.action_press("zipla")
+		var jc := await _until(func() -> bool: return pl.velocity.y < -100.0, 60)
+		Input.action_release("zipla")
+		_p("v19 isabet iptali %s: isabetten 4 kare sonra zıpla → %s sonra zıplama" % [w, _ms(jc)])
+		await _idle_check("v19/iptal/" + w)
+	_p("v19 sayaçlar %s" % str(pl.v19_stats))
+
+
 func _klip() -> void:
 	## --dovus --klip: kısa gösteri (çekim için, --write-movie): koşudan zincir + adım, arkadakine dönüş,
 	## yuvarlanma içinden Dönüş Kesiği, havada yön vererek saldırı, vuruş anında zıplama ara belleği
@@ -596,3 +792,176 @@ func _klip_silahlar(list: Array) -> void:
 		Input.action_release("saldiri1")
 		await _until(func() -> bool: return pl.atk.is_empty(), 120)
 		await _f(24)
+
+
+var _snap_dir := ""
+var _snap_n := 0
+
+
+func _snap(tag: String) -> void:
+	## --anlik=<klasör>: o anki kareyi PNG kaydet (HDR 2D doğrusal → sRGB)
+	if _snap_dir == "":
+		for arg in OS.get_cmdline_user_args():
+			if String(arg).begins_with("--anlik="):
+				_snap_dir = String(arg).trim_prefix("--anlik=")
+	if _snap_dir == "" or DisplayServer.get_name() == "headless":
+		return
+	await RenderingServer.frame_post_draw
+	var img := get_viewport().get_texture().get_image()
+	if get_viewport().use_hdr_2d:
+		if img.get_format() != Image.FORMAT_RGBA8 and img.get_format() != Image.FORMAT_RGB8:
+			img.convert(Image.FORMAT_RGBA8)
+		img.linear_to_srgb()
+	_snap_n += 1
+	var out := "%s/v19_%02d_%s.png" % [_snap_dir, _snap_n, tag]
+	img.save_png(out)
+	_p("anlik %s" % out)
+
+
+func _wait_hit_new(prev: Dictionary, e: Node, dx: float, max_f := 150) -> bool:
+	for n in max_f:
+		await _f()
+		if e != null:
+			_pin(e, dx)
+		if not pl.atk.is_empty() and not is_same(pl.atk, prev) and pl.atk.has("hit_at"):
+			return true
+	return false
+
+
+func _klip19() -> void:
+	## --dovus --boss --klip19 [--anlik=<klasör>] : v19 hamlelerinin gösterisi ve anlık görüntüleri
+	## (1920x1080 için --pencere=1920x1080; headless değil)
+	_track = false
+	# 1) Kut Yankısı serisi (Alp Kılıcı): her isabetten hemen sonra bas → yankı kesikleri, üçüncüde Kut Mührü
+	await _reset("alp_kilici")
+	var e := _enemy(30.0)
+	var e2 := _enemy(46.0)
+	await _f(150)  # bölüm adı kartı kaybolsun
+	await _tap("saldiri1", 2)
+	var prev: Dictionary = {}
+	for i in 5:
+		if not await _wait_hit_new(prev, e, 30.0):
+			break
+		prev = pl.atk
+		_pin(e2, 46.0)
+		if pl.atk.get("yanki", 0) and i <= 2 and OS.get_cmdline_user_args().has("--yanki_kare"):
+			for k in 12:
+				await _f(1)
+				await _snap("yanki_%d_%d" % [i, k])
+			break
+		await _f(1)
+		await _tap("saldiri1", 2)
+	await _until(func() -> bool: return pl.atk.is_empty(), 150)
+	await _f(30)
+	# 2) Çarpışma: düşmanın atılışı savuruşun ilk anında bıçağa çarpar
+	await _reset("alp_kilici")
+	var foe := _enemy(34.0)
+	await _f(20)
+	await _tap("saldiri1", 2)
+	await _until(func() -> bool: return pl.atk.get("phase", "") == "act", 60)
+	pl.inv_t = 0.0
+	pl.take_hit(5.0, foe)
+	await _f(3)
+	await _snap("carpisma")
+	await _until(func() -> bool: return pl.atk.is_empty(), 120)
+	await _f(6)
+	await _tap("saldiri1", 2)
+	await _wait_hit_new({}, foe, 40.0)
+	await _f(2)
+	await _snap("karsilik")
+	await _until(func() -> bool: return pl.atk.is_empty(), 120)
+	await _f(30)
+	# 3) Karşı vuruş: hazırlıktaki ("!") düşmana isabet
+	await _reset("pala")
+	foe = _enemy(30.0)
+	await _f(20)
+	foe.state = "windup"
+	foe.st = 9.0
+	await _f(10)
+	await _snap("hazirlik")
+	await _tap("saldiri1", 2)
+	await _wait_hit_new({}, foe, 30.0)
+	await _f(3)
+	await _snap("karsi_vurus")
+	await _until(func() -> bool: return pl.atk.is_empty(), 120)
+	await _f(30)
+	# 4) Duruş kırılması (Dağ Çekici → Kara İye) ve Kut Alma
+	await _reset("dag_cekici")
+	foe = _enemy(32.0, "agac_iyesi")
+	foe.max_hp = 400.0
+	foe.hp = 400.0
+	await _f(20)
+	var b0 := int(pl.v19_stats["kirilma"])
+	for i in 300:
+		if i % 3 == 0:
+			Input.action_press("saldiri1")
+		elif i % 3 == 1:
+			Input.action_release("saldiri1")
+		await _f()
+		_pin(foe, 32.0)
+		foe.hp = maxf(foe.hp, 300.0)
+		if int(pl.v19_stats["kirilma"]) > b0:
+			break
+	_release_all()
+	await _f(2)
+	await _snap("durus_kirildi")
+	await _until(func() -> bool: return pl.atk.is_empty(), 150)
+	foe.hp = foe.max_hp * 0.2
+	foe.stun(3.0)
+	await _f(12)
+	await _snap("infaz_isareti")
+	var n0 := int(pl.v19_stats["infaz"])
+	await _tap("saldiri1", 2)
+	await _until(func() -> bool: return pl.atk.get("phase", "") == "act", 90)
+	await _snap("infaz_vurus")
+	await _until(func() -> bool: return int(pl.v19_stats["infaz"]) > n0, 60)
+	await _f(4)
+	await _snap("infaz_sonu")
+	await _until(func() -> bool: return pl.atk.is_empty(), 120)
+	await _f(30)
+	# 5) İkiz bıçakla infaz (içinden geçiş) ve kılıçla (çekiş)
+	for w in ["ikiz_bicak", "alp_kilici"]:
+		await _reset(w)
+		foe = _enemy(40.0, "kara_boru")
+		await _f(16)
+		foe.max_hp = 100.0
+		foe.hp = 15.0
+		foe.stun(3.0)
+		await _f(4)
+		await _tap("saldiri1", 2)
+		await _until(func() -> bool: return pl.atk.get("phase", "") == "act", 90)
+		await _f(1)
+		await _snap("infaz_" + w)
+		await _until(func() -> bool: return pl.atk.is_empty(), 120)
+		await _f(24)
+	# 6) Yeni zincirler: Gürz (ezme → yel değirmeni → çakma), Kor Çekici (sürükle → iniş), Ruh Kılıcı
+	for w in ["gurz", "kor_cekici", "ruh_kilici"]:
+		await _reset(w)
+		e = _enemy(30.0, "agac_iyesi")
+		e.max_hp = 99999.0
+		await _f(16)
+		Input.action_press("saldiri1")
+		var rel := 2
+		var cur: Dictionary = {}
+		var n := 0
+		for i in 240:
+			await _f()
+			_pin(e, 30.0)
+			if i == rel:
+				Input.action_release("saldiri1")
+			if not is_same(pl.atk, cur):
+				cur = pl.atk
+				if not cur.is_empty():
+					n += 1
+			if _at_contact() and not pl.atk.has("snapped"):
+				pl.atk["snapped"] = true
+				await _f(1)
+				await _snap("%s_%d_%s" % [w, n, String(pl.atk.get("c", {}).get("s", ""))])
+				if n < 3:
+					Input.action_press("saldiri1")
+					rel = i + 3
+			if n >= 3 and pl.atk.is_empty():
+				break
+		_release_all()
+		await _f(24)
+
