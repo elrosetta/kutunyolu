@@ -5,7 +5,11 @@ extends Sprite2D
 ## istenirse toplamalı karışım. `follow` verilirse o düğümü takip eder.
 
 static var _meta: Dictionary = {}
+static var _meta_v2: Dictionary = {}
 static var _tex: Dictionary = {}
+## stil v2: mürekkep kare animasyonu (assets/fx/anim/<ad>_v2.png, anim_v2.json; tools/artgen/sus_fx.py) varsa o
+## kullanılır; hücre 4 kat yoğun, FX.anim ölçeği tex_k ile çarpar (dünya boyu v1 ile aynı).
+var tex_k := 1.0
 
 var anim_name := ""
 var fps := 20.0
@@ -28,19 +32,32 @@ static func has(n: String) -> bool:
 	return meta().has(n)
 
 
+static func meta_v2() -> Dictionary:
+	if _meta_v2.is_empty():
+		var p := "res://assets/fx/anim/anim_v2.json"
+		_meta_v2 = Data.load_json(p) if FileAccess.file_exists(p) else {"_": {}}
+	return _meta_v2
+
+
 func setup(n: String, additive := true) -> void:
 	anim_name = n
 	var m: Dictionary = meta()[n]
-	if not _tex.has(n):
-		_tex[n] = load("res://assets/fx/anim/%s.png" % n)
-	texture = _tex[n]
+	var key := n
+	if Data.stil == "v2" and meta_v2().has(n):
+		m = meta_v2()[n]
+		key = n + "_v2"
+		tex_k = 1.0 / float(m.get("texel", 4.0))
+	if not _tex.has(key):
+		_tex[key] = load("res://assets/fx/anim/%s.png" % key)
+	texture = _tex[key]
 	hframes = int(m["cols"])
 	vframes = int(ceil(float(m["frames"]) / float(m["cols"])))
 	_n = int(m["frames"])
 	fps = float(m.get("fps", 20))
 	loop = bool(m.get("loop", false))
 	var piv: Array = m.get("pivot", [48, 64])
-	offset = Vector2(48.0 - float(piv[0]), 48.0 - float(piv[1]))
+	var half := float(m.get("cell", 96)) * 0.5
+	offset = Vector2(half - float(piv[0]), half - float(piv[1]))
 	frame = 0
 	z_index = 58
 	var mat := CanvasItemMaterial.new()
@@ -48,7 +65,7 @@ func setup(n: String, additive := true) -> void:
 	if additive:
 		mat.blend_mode = CanvasItemMaterial.BLEND_MODE_ADD
 	material = mat
-	texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST if tex_k == 1.0 else CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
 
 
 func stop() -> void:

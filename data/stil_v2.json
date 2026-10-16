@@ -1,5 +1,470 @@
 {
- "_not": "Görsel stil v2 (-- --stil=v2) biyom art ezmeleri: Level._stil_art bu girdileri data/world.json art değerlerinin üstüne yazar. Ötüken: mürekkep ortamı (tools/artgen/export_ink.py). Şahmeran ve Tamu: yeraltı mürekkep ortamı (tools/artgen/export_ink_yeralti.py); hazard_v2 = sıvı havuz renkleri (liquid_ink.gdshader), soil_emit/emit_pulse = ışıyan kaya damarları, tile_emit = ışıma atlası çarpanı, tower_brace = platform ayakları arasında çapraz destek.",
+ "_not": "Görsel stil v2 (-- --stil=v2) biyom art ezmeleri: Level._stil_art bu girdileri data/world.json art değerlerinin üstüne yazar. Ötüken: mürekkep ortamı (tools/artgen/export_ink.py).",
+ "bozkir": {
+  "bg": [
+   "bozkir_v2_0_sky",
+   "bozkir_v2_0b_shafts",
+   "bozkir_v2_1_far",
+   "bozkir_v2_2_farmid",
+   "bozkir_v2_2b_haze",
+   "bozkir_v2_3_mid",
+   "bozkir_v2_4_dust",
+   "bozkir_v2_6_near",
+   "bozkir_v2_7_wind"
+  ],
+  "bg_fx": [
+   [
+    0.0,
+    0.0,
+    0.0
+   ],
+   [
+    0.0,
+    0.0,
+    0.0
+   ],
+   [
+    0.03,
+    0.015,
+    0.0
+   ],
+   [
+    0.08,
+    0.04,
+    0.0
+   ],
+   [
+    0.12,
+    0.05,
+    4.0
+   ],
+   [
+    0.18,
+    0.08,
+    0.0
+   ],
+   [
+    0.26,
+    0.12,
+    14.0
+   ],
+   [
+    0.38,
+    0.18,
+    0.0
+   ],
+   [
+    0.55,
+    0.25,
+    70.0
+   ]
+  ],
+  "bg_kind": [
+   "",
+   "add",
+   "",
+   "",
+   "fog",
+   "",
+   "fog",
+   "",
+   "fog"
+  ],
+  "rays": [
+   0.0,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "ambient": [
+   0.86,
+   0.8,
+   0.76
+  ],
+  "ambient_k": 1.0,
+  "boss_ambient": [
+   0.74,
+   0.62,
+   0.64
+  ],
+  "sun": [
+   1.0,
+   0.8,
+   0.58
+  ],
+  "sun_energy": 0.34,
+  "sun_k": 1.0,
+  "ground_moon_gain": 0.5,
+  "glow": 0.5,
+  "glow_threshold": 1.05,
+  "saturation": 1.0,
+  "contrast": 1.0,
+  "deep_color": [
+   0.11,
+   0.05,
+   0.1
+  ],
+  "deep_amount": 0.8,
+  "decor_tint": [
+   0.98,
+   0.95,
+   0.93
+  ],
+  "meadow_depth": 0.4,
+  "tuft_sway": 3.0,
+  "grade": {
+   "strength": 0.55,
+   "saturation": 1.0,
+   "contrast": 1.1,
+   "mid_tint": [
+    1.04,
+    1.0,
+    0.92
+   ],
+   "shadow_tint": [
+    1.0,
+    0.8,
+    0.96
+   ],
+   "edge_color": [
+    0.12,
+    0.04,
+    0.08,
+    1.0
+   ]
+  },
+  "fg": {
+   "grass": "res://assets/bg/bozkir_v2_fg_grass.png",
+   "grass_fx": 1.3,
+   "leaf": "res://assets/bg/bozkir_v2_chaff.png",
+   "leaves": 8,
+   "leaf_col": "e8b068",
+   "leaf_dir": [
+    1.0,
+    0.1
+   ],
+   "leaf_grav": [
+    24.0,
+    6.0
+   ],
+   "leaf_vel": [
+    70.0,
+    130.0
+   ],
+   "leaf_scale": [
+    0.5,
+    0.9
+   ],
+   "leaf_emit": [
+    -40.0,
+    270.0,
+    20.0,
+    260.0
+   ]
+  },
+  "leaf_tex": "res://assets/bg/bozkir_v2_chaff.png",
+  "leaf_amount": 26,
+  "leaf_ramp": [
+   "#f2c37a",
+   "#8a5a3c"
+  ],
+  "leaf_dir": [
+   1.0,
+   0.12
+  ],
+  "leaf_grav": [
+   30.0,
+   8.0
+  ],
+  "leaf_vel": [
+   50.0,
+   110.0
+  ],
+  "pollen_amount": 24,
+  "camera_zoom": 2.0,
+  "ink_extras": [
+   {
+    "names": [
+     "balbal"
+    ],
+    "every": [
+     34,
+     60
+    ],
+    "start": [
+     26,
+     40
+    ]
+   },
+   {
+    "names": [
+     "obo",
+     "bitig"
+    ],
+    "every": [
+     60,
+     110
+    ],
+    "start": [
+     50,
+     80
+    ]
+   }
+  ],
+  "boss_extras": [
+   {
+    "names": [
+     "balbal"
+    ],
+    "at": [
+     8,
+     26,
+     46,
+     66
+    ]
+   },
+   {
+    "names": [
+     "obo"
+    ],
+    "at": [
+     35
+    ]
+   },
+   {
+    "names": [
+     "bitig"
+    ],
+    "at": [
+     56
+    ]
+   }
+  ]
+ },
+ "kaf": {
+  "bg": [
+   "kaf_v2_0_sky",
+   "kaf_v2_0b_aurora",
+   "kaf_v2_1_far",
+   "kaf_v2_2_farmid",
+   "kaf_v2_2b_haze",
+   "kaf_v2_3_mid",
+   "kaf_v2_4_blizzard",
+   "kaf_v2_5_snow_far",
+   "kaf_v2_6_near",
+   "kaf_v2_7_snow"
+  ],
+  "bg_fx": [
+   [
+    0.0,
+    0.0,
+    0.0
+   ],
+   [
+    0.015,
+    0.008,
+    0.0
+   ],
+   [
+    0.04,
+    0.02,
+    0.0
+   ],
+   [
+    0.09,
+    0.04,
+    0.0
+   ],
+   [
+    0.12,
+    0.05,
+    6.0
+   ],
+   [
+    0.2,
+    0.09,
+    0.0
+   ],
+   [
+    0.28,
+    0.12,
+    46.0
+   ],
+   [
+    0.3,
+    0.12,
+    22.0,
+    30.0
+   ],
+   [
+    0.4,
+    0.18,
+    0.0
+   ],
+   [
+    0.62,
+    0.28,
+    60.0,
+    90.0
+   ]
+  ],
+  "bg_kind": [
+   "",
+   "add",
+   "",
+   "",
+   "fog",
+   "",
+   "fog",
+   "snow",
+   "",
+   "snow"
+  ],
+  "rays": [
+   0.0,
+   0.0,
+   0.0,
+   0.0
+  ],
+  "ambient": [
+   0.8,
+   0.84,
+   0.96
+  ],
+  "ambient_k": 1.0,
+  "boss_ambient": [
+   0.66,
+   0.7,
+   0.88
+  ],
+  "sun": [
+   0.76,
+   0.86,
+   1.0
+  ],
+  "sun_energy": 0.32,
+  "sun_k": 1.0,
+  "ground_moon_gain": 0.5,
+  "glow": 0.55,
+  "glow_threshold": 1.05,
+  "saturation": 1.0,
+  "contrast": 1.0,
+  "deep_color": [
+   0.05,
+   0.05,
+   0.12
+  ],
+  "deep_amount": 0.85,
+  "decor_tint": [
+   0.97,
+   0.98,
+   1.0
+  ],
+  "meadow_depth": 0.4,
+  "grade": {
+   "strength": 0.6,
+   "saturation": 0.96,
+   "contrast": 1.1,
+   "mid_tint": [
+    0.97,
+    1.0,
+    1.06
+   ],
+   "shadow_tint": [
+    0.9,
+    0.86,
+    1.08
+   ],
+   "edge_color": [
+    0.04,
+    0.04,
+    0.12,
+    1.0
+   ]
+  },
+  "fg": {
+   "grass": "res://assets/bg/kaf_v2_fg_grass.png",
+   "grass_fx": 1.3,
+   "top": "res://assets/bg/kaf_v2_fg_top.png",
+   "top_fx": 1.15,
+   "leaf": "res://assets/bg/kaf_v2_flake.png",
+   "leaves": 14,
+   "leaf_col": "e8f0ff",
+   "leaf_dir": [
+    -0.6,
+    1.0
+   ],
+   "leaf_grav": [
+    -30.0,
+    30.0
+   ],
+   "leaf_vel": [
+    30.0,
+    70.0
+   ],
+   "leaf_scale": [
+    0.5,
+    1.1
+   ]
+  },
+  "pollen_amount": 70,
+  "camera_zoom": 2.0,
+  "ink_extras": [
+   {
+    "names": [
+     "ladin"
+    ],
+    "every": [
+     26,
+     48
+    ],
+    "start": [
+     18,
+     30
+    ],
+    "z": -4
+   },
+   {
+    "names": [
+     "kristal"
+    ],
+    "every": [
+     44,
+     80
+    ],
+    "start": [
+     36,
+     60
+    ],
+    "z": -2
+   }
+  ],
+  "boss_extras": [
+   {
+    "names": [
+     "ladin"
+    ],
+    "at": [
+     8,
+     26,
+     46,
+     66,
+     78
+    ],
+    "z": -4
+   },
+   {
+    "names": [
+     "kristal"
+    ],
+    "at": [
+     35,
+     56
+    ],
+    "z": -2
+   }
+  ]
+ },
  "otuken": {
   "bg": [
    "otuken_v2_0_sky",

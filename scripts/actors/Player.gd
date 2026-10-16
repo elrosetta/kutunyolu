@@ -26,8 +26,9 @@ const FLOW := {
 	"buf_sec": 0.2,           # yay / fırlatma / büyü / kalkan: saldırı toparlanmasında basılırsa saldırıyı keser
 	"roll_gap": 0.05,         # yuvarlanma bitiminden yenisine bekleme (eski 0,12)
 	# --- ağır saldırı: basıştan itibaren bu kadar basılı tutulursa ağır (eski: hazırlık sonu + 0,16 sn bekleme)
-	"heavy_hold": 0.22,
-	"heavy_nowait_w": 0.3,    # bu ağırlığa dek (hançer, düellocu, kırbaç) hafif vuruş hiç bekletilmez; ağır toparlanmadan açılır
+	"heavy_hold": 0.2,        # v18: 0,22 → 0,2
+	"heavy_nowait_w": 0.5,    # bu ağırlığa dek (hançer, düellocu, kırbaç, v18: kılıç, pala, mızrak) hafif vuruş hiç
+	                          # bekletilmez; tuş basılı kalırsa ağır şarj toparlanmadan açılır
 	# --- yuvarlanma → saldırı (kaçış saldırısı)
 	"roll_atk_k": 0.45,       # yuvarlanmanın bu oranından sonra saldırı basışı yuvarlanmayı keser
 	"roll_atk_inv": 0.1,      # kesilince dokunulmazlık bu kadar daha sürer
@@ -51,193 +52,258 @@ const FLOW := {
 	"hs_light_min": 0.75,     # hafif vuruş duraklaması hançerde bu orana iner (ağırlıkla ölçeklenir)
 }
 
+## ------------------------------------------------------------------ TEMPO (v18, Dead Cells esinli)
+## Savuruş süresi artık "1 / aps"in sabit oranlara bölünmesi değil: her silah sınıfının üç evresi gerçek saniye olarak
+## tanımlı ve savuruş anahtarları (SWINGS, normalize k) bu evrelere zaman bükmesiyle oturur (_atk_advance):
+##   hazırlık  0 → hit[0]   (ilk vuruş / zincir içi ayrı: zincirde kol önceki vuruşun takibinden doğrudan gerilir)
+##   vuruş     hit[0] → hit[1]   (yay 2-4 karede geçer; isabet "ck" temas anında başlar; sonunda zincir / iptal açılır)
+##   toparlanma hit[1] → 1   (yalnızca girdi yoksa görünür; yürüme, zıplama, yuvarlanma, saldırı keser)
+## Dead Cells wiki'sinin silah verisi (ItemDetails: "charge" basıştan vuruşa, "lock" vuruştan sonraki girdiye kadar):
+## Balanced Blade 0,07-0,10 / 0,05-0,15 sn, bitiriş 0,30 / 0,30; Rapier 0,1 / 0; War Spear 0,1-0,38 / 0-0,2;
+## Wrenching Whip 0,2 / 0,1; Nutcracker 0,4-0,5 / 0,1-0,2; Broadsword 0,4-0,5 / 0,2-0,4. Bizimki aynı ölçekte:
+## Sütunlar (sn): [basış→temas (ilk), basış→temas (zincir), süpürme (bıçağın son hızlı yayı, temasa dek),
+##                 kilit (temastan zincire / iptale), toparlanma (girdisiz kuyruk), hazırlık tutuşu (ilk), tutuş (zincir)]
+## Hazırlık = basış→temas − süpürme − tutuş. Evre sınırları savuruşta: 0 → hit[0] hazırlık, hit[0] → ck süpürme,
+## ck → hit[1] kilit (isabet penceresi ck'de açılır), hit[1] → 1 toparlanma.
+const TEMPO := {
+	"hancer": [0.067, 0.05, 0.025, 0.067, 0.12, 0.0, 0.0],      # ikiz bıçak, böri, pençe, ay palası: ~7,5 vuruş/sn
+	"duello": [0.083, 0.067, 0.03, 0.083, 0.13, 0.0, 0.0],      # yatağan, rüzgâr kılıcı
+	"kilic": [0.1, 0.083, 0.033, 0.1, 0.15, 0.017, 0.0],        # alp, pala, ruh, yılan, ayaz, yıldırım
+	"mizrak": [0.117, 0.083, 0.033, 0.083, 0.15, 0.017, 0.0],   # kargı, tulpar: saplama dizisi
+	"kirbac": [0.15, 0.117, 0.033, 0.1, 0.16, 0.017, 0.0],      # kement, od kamçısı
+	"uzun": [0.167, 0.133, 0.04, 0.117, 0.18, 0.033, 0.0],      # teber, tırpan, kayın asası
+	"agir": [0.25, 0.2, 0.05, 0.15, 0.22, 0.05, 0.017],         # gürz, topuz, balta, ikiz balta
+	"dev": [0.33, 0.267, 0.05, 0.2, 0.28, 0.067, 0.033],        # ulu kılıç, dağ / kor çekici, bozgun kılıcı
+}
+
 ## ------------------------------------------------------------------ SAVURUŞLAR
 ## Ön kol ve silah oyunda sürülür. Anahtar: [t, a1, a2, w, k, ext, ease]
 ##   a1 üst kol açısı, a2 dirsek bükümü, w bilek (silahın ön kola göre açısı); 0 aşağı, pi/2 ileri, pi yukarı
 ##   k  yatay derinlik kısalması (1 = yan görünüş; küçük = kola/silaha kameraya doğru bakıyor)
 ##   ext ön kol uzatması (darbe anındaki abartı), ease: 0 yumuşak, 1 hızlanarak (vuruş), 2 yavaşlayarak (takip)
 ## Hazırlık yavaş, vuruş çok hızlı (kareler arası 1-2 ara örnek), takip ağırlıkla yavaşlar.
-## v15 alanları: "tm" süre çarpanı (tempo), "hold_k" hazırlık tutuşu / şarj pozunun k noktası (sıçramalı gövdelerde
-## havadaki kare yerine çömelme karesi tutulsun diye), "around" iki yan, "multi" çoklu vuruş anları.
+## v15 alanları: "hold_k" hazırlık tutuşu / şarj pozunun k noktası (sıçramalı gövdelerde havadaki kare yerine çömelme
+## karesi tutulsun diye), "around" iki yan, "multi" çoklu vuruş anları.
+## v18 alanları (süre artık TEMPO'dan, "tm" kalktı): "ck" temas anahtarı (isabet ve süpürme sonu), "ws" hazırlık, "ss" kilit
+## (çark / çok vuruşlu savuruşta yay bu evrede döner), "ms" süpürme, "rs" toparlanma çarpanları. Kalıp: dinlenme →
+## hazırlık (yavaşlayarak oturur) → derin hazırlık (tutuş) → temas (kare hızlanma, 2-3 kare) → takip (kilidin ilk
+## yarısında aşar) → oturma (kilidin sonu) → dinlenme. Zincirde ilk bölüm önceki savuruşun son pozundan başlar
+## (_atk_pose); zincirler bir vuruşun bittiği yerden ötekinin hazırlığı başlayacak biçimde dizildi (iniş → yükseliş →
+## baş üstü). Bıçağın ekrana doğru döndüğü "kısalma" savuruşları (horiz, back) yalnız kılıç / sırıkta: hançer ve
+## kırbaçta uç yolu zikzak çiziyordu, onlar ekran düzleminde hilal.
 const SWINGS := {
 	# yukarıdan aşağı: kılıç sırtın arkasına çekilir, baş üstünden öne-aşağı iner
-	"down": {"body": "atk_down", "hit": [0.3, 0.56], "keys": [
+	"down": {"body": "atk_down", "hit": [0.3, 0.56], "ck": 0.42, "keys": [
 		[0.0, 0.6, 0.9, 0.3, 1.0, 1.0, 0], [0.22, 3.2, 0.7, 0.8, 1.0, 1.0, 2], [0.3, 3.3, 0.75, 0.85, 1.0, 1.0, 0],
-		[0.42, 1.3, 0.0, 0.2, 1.0, 1.15, 1], [0.56, 0.6, 0.15, 0.05, 1.0, 1.05, 2], [1.0, 0.5, 0.9, 0.4, 1.0, 1.0, 0]]},
+		[0.42, 1.3, 0.0, 0.2, 1.0, 1.15, 1], [0.49, 0.6, 0.15, 0.05, 1.0, 1.05, 2], [0.56, 0.588, 0.24, 0.092, 1.0, 1.044, 0],
+		[1.0, 0.5, 0.9, 0.4, 1.0, 1.0, 0]]},
 	# aşağıdan yukarı: kol aşağı-geride, kılıç önden yukarı fırlar
-	"up": {"body": "atk_up", "hit": [0.3, 0.56], "keys": [
+	"up": {"body": "atk_up", "hit": [0.3, 0.56], "ck": 0.42, "keys": [
 		[0.0, 0.6, 0.9, 0.3, 1.0, 1.0, 0], [0.22, -0.5, -0.5, -0.4, 1.0, 1.0, 2], [0.3, -0.62, -0.55, -0.45, 1.0, 1.0, 0],
-		[0.42, 1.9, 0.0, 0.25, 1.0, 1.12, 1], [0.56, 2.65, 0.1, 0.2, 1.0, 1.05, 2], [1.0, 0.8, 0.9, 0.4, 1.0, 1.0, 0]]},
+		[0.42, 1.9, 0.0, 0.25, 1.0, 1.12, 1], [0.49, 2.65, 0.1, 0.2, 1.0, 1.05, 2], [0.56, 2.428, 0.196, 0.224, 1.0, 1.044, 0],
+		[1.0, 0.8, 0.9, 0.4, 1.0, 1.0, 0]]},
 	# soldan sağa (düz el): kol arkada yatay, kameraya doğru kısalarak geçer, önde açılır
-	"horiz": {"body": "atk_horiz", "hit": [0.3, 0.56], "keys": [
+	"horiz": {"body": "atk_horiz", "hit": [0.3, 0.56], "ck": 0.42, "keys": [
 		[0.0, 0.6, 0.9, 0.3, 1.0, 1.0, 0], [0.22, -1.4, -0.25, -0.15, 1.0, 1.0, 2], [0.3, -1.48, -0.3, -0.2, 1.0, 1.0, 0],
-		[0.355, -1.45, -0.1, 0.0, 0.22, 1.0, 1], [0.356, 1.5, 0.1, 0.0, 0.22, 1.0, 0],
-		[0.42, 1.55, 0.0, 0.05, 1.0, 1.12, 2], [0.56, 1.75, 0.2, 0.2, 0.7, 1.0, 2], [1.0, 0.7, 0.9, 0.4, 1.0, 1.0, 0]]},
+		[0.355, -1.45, -0.1, 0.0, 0.22, 1.0, 1], [0.356, 1.5, 0.1, 0.0, 0.22, 1.0, 0], [0.42, 1.55, 0.0, 0.05, 1.0, 1.12, 2],
+		[0.49, 1.75, 0.2, 0.2, 0.7, 1.0, 2], [0.56, 1.624, 0.284, 0.224, 0.736, 1.0, 0], [1.0, 0.7, 0.9, 0.4, 1.0, 1.0, 0]]},
 	# sağdan sola (ters el): kılıç göğüs önünden omuz üstüne çekilir, ters elle öne savrulur
-	"back": {"body": "atk_horiz", "hit": [0.3, 0.56], "keys": [
+	"back": {"body": "atk_horiz", "hit": [0.3, 0.56], "ck": 0.42, "keys": [
 		[0.0, 0.6, 0.9, 0.3, 1.0, 1.0, 0], [0.22, 0.9, 1.9, 1.2, 1.0, 1.0, 2], [0.3, 0.85, 2.0, 1.3, 1.0, 1.0, 0],
-		[0.355, 1.2, 1.0, 1.4, 0.3, 1.0, 1], [0.356, 1.4, 0.2, -0.2, 0.3, 1.0, 0],
-		[0.42, 1.6, 0.0, 0.0, 1.0, 1.12, 2], [0.56, 1.35, 0.3, -0.25, 0.75, 1.0, 2], [1.0, 0.6, 0.9, 0.3, 1.0, 1.0, 0]]},
+		[0.355, 1.2, 1.0, 1.4, 0.3, 1.0, 1], [0.356, 1.4, 0.2, -0.2, 0.3, 1.0, 0], [0.42, 1.6, 0.0, 0.0, 1.0, 1.12, 2],
+		[0.49, 1.35, 0.3, -0.25, 0.75, 1.0, 2], [0.56, 1.26, 0.372, -0.184, 0.78, 1.0, 0], [1.0, 0.6, 0.9, 0.3, 1.0, 1.0, 0]]},
 	# saplama: dirsek geri, el kalçada; ok gibi ileri
-	"thrust": {"body": "atk_thrust", "hit": [0.32, 0.56], "keys": [
+	"thrust": {"body": "atk_thrust", "hit": [0.32, 0.56], "ck": 0.4, "keys": [
 		[0.0, 0.6, 0.9, 0.3, 1.0, 1.0, 0], [0.22, -0.3, 1.9, 0.0, 1.0, 1.0, 2], [0.32, -0.48, 2.05, 0.0, 1.0, 1.0, 0],
-		[0.4, 1.55, 0.0, 0.0, 1.0, 1.3, 1], [0.56, 1.5, 0.05, 0.0, 1.0, 1.2, 2], [1.0, 0.6, 0.9, 0.3, 1.0, 1.0, 0]]},
+		[0.4, 1.55, 0.0, 0.0, 1.0, 1.3, 1], [0.48, 1.5, 0.05, 0.0, 1.0, 1.2, 2], [0.56, 1.392, 0.152, 0.036, 1.0, 1.176, 0],
+		[1.0, 0.6, 0.9, 0.3, 1.0, 1.0, 0]]},
 	# hücum: saplama + gövde ileri fırlar
-	"lunge": {"body": "atk_lunge", "hit": [0.3, 0.58], "keys": [
+	"lunge": {"body": "atk_lunge", "hit": [0.3, 0.58], "ss": 1.2, "ck": 0.38, "keys": [
 		[0.0, 0.6, 0.9, 0.3, 1.0, 1.0, 0], [0.22, -0.4, 2.0, -0.1, 1.0, 1.0, 2], [0.3, -0.55, 2.1, -0.1, 1.0, 1.0, 0],
-		[0.38, 1.57, 0.0, 0.0, 1.0, 1.35, 1], [0.58, 1.52, 0.0, 0.0, 1.0, 1.3, 2], [1.0, 0.6, 0.9, 0.3, 1.0, 1.0, 0]]},
+		[0.38, 1.57, 0.0, 0.0, 1.0, 1.35, 1], [0.48, 1.52, 0.0, 0.0, 1.0, 1.3, 2], [0.58, 1.41, 0.108, 0.036, 1.0, 1.264, 0],
+		[1.0, 0.6, 0.9, 0.3, 1.0, 1.0, 0]]},
 	# ağır iniş (iki el): kol dimdik yukarıda, tüm ağırlıkla yere
-	"heavy": {"body": "atk_heavy", "hit": [0.33, 0.62], "keys": [
+	"heavy": {"body": "atk_heavy", "hit": [0.33, 0.62], "ck": 0.45, "keys": [
 		[0.0, 0.6, 0.9, 0.3, 1.0, 1.0, 0], [0.25, 3.3, 0.3, 0.25, 1.0, 1.0, 2], [0.33, 3.45, 0.35, 0.3, 1.0, 1.0, 0],
-		[0.45, 0.9, 0.0, 0.0, 1.0, 1.15, 1], [0.62, 0.5, 0.0, -0.1, 1.0, 1.1, 2], [1.0, 0.6, 0.6, 0.2, 1.0, 1.0, 0]]},
+		[0.45, 0.9, 0.0, 0.0, 1.0, 1.15, 1], [0.535, 0.5, 0.0, -0.1, 1.0, 1.1, 2], [0.62, 0.512, 0.072, -0.064, 1.0, 1.088, 0],
+		[1.0, 0.6, 0.6, 0.2, 1.0, 1.0, 0]]},
 	# çevrinti: silah gövdenin önünde tam tur döner (iki yanı biçer)
-	"spin": {"body": "atk_spin", "hit": [0.3, 0.66], "around": true, "keys": [
+	"spin": {"body": "atk_spin", "hit": [0.3, 0.66], "around": true, "ss": 2.2, "keys": [
 		[0.0, 0.6, 0.9, 0.3, 1.0, 1.0, 0], [0.22, 0.2, 0.3, 0.1, 1.0, 1.0, 2], [0.3, 0.35, 0.1, 0.0, 1.0, 1.0, 0],
 		[0.66, 6.63, 0.0, 0.0, 1.0, 1.12, 0], [1.0, 6.9, 0.9, 0.3, 1.0, 1.0, 0]]},
 	# yükselen kesik: çömel, yukarı savur (düşmanı havaya atar)
-	"rise": {"body": "atk_uppercut", "hit": [0.3, 0.58], "hold_k": 0.24, "keys": [
+	"rise": {"body": "atk_uppercut", "hit": [0.3, 0.58], "hold_k": 0.24, "ck": 0.44, "keys": [
 		[0.0, 0.6, 0.9, 0.3, 1.0, 1.0, 0], [0.22, -0.2, -0.3, -0.6, 1.0, 1.0, 2], [0.3, -0.3, -0.35, -0.65, 1.0, 1.0, 0],
-		[0.44, 2.4, 0.0, 0.2, 1.0, 1.15, 1], [0.58, 3.0, 0.05, 0.1, 1.0, 1.08, 2], [1.0, 1.2, 0.9, 0.4, 1.0, 1.0, 0]]},
+		[0.44, 2.4, 0.0, 0.2, 1.0, 1.15, 1], [0.51, 3.0, 0.05, 0.1, 1.0, 1.08, 2], [0.58, 2.784, 0.152, 0.136, 1.0, 1.07, 0],
+		[1.0, 1.2, 0.9, 0.4, 1.0, 1.0, 0]]},
 	# seri saplama: üç hızlı saplama (her biri ayrı vuruş)
-	"flurry": {"body": "atk_thrust", "hit": [0.14, 0.66], "multi": [0.2, 0.36, 0.52], "keys": [
+	"flurry": {"body": "atk_thrust", "hit": [0.14, 0.66], "multi": [0.2, 0.36, 0.52], "ss": 3.0, "keys": [
 		[0.0, 0.6, 0.9, 0.3, 1.0, 1.0, 0], [0.12, -0.3, 1.9, 0.0, 1.0, 1.0, 2], [0.2, 1.55, 0.0, 0.0, 1.0, 1.25, 1],
 		[0.28, -0.2, 1.8, 0.1, 1.0, 1.0, 2], [0.36, 1.45, 0.0, -0.05, 1.0, 1.25, 1], [0.44, -0.2, 1.8, 0.0, 1.0, 1.0, 2],
 		[0.52, 1.62, 0.0, 0.05, 1.0, 1.3, 1], [0.66, 1.5, 0.05, 0.0, 1.0, 1.2, 2], [1.0, 0.6, 0.9, 0.3, 1.0, 1.0, 0]]},
 	# zıplayıp ezme: ağır inişin büyük sürümü (sıçrayarak)
-	"slam": {"body": "atk_slam_jump", "hit": [0.5, 0.72], "hold_k": 0.24, "tm": 1.25, "keys": [
+	"slam": {"body": "atk_slam_jump", "hit": [0.5, 0.72], "hold_k": 0.24, "ws": 1.6, "ck": 0.6, "keys": [
 		[0.0, 0.6, 0.9, 0.3, 1.0, 1.0, 0], [0.24, 3.3, 0.3, 0.3, 1.0, 1.0, 2], [0.5, 3.55, 0.3, 0.3, 1.0, 1.0, 0],
-		[0.6, 0.8, 0.0, -0.05, 1.0, 1.2, 1], [0.72, 0.45, 0.0, -0.15, 1.0, 1.12, 2], [1.0, 0.6, 0.6, 0.2, 1.0, 1.0, 0]]},
+		[0.6, 0.8, 0.0, -0.05, 1.0, 1.2, 1], [0.66, 0.45, 0.0, -0.15, 1.0, 1.12, 2], [0.72, 0.468, 0.072, -0.108, 1.0, 1.106, 0],
+		[1.0, 0.6, 0.6, 0.2, 1.0, 1.0, 0]]},
 	# fırlatma (balta)
 	"axe": {"body": "atk_throw_axe", "hit": [0.3, 0.4], "keys": [
-		[0.0, 0.6, 0.9, 0.3, 1.0, 1.0, 0], [0.25, 3.4, 0.8, 0.3, 1.0, 1.0, 2], [0.35, 1.4, 0.0, 0.0, 1.0, 1.1, 1], [1.0, 0.6, 0.9, 0.3, 1.0, 1.0, 0]]},
+		[0.0, 0.6, 0.9, 0.3, 1.0, 1.0, 0], [0.25, 3.4, 0.8, 0.3, 1.0, 1.0, 2], [0.35, 1.4, 0.0, 0.0, 1.0, 1.1, 1],
+		[1.0, 0.6, 0.9, 0.3, 1.0, 1.0, 0]]},
 	# ---------------------------------------------------------------- v5: silaha özgü savuruşlar
 	# çapraz iniş: omuzdan kalçaya (sağ üst -> sol alt)
-	"diag_down": {"body": "atk_down", "hit": [0.3, 0.55], "keys": [
+	"diag_down": {"body": "atk_down", "hit": [0.3, 0.55], "ck": 0.42, "keys": [
 		[0.0, 0.6, 0.9, 0.3, 1.0, 1.0, 0], [0.22, 2.7, 0.5, 0.7, 0.95, 1.0, 2], [0.3, 2.85, 0.55, 0.75, 0.9, 1.0, 0],
-		[0.42, 1.1, 0.0, 0.1, 1.0, 1.15, 1], [0.55, 0.35, 0.1, -0.2, 1.0, 1.05, 2], [1.0, 0.5, 0.9, 0.4, 1.0, 1.0, 0]]},
+		[0.42, 1.1, 0.0, 0.1, 1.0, 1.15, 1], [0.485, 0.35, 0.1, -0.2, 1.0, 1.05, 2], [0.55, 0.368, 0.196, -0.128, 1.0, 1.044, 0],
+		[1.0, 0.5, 0.9, 0.4, 1.0, 1.0, 0]]},
 	# çapraz yükseliş: kalçadan omuza
-	"diag_up": {"body": "atk_up", "hit": [0.3, 0.55], "keys": [
+	"diag_up": {"body": "atk_up", "hit": [0.3, 0.55], "ck": 0.42, "keys": [
 		[0.0, 0.6, 0.9, 0.3, 1.0, 1.0, 0], [0.22, -0.35, -0.4, -0.5, 0.95, 1.0, 2], [0.3, -0.45, -0.45, -0.55, 0.9, 1.0, 0],
-		[0.42, 1.3, 0.0, 0.15, 1.0, 1.12, 1], [0.55, 2.5, 0.1, 0.3, 1.0, 1.05, 2], [1.0, 0.8, 0.9, 0.4, 1.0, 1.0, 0]]},
+		[0.42, 1.3, 0.0, 0.15, 1.0, 1.12, 1], [0.485, 2.5, 0.1, 0.3, 1.0, 1.05, 2], [0.55, 2.296, 0.196, 0.312, 1.0, 1.044, 0],
+		[1.0, 0.8, 0.9, 0.4, 1.0, 1.0, 0]]},
 	# çapraz kesik (X): iniş + yükseliş tek hamlede, iki vuruş
-	"cross_x": {"body": "atk_horiz", "hit": [0.24, 0.7], "multi": [0.3, 0.56], "keys": [
+	"cross_x": {"body": "atk_horiz", "hit": [0.24, 0.7], "multi": [0.3, 0.56], "ss": 2.0, "keys": [
 		[0.0, 0.6, 0.9, 0.3, 1.0, 1.0, 0], [0.18, 2.8, 0.5, 0.7, 0.95, 1.0, 2], [0.24, 2.9, 0.55, 0.75, 0.9, 1.0, 0],
-		[0.32, 0.9, 0.0, 0.0, 1.0, 1.15, 1], [0.4, 0.2, 0.0, -0.3, 1.0, 1.05, 2],
-		[0.48, -0.3, -0.3, -0.5, 0.9, 1.0, 2], [0.58, 1.4, 0.0, 0.15, 1.0, 1.15, 1], [0.7, 2.6, 0.1, 0.3, 1.0, 1.05, 2], [1.0, 0.7, 0.9, 0.4, 1.0, 1.0, 0]]},
+		[0.32, 0.9, 0.0, 0.0, 1.0, 1.15, 1], [0.4, 0.2, 0.0, -0.3, 1.0, 1.05, 2], [0.48, -0.3, -0.3, -0.5, 0.9, 1.0, 2],
+		[0.58, 1.4, 0.0, 0.15, 1.0, 1.15, 1], [0.7, 2.6, 0.1, 0.3, 1.0, 1.05, 2], [1.0, 0.7, 0.9, 0.4, 1.0, 1.0, 0]]},
 	# iki elli baş üstü iniş (dev kılıç / balta)
-	"overhead_2h": {"body": "atk_overhead_2h", "hit": [0.4, 0.64], "hold_k": 0.34, "tm": 1.05, "keys": [
+	"overhead_2h": {"body": "atk_overhead_2h", "hit": [0.4, 0.64], "hold_k": 0.34, "ws": 1.1, "ck": 0.52, "keys": [
 		[0.0, 0.6, 0.9, 0.3, 1.0, 1.0, 0], [0.3, 3.35, 0.25, 0.3, 0.85, 1.0, 2], [0.4, 3.55, 0.3, 0.35, 0.8, 1.0, 0],
-		[0.52, 1.0, 0.0, 0.0, 1.0, 1.2, 1], [0.64, 0.35, 0.0, -0.15, 1.0, 1.1, 2], [1.0, 0.6, 0.6, 0.2, 1.0, 1.0, 0]]},
+		[0.52, 1.0, 0.0, 0.0, 1.0, 1.2, 1], [0.58, 0.35, 0.0, -0.15, 1.0, 1.1, 2], [0.64, 0.38, 0.072, -0.108, 1.0, 1.088, 0],
+		[1.0, 0.6, 0.6, 0.2, 1.0, 1.0, 0]]},
 	# yerde sürükleyip yukarı: kılıç arkada toprağı yalar, kıvılcımla yükselir
-	"ground_drag": {"body": "atk_up", "hit": [0.34, 0.6], "keys": [
+	"ground_drag": {"body": "atk_up", "hit": [0.34, 0.6], "ck": 0.47, "keys": [
 		[0.0, 0.6, 0.9, 0.3, 1.0, 1.0, 0], [0.24, -0.95, 0.15, 0.35, 1.0, 1.0, 2], [0.34, -1.05, 0.2, 0.4, 1.0, 1.0, 0],
-		[0.47, 1.5, 0.0, 0.1, 1.0, 1.15, 1], [0.6, 2.5, 0.05, 0.2, 1.0, 1.08, 2], [1.0, 1.0, 0.9, 0.4, 1.0, 1.0, 0]]},
+		[0.47, 1.5, 0.0, 0.1, 1.0, 1.15, 1], [0.535, 2.5, 0.05, 0.2, 1.0, 1.08, 2], [0.6, 2.32, 0.152, 0.224, 1.0, 1.07, 0],
+		[1.0, 1.0, 0.9, 0.4, 1.0, 1.0, 0]]},
 	# diz hizası yatay süpürme (alçak)
-	"sweep_low": {"body": "atk_sweep_low", "hit": [0.3, 0.56], "keys": [
+	"sweep_low": {"body": "atk_sweep_low", "hit": [0.3, 0.56], "ck": 0.42, "keys": [
 		[0.0, 0.6, 0.9, 0.3, 1.0, 1.0, 0], [0.22, -0.9, 0.0, -0.3, 0.9, 1.0, 2], [0.3, -1.0, 0.0, -0.35, 0.85, 1.0, 0],
-		[0.355, 0.1, 0.0, -0.2, 0.25, 1.1, 1], [0.356, 0.8, 0.0, -0.2, 0.25, 1.1, 0],
-		[0.42, 1.05, 0.0, -0.1, 1.0, 1.15, 2], [0.56, 1.25, 0.1, 0.0, 0.8, 1.05, 2], [1.0, 0.7, 0.9, 0.4, 1.0, 1.0, 0]]},
+		[0.355, 0.1, 0.0, -0.2, 0.25, 1.1, 1], [0.356, 0.8, 0.0, -0.2, 0.25, 1.1, 0], [0.42, 1.05, 0.0, -0.1, 1.0, 1.15, 2],
+		[0.49, 1.25, 0.1, 0.0, 0.8, 1.05, 2], [0.56, 1.184, 0.196, 0.048, 0.824, 1.044, 0], [1.0, 0.7, 0.9, 0.4, 1.0, 1.0, 0]]},
 	# ters el: bıçak ön kol boyunca geriye bakar, dirsekten çevrilerek savrulur
-	"reverse_grip": {"body": "atk_horiz", "hit": [0.3, 0.56], "keys": [
+	"reverse_grip": {"body": "atk_horiz", "hit": [0.3, 0.56], "ck": 0.42, "keys": [
 		[0.0, 0.6, 0.9, 0.3, 1.0, 1.0, 0], [0.22, 1.5, 1.7, 3.0, 1.0, 1.0, 2], [0.3, 1.55, 1.8, 3.05, 1.0, 1.0, 0],
-		[0.355, 1.5, 0.8, 3.0, 0.35, 1.0, 1], [0.356, 1.45, 0.3, 3.0, 0.35, 1.0, 0],
-		[0.42, 1.4, -0.3, 2.95, 1.0, 1.1, 2], [0.56, 1.2, -0.5, 2.9, 0.9, 1.0, 2], [1.0, 0.6, 0.9, 0.3, 1.0, 1.0, 0]]},
+		[0.355, 1.5, 0.8, 3.0, 0.35, 1.0, 1], [0.356, 1.45, 0.3, 3.0, 0.35, 1.0, 0], [0.42, 1.4, -0.3, 2.95, 1.0, 1.1, 2],
+		[0.49, 1.2, -0.5, 2.9, 0.9, 1.0, 2], [0.56, 1.128, -0.332, 2.588, 0.912, 1.0, 0], [1.0, 0.6, 0.9, 0.3, 1.0, 1.0, 0]]},
 	# bilek çevrimi: kılıç elde tam tur döner (iki vuruş)
-	"twirl": {"body": "atk_spin", "hit": [0.26, 0.7], "multi": [0.36, 0.58], "keys": [
+	"twirl": {"body": "atk_spin", "hit": [0.26, 0.7], "multi": [0.36, 0.58], "ss": 2.0, "keys": [
 		[0.0, 0.6, 0.9, 0.3, 1.0, 1.0, 0], [0.2, 1.5, 0.1, 0.2, 1.0, 1.0, 2], [0.26, 1.55, 0.05, 0.0, 1.0, 1.0, 0],
 		[0.48, 1.55, 0.0, 3.2, 1.0, 1.05, 0], [0.7, 1.5, 0.0, 6.4, 1.0, 1.05, 0], [1.0, 0.6, 0.9, 0.3, 1.0, 1.0, 0]]},
 	# yel değirmeni: baş üstünden tam tur geriye, sonra tüm ağırlıkla yere
-	"windmill": {"body": "atk_heavy", "hit": [0.44, 0.66], "keys": [
-		[0.0, 0.6, 0.9, 0.3, 1.0, 1.0, 0], [0.16, 1.3, 0.2, 0.1, 1.0, 1.0, 0], [0.3, 3.0, 0.2, 0.2, 0.75, 1.0, 0], [0.44, 4.6, 0.2, 0.3, 0.8, 1.0, 0],
-		[0.55, 7.1, 0.0, 0.0, 1.0, 1.2, 1], [0.66, 6.65, 0.0, -0.15, 1.0, 1.1, 2], [1.0, 6.9, 0.6, 0.2, 1.0, 1.0, 0]]},
+	"windmill": {"body": "atk_heavy", "hit": [0.44, 0.66], "ws": 1.4, "ck": 0.55, "keys": [
+		[0.0, 0.6, 0.9, 0.3, 1.0, 1.0, 0], [0.16, 1.3, 0.2, 0.1, 1.0, 1.0, 0], [0.3, 3.0, 0.2, 0.2, 0.75, 1.0, 0],
+		[0.44, 4.6, 0.2, 0.3, 0.8, 1.0, 0], [0.55, 7.1, 0.0, 0.0, 1.0, 1.2, 1], [0.605, 6.65, 0.0, -0.15, 1.0, 1.1, 2],
+		[0.66, 6.68, 0.072, -0.108, 1.0, 1.088, 0], [1.0, 6.9, 0.6, 0.2, 1.0, 1.0, 0]]},
 	# mızrak saplaması: uzun uzanış
-	"pole_thrust": {"body": "atk_thrust", "hit": [0.3, 0.54], "keys": [
+	"pole_thrust": {"body": "atk_thrust", "hit": [0.3, 0.54], "ck": 0.38, "keys": [
 		[0.0, 0.6, 0.9, 0.3, 1.0, 1.0, 0], [0.22, -0.6, 2.0, 0.1, 1.0, 0.8, 2], [0.3, -0.75, 2.1, 0.1, 1.0, 0.75, 0],
-		[0.38, 1.55, 0.0, 0.0, 1.0, 1.5, 1], [0.54, 1.5, 0.05, 0.0, 1.0, 1.4, 2], [1.0, 0.6, 0.9, 0.3, 1.0, 1.0, 0]]},
+		[0.38, 1.55, 0.0, 0.0, 1.0, 1.5, 1], [0.46, 1.5, 0.05, 0.0, 1.0, 1.4, 2], [0.54, 1.392, 0.152, 0.036, 1.0, 1.352, 0],
+		[1.0, 0.6, 0.9, 0.3, 1.0, 1.0, 0]]},
 	# iki elli geniş sırık süpürmesi
-	"pole_sweep": {"body": "atk_horiz", "hit": [0.3, 0.6], "keys": [
+	# v18 alçak saplama: diz hizasına, gövde öne eğik (kargı zincirinin ikinci vuruşu; ilk saplamanın tekrarı gibi okunmasın)
+	"pole_thrust_lo": {"body": "atk_lunge_long", "hit": [0.3, 0.54], "ck": 0.38, "keys": [
+		[0.0, 0.6, 0.9, 0.3, 1.0, 1.0, 0], [0.22, -0.9, 2.2, 0.0, 1.0, 0.8, 2], [0.3, -1.0, 2.3, 0.0, 1.0, 0.75, 0],
+		[0.38, 1.35, 0.0, 0.0, 1.0, 1.5, 1], [0.46, 1.3, 0.05, 0.0, 1.0, 1.42, 2], [0.54, 1.22, 0.15, 0.04, 1.0, 1.37, 0],
+		[1.0, 0.6, 0.9, 0.3, 1.0, 1.0, 0]]},
+	"pole_sweep": {"body": "atk_horiz", "hit": [0.3, 0.6], "ck": 0.45, "keys": [
 		[0.0, 0.6, 0.9, 0.3, 1.0, 1.0, 0], [0.22, -1.5, -0.2, -0.4, 0.9, 1.1, 2], [0.3, -1.6, -0.25, -0.45, 0.85, 1.1, 0],
-		[0.36, -1.4, 0.0, -0.2, 0.3, 1.2, 1], [0.361, 1.3, 0.0, -0.2, 0.3, 1.2, 0],
-		[0.45, 1.6, 0.0, 0.0, 1.0, 1.3, 2], [0.6, 2.0, 0.2, 0.3, 0.7, 1.1, 2], [1.0, 0.7, 0.9, 0.4, 1.0, 1.0, 0]]},
+		[0.36, -1.4, 0.0, -0.2, 0.3, 1.2, 1], [0.361, 1.3, 0.0, -0.2, 0.3, 1.2, 0], [0.45, 1.6, 0.0, 0.0, 1.0, 1.3, 2],
+		[0.525, 1.8, 0.1, 0.1, 0.8, 1.15, 2], [0.6, 1.72, 0.2, 0.15, 0.82, 1.1, 0], [1.0, 0.7, 0.9, 0.4, 1.0, 1.0, 0]]},
+	# v18 sırık yükselişi: mızrak alçaktan geriye çekilir, önden baş üstüne geniş hilalle kalkar (kargı bitirişi)
+	"pole_rise": {"body": "atk_up", "hit": [0.3, 0.58], "ck": 0.42, "keys": [
+		[0.0, 0.6, 0.9, 0.3, 1.0, 1.0, 0], [0.22, -0.7, -0.3, -0.3, 1.0, 0.9, 2], [0.3, -0.8, -0.35, -0.35, 1.0, 0.85, 0],
+		[0.42, 1.6, 0.0, 0.15, 1.0, 1.25, 1], [0.5, 2.5, 0.1, 0.25, 1.0, 1.1, 2], [0.58, 2.4, 0.2, 0.25, 1.0, 1.05, 0],
+		[1.0, 0.8, 0.9, 0.4, 1.0, 1.0, 0]]},
 	# biçme: önden geriye, kendine çekerek (tırpan)
-	"reap": {"body": "atk_horiz", "hit": [0.3, 0.58], "keys": [
+	"reap": {"body": "atk_horiz", "hit": [0.3, 0.58], "ck": 0.36, "keys": [
 		[0.0, 0.6, 0.9, 0.3, 1.0, 1.0, 0], [0.22, 2.0, 0.2, 0.4, 0.9, 1.15, 2], [0.3, 2.1, 0.2, 0.45, 0.85, 1.15, 0],
-		[0.36, 1.6, 0.0, 0.3, 0.4, 1.2, 1], [0.361, 0.9, 0.0, 0.2, 0.4, 1.2, 0],
-		[0.46, -0.5, 0.2, 0.0, 1.0, 1.1, 2], [0.58, -0.9, 0.4, -0.2, 0.85, 1.0, 2], [1.0, 0.6, 0.9, 0.3, 1.0, 1.0, 0]]},
+		[0.36, 1.6, 0.0, 0.3, 0.4, 1.2, 1], [0.36, 0.9, 0.0, 0.2, 0.4, 1.2, 0], [0.41, -0.5, 0.2, 0.0, 1.0, 1.1, 2],
+		[0.47, -0.9, 0.4, -0.2, 0.85, 1.0, 2], [0.58, -0.72, 0.46, -0.14, 0.868, 1.0, 0], [1.0, 0.6, 0.9, 0.3, 1.0, 1.0, 0]]},
 	# pençe tırmığı: iki hızlı aşağı tırmalama
-	"rake": {"body": "atk_down", "hit": [0.2, 0.62], "multi": [0.28, 0.5], "keys": [
+	"rake": {"body": "atk_down", "hit": [0.2, 0.62], "multi": [0.28, 0.5], "ss": 1.8, "keys": [
 		[0.0, 0.6, 0.9, 0.3, 1.0, 1.0, 0], [0.14, 2.2, 0.3, 0.6, 1.0, 1.0, 2], [0.2, 2.3, 0.3, 0.6, 1.0, 1.0, 0],
-		[0.3, 0.9, 0.0, 0.0, 1.0, 1.1, 1], [0.38, 2.0, 0.3, 0.5, 1.0, 1.0, 2], [0.52, 0.7, 0.0, -0.1, 1.0, 1.12, 1], [0.62, 0.5, 0.1, -0.2, 1.0, 1.05, 2], [1.0, 0.6, 0.9, 0.3, 1.0, 1.0, 0]]},
+		[0.3, 0.9, 0.0, 0.0, 1.0, 1.1, 1], [0.38, 2.0, 0.3, 0.5, 1.0, 1.0, 2], [0.52, 0.7, 0.0, -0.1, 1.0, 1.12, 1],
+		[0.62, 0.5, 0.1, -0.2, 1.0, 1.05, 2], [1.0, 0.6, 0.9, 0.3, 1.0, 1.0, 0]]},
 	# kırbaç şaklaması: kol arkaya yukarı, öne şaklar (uzun uzanış)
-	"whip_crack": {"body": "atk_whip", "hit": [0.3, 0.52], "keys": [
+	"whip_crack": {"body": "atk_whip", "hit": [0.3, 0.52], "ck": 0.4, "keys": [
 		[0.0, 0.6, 0.9, 0.3, 1.0, 1.0, 0], [0.22, 3.0, 0.6, 0.9, 1.0, 1.0, 2], [0.3, 3.1, 0.65, 1.0, 1.0, 1.0, 0],
-		[0.4, 1.6, 0.0, -0.4, 1.0, 1.4, 1], [0.52, 1.4, 0.0, -0.6, 1.0, 1.25, 2], [1.0, 0.6, 0.9, 0.3, 1.0, 1.0, 0]]},
+		[0.4, 1.6, 0.0, -0.4, 1.0, 1.4, 1], [0.46, 1.4, 0.0, -0.6, 1.0, 1.25, 2], [0.52, 1.304, 0.108, -0.492, 1.0, 1.22, 0],
+		[1.0, 0.6, 0.9, 0.3, 1.0, 1.0, 0]]},
 	# balta kancası: baş üstünden iniş, sonra kancayla kendine çekiş
-	"axe_hook": {"body": "atk_down", "hit": [0.3, 0.6], "keys": [
+	"axe_hook": {"body": "atk_down", "hit": [0.3, 0.6], "ck": 0.42, "keys": [
 		[0.0, 0.6, 0.9, 0.3, 1.0, 1.0, 0], [0.22, 3.1, 0.5, 0.4, 1.0, 1.0, 2], [0.3, 3.2, 0.55, 0.45, 1.0, 1.0, 0],
-		[0.42, 1.0, 0.0, 0.0, 1.0, 1.15, 1], [0.52, 0.6, 0.3, -0.6, 1.0, 1.0, 2], [0.6, 0.4, 0.9, -0.9, 1.0, 0.9, 2], [1.0, 0.6, 0.9, 0.3, 1.0, 1.0, 0]]},
+		[0.42, 1.0, 0.0, 0.0, 1.0, 1.15, 1], [0.47, 0.6, 0.3, -0.6, 1.0, 1.0, 2], [0.51, 0.4, 0.9, -0.9, 1.0, 0.9, 2],
+		[0.6, 0.424, 0.9, -0.756, 1.0, 0.912, 0], [1.0, 0.6, 0.9, 0.3, 1.0, 1.0, 0]]},
 	# çekiş (iai): kılıç kalçada geriye bakar, tek hamlede açılır
-	"iai": {"body": "atk_horiz", "hit": [0.26, 0.42], "keys": [
+	"iai": {"body": "atk_horiz", "hit": [0.26, 0.42], "ck": 0.34, "keys": [
 		[0.0, 0.5, 1.5, -1.3, 1.0, 1.0, 0], [0.2, 0.45, 1.6, -1.35, 1.0, 1.0, 2], [0.26, 0.4, 1.65, -1.4, 0.9, 1.0, 0],
-		[0.34, 1.7, 0.0, 0.0, 1.0, 1.2, 1], [0.42, 2.0, 0.0, 0.1, 1.0, 1.1, 2], [1.0, 0.6, 0.9, 0.3, 1.0, 1.0, 0]]},
+		[0.34, 1.7, 0.0, 0.0, 1.0, 1.2, 1], [0.38, 2.0, 0.0, 0.1, 1.0, 1.1, 2], [0.42, 1.832, 0.108, 0.124, 1.0, 1.088, 0],
+		[1.0, 0.6, 0.9, 0.3, 1.0, 1.0, 0]]},
 	# iki elli aparkat: alçak-arkadan baş üstüne (fırlatır)
-	"uppercut_2h": {"body": "atk_uppercut", "hit": [0.34, 0.6], "hold_k": 0.24, "keys": [
+	"uppercut_2h": {"body": "atk_uppercut", "hit": [0.34, 0.6], "hold_k": 0.24, "ck": 0.47, "keys": [
 		[0.0, 0.6, 0.9, 0.3, 1.0, 1.0, 0], [0.24, -0.5, 0.3, 0.2, 0.9, 1.0, 2], [0.34, -0.6, 0.35, 0.25, 0.85, 1.0, 0],
-		[0.47, 1.6, 0.0, 0.0, 1.0, 1.2, 1], [0.6, 2.8, 0.0, 0.1, 1.0, 1.1, 2], [1.0, 1.0, 0.9, 0.4, 1.0, 1.0, 0]]},
+		[0.47, 1.6, 0.0, 0.0, 1.0, 1.2, 1], [0.535, 2.8, 0.0, 0.1, 1.0, 1.1, 2], [0.6, 2.584, 0.108, 0.136, 1.0, 1.088, 0],
+		[1.0, 1.0, 0.9, 0.4, 1.0, 1.0, 0]]},
 	# iki elli çakma: sıçrayıp yere
-	"slam_2h": {"body": "atk_slam_jump", "hit": [0.5, 0.72], "hold_k": 0.24, "tm": 1.15, "keys": [
+	"slam_2h": {"body": "atk_slam_jump", "hit": [0.5, 0.72], "hold_k": 0.24, "ws": 1.6, "ck": 0.6, "keys": [
 		[0.0, 0.6, 0.9, 0.3, 1.0, 1.0, 0], [0.26, 3.4, 0.2, 0.3, 0.85, 1.0, 2], [0.5, 3.55, 0.25, 0.35, 0.8, 1.0, 0],
-		[0.6, 0.9, 0.0, 0.0, 1.0, 1.2, 1], [0.72, 0.35, 0.0, -0.2, 1.0, 1.1, 2], [1.0, 0.6, 0.6, 0.2, 1.0, 1.0, 0]]},
+		[0.6, 0.9, 0.0, 0.0, 1.0, 1.2, 1], [0.66, 0.35, 0.0, -0.2, 1.0, 1.1, 2], [0.72, 0.38, 0.072, -0.152, 1.0, 1.088, 0],
+		[1.0, 0.6, 0.6, 0.2, 1.0, 1.0, 0]]},
 	# şarjlı saplama: uzun uzanış + öne hamle
-	"stab_heavy": {"body": "atk_lunge_long", "hit": [0.36, 0.62], "keys": [
+	"stab_heavy": {"body": "atk_lunge_long", "hit": [0.36, 0.62], "ss": 1.2, "ck": 0.44, "keys": [
 		[0.0, 0.6, 0.9, 0.3, 1.0, 1.0, 0], [0.26, -0.6, 2.1, 0.0, 1.0, 0.8, 2], [0.36, -0.7, 2.15, 0.0, 1.0, 0.75, 0],
-		[0.44, 1.6, 0.0, 0.0, 1.0, 1.55, 1], [0.62, 1.55, 0.0, 0.0, 1.0, 1.45, 2], [1.0, 0.6, 0.9, 0.3, 1.0, 1.0, 0]]},
+		[0.44, 1.6, 0.0, 0.0, 1.0, 1.55, 1], [0.53, 1.55, 0.0, 0.0, 1.0, 1.45, 2], [0.62, 1.436, 0.108, 0.036, 1.0, 1.396, 0],
+		[1.0, 0.6, 0.9, 0.3, 1.0, 1.0, 0]]},
 	# baş üstü çark: iki tam tur, iki yanı biçer (iki vuruş)
-	"helicopter": {"body": "atk_spin_2h", "hit": [0.26, 0.78], "around": true, "multi": [0.4, 0.62], "tm": 1.25, "keys": [
+	"helicopter": {"body": "atk_spin_2h", "hit": [0.26, 0.78], "around": true, "multi": [0.4, 0.62], "ss": 2.6, "ws": 1.2, "keys": [
 		[0.0, 0.6, 0.9, 0.3, 1.0, 1.0, 0], [0.2, 2.9, 0.2, 0.1, 1.0, 1.0, 2], [0.26, 3.0, 0.1, 0.0, 0.9, 1.0, 0],
 		[0.52, 6.1, 0.0, 0.0, 0.6, 1.2, 0], [0.78, 9.3, 0.0, 0.0, 0.6, 1.2, 0], [1.0, 9.6, 0.9, 0.3, 1.0, 1.0, 0]]},
 	# ---------------------------------------------------------------- v15: arketip savuruşları
 	# geri sıçrayış kesiği: gövde geriye hoplarken bıçak öne yatay geçer (yatağan / rüzgâr / yıldırım çekilmesi)
-	"backstep": {"body": "atk_backstep", "hit": [0.3, 0.56], "hold_k": 0.24, "tm": 0.9, "keys": [
+	"backstep": {"body": "atk_backstep", "hit": [0.3, 0.56], "hold_k": 0.24, "ss": 1.1, "ck": 0.42, "keys": [
 		[0.0, 0.6, 0.9, 0.3, 1.0, 1.0, 0], [0.22, -1.2, -0.1, -0.2, 1.0, 1.0, 2], [0.3, -1.3, -0.15, -0.25, 1.0, 1.0, 0],
-		[0.355, -1.2, 0.0, 0.0, 0.25, 1.0, 1], [0.356, 1.5, 0.1, 0.0, 0.25, 1.0, 0],
-		[0.42, 1.7, 0.0, 0.1, 1.0, 1.15, 2], [0.56, 2.0, 0.2, 0.25, 0.8, 1.0, 2], [1.0, 0.7, 0.9, 0.4, 1.0, 1.0, 0]]},
+		[0.355, -1.2, 0.0, 0.0, 0.25, 1.0, 1], [0.356, 1.5, 0.1, 0.0, 0.25, 1.0, 0], [0.42, 1.7, 0.0, 0.1, 1.0, 1.15, 2],
+		[0.49, 2.0, 0.2, 0.25, 0.8, 1.0, 2], [0.56, 1.844, 0.284, 0.268, 0.824, 1.0, 0], [1.0, 0.7, 0.9, 0.4, 1.0, 1.0, 0]]},
 	# uzun hamle: derin adım, arka bacak gergin; sırık ok gibi uzanır (kargı / mızrak zincir sonu)
-	"lunge_long": {"body": "atk_lunge_long", "hit": [0.34, 0.62], "tm": 1.1, "keys": [
+	"lunge_long": {"body": "atk_lunge_long", "hit": [0.34, 0.62], "ss": 1.2, "ck": 0.42, "keys": [
 		[0.0, 0.6, 0.9, 0.3, 1.0, 1.0, 0], [0.24, -0.7, 2.1, 0.0, 1.0, 0.8, 2], [0.34, -0.8, 2.15, 0.0, 1.0, 0.75, 0],
-		[0.42, 1.6, 0.0, 0.0, 1.0, 1.55, 1], [0.62, 1.55, 0.0, 0.0, 1.0, 1.45, 2], [1.0, 0.6, 0.9, 0.3, 1.0, 1.0, 0]]},
+		[0.42, 1.6, 0.0, 0.0, 1.0, 1.55, 1], [0.52, 1.55, 0.0, 0.0, 1.0, 1.45, 2], [0.62, 1.436, 0.108, 0.036, 1.0, 1.396, 0],
+		[1.0, 0.6, 0.9, 0.3, 1.0, 1.0, 0]]},
 	# tam gövde çark: pala / tırpan / ulu kılıç; iki yanı biçer, iki vuruş (basılı tutulunca sürer: spin_hold)
-	"spin_2h": {"body": "atk_spin_2h", "hit": [0.3, 0.7], "around": true, "multi": [0.38, 0.6], "tm": 1.3, "keys": [
+	"spin_2h": {"body": "atk_spin_2h", "hit": [0.3, 0.7], "around": true, "multi": [0.38, 0.6], "ss": 2.2, "keys": [
 		[0.0, 0.6, 0.9, 0.3, 1.0, 1.0, 0], [0.22, -1.2, 0.2, 0.0, 1.0, 1.0, 2], [0.3, -1.3, 0.1, 0.0, 1.0, 1.0, 0],
 		[0.7, 5.1, 0.0, 0.0, 1.0, 1.15, 0], [1.0, 5.4, 0.9, 0.3, 1.0, 1.0, 0]]},
 	# ikiz bıçak: ön omuzdan hızlı düz kesik
-	"dual_l": {"body": "atk_dual", "hit": [0.26, 0.5], "tm": 0.8, "keys": [
-		[0.0, 0.6, 0.9, 0.3, 1.0, 1.0, 0], [0.18, -1.3, -0.2, -0.1, 1.0, 1.0, 2], [0.26, -1.4, -0.25, -0.15, 1.0, 1.0, 0],
-		[0.31, -1.3, -0.1, 0.0, 0.25, 1.0, 1], [0.311, 1.5, 0.1, 0.0, 0.25, 1.0, 0],
-		[0.38, 1.6, 0.0, 0.05, 1.0, 1.1, 2], [0.5, 1.8, 0.2, 0.2, 0.75, 1.0, 2], [1.0, 0.7, 0.9, 0.4, 1.0, 1.0, 0]]},
+	"dual_l": {"body": "atk_dual", "hit": [0.26, 0.5], "ck": 0.34, "keys": [
+		[0.0, 0.6, 0.9, 0.3, 1.0, 1.0, 0], [0.18, 2.6, 0.9, 0.9, 1.0, 1.0, 2], [0.26, 2.75, 0.95, 1.0, 1.0, 1.0, 0],
+		[0.34, 1.2, 0.0, 0.1, 1.0, 1.15, 1], [0.42, 0.55, 0.2, -0.2, 1.0, 1.05, 2], [0.5, 0.58, 0.3, -0.1, 1.0, 1.0, 0],
+		[1.0, 0.6, 0.9, 0.3, 1.0, 1.0, 0]]},
 	# ikiz bıçak: ters el, arka omuzdan
-	"dual_r": {"body": "atk_dual", "hit": [0.26, 0.5], "tm": 0.8, "keys": [
-		[0.0, 0.6, 0.9, 0.3, 1.0, 1.0, 0], [0.18, 0.9, 1.9, 1.2, 1.0, 1.0, 2], [0.26, 0.85, 2.0, 1.3, 1.0, 1.0, 0],
-		[0.31, 1.2, 1.0, 1.4, 0.3, 1.0, 1], [0.311, 1.4, 0.2, -0.2, 0.3, 1.0, 0],
-		[0.38, 1.6, 0.0, 0.0, 1.0, 1.1, 2], [0.5, 1.35, 0.3, -0.25, 0.75, 1.0, 2], [1.0, 0.6, 0.9, 0.3, 1.0, 1.0, 0]]},
+	"dual_r": {"body": "atk_dual", "hit": [0.26, 0.5], "ck": 0.34, "keys": [
+		[0.0, 0.6, 0.9, 0.3, 1.0, 1.0, 0], [0.18, -0.4, -0.4, -0.5, 1.0, 1.0, 2], [0.26, -0.5, -0.45, -0.55, 1.0, 1.0, 0],
+		[0.34, 1.75, 0.0, 0.2, 1.0, 1.15, 1], [0.42, 2.55, 0.1, 0.25, 1.0, 1.05, 2], [0.5, 2.45, 0.25, 0.25, 1.0, 1.0, 0],
+		[1.0, 0.8, 0.9, 0.4, 1.0, 1.0, 0]]},
 	# çapraz delip geçme: X kesik + gövde düşmanın içinden öteye fırlar (ikiz bıçak 4. vuruş, böri sırt saplaması)
-	"cross_dash": {"body": "atk_dual", "hit": [0.26, 0.66], "multi": [0.32, 0.54], "tm": 1.0, "keys": [
+	"cross_dash": {"body": "atk_dual", "hit": [0.26, 0.66], "multi": [0.32, 0.54], "ss": 2.0, "keys": [
 		[0.0, 0.6, 0.9, 0.3, 1.0, 1.0, 0], [0.2, 2.8, 0.5, 0.7, 0.95, 1.0, 2], [0.26, 2.9, 0.55, 0.75, 0.9, 1.0, 0],
-		[0.34, 0.9, 0.0, 0.0, 1.0, 1.15, 1], [0.42, 0.2, 0.0, -0.3, 1.0, 1.05, 2],
-		[0.48, -0.3, -0.3, -0.5, 0.9, 1.0, 2], [0.56, 1.4, 0.0, 0.15, 1.0, 1.15, 1], [0.66, 2.6, 0.1, 0.3, 1.0, 1.05, 2], [1.0, 0.7, 0.9, 0.4, 1.0, 1.0, 0]]},
+		[0.34, 0.9, 0.0, 0.0, 1.0, 1.15, 1], [0.42, 0.2, 0.0, -0.3, 1.0, 1.05, 2], [0.48, -0.3, -0.3, -0.5, 0.9, 1.0, 2],
+		[0.56, 1.4, 0.0, 0.15, 1.0, 1.15, 1], [0.66, 2.6, 0.1, 0.3, 1.0, 1.05, 2], [1.0, 0.7, 0.9, 0.4, 1.0, 1.0, 0]]},
 	# kırbaç yan şaklama: uzun yatay uzanış
-	"whip_side": {"body": "atk_whip", "hit": [0.3, 0.54], "keys": [
-		[0.0, 0.6, 0.9, 0.3, 1.0, 1.0, 0], [0.22, -1.3, -0.2, -0.3, 1.0, 1.0, 2], [0.3, -1.4, -0.25, -0.35, 1.0, 1.0, 0],
-		[0.355, -1.3, 0.0, 0.0, 0.25, 1.1, 1], [0.356, 1.5, 0.1, 0.0, 0.25, 1.1, 0],
-		[0.42, 1.6, 0.0, -0.1, 1.0, 1.35, 2], [0.54, 1.7, 0.1, -0.3, 0.8, 1.2, 2], [1.0, 0.7, 0.9, 0.4, 1.0, 1.0, 0]]},
+	"whip_side": {"body": "atk_whip", "hit": [0.3, 0.54], "ck": 0.4, "keys": [
+		[0.0, 0.6, 0.9, 0.3, 1.0, 1.0, 0], [0.22, -0.8, -0.3, -0.5, 1.0, 1.0, 2], [0.3, -0.9, -0.35, -0.6, 1.0, 1.0, 0],
+		[0.4, 1.5, 0.0, -0.1, 1.0, 1.3, 1], [0.47, 2.0, 0.05, -0.4, 1.0, 1.2, 2], [0.54, 1.9, 0.15, -0.3, 1.0, 1.15, 0],
+		[1.0, 0.7, 0.9, 0.4, 1.0, 1.0, 0]]},
 	# adımlı iniş: tek elli ama tüm gövdeyle; baş üstünden adım atarak iner (alp / ayaz / bozgun bitirişi)
-	"step_down": {"body": "atk_overhead_2h", "hit": [0.38, 0.62], "hold_k": 0.33, "tm": 1.1, "keys": [
+	"step_down": {"body": "atk_overhead_2h", "hit": [0.38, 0.62], "hold_k": 0.33, "ws": 1.1, "ck": 0.5, "keys": [
 		[0.0, 0.6, 0.9, 0.3, 1.0, 1.0, 0], [0.28, 3.25, 0.6, 0.7, 1.0, 1.0, 2], [0.38, 3.4, 0.65, 0.75, 1.0, 1.0, 0],
-		[0.5, 1.2, 0.0, 0.15, 1.0, 1.18, 1], [0.62, 0.5, 0.1, 0.0, 1.0, 1.05, 2], [1.0, 0.5, 0.9, 0.4, 1.0, 1.0, 0]]},
+		[0.5, 1.2, 0.0, 0.15, 1.0, 1.18, 1], [0.56, 0.5, 0.1, 0.0, 1.0, 1.05, 2], [0.62, 0.5, 0.196, 0.048, 1.0, 1.044, 0],
+		[1.0, 0.5, 0.9, 0.4, 1.0, 1.0, 0]]},
 	# sırık atlayışı: sırık yere saplanır, gövde ileri-yukarı fırlar; ucu kalkarken vurur (kargı / mızrak ↑+J)
-	"pole_vault": {"body": "atk_uppercut", "hit": [0.3, 0.58], "hold_k": 0.24, "keys": [
+	"pole_vault": {"body": "atk_uppercut", "hit": [0.3, 0.58], "hold_k": 0.24, "ss": 1.2, "ck": 0.44, "keys": [
 		[0.0, 0.6, 0.9, 0.3, 1.0, 1.0, 0], [0.22, 0.9, 0.6, -0.3, 1.0, 1.0, 2], [0.3, 0.8, 0.7, -0.35, 1.0, 1.0, 0],
-		[0.44, 2.3, 0.0, 0.1, 1.0, 1.2, 1], [0.58, 2.9, 0.0, 0.0, 1.0, 1.1, 2], [1.0, 1.2, 0.9, 0.4, 1.0, 1.0, 0]]},
+		[0.44, 2.3, 0.0, 0.1, 1.0, 1.2, 1], [0.51, 2.9, 0.0, 0.0, 1.0, 1.1, 2], [0.58, 2.696, 0.108, 0.048, 1.0, 1.088, 0],
+		[1.0, 1.2, 0.9, 0.4, 1.0, 1.0, 0]]},
 }
 
 ## Silah uzunluğu (kabzadan uca, piksel): iz ve vuruş kutusu buna göre ölçeklenir
@@ -267,8 +333,9 @@ const COMBOS := {
 	"whip": {"chain": [{"s": "whip_crack", "mult": 1.0, "kb": 40.0, "whip": true, "tipcrit": true}, {"s": "whip_side", "mult": 1.1, "kb": 60.0, "whip": true, "tipcrit": true, "last": true}],
 		"pause": {"s": "spin", "mult": 1.2, "kb": 120.0, "whip": true, "name": "Kement Halkası"}},
 	# --- kılıçlar
-	# Alp Kılıcı: dengeli; çapraz → düz → adımlı baş üstü (üçüncü vuruş kritik: ucuncu_vurus)
-	"alp_kilici": {"chain": [{"s": "diag_down", "mult": 1.0, "kb": 110.0, "dash": 10.0}, {"s": "horiz", "mult": 1.0, "kb": 110.0}, {"s": "step_down", "mult": 1.35, "kb": 240.0, "dash": 30.0, "last": true}],
+	# Alp Kılıcı: dengeli; çapraz iniş → çapraz yükseliş → adımlı baş üstü (v18: her vuruş bir öncekinin bittiği yerden
+	# gerilir: aşağıda biten iniş yükselişin hazırlığıdır, yukarıda biten yükseliş baş üstü inişin) (üçüncü vuruş kritik)
+	"alp_kilici": {"chain": [{"s": "diag_down", "mult": 1.0, "kb": 110.0, "dash": 10.0}, {"s": "diag_up", "mult": 1.0, "kb": 110.0}, {"s": "step_down", "mult": 1.35, "kb": 240.0, "dash": 30.0, "last": true}],
 		"pause": {"s": "cross_x", "mult": 1.1, "kb": 150.0, "name": "Alp Çaprazı"}},
 	# Yıldırım Kılıcı (katana): çekiş → geri sıçrayış → hücum; ağır: şimşek hamlesi
 	"yildirim_kilici": {"chain": [{"s": "iai", "mult": 1.0, "kb": 100.0, "dash": 20.0}, {"s": "backstep", "mult": 1.0, "kb": 90.0, "backstep": true}, {"s": "lunge", "mult": 1.35, "kb": 200.0, "dash": 80.0, "last": true}],
@@ -311,8 +378,10 @@ const COMBOS := {
 	# Erlik Tırpanı: biçme düşmanı kendine çeker → alçak süpürme → tam gövde çark; bekleme: büyük biçme (çekiş)
 	"erlik_tirpani": {"chain": [{"s": "reap", "mult": 1.0, "kb": 30.0, "pull": 240.0}, {"s": "sweep_low", "mult": 1.1, "kb": 140.0}, {"s": "spin_2h", "mult": 1.3, "kb": 180.0, "last": true}],
 		"pause": {"s": "reap", "mult": 1.7, "kb": 30.0, "pull": 320.0, "slam": true, "name": "Ruh Biçen"}},
-	# Kargı: iki saplama → uzun hamle (ileri taşır, iter); ↑+J sırık atlayışı
-	"kargi": {"chain": [{"s": "pole_thrust", "mult": 1.0, "kb": 150.0}, {"s": "pole_thrust", "mult": 1.1, "kb": 170.0, "dash": 20.0}, {"s": "lunge_long", "mult": 1.3, "kb": 260.0, "dash": 50.0, "last": true}],
+	# Kargı (v18): saplama → alçak saplama → alttan baş üstüne geniş süpürme (havaya kaldırır; Dead Cells mızrağı gibi
+	# saplama-saplama-süpürme);
+	# bekleme bitirişi uzun hamle; ↑+J sırık atlayışı
+	"kargi": {"chain": [{"s": "pole_thrust", "mult": 1.0, "kb": 150.0}, {"s": "pole_thrust_lo", "mult": 1.1, "kb": 170.0, "dash": 20.0}, {"s": "pole_rise", "mult": 1.35, "kb": 200.0, "launch": 160.0, "dash": 24.0, "last": true}],
 		"pause": {"s": "lunge", "mult": 1.6, "kb": 220.0, "dash": 90.0, "name": "Süngü Akını"}},
 	# --- çift bıçaklar / pençeler
 	# İkiz Bıçak: sol-sağ-sol hızlı kesikler → 4. vuruş: çapraz kesikle düşmanın içinden geçiş
@@ -362,7 +431,7 @@ const PAUSE_WINDOW := 0.95   # 0.28 - 0.95 sn arası bekleyip basarsan bekleme b
 ## Ağır saldırılar: saldırı tuşu basılı tutulunca (hazırlık bitince HOLD_T kadar daha basılıysa) şarj başlar;
 ## bırakınca silahın özgün ağır vuruşu çıkar. Şarj HEAVY_MAX'a kadar hasarı 1.9 kata çıkarır.
 const HOLD_T := 0.16
-const HEAVY_MAX := 0.85
+const HEAVY_MAX := 0.55   # v18: tam şarj 0,85 → 0,55 sn (Dead Cells ağır silah hazırlığı 0,4-0,5 sn)
 const HEAVIES := {
 	"slash": {"s": "overhead_2h", "mult": 1.6, "kb": 260.0, "slam": true, "name": "Ağır Darbe"},
 	"dual": {"s": "cross_dash", "mult": 1.5, "kb": 150.0, "through": true, "name": "Çapraz"},
@@ -628,6 +697,8 @@ class BowString extends Node2D:
 				draw_rect(Rect2((head + Vector2(dir * 1, -3)).floor(), Vector2(1, 7)), Color(g, glow * 0.7))
 				draw_rect(Rect2((head + Vector2(dir * 1 - 3, 0)).floor(), Vector2(7, 1)), Color(g, glow * 0.7))
 var _blade_local := Vector2.RIGHT
+var _last_pose: Array = []     # v18: son çizilen kol pozu (zincirde sonraki savuruş buradan gerilir)
+var _last_pose_ok := false
 var since_atk := 9.0       # son saldırının bitişinden beri geçen süre (zincir / bekleme ayrımı)
 var last_step := -1
 var _pause_ready_fx := false
@@ -1606,6 +1677,16 @@ func _feel(delta: float, _dir: float) -> void:
 		lean_target = clampf(velocity.x / RUN, -1.3, 1.3) * (0.1 if fl else 0.06)
 		# ivmelenme: hız değişirken biraz daha yatar (kalkışta öne, frende geriye)
 		lean_target += clampf((velocity.x - _feel_vx) * 0.0016, -0.06, 0.06)
+	elif not atk.is_empty() and roll_t <= 0.0 and hurt_t <= 0.0 and atk.get("phase", "") != "charge":
+		# v18 savuruşta gövde: hazırlıkta geriye toplanır, vuruşta öne yüklenir (ağır silahta daha çok), toparlanmada oturur
+		var aw := _weight(atk["item"])
+		match String(atk.get("phase", "")):
+			"wind":
+				lean_target = -float(facing) * (0.05 + 0.05 * aw)
+			"act":
+				lean_target = float(facing) * (0.09 + 0.07 * aw)
+			_:
+				lean_target = float(facing) * 0.025
 	_feel_vx = velocity.x
 	_lean_v += ((lean_target - vis_lean) * 260.0 - _lean_v * 22.0) * delta
 	vis_lean += _lean_v * delta
@@ -1813,7 +1894,7 @@ func _strike_step(it: Dictionary, c: Dictionary, heavy_w: bool) -> float:
 	var D := float(steps[1] if heavy_w else steps[0]) + float(atk.get("dash", 0.0)) * float(FLOW["step_dash"])
 	var F := _atk_fric(it)
 	var sw: Dictionary = atk["sw"]
-	var T := maxf(0.05, (float(sw["hit"][1]) - float(sw["hit"][0])) * float(atk["dur"]))
+	var T := maxf(0.05, float(atk["ph"][1]) + float(atk["ph"][2]) if atk.has("ph") else (float(sw["hit"][1]) - float(sw["hit"][0])) * float(atk["dur"]))
 	var R := _reach(it)
 	var box := _swing_box(String(c["s"]), R)
 	var far := box.end.x if facing > 0 else box.position.x
@@ -1905,6 +1986,113 @@ func _weight(it: Dictionary) -> float:
 	return 0.45
 
 
+static var _base_aps: Dictionary = {}
+
+
+func _tempo_class(it: Dictionary) -> String:
+	var id := String(it.get("id", ""))
+	if id in ["ulu_kilic", "dag_cekici", "kor_cekici", "bozgun_kilici"]:
+		return "dev"
+	if id in ["gurz", "civili_topuz", "savas_baltasi", "ikiz_balta"]:
+		return "agir"
+	if id in ["teber", "erlik_tirpani", "kayin_asasi"]:
+		return "uzun"
+	if id in ["yatagan", "ruzgar_kilici"]:
+		return "duello"
+	if id == "ay_palasi":
+		return "hancer"
+	match String(it.get("kind", "")):
+		"dual":
+			return "hancer"
+		"whip":
+			return "kirbac"
+		"thrust":
+			return "mizrak"
+		"heavy":
+			return "agir"
+	return "kilic"
+
+
+func _tempo_scale(it: Dictionary, spd_mult: float) -> float:
+	## Eşyanın taban aps'ine göre hız sapması (malzeme, kalite, nitelik, ivme): 1 = taban tempo
+	var id := String(it.get("id", ""))
+	if not _base_aps.has(id):
+		_base_aps[id] = float(Data.find_item(id).get("aps", it.get("aps", 1.0)))
+	return clampf(float(_base_aps[id]) / maxf(0.05, float(it.get("aps", 1.0)) * spd_mult), 0.55, 1.6)
+
+
+func _phase_times(it: Dictionary, c: Dictionary, sw: Dictionary, chain: bool, spd_mult: float, kind := "") -> Array:
+	## [hazırlık, süpürme, kilit, toparlanma, tutuş] gerçek saniye: TEMPO + savuruşun çarpanları ("ws" hazırlık,
+	## "ss" kilit — çark / çok vuruşlu savuruşta yay kilit evresinde döner) + bitiriş / bekleme / ağır + adımın tm'si
+	var tp: Array = TEMPO[_tempo_class(it)]
+	var sc := _tempo_scale(it, spd_mult) * float(c.get("tm", 1.0))
+	var M := float(tp[2]) * float(sw.get("ms", 1.0))
+	var H := float(tp[6] if chain else tp[5])
+	var W := maxf(0.016, float(tp[1] if chain else tp[0]) - float(tp[2]) - H) * float(sw.get("ws", 1.0))
+	var L := float(tp[3]) * float(sw.get("ss", 1.0))
+	var R := float(tp[4]) * float(sw.get("rs", 1.0))
+	if _contact_k(sw) <= float(sw["hit"][0]) + 0.001:
+		# temas anahtarı yok (çark, seri saplama): süpürme kilide katılır
+		L += M
+		M = 0.0
+	if c.get("last", false):   # zincir sonu (Dead Cells bitirişi ~0,3 / 0,3): okunur hazırlık, uzun kilit
+		W *= 1.3
+		H += 0.017
+		L *= 1.5 if float(sw.get("ss", 1.0)) <= 1.5 else 1.1   # çarkın yayı zaten uzun
+	match kind:
+		"pause":   # bekleme bitirişi: okunur bir duruş, adı yazılır
+			W *= 1.5
+			H += 0.033
+			L *= 1.4
+		"heavy":   # ağır saldırı: hazırlığın çoğu şarjda geçer; bırakınca kısa, sert; kilit uzun (darbe oturur)
+			L *= 1.4
+			R *= 1.25
+	return [W * sc, M * sc, maxf(0.033, L * sc), maxf(0.05, R * sc), H * sc]
+
+
+func _atk_advance(delta: float) -> void:
+	## Zaman bükmesi: atk.t (normalize süre × dur) evreye göre farklı hızda ilerler (hazırlık, süpürme, kilit,
+	## toparlanma); evre sınırı kare içinde aşılırsa kalan süre sonraki evrenin hızıyla sürer.
+	var D := float(atk["dur"])
+	var sw: Dictionary = atk["sw"]
+	var b := [float(sw["hit"][0]), _contact_k(sw), float(sw["hit"][1]), 1.0]
+	var ph: Array = atk["ph"]
+	var rem := delta
+	for guard in 6:
+		var k := float(atk["t"]) / D
+		var seg := 3
+		for i in 3:
+			if k < float(b[i]):
+				seg = i
+				break
+		var k0 := 0.0 if seg == 0 else float(b[seg - 1])
+		var span := float(b[seg]) - k0
+		if span <= 0.0001 and seg < 3:
+			atk["t"] = float(b[seg]) * D + 0.000001
+			continue
+		var rate := span * D / maxf(0.001, float(ph[seg]))
+		var to_end := (float(b[seg]) * D - float(atk["t"])) / rate
+		if rem <= to_end or seg == 3:
+			atk["t"] = float(atk["t"]) + rem * rate
+			return
+		atk["t"] = float(b[seg]) * D + 0.000001
+		rem -= to_end
+
+
+func _contact_k(sw: Dictionary) -> float:
+	## İsabetin başladığı an (bıçağın düşmana vardığı kare): savuruşun "ck"si; yoksa vuruş penceresinden sonraki ilk
+	## anahtar (hızlanan yayın sonu). Çark ve çok vuruşlu savuruşlarda pencerenin başı.
+	if sw.has("ck"):
+		return float(sw["ck"])
+	var h0 := float(sw["hit"][0])
+	if sw.get("around", false) or sw.has("multi"):
+		return h0
+	for key in sw["keys"]:
+		if float(key[0]) > h0 + 0.001:
+			return minf(float(key[0]), float(sw["hit"][1]) - 0.01)
+	return h0
+
+
 func _combo_for(it: Dictionary) -> Dictionary:
 	if COMBOS_EXTRA.has(it.get("id", "")):
 		return COMBOS_EXTRA[it["id"]]
@@ -1958,20 +2146,25 @@ func _start_attack(step: int) -> void:
 			FX.ghost(anim.base, Color(0.8, 0.9, 1.0, 0.5), 0.3)
 	if it["flaw"] == "agir":
 		spd_mult *= 0.88
-	var total := 1.0 / (float(it["aps"]) * spd_mult)
-	if is_pause:
-		total *= 1.35
-	if c["s"] in ["spin", "flurry"]:
-		total *= 1.25
-	# v15 tempo: savuruşun kendi süre çarpanı (çark / iniş uzun, hançer kesikleri kısa) ve adımın çarpanı
-	total *= float(sw.get("tm", 1.0)) * float(c.get("tm", 1.0))
+	# v18 tempo: evre süreleri silah sınıfından (TEMPO); zincir içindeyse (önceki savuruşun toparlanmasından ya da hemen
+	# ardından) kısa zincir hazırlığı ve kol önceki takip pozundan gerilir (dinlenme pozuna dönmeden)
+	var flowing: bool = (not atk.is_empty() and not atk.get("heavy", false)) or (since_atk < 0.12 and _last_pose_ok)
+	var from_pose: Array = _last_pose.duplicate() if (flowing and _last_pose_ok) else []
+	var ph := _phase_times(it, c, sw, flowing and not is_pause, spd_mult, "pause" if is_pause else "")
+	var total := float(ph[0]) + float(ph[1]) + float(ph[2]) + float(ph[3])
 	if c.get("special", false):
 		_move_label(String(c.get("name", "")), Color(0.75, 0.95, 1.0), 8)
 		if c.get("plunge", false):
 			velocity = Vector2(velocity.x * 0.3, -160.0)
-	atk = {"step": step, "c": c, "sw": sw, "phase": "wind", "t": 0.0, "dur": total, "hit": [], "item": it, "hold": 0.0, "pause": is_pause, "multi_i": 0}
+	if not atk.is_empty():
+		_end_trail()
+	atk = {"step": step, "c": c, "sw": sw, "phase": "wind", "t": 0.0, "dur": total, "hit": [], "item": it, "hold": 0.0, "pause": is_pause, "multi_i": 0,
+		"ph": ph, "chain": flowing}
+	if not from_pose.is_empty():
+		atk["from"] = _unwrap_from(from_pose, sw)
 	atk["air"] = not is_on_floor()
 	_heavy_armed = _mel_down_t >= 0.0 and _weight(it) <= float(FLOW["heavy_nowait_w"]) and _can_hold_heavy(c)
+	atk["held"] = _mel_down_t >= 0.0
 	# v15 süper zırh: dev kılıç / dağ çekici savuruşları sarsılmaz (bayrağı take_hit / koordinatör okur)
 	atk["super_armor"] = bool(c.get("sa", false))
 	_usul_press()
@@ -2079,7 +2272,9 @@ func debug_swing(sw_name: String, item_id := "alp_kilici") -> void:
 		it = slot("melee")
 	var sw: Dictionary = SWINGS[sw_name]
 	atk = {"step": 0, "c": {"s": sw_name, "mult": 1.0, "kb": 100.0}, "sw": sw, "phase": "wind", "t": 0.0,
-		"dur": 1.0 / float(it["aps"]) * (1.25 if sw_name in ["spin", "flurry"] else 1.0) * float(sw.get("tm", 1.0)), "hit": [], "item": it, "hold": 0.0, "pause": false, "multi_i": 0}
+		"dur": 1.0, "hit": [], "item": it, "hold": 0.0, "pause": false, "multi_i": 0}
+	atk["ph"] = _phase_times(it, atk["c"], sw, false, 1.0)
+	atk["dur"] = float(atk["ph"][0]) + float(atk["ph"][1]) + float(atk["ph"][2]) + float(atk["ph"][3])
 
 
 func _atk_act() -> String:
@@ -2090,10 +2285,40 @@ func _atk_act() -> String:
 func _ease(u: float, mode: int) -> float:
 	match mode:
 		1:
-			return u * u * u            # hızlanarak: vuruşun son anı en hızlı
+			# hızlanarak (v18: kübik yerine kare): süpürme 2-3 kare sürdüğünden ara kare yayın ortasına düşsün
+			# (kübikte ara kare hâlâ hazırlıkta görünüyor, bıçak tek karede ışınlanıyordu)
+			return u * u
 		2:
 			return 1.0 - pow(1.0 - u, 3.0)  # yavaşlayarak: takip, ağırlık
 	return u * u * (3.0 - 2.0 * u)
+
+
+func _unwrap_from(p: Array, sw: Dictionary) -> Array:
+	## Önceki savuruşun son pozu: açılar (üst kol, bilek) yeni savuruşun ilk hedef anahtarına en kısa yoldan dönsün
+	## (çark 6,9 rad'da bitti diye kol geriye tam tur sarılmasın)
+	var keys: Array = sw["keys"]
+	var tgt: Array = keys[mini(1, keys.size() - 1)]
+	var out := p.duplicate()
+	out[0] = float(tgt[1]) + wrapf(float(p[0]) - float(tgt[1]), -PI, PI)
+	out[2] = float(tgt[3]) + wrapf(float(p[2]) - float(tgt[3]), -PI, PI)
+	return out
+
+
+func _atk_pose(k: float) -> Array:
+	## Süren saldırının pozu: zincirde ilk bölüm (dinlenme → hazırlık) dinlenme pozu yerine önceki savuruşun
+	## takip pozundan başlar; kol bir vuruştan ötekine kesintisiz akar.
+	var sw: Dictionary = atk["sw"]
+	if atk.has("from"):
+		var keys: Array = sw["keys"]
+		var k1: Array = keys[1]
+		if k < float(k1[0]):
+			var fp: Array = atk["from"]
+			var u := _ease(clampf(k / maxf(0.0001, float(k1[0])), 0.0, 1.0), 2)
+			var out: Array = []
+			for j in range(1, 6):
+				out.append(lerpf(float(fp[j - 1]), float(k1[j]), u))
+			return out
+	return _swing_pose(sw, k)
 
 
 func _swing_pose(sw: Dictionary, k: float) -> Array:
@@ -2119,6 +2344,11 @@ func _update_attack(delta: float) -> void:
 	var it: Dictionary = atk["item"]
 	var hit0: float = float(sw["hit"][0])
 	var hit1: float = float(sw["hit"][1])
+	if not atk.has("ph"):
+		# eski yol (şimşek hamlesi, laboratuvar): evreler dur'un oranları
+		var D0 := float(atk["dur"])
+		var ck0 := _contact_k(sw)
+		atk["ph"] = [hit0 * D0, (ck0 - hit0) * D0, (hit1 - ck0) * D0, (1.0 - hit1) * D0, 0.03 + 0.045 * _weight(it)]
 	# ---- v5: basılı tutma = ağır saldırı. Şarj fazı ayrı güncellenir.
 	if atk["phase"] == "charge":
 		_update_charge(delta)
@@ -2144,9 +2374,13 @@ func _update_attack(delta: float) -> void:
 	# saldırı (v17: süre basıştan sayılır — eski: hazırlık sonundan +0,16 sn). Hafif silahlar (hançer, düellocu,
 	# kırbaç) hiç beklemez: hafif vuruş çıkar, tuş basılı kalırsa ağır saldırı toparlanmadan açılır.
 	var nowait := _weight(it) <= float(FLOW["heavy_nowait_w"])
-	if atk["phase"] == "wind" and not nowait and _can_hold_heavy(c) and _mel_down_t >= 0.0:
+	# v18: yalnızca bu savuruşu başlatan basış hâlâ süren basılı tutuşsa bekle (seri basışta her yeni basış hazırlığı
+	# geri sarıyordu: gürz zinciri takılıyordu)
+	if _mel_down_t < 0.0:
+		atk["held"] = false
+	if atk["phase"] == "wind" and not nowait and _can_hold_heavy(c) and _mel_down_t >= 0.0 and atk.get("held", false):
 		var wind_end: float = atk["dur"] * _hold_k(sw)
-		if atk["t"] + delta >= wind_end:
+		if atk["t"] <= wind_end + 0.0001 and atk["t"] + delta * float(atk["dur"]) * hit0 / maxf(0.001, float(atk["ph"][0])) >= wind_end:
 			if _mel_down_t >= float(FLOW["heavy_hold"]):
 				_begin_heavy(it)
 				return
@@ -2169,16 +2403,15 @@ func _update_attack(delta: float) -> void:
 		vis_scale = Vector2(1.0 + 0.05 * sin(atk["hold"] * 40.0), 1.0 - 0.05 * sin(atk["hold"] * 40.0))
 		atk["t"] = minf(atk["t"] + delta, atk["dur"] * (hit0 - 0.02))
 	else:
-		atk["t"] += delta
+		_atk_advance(delta)
 	# v14 hazırlık tutuşu: hazırlığın son anında kısa bir duraklama (hafif 2 kare, ağır 4 kare); gövde toplanır,
 	# silah bir tık daha geri çekilir. Vuruş öngörülebilir olur, sonraki hızlanma daha sert okunur.
 	if atk["phase"] == "wind" and not atk.get("heavy", false) and not atk.has("dash_px"):
 		var kk: float = atk["t"] / atk["dur"]
-		var hold_t := 0.03 + 0.045 * _weight(it)
-		if int(atk["step"]) > 0 and not atk.get("pause", false):
-			hold_t *= 0.5  # v17: zincirin içinde hazırlık tutuşu yarıya iner (ritim akar, ilk vuruş okunur kalır)
+		# v18: tutuş süresi TEMPO'dan (hançer / kılıç zincirinde hiç yok; ağır silahta 1-3 kare)
+		var hold_t := float(atk["ph"][4])
 		var hk := _hold_k(sw)
-		if kk >= hk and float(atk.get("antic", 0.0)) < hold_t:
+		if hold_t > 0.0 and kk >= hk and float(atk.get("antic", 0.0)) < hold_t and kk - hk < 0.12:
 			if not atk.has("antic"):
 				vis_scale = Vector2(0.94, 1.05)
 				if _weight(it) >= 0.75 and Ses.has("savur_hazirlik"):
@@ -2215,7 +2448,7 @@ func _update_attack(delta: float) -> void:
 		# v15 çark tutuşu (pala): tuş basılıyken vuruş penceresi başa sarar; en çok 1,2 sn, her turda iki yan yeniden vurulur
 		if c.get("spin_hold", false) and Input.is_action_pressed(_atk_act()) and float(atk.get("spin_t", 0.0)) < 1.2 and k >= hit1 - 0.03:
 			var loop_k := hit0 + 0.04
-			atk["spin_t"] = float(atk.get("spin_t", 0.0)) + (hit1 - loop_k) * float(atk["dur"])
+			atk["spin_t"] = float(atk.get("spin_t", 0.0)) + (hit1 - loop_k) / maxf(0.01, hit1 - hit0) * (float(atk["ph"][1]) + float(atk["ph"][2]))
 			atk["t"] = atk["dur"] * loop_k
 			k = loop_k
 			atk["hit"] = []
@@ -2238,7 +2471,9 @@ func _update_attack(delta: float) -> void:
 				if sw["body"] == "atk_thrust":
 					_thrust_streak(it)
 		_update_weapon_visual()
-		_melee_hits()
+		# v18: isabet bıçağın düşmana vardığı karede başlar (ck): duraklama bıçak hedefin üstündeyken donar
+		if k >= _contact_k(sw):
+			_melee_hits()
 		_sample_trail(it, c, k)
 		_slam_contact(it, k, hit1)
 	elif k < 1.0:
@@ -2293,12 +2528,16 @@ func _sample_trail(it: Dictionary, c: Dictionary, k: float) -> void:
 		if _trail is InkTrail:  # stil v2: silah sınıfına / savuruşa göre mürekkep fırçası tasarımı
 			(_trail as InkTrail).setup(it, atk, _weight(it))
 	var R := _reach(it)
-	var sw: Dictionary = atk["sw"]
 	var prev_k: float = float(_trail_prev[0]) if _trail_prev.size() > 0 else k
-	var steps := 4
+	# v18: ara örnek sayısı karede süpürülen açıya göre (hızlı savuruşta bir karede 2-3 rad geçilir; sabit 4 örnek
+	# hilali çokgenleştiriyordu): ~0,06 rad'da bir örnek, 4-28 arası
+	var p0 := _atk_pose(prev_k)
+	var p1 := _atk_pose(k)
+	var sweep := absf((float(p1[0]) + float(p1[1]) + float(p1[2])) - (float(p0[0]) + float(p0[1]) + float(p0[2]))) + absf(float(p1[0]) - float(p0[0])) * 0.5
+	var steps := clampi(int(ceil(sweep / 0.06)), 4, 28)
 	for i in range(1, steps + 1):
 		var kk := lerpf(prev_k, k, float(i) / steps)
-		var pts := _pose_points(_swing_pose(sw, kk))
+		var pts := _pose_points(_atk_pose(kk))
 		var hand: Vector2 = pts[2]
 		var bd: Vector2 = _ground_clamp(pts[2], pts[3], R)
 		var base := arm_root.to_global(hand + bd * R * 0.35)
@@ -2399,7 +2638,7 @@ func _on_strike_start() -> void:
 	if atk.get("pause", false):
 		Game.slowmo(0.55, 0.1)
 		FX.flash_light(center(), Color(1.0, 0.85, 0.5), 140.0, 1.4, 0.2)
-	if c["s"] in ["thrust", "lunge", "lunge_long"]:
+	if c["s"] in ["thrust", "lunge", "lunge_long", "pole_thrust_lo"]:
 		_thrust_streak(it)
 	if c.has("pull"):
 		# çekiş savuruşu: uçtan içeri doğru akan parlak çizgi (tırpan / kanca)
@@ -2518,11 +2757,13 @@ func _begin_heavy(it: Dictionary) -> void:
 	var spd_mult := 1.0 + ItemGen.aff(it, "hiz") / 100.0
 	if it["flaw"] == "agir":
 		spd_mult *= 0.88
-	var total := 1.0 / (float(it["aps"]) * spd_mult) * 1.45
-	if sw.has("multi") or sw.get("around", false):
-		total *= 1.2
+	var ph := _phase_times(it, h, sw, false, spd_mult, "heavy")
+	var total := float(ph[0]) + float(ph[1]) + float(ph[2]) + float(ph[3])
+	var from_pose: Array = _last_pose.duplicate() if _last_pose_ok else []
 	atk = {"step": atk.get("step", 0), "c": h, "sw": sw, "phase": "charge", "t": 0.0, "dur": total, "hit": [], "item": it,
-		"hold": 0.0, "pause": false, "multi_i": 0, "heavy": true, "charge": 0.0, "full_fx": false}
+		"hold": 0.0, "pause": false, "multi_i": 0, "heavy": true, "charge": 0.0, "full_fx": false, "ph": ph}
+	if not from_pose.is_empty():
+		atk["from"] = _unwrap_from(from_pose, sw)
 	if h.has("dash"):
 		atk["dash"] = float(h["dash"])
 	atk["super_armor"] = bool(h.get("sa", false))
@@ -2613,7 +2854,8 @@ func _wind_fx(it: Dictionary, sw: Dictionary, k: float) -> void:
 				atk["wind_fx"] = true
 				FX.flash_light(arm_root.to_global(_hand_local), weapon_color(it), 60.0, 1.2, 0.12)
 		"windmill", "helicopter", "spin_2h":
-			if k > 0.15:
+			# v18: iz vuruşun hemen öncesinde başlar (zincirde hazırlık kılıcı yerde sürükler; yerde yassı leke bırakmasın)
+			if k > float(sw["hit"][0]) - 0.08:
 				_sample_trail(it, atk["c"], k)
 		"overhead_2h", "slam_2h", "uppercut_2h", "slam", "step_down":
 			if Engine.get_physics_frames() % 4 == 0 and k > 0.15:
@@ -2692,14 +2934,14 @@ func _slash_fx(it: Dictionary, c: Dictionary) -> void:
 		col = col.lerp(Color(1.0, 0.85, 0.45), 0.5)
 	var heavy: bool = atk.get("heavy", false) or it.get("id", "") in HEAVY
 	# normal zincir vuruşlarında ana efekt piksel izdir; büyük hilal yalnızca bitiriş, ağır ve özel savuruşlarda
-	if not (atk.get("pause", false) or atk.get("heavy", false) or c.get("last", false) or sname in ["thrust", "flurry", "lunge", "pole_thrust", "stab_heavy", "spin", "helicopter", "twirl", "cross_x", "lunge_long", "spin_2h", "cross_dash", "whip_crack", "whip_side"]):
+	if not (atk.get("pause", false) or atk.get("heavy", false) or c.get("last", false) or sname in ["thrust", "flurry", "lunge", "pole_thrust", "pole_thrust_lo", "stab_heavy", "spin", "helicopter", "twirl", "cross_x", "lunge_long", "spin_2h", "cross_dash", "whip_crack", "whip_side"]):
 		return
 	var pts := _pose_points(_swing_pose(atk["sw"], 0.0))
 	var sh := arm_root.to_global(pts[0])
 	var rad := R + float(arm_meta.get("upper_len", 8.5)) + float(arm_meta.get("fore_len", 8.0)) * 0.9
 	var sc := rad / 51.0  # yay sayfalarında yarıçap = 0.4 x genişlik
 	match sname:
-		"thrust", "flurry", "lunge", "pole_thrust", "stab_heavy", "lunge_long", "whip_crack", "whip_side":
+		"thrust", "flurry", "lunge", "pole_thrust", "pole_thrust_lo", "stab_heavy", "lunge_long", "whip_crack", "whip_side":
 			FX.slash_sprite("line", Vector2(global_position.x + facing * 6, center().y - 4), 0.0 if facing > 0 else PI,
 				Vector2((R + 34.0) / 86.0, 0.8 + (0.5 if heavy else 0.0)), col, false, Vector2(0.1, 0.5))
 		"spin", "helicopter", "twirl", "spin_2h":
@@ -2713,17 +2955,17 @@ func _slash_fx(it: Dictionary, c: Dictionary) -> void:
 			var fv := false
 			var sy := 1.0
 			match sname:
-				"diag_down":
+				"diag_down", "dual_l":
 					rot = 0.35
-				"up", "rise", "uppercut_2h", "pole_vault":
+				"up", "rise", "uppercut_2h", "pole_vault", "pole_rise":
 					fv = true
-				"diag_up", "ground_drag":
+				"diag_up", "ground_drag", "dual_r":
 					fv = true
 					rot = -0.35
-				"horiz", "reverse_grip", "sweep_low", "pole_sweep", "iai", "backstep", "dual_l":
+				"horiz", "reverse_grip", "sweep_low", "pole_sweep", "iai", "backstep":
 					rot = -0.3
 					sy = 0.72
-				"back", "reap", "dual_r":
+				"back", "reap":
 					rot = 0.3
 					fv = true
 					sy = 0.72
@@ -2768,7 +3010,7 @@ func _swing_box(sw_name: String, R: float) -> Rect2:
 			b = [6.0, -52.0, R + 34.0, -18.0]  # uzun düz: ucu uzakta şaklar
 		"pole_vault":
 			b = [-4.0, -66.0, R + 10.0, -4.0]
-		"up", "rise", "diag_up", "ground_drag", "uppercut_2h":
+		"up", "rise", "diag_up", "ground_drag", "uppercut_2h", "pole_rise":
 			b = [-2.0, -66.0, R + 8.0, -4.0]
 		"horiz", "back", "cross_x", "reverse_grip", "iai", "twirl":
 			b = [-4.0, -48.0, R + 12.0, -8.0]
@@ -2780,6 +3022,8 @@ func _swing_box(sw_name: String, R: float) -> Rect2:
 			b = [4.0, -42.0, R + 16.0, -18.0]
 		"pole_thrust", "stab_heavy":
 			b = [4.0, -44.0, R + 26.0, -16.0]
+		"pole_thrust_lo":
+			b = [4.0, -36.0, R + 26.0, -4.0]   # alçak saplama: diz hizası
 		"pole_sweep":
 			b = [-8.0, -52.0, R + 20.0, -6.0]
 		"lunge":
@@ -2931,6 +3175,10 @@ func _melee_hits() -> void:
 			var base_hs := float(feel[0])
 			if tier == 0:
 				base_hs *= lerpf(float(FLOW["hs_light_min"]), 1.0, clampf(_weight(it) / 0.45, 0.0, 1.0))
+			elif tier == 1:
+				# v18: orta kademe ağırlıkla: kılıç bitirişi 55 ms, dev silah 80 ms (hızlı zincirde hafif silah akışı bozulmasın,
+				# ağır silah "oturarak" vursun)
+				base_hs = lerpf(0.055, 0.08, clampf((_weight(it) - 0.3) / 0.7, 0.0, 1.0))
 			var hs := minf(0.12, (base_hs + (0.03 * hold if atk.get("heavy", false) else 0.0)) * hs_k) + (0.03 if killed else 0.0)
 			if first_hit:
 				Game.hitstop(hs)
@@ -3200,7 +3448,7 @@ func _swing_sfx(it: Dictionary, sw: Dictionary, is_pause: bool) -> void:
 	## Savuruş sesi: silahın ses sınıfına göre gerçek kayıt katmanı; saplamalar ince ve hızlı, ağır savuruşlar kalın
 	var sname: String = atk["c"]["s"]
 	var cls: String = WSND.get(it.get("id", ""), "kilic" if it.get("kind", "") != "heavy" else "cekic")
-	var is_thrust: bool = sname in ["thrust", "flurry", "lunge", "pole_thrust", "stab_heavy", "lunge_long"]
+	var is_thrust: bool = sname in ["thrust", "flurry", "lunge", "pole_thrust", "pole_thrust_lo", "stab_heavy", "lunge_long"]
 	var is_big: bool = atk.get("heavy", false) or sname in ["overhead_2h", "slam_2h", "windmill", "helicopter", "uppercut_2h", "slam", "heavy", "spin_2h", "step_down"]
 	var vol := -5.0
 	var pit := 1.0 + 0.04 * float(atk.get("step", 0))
@@ -3227,7 +3475,7 @@ func _swing_sfx(it: Dictionary, sw: Dictionary, is_pause: bool) -> void:
 func _hit_sfx(it: Dictionary, big: bool, crit: bool, sname: String) -> void:
 	## Darbe sesi: silah sınıfı + vuruşun büyüklüğü (et kesme, künt, delme, balta, kırbaç, çekiç çakma)
 	var cls: String = WSND.get(it.get("id", ""), "kilic" if it.get("kind", "") != "heavy" else "cekic")
-	var is_thrust: bool = sname in ["thrust", "flurry", "lunge", "pole_thrust", "stab_heavy", "lunge_long", "cross_dash"]
+	var is_thrust: bool = sname in ["thrust", "flurry", "lunge", "pole_thrust", "pole_thrust_lo", "stab_heavy", "lunge_long", "cross_dash"]
 	var name := "darbe_kesik"
 	var pit := 1.0
 	match cls:
@@ -3738,7 +3986,7 @@ func _update_weapon_visual() -> void:
 	var is_shield := false
 	if not atk.is_empty():
 		it = atk["item"]
-		pose = _swing_pose(atk["sw"], atk["t"] / atk["dur"])
+		pose = _atk_pose(atk["t"] / atk["dur"])
 	elif charge_t > 0.2:
 		it = slot(mel_slot)
 		pose = [-0.5, 1.95, -0.15, 1.0, 1.0]
@@ -3769,6 +4017,7 @@ func _update_weapon_visual() -> void:
 		bow_str.visible = false
 		_bow_nock_ok = false
 	if not show:
+		_last_pose_ok = false
 		weapon.visible = false
 		shield_spr.visible = false
 		if arm_root_b:
@@ -3794,7 +4043,7 @@ func _update_weapon_visual() -> void:
 			pose[0] = float(pose[0]) + _over_amp * exp(-_over_t * 15.0) * sin(_over_t * 32.0)
 		# hazırlık tutuşunda silah bir tık geri çekilir ("gerilme")
 		if atk.has("antic") and atk["phase"] == "wind":
-			var hold_t := 0.03 + 0.045 * wt
+			var hold_t := maxf(0.016, float(atk.get("ph", [0, 0, 0, 0, 0.03])[4]))
 			var q := clampf(float(atk["antic"]) / hold_t, 0.0, 1.0)
 			pose[0] = float(pose[0]) + 0.08 * q * (-_over_dir if _over_dir != 0.0 else 1.0)
 		# vuruş anında ön kol gerilir (hız abartısı)
@@ -3805,6 +4054,8 @@ func _update_weapon_visual() -> void:
 		_whip_v = 0.0
 	_prev_a1 = a1
 	_prev_a1_ok = not atk.is_empty()
+	_last_pose = pose
+	_last_pose_ok = not atk.is_empty()
 	var pts := _pose_points(pose)
 	var sh: Vector2 = pts[0]
 	var e: Vector2 = pts[1]

@@ -1,721 +1,458 @@
-"""Şahmeran Mağaraları, stil v2 "mürekkep" paralaks katmanları (Shinobi: Art of Vengeance yönü, Ötüken ile aynı dil).
+"""Şahmeran Ana — stil v2 "mürekkep-cel" boss (inkkit.py + bosskit.py). v1: creatures3.draw_sahmeran.
 
-Yılanlar kraliçesinin yeraltı yurdu: dev mağara boşlukları, ışıyan zümrüt kristaller, yansımalı yeraltı gölü,
-yılan kabartmalı taş sütunlar (sarmal yılan gövdesi, başlıkta kukuletalı baş), yosun, damlayan su, teal/zümrüt ışık.
-Uzakta kayaya oyulmuş Şahmeran sarayı (basamaklı teraslar, kehribar ışıklı kemerli kapılar).
+Anadolu'nun yılanlar şahı (Şahmeran): belden yukarısı taçlı kadın, belden aşağısı yerde kıvrılan dev yılan gövdesi;
+halk resimlerindeki gibi kuyruğunun ucu da bir yılan başıyla biter. Altın pullu göğüslük, zümrüt taşlı yüksek taç,
+kolye ve bilezikler; kara saçları beline iner, aralarından küçük yılanlar baş çıkarır; arkasında kobra yelpazesi (göz
+desenli, altın kenarlı; hazırlıkta açılır). Gözleri zümrüt gibi yanar (dikey yılan bebeği), parmak uçları altın
+pençe. Pullar zümrüt yeşili, sırtta koyu baklava deseni, karın pulları altın-krem; zehir yeşili ışımalar.
 
-Katmanlar (1080 yükseklik, 1080p'de 1:1; data/stil_v2.json "sahmeran"):
-  0 gök/uzak mağara (1920, sabit)  1 uzak duvar + saray + göl  2 sarkıt perdesi + dikitler + kristaller + göl
-  2b pus   3 yılan sütunları + kayalar + kristaller + göl kıyısı   4 göl sisi   5 tavan çatlağı hüzmeleri + zerreler
-  6 yakın koyu dikit/sarkıtlar + parlak kristaller
+Animasyon adları / kare sayıları / fps v1 ile aynı (idle 8, walk 8, windup 4, strike 4, slam 3, cast 3, hurt 2, rage 3);
+çapalar 'hand' (yakın el) ve 'mouth'. Hücre dünya 256x176 (v1 200x176), ayak (100, 170).
 """
 import math
 
 import numpy as np
 
-import inkkit_ortam as ik
-from inkkit_ortam import INK, Layer, Sk, bezier, blob, c01, fbm, mix, noise, poly_path, premul, ribbon, smooth_path, smoothstep
-import inkkit_yeralti as Y
-from otuken_ink import rock, grass_field
+import inkkit as ik
+from inkkit import Ink, INK
+import bosskit as bk
+from bosskit import along, add, polar
 
-H = 1080
-WL = 3840
+TEX = bk.TEX
+CELL = (1024, 704)
+FEET = (436, 680)
 
-SKY = Y.ramp([
-    (0, (6, 9, 14)),
-    (180, (8, 15, 20)),
-    (380, (13, 32, 36)),
-    (500, (24, 60, 60)),
-    (575, (52, 118, 108)),
-    (622, (92, 186, 162)),
-    (648, (54, 112, 104)),
-    (720, (22, 48, 50)),
-    (860, (10, 22, 26)),
-    (1080, (6, 10, 14)),
-])
-MINT = (150, 240, 210)
-ROCK = (52, 64, 70)
-ROCK_L = (104, 136, 134)
-RIM = (110, 230, 196)
-EMER = (40, 196, 150)
-EMER_HI = (196, 255, 232)
-AMETH = (150, 96, 214)
-AMETH_HI = (232, 206, 255)
-AMBER = (236, 170, 70)
+SKIN = Ink('#c99a76', '#6a3c4c', '#f2c8a0', '#3a1c2c', name='şahmeran teni')
+SKIN_B = SKIN.darker(0.78)
+SCALE = Ink('#2e8a5c', '#103c3c', '#62c88a', '#08201e', name='zümrüt pul')
+SCALE_B = SCALE.darker(0.75)
+BELLY = Ink('#dccb8c', '#8a7444', '#fff2c0', '#4e3e24', name='karın pulu')
+GOLD = Ink('#e6b44a', '#8a4e1c', '#fff0b4', '#4a2a10', kind='metal', name='altın')
+GOLD_B = GOLD.darker(0.75)
+HAIR = Ink('#1c2622', '#0a100e', '#3e5a4e', '#050807', name='kara saç')
+HOOD = Ink('#1a4638', '#0a2220', '#2f6e54', '#051210', name='kobra yelpazesi')
+LIP = (0.42, 0.1, 0.18)
+GEM = (0.3, 1.0, 0.55)
+GEM_GLOW = (0.15, 0.9, 0.35)
+EYE = (0.55, 1.0, 0.45)
+EYE_GLOW = (0.25, 0.95, 0.3)
+VENOM = (0.55, 1.0, 0.35)
+MOUTH_IN = (0.3, 0.06, 0.12)
 
-
-def _fog(arr, y0, amt):
-    return ik.apply_fog(arr, y0, SKY, amt)
+L_UP, L_FO = 15.5, 14.5
+WS = 1.3          # kadın gövdesinin ölçeği (yılan gövdesine göre heybetli kraliçe)
 
 
-fog_amount = Y.fog_amount
+def _base(**kw):
+    d = dict(wx=10.0, wy=-50.0, lean=0.08, wv=0.0, arm=0.5, el=0.7, arm_b=0.35, el_b=0.8, mouth=0.0, glow=0.6, ht=0.0,
+             hood=0.5, orb=0.0, claw=0.3, tail=0.0, slide=0.0, hair=0.0, rise=0.0)
+    d.update(kw)
+    return d
 
 
-# ------------------------------------------------------------------ 0) uzak mağara (sabit)
-def layer_sky(seed=1):
-    W = 1920
-    L = Layer(W, H)
-    rgb = np.repeat(SKY[:, None, :], W, 1).copy()
-    ys = np.arange(H, dtype=np.float32)[:, None]
-    xs = np.arange(W, dtype=np.float32)[None, :]
-    # göl ufkundaki parıltı kaynağı (uzak kristal ormanı)
-    d = np.hypot((xs - 820) / 980.0, (ys - 610) / 300.0)
-    rgb = mix(rgb, c01((110, 220, 190))[None, None, :], (np.exp(-d * d * 2.4) * 0.35)[..., None])
-    n1 = fbm(W, H, [110, 40, 14], seed)
-    rgb *= (1 + 0.07 * n1[..., None])
-    # kubbe: üstte kayalık tavan dokusu (koyu lekeler + açık damar)
-    vault = smoothstep(0.0, 0.6, fbm(W, H, [70, 22, 8], seed + 3) * 0.9 + 0.3) * (1 - smoothstep(80, 420, ys))
-    rgb = mix(rgb, c01((4, 7, 10))[None, None, :], (vault * 0.8)[..., None])
-    L.a = premul(rgb, np.ones((H, W), np.float32))
-    # uzak dev sarkıt kütleleri (çok sisli siluet) ve tavandan inen sütunlar
-    sk = Sk(W, H)
-    rng = np.random.default_rng(seed + 5)
-    for _ in range(26):
-        x = rng.uniform(-40, W + 40)
-        ln = rng.uniform(80, 340)
-        w = rng.uniform(30, 110)
-        pts = [(x - w / 2, -10), (x - w * 0.3, ln * 0.4), (x - w * 0.08, ln * 0.85), (x + rng.uniform(-6, 6), ln),
-               (x + w * 0.1, ln * 0.8), (x + w * 0.32, ln * 0.35), (x + w / 2, -10)]
-        sk.path(smooth_path(pts, True, 0.4), (16, 34, 38), rng.uniform(0.5, 0.9), 3)
-    for x in (250, 1500):
-        pts = [(x - 160, -10), (x - 60, 260), (x - 34, 430), (x - 70, 620), (x - 130, 700), (x + 140, 700), (x + 80, 610),
-               (x + 40, 440), (x + 70, 250), (x + 170, -10)]
-        sk.path(smooth_path(pts, True, 0.4), (20, 46, 48), 0.55, 6)
-    arr = sk.snap()
-    L.over(arr)
-    # uzak kristal ışıkları (bokeh)
-    g = Sk(W, H)
-    for _ in range(70):
-        x, y = rng.uniform(0, W), rng.uniform(300, 640)
-        r = rng.uniform(2, 9)
-        c = [EMER_HI, (120, 255, 210), AMETH_HI, (255, 214, 140)][int(rng.choice(4, p=[0.45, 0.3, 0.15, 0.1]))]
-        g.c.drawCircle(x, y, r * 3, g.paint(c, 0.12, r * 2))
-        g.c.drawCircle(x, y, r * 0.5, g.paint(c, 0.5, 1))
-    L.over(g.snap())
-    return L
+def _idle(i):
+    t = i / 8
+    s = math.sin(t * math.tau)
+    return _base(wy=-50.0 + 1.5 * s, wx=10.0 + 0.8 * math.sin(t * math.tau + 0.6), lean=0.08 + 0.03 * s, wv=t * math.tau,
+                 arm=0.55 + 0.05 * s, el=0.75, arm_b=0.35 - 0.04 * s, glow=0.55 + 0.35 * (0.5 + 0.5 * math.sin(t * math.tau * 2)),
+                 ht=0.03 * s, hood=0.45 + 0.05 * s, hair=s)
 
 
-# ------------------------------------------------------------------ yardımcılar
-def column_shape(x, top, bot, w_top, w_mid, w_bot, seed, waist=0.55):
-    """Tavanla zemini birleştiren kum saati biçimli sütun (sarkıt+dikit kaynaşması)."""
-    rng = np.random.default_rng(seed)
-    left, right = [], []
-    for t in np.linspace(0, 1, 14):
-        y = top + (bot - top) * t
-        if t < waist:
-            k = (t / waist)
-            w = w_top + (w_mid - w_top) * smoothstep(0, 1, k)
-        else:
-            k = (t - waist) / (1 - waist)
-            w = w_mid + (w_bot - w_mid) * smoothstep(0, 1, k) ** 1.4
-        j = rng.uniform(-0.08, 0.08) * w
-        left.append((x - w / 2 + j, y))
-        right.append((x + w / 2 + j * 0.6, y))
-    return smooth_path(left + right[::-1], True, 0.4)
+def _walk(i):
+    t = i / 8
+    s = math.sin(t * math.tau * 2)
+    return _base(wy=-49.0 + 1.2 * s, wx=13.0, lean=0.18, wv=t * math.tau * 2, arm=0.6, el=0.8, arm_b=0.5, el_b=0.7,
+                 glow=0.7, hood=0.4, hair=math.sin(t * math.tau * 2 + 1.0) + 0.6, slide=1.0, ht=0.05)
 
 
-def palace(sk, x, base_y, s, col, lit, win, seed, ink_a=0.7):
-    """Kayaya oyulmuş Şahmeran sarayı: basamaklı teraslar, kemerli kapılar (içleri kehribar ışık), çatıda iki
-    yılan başlı burç, ortada kubbeli taht salonu."""
-    rng = np.random.default_rng(seed)
-    # kaya çıkıntısı
-    crag = [(x - 260 * s, base_y + 20), (x - 220 * s, base_y - 120 * s), (x - 150 * s, base_y - 170 * s),
-            (x - 60 * s, base_y - 200 * s), (x + 60 * s, base_y - 210 * s), (x + 170 * s, base_y - 160 * s),
-            (x + 240 * s, base_y - 90 * s), (x + 280 * s, base_y + 20)]
-    sk.path(smooth_path(crag, True, 0.35), col)
-    lv = [(-190, -110, 190, -70), (-140, -170, 140, -110), (-90, -230, 90, -170)]
-    for i, (x0, y0, x1, y1) in enumerate(lv):
-        p = poly_path([(x + x0 * s, base_y + y1 * s), (x + x0 * s, base_y + y0 * s), (x + x1 * s, base_y + y0 * s),
-                       (x + x1 * s, base_y + y1 * s)])
-        sk.path(p, tuple(np.array(col) * (1.1 + 0.1 * i)))
-        sk.path(ribbon([(x + x0 * s, base_y + y0 * s), (x + x1 * s, base_y + y0 * s)], [2.2 * s, 2.2 * s]), lit, 0.8)
-        if ink_a > 0:
-            sk.path(p, INK, ink_a, 0, 1.4)
-        nd = 5 - i
-        for k in range(nd):
-            dx = x + (x0 + (x1 - x0) * (k + 0.5) / nd) * s
-            dw, dh = 12 * s, (y1 - y0) * 0.62 * s
-            dy = base_y + y1 * s
-            door = smooth_path([(dx - dw / 2, dy), (dx - dw / 2, dy - dh * 0.6), (dx, dy - dh), (dx + dw / 2, dy - dh * 0.6),
-                                (dx + dw / 2, dy)], True, 0.3)
-            sk.path(door, (12, 14, 16))
-            if rng.random() < 0.7:
-                sk.path(door, win, rng.uniform(0.55, 0.95), 1.0)
-    # kubbe
-    cy = base_y - 230 * s
-    dome = smooth_path([(x - 60 * s, cy), (x - 52 * s, cy - 40 * s), (x, cy - 74 * s), (x + 52 * s, cy - 40 * s), (x + 60 * s, cy)], True, 0.4)
-    sk.path(dome, tuple(np.array(col) * 1.25))
-    sk.path(ribbon([(x - 30 * s, cy - 50 * s), (x - 6 * s, cy - 70 * s)], [3 * s, 1 * s]), lit, 0.7)
-    sk.path(ribbon([(x, cy - 74 * s), (x, cy - 100 * s)], [2.4 * s, 1 * s]), tuple(np.array(col) * 1.3))
-    sk.c.drawCircle(x, cy - 102 * s, 4 * s, sk.paint(win, 0.9))
-    # yılan başlı burçlar
-    for side in (-1, 1):
-        tx = x + side * 120 * s
-        ty = base_y - 170 * s
-        tw = poly_path([(tx - 14 * s, ty), (tx - 12 * s, ty - 110 * s), (tx + 12 * s, ty - 110 * s), (tx + 14 * s, ty)])
-        sk.path(tw, tuple(np.array(col) * 1.15))
-        hy = ty - 110 * s
-        hood = smooth_path([(tx - 26 * s, hy + 6 * s), (tx - 22 * s, hy - 24 * s), (tx, hy - 40 * s),
-                            (tx + 22 * s, hy - 24 * s), (tx + 26 * s, hy + 6 * s), (tx, hy - 4 * s)], True, 0.4)
-        sk.path(hood, tuple(np.array(col) * 1.2))
-        sk.c.drawCircle(tx - 6 * s, hy - 22 * s, 2.4 * s, sk.paint(win, 0.95))
-        sk.c.drawCircle(tx + 6 * s, hy - 22 * s, 2.4 * s, sk.paint(win, 0.95))
-        if ink_a > 0:
-            sk.path(tw, INK, ink_a, 0, 1.4)
-            sk.path(hood, INK, ink_a, 0, 1.4)
+def _windup(i):
+    # dikilir: gövde yükselir ve geriye çekilir, yelpaze açılır, pençeler kalkar, ağız açık (son kare tutulur)
+    return bk.pick(i, [
+        _base(wy=-56.0, wx=7.0, lean=0.0, wv=0.5, arm=1.2, el=1.0, arm_b=1.0, el_b=1.0, mouth=0.3, glow=0.8, hood=0.7, claw=0.7, rise=0.3),
+        _base(wy=-64.0, wx=3.0, lean=-0.12, wv=1.0, arm=1.6, el=1.0, arm_b=1.8, el_b=1.1, mouth=0.6, glow=0.9, hood=0.9, claw=1.0, ht=-0.1, rise=0.6, hair=-0.5),
+        _base(wy=-70.0, wx=-1.0, lean=-0.22, wv=1.4, arm=1.75, el=1.15, arm_b=2.2, el_b=1.1, mouth=0.9, glow=1.0, hood=1.0, claw=1.0, ht=-0.18, rise=0.9, hair=-1.0),
+        _base(wy=-72.0, wx=-2.0, lean=-0.26, wv=1.6, arm=1.8, el=1.2, arm_b=2.3, el_b=1.1, mouth=1.0, glow=1.0, hood=1.0, claw=1.0, ht=-0.2, rise=1.0, hair=-1.2),
+    ])
 
 
-def crystals_row(L, seed, n, y_base, size, fog_amt, glow_a=0.5, xs=None, jit=8, cols=None, ink_a=1.0, ink_w=1.6,
-                 halo=1.0):
-    """Bir katmana kristal kümeleri + ışıma halesi (hale önce, kristal üstte)."""
-    rng = np.random.default_rng(seed)
-    pad = 300
-    gsk = Sk(L.w / ik.K + 2 * pad, H)
-    csk = Sk(L.w / ik.K + 2 * pad, H)
-    xs = rng.uniform(0, L.w / ik.K, n) if xs is None else xs
-    cols = cols or [(EMER, EMER_HI, (10, 64, 60))] * 5 + [(AMETH, AMETH_HI, (40, 20, 70))]
-    for x in xs:
-        body, hi, dk = cols[int(rng.integers(len(cols)))]
-        sz = size * rng.uniform(0.6, 1.35)
-        y = y_base + rng.uniform(-jit, jit)
-        for dx in (0, L.w / ik.K, -L.w / ik.K):
-            Y.crystal_cluster(csk, x + pad + dx, y, sz, int(x * 13) % 100000, body, hi, dk, ink_a=ink_a, ink_w=ink_w,
-                              glow=gsk, glow_a=glow_a * halo)
-    g = Y.wrap_core(gsk.snap(), pad, L.w)
-    c = Y.wrap_core(csk.snap(), pad, L.w)
-    _fog(c, 0, fog_amt)
-    L.over(g)
-    L.over(c)
+def _strike(i):
+    # atılış: üst gövde öne fırlar (yılan gibi), iki pençe ileri, kuyruk geride kamçılanır
+    return bk.pick(i, [
+        _base(wy=-56.0, wx=24.0, lean=0.55, wv=2.0, arm=1.7, el=0.3, arm_b=1.5, el_b=0.4, mouth=1.0, glow=1.0, hood=1.0, claw=1.0, ht=0.25, tail=0.5, hair=1.5),
+        _base(wy=-46.0, wx=40.0, lean=0.95, wv=2.4, arm=1.6, el=0.1, arm_b=1.55, el_b=0.2, mouth=1.0, glow=1.0, hood=0.9, claw=1.0, ht=0.55, tail=1.0, hair=2.0),
+        _base(wy=-40.0, wx=42.0, lean=1.05, wv=2.8, arm=1.2, el=0.2, arm_b=1.1, el_b=0.35, mouth=0.8, glow=0.9, hood=0.7, claw=0.8, ht=0.65, tail=0.6, hair=1.8),
+        _base(wy=-44.0, wx=30.0, lean=0.7, wv=3.1, arm=0.8, el=0.5, arm_b=0.7, el_b=0.6, mouth=0.4, glow=0.75, hood=0.55, claw=0.5, ht=0.35, tail=0.2, hair=1.0),
+    ])
 
 
-def spike_one(top, length, width, x, seed, hang, rock_c, light, rim, ink_w, detail, lean=0.0, wet=0.6):
-    hw = Y.stalactite_profile(top, length, width, seed, hang=hang)
-    rng = np.random.default_rng(seed + 1)
-    cur = rng.uniform(-0.12, 0.12) * width
-
-    def cx(ys):
-        t = np.clip((ys - top) / length, 0, 1)
-        return x + lean * (ys - top) + cur * np.sin(t * math.pi)
-    return Y.lathe(top, top + length + 2, cx, hw, seed, rock=rock_c, light=light, rim=rim, ink_w=ink_w, detail=detail,
-                   wet=wet)
+def _slam(i):
+    return bk.pick(i, [
+        _base(wy=-74.0, wx=0.0, lean=-0.25, wv=0.6, arm=1.85, el=1.1, arm_b=2.4, el_b=1.0, mouth=1.0, glow=1.0, hood=1.0, claw=1.0, ht=-0.25, rise=1.0, hair=-1.2),
+        _base(wy=-48.0, wx=30.0, lean=0.8, wv=1.8, arm=1.4, el=0.2, arm_b=1.3, el_b=0.2, mouth=1.0, glow=1.0, hood=0.9, claw=1.0, ht=0.35, tail=0.8, hair=1.5),
+        _base(wy=-30.0, wx=36.0, lean=1.2, wv=2.6, arm=0.7, el=0.5, arm_b=0.6, el_b=0.5, mouth=0.7, glow=0.9, hood=0.6, claw=0.8, ht=0.8, tail=0.4, hair=1.6),
+    ])
 
 
-def stalactite_row(L, seed, n, length, width, fog_amt, rock_c=ROCK, light=ROCK_L, rim=RIM, ink_w=1.5, detail=0.6,
-                   ceil=-6, xs=None, dark_k=1.0, cluster=0.5):
-    """Tavandan sarkıtlar; bir kısmı kök paylaşan 2-4'lü öbekler (büyük + yanında küçükler)."""
-    rng = np.random.default_rng(seed)
-    xs = rng.uniform(0, L.w / ik.K, n) if xs is None else xs
-    for x in xs:
-        group = [(x, 1.0)]
-        if rng.random() < cluster:
-            for _ in range(int(rng.integers(1, 4))):
-                group.append((x + rng.uniform(-1, 1) * width * 0.9, rng.uniform(0.3, 0.7)))
-        group.sort(key=lambda g: -g[1])
-        for gx, k in group:
-            ln = length * rng.uniform(0.4, 1.0) * k
-            w = width * rng.uniform(0.6, 1.2) * (0.5 + 0.5 * k)
-            top = ceil + rng.uniform(-12, 2)
-            arr, xl, yt = spike_one(top, ln, w, gx, int(rng.integers(1 << 30)), True, rock_c, light, rim, ink_w,
-                                    detail, lean=rng.uniform(-0.03, 0.03))
-            arr[..., :3] *= dark_k
-            _fog(arr, ik.P(yt), fog_amt)
-            Y.place_arr(L, arr, ik.P(xl), ik.P(yt))
+def _cast(i):
+    return bk.pick(i, [
+        # 0: salış: yakın el ileri itilmiş (zehir elden çıktı)
+        _base(wy=-52.0, wx=16.0, lean=0.35, wv=0.8, arm=1.6, el=0.05, arm_b=0.6, el_b=0.8, mouth=0.9, glow=1.0, hood=0.8, claw=1.0, orb=0.25, ht=0.12, hair=0.8),
+        _base(wy=-54.0, wx=11.0, lean=0.12, wv=1.2, arm=1.2, el=0.9, arm_b=0.8, el_b=1.2, mouth=0.4, glow=0.9, hood=0.7, claw=0.6, orb=0.6, hair=0.0),
+        # 2: yükleniş (tutulur): iki el göğüs önünde zehir küresi örer, yelpaze açık, gözler yanar
+        _base(wy=-58.0, wx=8.0, lean=0.0, wv=1.6, arm=1.25, el=1.35, arm_b=1.1, el_b=1.5, mouth=0.6, glow=1.0, hood=1.0, claw=0.4, orb=1.0, ht=-0.08, rise=0.5, hair=-0.6),
+    ])
 
 
-def stalagmite_row(L, seed, n, base_y, length, width, fog_amt, rock_c=ROCK, light=ROCK_L, rim=RIM, ink_w=1.5,
-                   detail=0.6, xs=None, jit=8, dark_k=1.0, cluster=0.5):
-    rng = np.random.default_rng(seed)
-    xs = rng.uniform(0, L.w / ik.K, n) if xs is None else xs
-    for x in xs:
-        group = [(x, 1.0)]
-        if rng.random() < cluster:
-            for _ in range(int(rng.integers(1, 3))):
-                group.append((x + rng.uniform(-1, 1) * width * 0.8, rng.uniform(0.3, 0.65)))
-        group.sort(key=lambda g: -g[1])
-        for gx, k in group:
-            ln = length * rng.uniform(0.45, 1.0) * k
-            w = width * rng.uniform(0.7, 1.2) * (0.55 + 0.45 * k)
-            by = base_y + rng.uniform(-jit, jit) + (1 - k) * 6
-            arr, xl, yt = spike_one(by - ln, ln + 6, w, gx, int(rng.integers(1 << 30)), False, rock_c, light, rim,
-                                    ink_w, detail, lean=rng.uniform(-0.04, 0.04))
-            arr[..., :3] *= dark_k
-            _fog(arr, ik.P(yt), fog_amt)
-            Y.place_arr(L, arr, ik.P(xl), ik.P(yt))
+def _hurt(i):
+    return bk.pick(i, [
+        _base(wy=-48.0, wx=4.0, lean=-0.35, wv=0.9, arm=0.9, el=1.6, arm_b=1.4, el_b=1.4, mouth=0.8, glow=0.4, hood=0.3, claw=0.6, ht=-0.35, hair=1.5),
+        _base(wy=-49.0, wx=7.0, lean=-0.15, wv=1.2, arm=0.7, el=1.0, arm_b=0.8, el_b=1.0, mouth=0.4, glow=0.5, hood=0.4, claw=0.4, ht=-0.15, hair=0.8),
+    ])
 
 
-def mounds(L, seed, base_y, n, rx, ry, col, fog_amt, blur=4.0, jit=14, top_col=None):
-    rng = np.random.default_rng(seed)
-    pad = 300
-    sk = Sk(L.w / ik.K + 2 * pad, H)
-    for _ in range(n):
-        x = rng.uniform(0, L.w / ik.K) + pad
-        y = base_y + rng.uniform(-jit, jit)
-        rxx, ryy = rx * rng.uniform(0.6, 1.4), ry * rng.uniform(0.6, 1.3)
-        sk.path(blob(x, y, rxx, ryy, int(rng.integers(1 << 30)), n=16, jitter=0.2), col, 1.0, blur)
-        if top_col is not None:
-            sk.path(blob(x - rxx * 0.15, y - ryy * 0.55, rxx * 0.7, ryy * 0.3, int(rng.integers(1 << 30)), n=12, jitter=0.25),
-                    top_col, 0.7, blur * 1.5)
-    arr = Y.wrap_core(sk.snap(), pad, L.w)
-    _fog(arr, 0, fog_amt)
-    L.over(arr)
+def _rage(i):
+    return bk.pick(i, [
+        _base(wy=-44.0, wx=12.0, lean=0.4, wv=0.4, arm=0.9, el=1.2, arm_b=0.8, el_b=1.3, mouth=0.4, glow=0.9, hood=0.6, claw=0.8, ht=0.2, hair=1.0),
+        _base(wy=-62.0, wx=6.0, lean=-0.05, wv=1.2, arm=1.6, el=0.8, arm_b=2.0, el_b=0.7, mouth=0.9, glow=1.0, hood=1.0, claw=1.0, ht=-0.2, rise=0.7, hair=-0.6),
+        _base(wy=-70.0, wx=2.0, lean=-0.15, wv=2.0, arm=1.75, el=0.9, arm_b=2.45, el_b=0.6, mouth=1.0, glow=1.0, hood=1.0, claw=1.0, ht=-0.35, rise=1.0, hair=-1.2),
+    ])
 
 
-def snake_pillar(L, x, base_y, width, seed, fog_amt, stone=(66, 82, 84), stone_l=(150, 176, 166), snake=(40, 74, 58),
-                 snake_l=(110, 170, 126), eye=(255, 200, 90), turns=4.6, cap_y=150, dark_k=1.0, ink_k=1.0):
-    """Yılan kabartmalı taş sütun: silindirik gövde, kaide ve başlık blokları; gövdeye sarılan yılanın ön yarı
-    kıvrımları (gölge düşürür, sırtında pul çizgileri), başlıkta kukuletalı yılan başı (kehribar gözlü)."""
-    rng = np.random.default_rng(seed)
-    arr, xl, yt = ik.trunk(H, WL, base_y, x, width, seed, kind='pine', lean=0.0, bend=0.0, top_y=-60, bark=stone,
-                           light=stone_l, rim=RIM, ink_w=2.2 * ink_k, light_side=-1.0, detail=0.35, taper=0.0)
-    arr[..., :3] *= dark_k
-    _fog(arr, ik.P(yt), fog_amt)
-    Y.place_arr(L, arr, ik.P(xl), ik.P(yt))
-    pad = 160
-    Wc = width * 3 + 2 * pad
-    sk = Sk(Wc, H)
-    cx = Wc / 2
-    R = width * 0.56
-    bw = width * 0.44
-    sd = tuple(np.array(stone) * 0.45 * dark_k)
-    sc = tuple(np.array(snake) * dark_k)
-    sl = tuple(np.array(snake_l) * dark_k)
-    y_top = cap_y + 60
-    pitch = (base_y - 40 - y_top) / turns
-    # kıvrımlar: aşağıdan yukarı; yalnızca ön yarı (cos > 0)
-    k = 0
-    while True:
-        phi0 = -math.pi / 2 + 2 * math.pi * k
-        yb = base_y - 40 - pitch * k
-        if yb - pitch * 0.5 < y_top:
-            break
-        ph = np.linspace(phi0, phi0 + math.pi, 24)
-        px = cx + R * np.sin(ph)
-        py = yb - pitch * (ph - phi0) / (2 * math.pi) + 0.0
-        pts = np.stack([px, py], 1)
-        wv = bw * (0.85 + 0.15 * np.cos(ph - phi0 - math.pi / 2))
-        sk.path(ribbon(pts + np.array([3, bw * 0.45]), wv * 0.9), sd, 0.7, 3)          # sütuna düşen gölge
-        sk.path(ribbon(pts, wv), sc)
-        sk.path(ribbon(pts + np.array([0, bw * 0.3]), wv * 0.3), tuple(np.array((112, 126, 96)) * dark_k), 0.8)  # karın pulları
-        sk.path(ribbon(pts + np.array([-1, -bw * 0.24]), wv * 0.3), sl, 0.85)         # üst sırt ışığı
-        for j in range(2, 23, 2):   # karın plakaları (kısa enine çizgiler)
-            q = pts[j] + np.array([0, bw * 0.3])
-            sk.path(ribbon([(q[0], q[1] - wv[j] * 0.14), (q[0] + 1.0, q[1] + wv[j] * 0.14)], [0.8, 0.8]), INK, 0.45 * ink_k)
-        sk.path(ribbon(pts, wv), INK, 0.9 * ink_k, 0, 1.6)
-        # pul izleri: V biçimli kısa darbeler
-        for j in range(3, 22, 2):
-            q = pts[j]
-            tg = pts[j + 1] - pts[j - 1]
-            ang = math.atan2(tg[1], tg[0])
-            ca, sa = math.cos(ang), math.sin(ang)
-            nx, ny = -sa, ca
-            s_ = wv[j] * 0.32
-            a = (q[0] - ca * s_ + nx * s_, q[1] - sa * s_ + ny * s_)
-            b = (q[0] + ca * s_ * 0.4, q[1] + sa * s_ * 0.4)
-            c = (q[0] - ca * s_ - nx * s_, q[1] - sa * s_ - ny * s_)
-            sk.path(ribbon([a, b, c], [0.4, 1.1, 0.4]), INK, 0.45 * ink_k)
-        k += 1
-    # kaide ve başlık blokları
-    for (yy, hh, ww) in ((base_y - 18, 22, width * 1.5), (base_y - 34, 16, width * 1.25), (cap_y, 28, width * 1.55),
-                         (cap_y + 26, 14, width * 1.3)):
-        p = poly_path([(cx - ww / 2, yy), (cx + ww / 2, yy), (cx + ww / 2, yy + hh), (cx - ww / 2, yy + hh)])
-        sk.path(p, tuple(np.array(stone) * 1.05 * dark_k))
-        sk.path(poly_path([(cx - ww / 2, yy), (cx + ww / 2, yy), (cx + ww / 2, yy + 4), (cx - ww / 2, yy + 4)]),
-                tuple(np.array(stone_l) * dark_k), 0.75)
-        sk.path(poly_path([(cx + ww * 0.2, yy + 4), (cx + ww / 2, yy + 4), (cx + ww / 2, yy + hh), (cx + ww * 0.2, yy + hh)]),
-                tuple(np.array(stone) * 0.55 * dark_k), 0.8)
-        sk.path(p, INK, ink_k, 0, 2.0)
-        # zikzak oyma
-        zz = [(cx - ww / 2 + 6 + i * 9, yy + hh * (0.4 if i % 2 else 0.75)) for i in range(int((ww - 12) / 9) + 1)]
-        if len(zz) > 2:
-            sk.path(ribbon(zz, [1.0] * len(zz)), INK, 0.5 * ink_k)
-    # başlıktaki kukuletalı yılan başı (sütunun önüne, yana dönük)
-    side = 1 if rng.random() < 0.5 else -1
-    hx, hy = cx + side * width * 0.2, cap_y - 6
-    hs = width / 52.0
-    hood = smooth_path([(hx - 30 * hs, hy + 8 * hs), (hx - 34 * hs, hy - 30 * hs), (hx - 16 * hs, hy - 58 * hs), (hx, hy - 66 * hs), (hx + 16 * hs, hy - 58 * hs),
-                        (hx + 34 * hs, hy - 30 * hs), (hx + 30 * hs, hy + 8 * hs), (hx, hy - 6 * hs)], True, 0.4)
-    sk.path(hood, sc)
-    sk.path(smooth_path([(hx - 18 * hs, hy - 2 * hs), (hx - 22 * hs, hy - 30 * hs), (hx, hy - 56 * hs), (hx + 22 * hs, hy - 30 * hs), (hx + 18 * hs, hy - 2 * hs), (hx, hy - 14 * hs)],
-                        True, 0.4), sl, 0.55)
-    head = smooth_path([(hx - 9 * hs, hy - 40 * hs), (hx, hy - 62 * hs), (hx + 9 * hs, hy - 40 * hs), (hx + side * 4 * hs, hy - 26 * hs), (hx - side * 4 * hs, hy - 26 * hs)], True, 0.4)
-    sk.path(head, tuple(np.array(snake_l) * 0.9 * dark_k))
-    sk.path(hood, INK, ink_k, 0, 2.0)
-    sk.path(head, INK, ink_k, 0, 1.4)
-    for sx in (-1, 1):
-        sk.c.drawCircle(hx + sx * 4 * hs, hy - 48 * hs, 2.2, sk.paint(eye, 1.0))
-        sk.c.drawCircle(hx + sx * 4 * hs, hy - 48 * hs, 5.0, sk.paint(eye, 0.25, 3))
-    # kukulete deseni
-    for sx in (-1, 1):
-        sk.path(smooth_path([(hx + sx * 12 * hs, hy - 34 * hs), (hx + sx * 20 * hs, hy - 26 * hs), (hx + sx * 14 * hs, hy - 18 * hs), (hx + sx * 8 * hs, hy - 26 * hs)], True, 0.4),
-                INK, 0.6 * ink_k)
-    a = sk.snap()
-    _fog(a, 0, fog_amt)
-    Y.place_arr(L, a, ik.P(x - Wc / 2), 0)
+ANIMS = {
+    'idle': (8, _idle), 'walk': (8, _walk), 'windup': (4, _windup), 'strike': (4, _strike),
+    'slam': (3, _slam), 'cast': (3, _cast), 'hurt': (2, _hurt), 'rage': (3, _rage),
+}
 
 
-def moss_drape(L, seed, n, fog_amt, y_max=140, col=(40, 90, 64), hi=(110, 190, 120), ink_a=0.6):
-    """Tavandan sarkan yosun / kök saçakları (ıslak, ucunda damla)."""
-    rng = np.random.default_rng(seed)
-    pad = 200
-    sk = Sk(L.w / ik.K + 2 * pad, H)
-    for _ in range(n):
-        x0 = rng.uniform(0, L.w / ik.K) + pad
-        for k in range(int(rng.integers(4, 12))):
-            sx = x0 + rng.normal(0, 30)
-            ln = rng.uniform(20, y_max)
-            pts = bezier((sx, -5), (sx + rng.uniform(-8, 8), ln * 0.5), (sx + rng.uniform(-14, 14), ln), 10)
-            c = hi if rng.random() < 0.2 else col
-            for dx in (0, L.w / ik.K, -L.w / ik.K):
-                q = pts + np.array([dx, 0])
-                sk.path(ribbon(q, np.linspace(rng.uniform(2, 5), 0.6, 10)), c, 0.95)
-                if ink_a > 0 and rng.random() < 0.5:
-                    sk.path(ribbon(q[5:], np.linspace(1.2, 0.3, 5)), INK, ink_a)
-                if rng.random() < 0.3:
-                    sk.c.drawCircle(q[-1][0], q[-1][1] + 3, 1.6, sk.paint(MINT, 0.8))
-    arr = Y.wrap_core(sk.snap(), pad, L.w)
-    _fog(arr, 0, fog_amt)
-    L.over(arr)
+# ------------------------------------------------------------ yılan gövdesi
+def _segments(p):
+    """Yılan gövdesinin merkez çizgisi, üç parça + yükseliş: (noktalar, kalınlıklar, z) listesi. Kuyruk ucundan bele:
+    yerde uzanan kuyruk -> alt halka ön yayı -> üst halka arka yayı (alt halkanın arkasında) -> üst halka ön yayı ->
+    bele yükselen gövde. Halkalar yerde yığılmış bir yılan kangalı okutur."""
+    wv, W = p['wv'], (p['wx'], p['wy'])
+    tail, slide = p['tail'], p['slide']
+    sw = math.sin(wv)
+    # kuyruk (yerde, dalgalanır; saldırıda kamçılanıp kalkar)
+    tl = []
+    for i, (x, y) in enumerate(((-90.0, -12.0), (-80.0, -6.5), (-66.0, -6.5), (-52.0, -7.0), (-40.0, -9.0))):
+        u = i / 4
+        tl.append((x + math.sin(wv - i * 0.9) * 2.5 * slide, y - abs(math.sin(wv - i * 1.1)) * (1 - u) * (2.0 + 2.0 * slide)
+                   - tail * (1 - u) ** 2 * 10.0 + math.sin(wv * 0.5 + i) * tail * (1 - u) * 3.0))
+    c1 = (-8.0 + 2.0 * sw * slide, -11.0)
+    lower = tl + [(-24.0, -11.0 + 0.5 * sw), (-6.0, -11.0), (12.0, -12.0), (25.0, -17.0)]
+    back = [(25.0, -17.0), (24.0, -25.0), (8.0, -30.5), (-12.0, -30.0), (-28.0, -26.0), (-34.0, -22.5)]
+    upper = [(-34.0, -22.5), (-30.0, -32.0), (-14.0, -35.0), (4.0, -36.0)]
+    # yükseliş: üst halkadan bele S kıvrımı
+    b0 = upper[-1]
+    rise = []
+    for k in range(1, 5):
+        u = k / 4
+        x = b0[0] + (W[0] - b0[0]) * u + math.sin(u * math.pi) * (5.0 - 3.0 * p['rise'])
+        y = b0[1] + (W[1] + 5.0 - b0[1]) * (u ** 0.85)
+        rise.append((x, y))
+    upper_rise = upper + rise + [W]
+    _ = c1
+    nl = len(lower)
+    wl = [4.0 + 18.0 * min(1.0, (i / (nl - 1)) * 1.6) for i in range(nl)]
+    return [(back, [23.0] * len(back), -16.0), (lower, wl, -12.0),
+            (upper_rise, [22.0, 22.0, 21.0, 20.0] + [20.0 - 6.0 * (k / 4) for k in range(1, 5)] + [13.0], -11.0)]
 
 
-def rocks(L, seed, n, y_base, rx, ry, fog_amt, base=(64, 80, 82), moss=(58, 112, 80), jit=8):
-    rng = np.random.default_rng(seed)
-    for _ in range(n):
-        r = rock(int(rng.integers(1 << 30)), rx * rng.uniform(0.6, 1.3), ry * rng.uniform(0.6, 1.2), base=base, moss=moss)
-        h, w = r.shape[:2]
-        x = rng.uniform(0, L.w / ik.K)
-        yt = y_base + rng.uniform(-jit, jit) - h + 8
-        _fog(r, ik.P(yt), fog_amt)
-        Y.place_arr(L, r, ik.P(x - w / 2), ik.P(yt))
+def _body_seg(cv, pts, widths, z, cap0=True, cap1=True):
+    Q = np.array(ik._cr_points([cv.W(q) for q in pts], False, n=10))
+    Wd = np.interp(np.linspace(0, 1, len(Q)), np.linspace(0, 1, len(widths)), [cv.u(w) for w in widths])
+    tg = np.gradient(Q, axis=0)
+    tg = tg / (np.hypot(tg[:, 0], tg[:, 1])[:, None] + 1e-9)
+    nrm = np.stack([-tg[:, 1], tg[:, 0]], 1)    # karın yanı: hep alta/öne bakar (halkanın arka yayında da)
+    flip = (nrm[:, 0] * 0.35 + nrm[:, 1]) < 0
+    nrm[flip] *= -1
+    left = Q - nrm * Wd[:, None] * 0.5
+    right = Q + nrm * Wd[:, None] * 0.5
+    parts = [ik.poly_path([tuple(q) for q in np.concatenate([left, right[::-1]])])]
+    if cap0:
+        parts.append(ik.circle_path(tuple(Q[0]), Wd[0] * 0.5))
+    if cap1:
+        parts.append(ik.circle_path(tuple(Q[-1]), Wd[-1] * 0.5))
+    body = ik.union(*parts)
+    bl = Q + nrm * Wd[:, None] * 0.12
+    br = Q + nrm * Wd[:, None] * 0.52
+    belly = ik.poly_path([tuple(q) for q in np.concatenate([bl, br[::-1]])])
+    det = []
+    L = len(Q)
+    Paint, c4 = ik.skia.Paint, ik._c4
+    for i in range(3, L - 3, 6):     # sırtta koyu baklava deseni (açık kenarlı)
+        c = Q[i] - nrm[i] * Wd[i] * 0.16
+        w = Wd[i] * 0.2
+        t_ = tg[i] * w * 1.5
+        nn = nrm[i] * w
+        dia = ik.poly_path([tuple(c - t_), tuple(c - nn), tuple(c + t_), tuple(c + nn)])
+        det.append(('deep', dia))
+        det.append(('fn', lambda c_, d_=dia: c_.drawPath(d_, Paint(AntiAlias=True, Style=Paint.kStroke_Style, StrokeWidth=cv.px(1.0), Color4f=c4(SCALE.hi, 0.8)))))
+    for i in range(2, L - 2, 2):     # pul yayları
+        for o in (-0.36, -0.06):
+            c = Q[i] + nrm[i] * Wd[i] * o
+            a = c - tg[i] * Wd[i] * 0.07 - nrm[i] * Wd[i] * 0.05
+            b = c + tg[i] * Wd[i] * 0.07 - nrm[i] * Wd[i] * 0.05
+            det.append(('fn', lambda c_, pts_=(tuple(a), tuple(c), tuple(b)): c_.drawPath(ik.taper_path(list(pts_), cv.px(0.9), (0.3, 0.3)),
+                                                                                          Paint(AntiAlias=True, Color4f=c4(SCALE.shadow, 0.75)))))
+    cv.shape(body, SCALE, z=z, sd=6.0, hi=0.55, details=det, bounce=0.4, hatch=0.3, cast=1.4)
+    bdet = []
+    for i in range(1, L - 1, 3):
+        a0, a1 = tuple(Q[i] + nrm[i] * Wd[i] * 0.14), tuple(Q[i] + nrm[i] * Wd[i] * 0.5)
+        bdet.append(('fn', lambda c_, a0=a0, a1=a1: c_.drawPath(ik.taper_path([a0, a1], cv.px(1.1), (0.2, 0.2), smooth=False),
+                                                                Paint(AntiAlias=True, Color4f=c4(BELLY.shadow)))))
+    cv.shape(ik.isect(belly, body), BELLY, z=z + 0.05, sd=2.4, hi=0.35, details=bdet, ol=0.8)
 
 
-def water_band(L, y0, y1, col_top, col_bot, alpha=1.0):
-    """Göl yüzeyi: düz koyu su bandı (yansıma bunun üstüne düşer)."""
-    ys = np.arange(H, dtype=np.float32)
-    t = smoothstep(y0, y1, ys)
-    rgb = mix(c01(col_top)[None, :], c01(col_bot)[None, :], t[:, None])
-    a = (smoothstep(y0 - 1, y0 + 1.5, ys) * alpha).astype(np.float32)
-    arr = np.repeat(premul(rgb[:, None, :].repeat(1, 1), a[:, None])[:, :, :], L.w, 1)
-    L.a = arr + L.a * (1 - arr[..., 3:4])
+def _serpent(cv, p, z):
+    segs = _segments(p)
+    for pts, widths, zz in segs:
+        _body_seg(cv, pts, widths, z + (zz + 12.0) * 0.5)
+    return segs[1][0], segs[1][1]
 
 
-# ------------------------------------------------------------------ 1) uzak duvar + saray + göl
-def layer_far(seed=20):
-    L = Layer(WL, H)
-    rng = np.random.default_rng(seed)
-    pad = 300
-    sk = Sk(WL + 2 * pad, H)
-    # dev kum saati sütunlar
-    for x in (420, 1500, 2350, 3500):
-        x += rng.uniform(-60, 60)
-        sk.path(column_shape(x + pad, -20, 650, rng.uniform(260, 380), rng.uniform(60, 110), rng.uniform(200, 300),
-                             int(x)), (26, 54, 56))
-    # uzak mağara duvarı tümsekleri
-    for _ in range(18):
-        x = rng.uniform(0, WL) + pad
-        sk.path(blob(x, 640, rng.uniform(120, 300), rng.uniform(40, 90), int(rng.integers(1 << 30)), 16, 0.2), (24, 52, 54), 1.0, 4)
-    # tavandan sarkan kütle
-    for _ in range(30):
-        x = rng.uniform(0, WL) + pad
-        ln = rng.uniform(60, 260)
-        w = rng.uniform(40, 130)
-        sk.path(smooth_path([(x - w / 2, -10), (x - w * 0.2, ln * 0.6), (x, ln), (x + w * 0.2, ln * 0.6), (x + w / 2, -10)], True, 0.4),
-                (16, 34, 38), 1.0, 2)
-    arr = Y.wrap_core(sk.snap(), pad, WL)
-    _fog(arr, 0, fog_amount(0.55, 0.3, 610, 90, top=0.1))
-    L.over(arr)
-    sk = Sk(WL + 2 * pad, H)
-    for x in (1050, 2900):
-        palace(sk, x + pad, 640, 0.95, (40, 70, 70), (110, 170, 150), AMBER, int(x), ink_a=0.55)
-    arr = Y.wrap_core(sk.snap(), pad, WL)
-    _fog(arr, 0, fog_amount(0.38, 0.2, 620, 60))
-    L.over(arr)
-    crystals_row(L, seed + 3, 22, 640, 26, fog_amount(0.4, 0.2, 630, 40), glow_a=0.55, ink_a=0.0, halo=1.2)
-    water_band(L, 646, 800, (34, 82, 80), (10, 26, 30))
-    Y.reflect(L, 646, 150, seed + 9, tint=(20, 60, 62), k_dark=0.7, ripple=2.0, shine=(160, 250, 225), shine_n=120)
-    return L
+def _tail_head(cv, p, pts, z, g):
+    """Kuyruk ucundaki yılan başı (halk resmindeki Şahmeran kuyruğu): yukarı kalkık, ağzı açık, gözü yanar."""
+    tip = pts[0]
+    d = bk.perp(pts[1], pts[0])[1]
+    ang = math.atan2(d[1], d[0]) - 0.6 - 0.3 * p['tail']
+    d = (math.cos(ang), math.sin(ang))
+    n = (-d[1], d[0])
+    h = add(tip, d, 3.0)
+    jaw = 0.4 + 0.5 * p['tail'] + 0.2 * math.sin(p['wv'])
+    head = cv.blob([add(h, n, -3.0), add(add(h, d, 5.0), n, -3.0), add(add(h, d, 9.0), n, -1.0), add(add(h, d, 9.5), n, 0.6, ),
+                    add(add(h, d, 5.0), n, 1.0), add(h, n, 3.0)])
+    lower = cv.blob([add(add(h, d, 2.0), n, 1.5), add(add(h, d, 8.0), n, 1.5 + jaw * 3.0), add(add(h, d, 7.0), n, 2.6 + jaw * 3.0), add(add(h, d, 2.0), n, 3.0)])
+    cv.fill(cv.blob([add(add(h, d, 3.0), n, 0.8), add(add(h, d, 8.5), n, 0.8), add(add(h, d, 7.5), n, 1.8 + jaw * 3.0)]), MOUTH_IN, z=z - 0.05)
+    cv.shape(lower, SCALE, z=z - 0.02, sd=0.8, hi=0.2, ol=0.85)
+    cv.shape(head, SCALE, z=z, sd=1.4, hi=0.4, ol=0.95, details=[('deep', cv.blob([add(add(h, d, 2.0), n, -2.6), add(add(h, d, 6.0), n, -2.4), add(add(h, d, 4.0), n, -1.2)]))])
+    cv.fill(cv.ellipse(add(add(h, d, 5.5), n, -1.2), 0.9, 0.6, ang), EYE, z=z + 0.1, glow=tuple(c * g for c in EYE_GLOW))
+    # çatal dil
+    t0 = add(add(h, d, 8.0), n, 1.4 + jaw * 1.5)
+    cv.stroke([t0, add(t0, d, 3.0), add(add(t0, d, 4.5), n, -1.0)], 0.9, z=z + 0.05, col=(0.75, 0.1, 0.2), taper=(0.1, 0.6))
+    cv.stroke([add(t0, d, 3.0), add(add(t0, d, 4.5), n, 1.0)], 0.8, z=z + 0.05, col=(0.75, 0.1, 0.2), taper=(0.1, 0.6))
 
 
-# ------------------------------------------------------------------ 2) sarkıt perdesi + dikit + kristal
-def layer_farmid(seed=30):
-    L = Layer(WL, H)
-    stalactite_row(L, seed, 40, 300, 50, fog_amount(0.4, 0.0, top=0.12), ink_w=0.9, detail=0.35,
-                   rock_c=(40, 56, 60), light=(90, 124, 120))
-    mounds(L, seed + 1, 652, 26, 150, 44, (30, 62, 62), fog_amount(0.36, 0.3, 640, 50), blur=4)
-    stalagmite_row(L, seed + 2, 22, 664, 170, 40, fog_amount(0.34, 0.3, 640, 60), ink_w=0.9, detail=0.35,
-                   rock_c=(40, 58, 60), light=(90, 128, 122))
-    crystals_row(L, seed + 3, 16, 662, 40, fog_amount(0.25, 0.2, 650, 40), glow_a=0.55, ink_a=0.6, ink_w=1.2)
-    water_band(L, 668, 830, (28, 68, 68), (8, 22, 26))
-    Y.reflect(L, 668, 170, seed + 9, tint=(16, 50, 54), k_dark=0.6, ripple=2.6, shine=(150, 245, 220), shine_n=160)
-    return L
-
-
-# ------------------------------------------------------------------ 3) yılan sütunları + kıyı
-def shore(L, seed, y0, col, top_col, fog_amt, n=7, wmin=200, wmax=520, hmin=14, hmax=40, ink_a=0.7, moss=None):
-    """Göl kıyısında yassı kaya adacıkları / setler (üstü yosunlu, önü mürekkep konturlu)."""
-    rng = np.random.default_rng(seed)
-    pad = 300
-    sk = Sk(L.w / ik.K + 2 * pad, H)
-    for _ in range(n):
-        x = rng.uniform(0, L.w / ik.K) + pad
-        w = rng.uniform(wmin, wmax)
-        h = rng.uniform(hmin, hmax)
-        pts = [(x - w / 2, y0 + 4)]
-        for t in np.linspace(0.05, 0.95, 9):
-            pts.append((x - w / 2 + w * t, y0 - h * (math.sin(t * math.pi) ** 0.6) * rng.uniform(0.7, 1.1)))
-        pts.append((x + w / 2, y0 + 4))
-        p = smooth_path(pts, True, 0.35)
-        for dx in (0, L.w / ik.K, -L.w / ik.K):
-            q = smooth_path([(px + dx, py) for px, py in pts], True, 0.35)
-            sk.path(q, col)
-            top = [(px + dx, py + 3) for px, py in pts[1:-1]]
-            sk.path(ribbon(top, [h * 0.22] * len(top)), top_col, 0.9)
-            if ink_a > 0:
-                sk.path(q, INK, ink_a, 0, 1.4)
-    arr = Y.wrap_core(sk.snap(), pad, L.w)
-    _fog(arr, 0, fog_amt)
-    L.over(arr)
-
-
-def layer_mid(seed=40):
-    L = Layer(WL, H)
-    moss_drape(L, seed + 7, 18, fog_amount(0.18, 0, top=0.05), y_max=110)
-    stalactite_row(L, seed, 18, 250, 64, fog_amount(0.22, 0.0, top=0.06), ink_w=1.3, detail=0.6,
-                   rock_c=(42, 56, 62), light=(104, 140, 136), dark_k=0.9)
-    fogm = fog_amount(0.14, 0.36, 660, 70, top=0.06)
-    for x in (640, 2480):
-        snake_pillar(L, x, 700, 78, int(x), fogm, dark_k=0.92)
-    stalagmite_row(L, seed + 2, 10, 704, 190, 56, fog_amount(0.15, 0.3, 670, 50), ink_w=1.3, detail=0.6,
-                   rock_c=(44, 58, 62), light=(104, 140, 136), dark_k=0.92)
-    shore(L, seed + 4, 706, (34, 60, 60), (52, 108, 80), fog_amount(0.12, 0.3, 690, 40))
-    rocks(L, seed + 5, 7, 706, 40, 24, fog_amount(0.18, 0.2, 690, 40))
-    crystals_row(L, seed + 3, 13, 704, 54, fog_amount(0.06, 0.12, 690, 30), glow_a=0.6, ink_a=0.9, ink_w=1.5)
-    Y.reflect(L, 708, 190, seed + 9, tint=(14, 44, 48), k_dark=0.5, ripple=3.2, shine=(150, 245, 220), shine_n=200,
-              fade=0.85)
-    return L
-
-
-# ------------------------------------------------------------------ 6) yakın
-def layer_near(seed=50):
-    L = Layer(WL, H)
-    stalactite_row(L, seed, 9, 300, 100, fog_amount(0.0, 0.0), ink_w=2.4, detail=0.95,
-                   rock_c=(30, 36, 42), light=(80, 110, 112), rim=(120, 240, 200), dark_k=0.85,
-                   xs=np.array([120, 640, 900, 1500, 2050, 2600, 2880, 3300, 3620], np.float32), cluster=0.7)
-    # kıyı kaya zemini: ıslak koyu taş, üstünde yosun, yer yer su birikintisi
-    rng = np.random.default_rng(seed + 11)
-    pad = 300
-    sk = Sk(WL + 2 * pad, H)
-    pts = [(x, 772 + 16 * math.sin(x / 210.0) + 10 * math.sin(x / 67.0 + 1) + rng.uniform(-3, 3))
-           for x in np.linspace(0, WL + 2 * pad, 110)]
-    body = smooth_path(pts + [(WL + 2 * pad, H + 10), (0, H + 10)], True, 0.3)
-    sk.path(body, (20, 30, 34))
-    sk.path(ribbon([(p[0], p[1] + 5) for p in pts], [9] * len(pts)), (40, 86, 66), 0.95)
-    sk.path(ribbon([(p[0], p[1] + 1) for p in pts], [2.2] * len(pts)), (110, 190, 140), 0.6)
-    sk.path(ribbon(pts, [2.4] * len(pts)), INK, 0.9)
-    for _ in range(40):   # yatay tabaka çizgileri
-        x = rng.uniform(0, WL + 2 * pad)
-        y = rng.uniform(800, 1000)
-        ln = rng.uniform(40, 160)
-        sk.path(ribbon([(x, y), (x + ln * 0.5, y + rng.uniform(-3, 3)), (x + ln, y + rng.uniform(-2, 2))], [0.4, 1.6, 0.4]),
-                INK, 0.6)
-    arr = Y.wrap_core(sk.snap(), pad, WL)
-    L.over(arr)
-    stalagmite_row(L, seed + 2, 8, 784, 300, 104, fog_amount(0.02, 0.2, 760, 40), ink_w=2.4, detail=0.95,
-                   rock_c=(30, 38, 44), light=(84, 112, 114), rim=(120, 240, 200), dark_k=0.88,
-                   xs=np.array([300, 1180, 1340, 2240, 3000, 3460, 3760, 1900], np.float32), cluster=0.6)
-    rocks(L, seed + 5, 8, 786, 70, 40, fog_amount(0.03, 0.2, 760, 30), base=(52, 64, 68), moss=(48, 100, 70))
-    crystals_row(L, seed + 3, 9, 788, 84, fog_amount(0.0, 0.05, 760, 30), glow_a=0.75, ink_a=1.0, ink_w=2.0,
-                 xs=np.array([220, 700, 1250, 1720, 2160, 2700, 3120, 3400, 3720], np.float32))
-    grass_field(L, seed + 6, 776, 830, 0.3, (60, 128, 90), (20, 40, 38), 6, 18, 1.6, 3.0,
-                fog=fog_amount(0.05, 0.15, 780, 30), dark_strokes=0.4, ink_tips=0.3, fill=False)
-    return L
-
-
-# ------------------------------------------------------------------ sis / pus / ışık
-def layer_haze(seed=65):
-    W = WL
-    ys = np.arange(H, dtype=np.float32)[:, None]
-    n1 = noise(W, H, 0, seed, sx=220, sy=40)
-    n2 = noise(W, H, 0, seed + 1, sx=70, sy=24)
-    n3 = noise(W, H, 0, seed + 2, sx=18, sy=60)
-    band = np.exp(-((ys - 600) / 110.0) ** 2) * 0.8 + np.exp(-((ys - 430) / 90.0) ** 2) * 0.25
-    a = band * np.clip(0.35 + 0.7 * n1 + 0.3 * n2 + 0.2 * n3, 0, 1)
-    a = np.clip(a * 0.4, 0, 0.5).astype(np.float32)
-    rgb = np.repeat(SKY[:, None, :], W, 1) * 0.7 + c01(MINT)[None, None, :] * 0.3
-    L = Layer(W, H)
-    L.a = premul(rgb, a)
-    return L
-
-
-def layer_fogband(seed=60):
-    W = WL
-    ys = np.arange(H, dtype=np.float32)[:, None]
-    n1 = noise(W, H, 0, seed, sx=140, sy=14)
-    n2 = noise(W, H, 0, seed + 1, sx=50, sy=7)
-    band = np.exp(-((ys - 700) / 40.0) ** 2) * 0.85 + np.exp(-((ys - 650) / 30.0) ** 2) * 0.4 + np.exp(-((ys - 760) / 40.0) ** 2) * 0.35
-    a = band * np.clip(0.5 + 0.6 * n1 + 0.25 * n2, 0, 1)
-    a = np.clip(a * 0.6, 0, 0.75).astype(np.float32)
-    rgb = np.repeat(SKY[:, None, :], W, 1) * 0.55 + c01(MINT)[None, None, :] * 0.45
-    L = Layer(W, H)
-    L.a = premul(rgb, a)
-    return L
-
-
-def layer_shafts(seed=70):
-    """Tavan çatlaklarından süzülen soluk yeşil ışık hüzmeleri + havada asılı ışıklı zerreler (toplamalı)."""
-    W = 2880
-    out = np.zeros((H, W), np.float32)
-    rng = np.random.default_rng(seed)
-    ys = np.arange(H, dtype=np.float32)[:, None]
-    xs = np.arange(W, dtype=np.float32)[None, :]
-    ang = math.radians(10)
-    u_all = xs * math.cos(ang) + ys * math.sin(ang)
-    umin, umax = float(u_all.min()), float(u_all.max())
+def _hood(cv, NK, ht, p, z, g):
+    """Kobra yelpazesi: başın arkasında açılan, kaburgalı, kenarı dalgalı deri; içte açık karın bantları, altın kenar,
+    uçlarda zümrüt taşlar (hazırlıkta/öfkede açılır)."""
+    f = 0.6 + 0.5 * p['hood']
+    c = add(NK, (-2.0 * WS, -9.0 * WS * f))
+    rx, ry = 15.0 * WS * f, 21.0 * WS * f
+    outline = []
+    n = 9
+    # yanlara açılan, üstte hafif dalgalı, boyuna doğru daralan yelpaze (ters damla)
+    prof = [(-0.15, 0.95), (-0.55, 0.75), (-0.9, 0.35), (-1.0, -0.15), (-0.95, -0.6), (-0.6, -0.92), (0.0, -1.0), (0.6, -0.92),
+            (0.95, -0.6), (1.0, -0.15), (0.9, 0.35), (0.55, 0.75), (0.15, 0.95)]
+    for k, (u, v) in enumerate(prof):
+        outline.append((c[0] + u * rx, c[1] + v * ry, 0.0 if (4 <= k <= 8 and k % 2 == 0) else 1.0))
+    hood = cv.blob(outline)
+    det = []
+    for k in range(5):   # kaburgalar
+        aa = -math.pi * 0.5 + (k - 2) * 0.5
+        det.append(('ink', [polar(c, aa, rx * 0.15), polar(c, aa, ry * 0.9)], 1.1, (0.3, 0.6)))
+    # iç yüzde açık karın bantları (ortada dikey pul şeridi)
+    band = cv.blob([add(c, (-3.5 * f, -ry * 0.75)), add(c, (3.5 * f, -ry * 0.75)), add(c, (4.5 * f, ry * 0.3)), add(c, (-4.5 * f, ry * 0.3))])
+    det.append(('col', band, mix_(HOOD.base, BELLY.base, 0.55)))
     for k in range(5):
-        u0 = rng.uniform(umin + 200, umax - 300)
-        wid = rng.uniform(26, 90)
-        out += np.exp(-((u_all - u0) / wid) ** 2) * rng.uniform(0.3, 0.6)
-        out += np.exp(-((u_all - u0) / (wid * 3.5)) ** 2) * 0.08
-    v = ys / H
-    fade = smoothstep(0.0, 0.06, v) * (1 - smoothstep(0.42, 0.68, v))
-    brk = np.clip(0.75 + 0.5 * noise(W, H, 0, seed + 5, sx=50, sy=120), 0.3, 1.0)
-    out *= fade * brk
-    out = np.clip(out, 0, 1)
-    bl = 200
-    t = np.linspace(0, 1, bl)[None, :]
-    out[:, :bl] = out[:, :bl] * t + out[:, -bl:] * (1 - t)
-    out = out[:, :W - bl]
-    W2 = out.shape[1]
-    col = c01((120, 230, 190))
-    rgb = col[None, None, :] * out[..., None]
-    a = out.copy()
-    # ışıklı zerreler (spor, su damlası parıltısı)
-    sk = Sk(W2, H)
-    for _ in range(170):
-        x, y = rng.uniform(0, W2), rng.uniform(80, 760)
-        r = rng.uniform(0.8, 2.6)
-        c = (190, 255, 230) if rng.random() < 0.8 else (230, 200, 255)
-        sk.c.drawCircle(x, y, r * 3.5, sk.paint(c, 0.18, r * 2.5))
-        sk.c.drawCircle(x, y, r, sk.paint(c, 0.85, 0.4))
-    m = sk.snap()
-    rgb = m[..., :3] + rgb * (1 - m[..., 3:4])
-    a = m[..., 3] + a * (1 - m[..., 3])
-    L = Layer(W2, H)
-    L.a = np.concatenate([rgb, a[..., None]], -1).astype(np.float32)
-    return L
+        y = -ry * 0.65 + k * ry * 0.2
+        det.append(('ink', [add(c, (-3.8 * f, y)), add(c, (3.8 * f, y + 0.6))], 0.8, (0.1, 0.1)))
+    cv.shape(hood, HOOD, z=z, sd=4.0, hi=0.35, details=det, bounce=0.35, hatch=0.3)
+    rim = ik.diff(hood, cv.blob([(q[0] * 0.9 + c[0] * 0.1, q[1] * 0.9 + c[1] * 0.1) + tuple(q[2:]) for q in outline]))
+    cv.shape(rim, GOLD, z=z + 0.05, sd=0.8, hi=0.3, ol=0.6)
+    for k in range(0, n + 1, 2):
+        a = math.pi * (0.62 + k / n * 1.76)
+        if math.sin(a) > 0.2:
+            continue
+        q = (c[0] + math.cos(a) * rx * 0.97, c[1] + math.sin(a) * ry * 0.97)
+        cv.fill(cv.ellipse(q, 1.2 * f, 1.4 * f), GEM, z=z + 0.1, glow=tuple(cc * g * 0.8 for cc in GEM_GLOW))
 
 
-# ------------------------------------------------------------------ boss arenası: Şahmeran Ana'nın taht salonu
-def throne_sahmeran(L, cx, base_y, fog_amt, seed=7):
-    """Gölün kıyısında taht: basamaklı taş kürsü, sarmal yılan gövdesinden oturak, arkada dev kukulete (pullu,
-    göz desenli), tepede taçlı yılan başı ve kehribar gözler; kürsüde ışıyan kristaller."""
-    rng = np.random.default_rng(seed)
-    pad = 500
-    W = 1100
-    sk = Sk(W + 2 * pad, H)
-    x = W / 2 + pad
-    stone, stone_l, stone_d = (70, 92, 92), (140, 176, 166), (34, 46, 50)
-    snake, snake_l, belly = (52, 84, 72), (120, 170, 140), (110, 120, 96)
-    # kukulete (arka): dev kobra, önden — boyun dar, ortada geniş açılan kukulete, ön yüzde enine karın pulları
-    top = base_y - 600
-    hood = smooth_path([(x - 120, base_y - 150), (x - 210, base_y - 290), (x - 250, base_y - 400), (x - 190, base_y - 500),
-                        (x - 70, top + 40), (x, top + 20), (x + 70, top + 40), (x + 190, base_y - 500), (x + 250, base_y - 400),
-                        (x + 210, base_y - 290), (x + 120, base_y - 150)], True, 0.4)
-    sk.path(hood, snake)
-    sk.c.save()
-    sk.c.clipPath(hood, doAntiAlias=True)
-    # kenara doğru koyulaşan kukulete, ortada açık karın şeridi
-    sk.path(smooth_path([(x - 250, base_y - 420), (x - 190, base_y - 510), (x - 120, base_y - 300), (x - 140, base_y - 150),
-                         (x - 260, base_y - 150)], True, 0.4), (30, 52, 46), 0.7)
-    sk.path(smooth_path([(x + 250, base_y - 420), (x + 190, base_y - 510), (x + 120, base_y - 300), (x + 140, base_y - 150),
-                         (x + 260, base_y - 150)], True, 0.4), (30, 52, 46), 0.85)
-    belly_band = smooth_path([(x - 70, base_y - 150), (x - 90, base_y - 330), (x - 70, top + 70), (x, top + 50), (x + 70, top + 70),
-                              (x + 90, base_y - 330), (x + 70, base_y - 150)], True, 0.4)
-    sk.path(belly_band, (112, 124, 98), 0.8)
-    yy = top + 70
-    k = 0
-    while yy < base_y - 150:
-        wv = 70 + 20 * math.sin((yy - top) / 420 * math.pi)
-        sk.path(smooth_path([(x - wv, yy + 6), (x, yy), (x + wv, yy + 6)], False, 0.5), INK, 0.6, 0, 1.6)
-        yy += 26 - k * 0.2
-        k += 1
-    for r in range(10):   # yan pullar
-        yy = base_y - 200 - r * 36
-        for kk in range(-7, 8):
-            if abs(kk) < 3:
-                continue
-            px = x + kk * 32 + (16 if r % 2 else 0)
-            sk.path(smooth_path([(px - 12, yy), (px, yy - 13), (px + 12, yy)], False, 0.5), INK, 0.35, 0, 1.3)
-    sk.c.restore()
-    sk.path(hood, INK, 0.9, 0, 3.0)
-    # taçlı baş: kukuletanın tepesinde öne eğik
-    hx, hy = x, top + 10
-    head = smooth_path([(hx - 44, hy + 14), (hx - 50, hy - 26), (hx - 26, hy - 64), (hx, hy - 72), (hx + 26, hy - 64), (hx + 50, hy - 26),
-                        (hx + 44, hy + 14), (hx + 20, hy + 40), (hx - 20, hy + 40)], True, 0.4)
-    sk.path(head, snake_l)
-    sk.path(smooth_path([(hx + 10, hy - 66), (hx + 50, hy - 26), (hx + 44, hy + 14), (hx + 20, hy + 40), (hx + 6, hy + 40)], True, 0.4), snake, 0.55)
-    sk.path(head, INK, 0.9, 0, 2.6)
-    sk.path(ribbon([(hx - 18, hy + 30), (hx, hy + 34), (hx + 18, hy + 30)], [1.0, 2.4, 1.0]), INK, 0.9)
-    sk.path(ribbon([(hx, hy + 36), (hx - 2, hy + 62), (hx - 10, hy + 74)], [2.2, 1.6, 0.6]), (190, 60, 60))
-    sk.path(ribbon([(hx - 2, hy + 62), (hx + 8, hy + 74)], [1.4, 0.6]), (190, 60, 60))
-    crown = poly_path([(hx - 40, hy - 52), (hx - 50, hy - 112), (hx - 22, hy - 84), (hx, hy - 136), (hx + 22, hy - 84), (hx + 50, hy - 112), (hx + 40, hy - 52)])
-    sk.path(crown, (196, 160, 80))
-    sk.path(poly_path([(hx - 40, hy - 52), (hx + 40, hy - 52), (hx + 42, hy - 62), (hx - 42, hy - 62)]), (150, 110, 50), 0.9)
-    sk.path(crown, INK, 0.9, 0, 2.2)
-    for sd in (-1, 1):
-        ep = smooth_path([(hx + sd * 12, hy - 18), (hx + sd * 24, hy - 26), (hx + sd * 34, hy - 16), (hx + sd * 22, hy - 10)], True, 0.4)
-        sk.path(ep, AMBER)
-        sk.path(ep, INK, 0.9, 0, 1.4)
-        sk.path(ribbon([(hx + sd * 23, hy - 24), (hx + sd * 23, hy - 12)], [1.6, 1.6]), INK, 0.9)
-        sk.c.drawCircle(hx + sd * 23, hy - 18, 20, sk.paint(AMBER, 0.25, 10))
-    Y.crystal_cluster(sk, hx, hy - 92, 40, seed + 3, EMER, EMER_HI, (10, 64, 60), ink_w=1.6, glow=sk, glow_a=0.6, n=3, spread=0.5)
-    # oturak: üç sarmal halka
-    for i, (yy, rx, w) in enumerate([(base_y - 110, 230, 56), (base_y - 160, 200, 50), (base_y - 205, 170, 44)]):
-        band = np.array([(x + rx * math.cos(a), yy + 22 * math.sin(a)) for a in np.linspace(0, math.pi, 30)])
-        sk.path(ribbon(band, [w] * 30), snake)
-        sk.path(ribbon(band + np.array([0, w * 0.28]), [w * 0.3] * 30), belly, 0.85)
-        sk.path(ribbon(band - np.array([0, w * 0.26]), [w * 0.2] * 30), snake_l, 0.8)
-        for j in range(1, 29, 2):
-            q = band[j]
-            sk.path(smooth_path([(q[0] - 8, q[1] + 4), (q[0], q[1] - 6), (q[0] + 8, q[1] + 4)], False, 0.5), INK, 0.5, 0, 1.2)
-        sk.path(ribbon(band, [w] * 30), INK, 0.9, 0, 2.4)
-    # kürsü basamakları
-    for i, (hw_, yy, hh) in enumerate([(340, base_y - 26, 30), (290, base_y - 52, 28), (240, base_y - 78, 26)]):
-        p = poly_path([(x - hw_, yy + hh), (x - hw_, yy), (x + hw_, yy), (x + hw_, yy + hh)])
-        sk.path(p, stone)
-        sk.path(poly_path([(x - hw_, yy), (x + hw_, yy), (x + hw_, yy + 5), (x - hw_, yy + 5)]), stone_l, 0.75)
-        sk.path(poly_path([(x + hw_ * 0.4, yy + 5), (x + hw_, yy + 5), (x + hw_, yy + hh), (x + hw_ * 0.4, yy + hh)]), stone_d, 0.5)
-        for k in range(int(hw_ / 26)):
-            px = x - hw_ + 20 + k * 52
-            sk.path(smooth_path([(px - 10, yy + hh - 6), (px, yy + 8), (px + 10, yy + hh - 6)], False, 0.5), INK, 0.6, 0, 1.4)
-        sk.path(p, INK, 0.9, 0, 2.2)
-    for sd in (-1, 1):
-        Y.crystal_cluster(sk, x + sd * 310, base_y - 26, 90, seed + 10 + sd, EMER, EMER_HI, (10, 64, 60), ink_w=2.0, glow=sk,
-                          glow_a=0.6, n=6)
-        Y.crystal_cluster(sk, x + sd * 380, base_y, 60, seed + 20 + sd, AMETH, AMETH_HI, (40, 20, 70), ink_w=1.6, glow=sk,
-                          glow_a=0.5, n=4)
-    arr = sk.snap()
-    _fog(arr, 0, fog_amt)
-    Y.place_arr(L, arr, ik.P(cx - W / 2 - pad), 0)
+def mix_(a, b, t):
+    return tuple(x + (y - x) * t for x, y in zip(a, b))
 
 
-def layer_mid_boss(seed=40):
-    L = Layer(WL, H)
-    moss_drape(L, seed + 7, 18, fog_amount(0.18, 0, top=0.05), y_max=110)
-    stalactite_row(L, seed, 16, 250, 64, fog_amount(0.22, 0.0, top=0.06), ink_w=1.3, detail=0.6,
-                   rock_c=(42, 56, 62), light=(104, 140, 136), dark_k=0.9,
-                   xs=np.random.default_rng(seed).uniform(0, WL, 16))
-    fogm = fog_amount(0.14, 0.36, 660, 70, top=0.06)
-    for x in (900, 2060, 3300):
-        snake_pillar(L, x, 700, 82, int(x), fogm, dark_k=0.92)
-    throne_sahmeran(L, 1480, 706, fog_amount(0.1, 0.3, 660, 60, top=0.04))
-    shore(L, seed + 4, 706, (34, 60, 60), (52, 108, 80), fog_amount(0.12, 0.3, 690, 40), n=4)
-    crystals_row(L, seed + 3, 8, 704, 54, fog_amount(0.06, 0.12, 690, 30), glow_a=0.6, ink_a=0.9, ink_w=1.5,
-                 xs=np.array([300, 640, 2500, 2800, 3600, 3100, 450, 2650], np.float32))
-    Y.reflect(L, 708, 190, seed + 9, tint=(14, 44, 48), k_dark=0.5, ripple=3.2, shine=(150, 245, 220), shine_n=200,
-              fade=0.85)
-    return L
+def _hair_snake(cv, root, ang, ln, ph, z, g, k):
+    st = []
+    x, y = root
+    for i in range(6):
+        a = ang + math.sin(ph - i * 0.9 + k) * 0.35
+        x += math.cos(a) * ln / 6
+        y += math.sin(a) * ln / 6
+        st.append((x, y))
+    body = ik.taper_path([cv.W(q) for q in [root] + st], cv.u(2.6 * WS), prof=lambda u: 0.55 + 0.45 * (1 - u))
+    cv.shape(body, SCALE.darker(0.85), z=z, sd=0.8, hi=0.3, ol=0.8)
+    h = st[-1]
+    d = bk.perp(st[-2], st[-1])[1]
+    hd = cv.blob([add(h, (-d[1], d[0]), -1.6 * WS), add(h, d, 3.4 * WS), add(h, (-d[1], d[0]), 1.6 * WS)])
+    cv.shape(hd, SCALE, z=z + 0.01, sd=0.6, hi=0.3, ol=0.8)
+    cv.fill(cv.ellipse(add(h, d, 1.4), 0.5, 0.5), (1.0, 0.25, 0.2), z=z + 0.02, glow=(0.8, 0.12, 0.1))
 
 
-EXPORT_BG = [('0_sky', 'layer_sky'), ('1_far', 'layer_far'), ('2_farmid', 'layer_farmid'), ('2b_haze', 'layer_haze'),
-             ('3_mid', 'layer_mid'), ('4_fog', 'layer_fogband'), ('5_shafts', 'layer_shafts'), ('6_near', 'layer_near'),
-             ('3_mid_boss', 'layer_mid_boss')]
+def _arm(cv, sh, a1, a2, z, near, claw, g, orb=0.0):
+    e, h = bk.arm_fk(sh, a1, a2, L_UP * WS, L_FO * WS)
+    m = SKIN if near else SKIN_B
+    up = bk.muscle(cv, sh, e, 3.6 * WS, 2.8 * WS, front=0.5, back=0.4, at=0.35)
+    fo = bk.muscle(cv, e, h, 2.8 * WS, 2.0 * WS, front=0.5, back=0.2, at=0.25)
+    cv.shape(ik.union(up, fo), m, z=z, sd=1.6, hi=0.35 if near else 0.0, bounce=0.3 if near else 0.0)
+    gm = GOLD if near else GOLD_B
+    for (a, b, t0, t1) in ((sh, e, 0.3, 0.42), (e, h, 0.72, 0.9)):   # kolluk + bilezik
+        band = ik.isect(ik.union(up, fo), cv.poly([along(a, b, t0, -6), along(a, b, t0, 6), along(a, b, t1, 6), along(a, b, t1, -6)]))
+        cv.shape(band, gm, z=z + 0.05, sd=0.6, hi=0.3, ol=0.7,
+                 details=[('col', cv.ellipse(along(a, b, (t0 + t1) / 2, 0.0), 0.7, 0.7), GEM)] if near else ())
+    # el: açık, uzun altın pençeli
+    d = bk.perp(e, h)[1]
+    bk.open_hand(cv, h, d, 2.6 * WS, m, z + 0.1, spread=0.5 + 0.7 * claw, curl=0.9 - 0.7 * claw, near=near, claws=GOLD)
+    if orb > 0.05 and near:
+        oc = add(h, d, 6.5)
+        r = (2.5 + 4.0 * orb) * WS
+        cv.fill(cv.ellipse(oc, r * 1.3, r * 1.3), (0.15, 0.6, 0.25), z=z + 0.3, glow=tuple(c * 0.8 for c in GEM_GLOW), alpha=0.6)
+        cv.fill(cv.ellipse(oc, r, r), VENOM, z=z + 0.31, glow=GEM_GLOW)
+        cv.fill(cv.ellipse(add(oc, (-r * 0.25, -r * 0.25)), r * 0.45, r * 0.45), (0.9, 1.0, 0.8), z=z + 0.32, glow=(0.6, 1.0, 0.6))
+        for k in range(3):
+            a = k * 2.1 + orb * 3.0
+            cv.stroke([polar(oc, a, r * 1.1), polar(oc, a + 0.8, r * 1.5), polar(oc, a + 1.5, r * 1.2)], 1.0, z=z + 0.33,
+                      col=VENOM, taper=(0.2, 0.7), glow=GEM_GLOW)
+    return e, h
+
+
+def _head(cv, H, ht, p, z, g):
+    ca_, sa_ = math.cos(ht), math.sin(ht)
+
+    def Q(u, v, *t):
+        u, v = u * WS, v * WS
+        return (H[0] + u * ca_ - v * sa_, H[1] + u * sa_ + v * ca_) + tuple(t)
+    jaw = p['mouth']
+    # saç (arkada, omuzlara ve sırta dökülür)
+    hw = p['hair']
+    hair = cv.blob([Q(-1, -8.5), Q(-6, -7), Q(-8.5, -2), Q(-9.5 - hw, 6), Q(-11 - hw * 1.5, 14), Q(-10 - hw * 2.0, 22), Q(-6 - hw * 1.6, 26, 0.0),
+                    Q(-4 - hw, 18), Q(-2, 10), Q(1, 4)])
+    hdet = [('stroke', [Q(-4, -6), Q(-6.5 - hw * 0.5, 4), Q(-8 - hw * 1.4, 18)], 1.0, HAIR.hi, (0.3, 0.6)),
+            ('ink', [Q(-2, -4), Q(-4.5 - hw * 0.5, 6), Q(-6 - hw * 1.2, 16)], 0.9, (0.3, 0.6))]
+    cv.shape(hair, HAIR, z=z - 0.5, sd=2.0, hi=0.35, details=hdet)
+    # yüz (3/4 profil): alın, kaş kemeri, ince düz burun, dolgun dudak, sivri çene, çene hattı kulağa
+    face = cv.blob([Q(-4.5, -7.0), Q(0.0, -9.0), Q(4.5, -7.6), Q(6.0, -4.6), Q(5.8, -3.2), Q(7.7, -0.2, 0.0), Q(6.3, 0.9), Q(6.8, 2.3),
+                    Q(6.0, 3.1 + jaw * 0.6), Q(6.4, 4.2 + jaw * 1.6), Q(5.4, 5.6 + jaw * 1.8), Q(4.8, 7.0 + jaw * 1.8, 0.5), Q(2.4, 7.5 + jaw * 1.4),
+                    Q(-1.5, 5.0), Q(-3.6, 1.0), Q(-5.0, -3.0)])
+    det = [('shade', cv.wedge([Q(1.0, 1.5), Q(3.0, 3.2), Q(4.8, 5.8)], 0.6, 1.0)),          # elmacık altı gölgesi
+           ('ink', [Q(6.9, -1.0), Q(7.5, -0.2), Q(6.4, 0.6)], 0.9, (0.2, 0.3)),               # burun ucu
+           ('ink', [Q(5.6, -3.6), Q(6.2, -1.8)], 0.8, (0.3, 0.5)),                           # burun sırtı
+           ('ink', [Q(4.5, 6.6 + jaw * 1.8), Q(3.0, 7.2 + jaw * 1.4)], 0.9, (0.3, 0.3)),
+           ('hi', cv.blob([Q(1.5, -6.5), Q(4.2, -7.0), Q(4.6, -5.6), Q(2.0, -5.2)]))]
+    cv.shape(face, SKIN, z=z, sd=1.6, hi=0.3, details=det, cast=0.6, bounce=0.4)
+    # alın üstüne inen saç (ortadan ayrık), yüzün arka kenarını çerçeveler
+    fr = cv.blob([Q(-6.5, -6.5), Q(-1.0, -10.0), Q(4.8, -8.4), Q(5.4, -7.0), Q(1.0, -7.4), Q(-2.0, -5.5), Q(-4.0, -1.0), Q(-4.5, 6.0),
+                  Q(-6.0, 4.0)])
+    cv.shape(fr, HAIR, z=z + 0.02, sd=1.2, hi=0.35, details=[('stroke', [Q(-1.0, -9.0), Q(2.5, -8.2)], 0.9, HAIR.hi, (0.3, 0.5))])
+    # küpe (altın halka + zümrüt)
+    cv.shape(cv.ellipse(Q(-3.0, 3.2), 0.9 * WS, 1.3 * WS, ht), GOLD, z=z + 0.06, sd=0.4, ol=0.7)
+    cv.fill(cv.ellipse(Q(-3.0, 4.6), 0.55 * WS, 0.8 * WS, ht), GEM, z=z + 0.07, glow=tuple(c * 0.6 * g for c in GEM_GLOW))
+    # ağız: koyu erik dudaklar; açılınca yılan dişleri (iki sivri üst diş)
+    if jaw > 0.2:
+        cv.fill(cv.blob([Q(4.6, 3.0), Q(6.3, 2.9), Q(6.1, 3.5 + jaw * 1.8), Q(4.8, 3.6 + jaw * 1.5)]), MOUTH_IN, z=z + 0.1)
+        for u in (5.2, 6.0):
+            cv.fill(cv.blob([Q(u - 0.25, 2.95), Q(u + 0.25, 2.95), Q(u, 4.1 + jaw * 0.4, 0.0)]), (0.98, 0.95, 0.88), z=z + 0.11)
+    cv.fill(cv.blob([Q(4.6, 2.6), Q(5.6, 2.1), Q(6.6, 2.4), Q(6.0, 3.0), Q(4.7, 3.0)]), LIP, z=z + 0.12)
+    cv.fill(cv.blob([Q(4.8, 3.6 + jaw * 1.6), Q(6.2, 3.5 + jaw * 1.6), Q(5.8, 4.4 + jaw * 1.6), Q(5.0, 4.4 + jaw * 1.6)]), LIP, z=z + 0.12)
+    cv.fill(cv.ellipse(Q(5.6, 3.9 + jaw * 1.6), 0.4, 0.2), (0.85, 0.55, 0.6), z=z + 0.13)
+    # gözler: iri badem, tamamı zümrüt (yılan gözü), dikey bebek; sürme kanadı arkaya uzanır; uzak göz burun yanında
+    ec = Q(3.4, -2.8)
+    cv.fill(cv.blob([Q(1.6, -2.6, 0.0), Q(3.4, -3.8), Q(5.0, -3.0, 0.0), Q(3.4, -1.9)]), EYE, z=z + 0.2, glow=tuple(c * g for c in EYE_GLOW))
+    cv.fill(cv.ellipse(Q(3.6, -2.85), 0.3 * WS, 0.75 * WS, ht), (0.03, 0.08, 0.04), z=z + 0.21)
+    cv.fill(cv.ellipse(Q(3.0, -3.3), 0.25 * WS, 0.2 * WS, ht), (0.95, 1.0, 0.9), z=z + 0.215)
+    cv.stroke([Q(1.0, -2.3), Q(1.6, -2.9), Q(3.4, -4.0), Q(5.1, -3.1)], 1.5, z=z + 0.22, col=INK, taper=(0.4, 0.3))
+    cv.stroke([Q(1.8, -2.4), Q(0.2, -3.2)], 1.3, z=z + 0.22, col=INK, taper=(0.1, 0.9))                           # sürme kanadı
+    cv.fill(cv.blob([Q(5.5, -3.0, 0.0), Q(6.0, -3.5), Q(6.3, -2.9, 0.0), Q(5.9, -2.5)]), EYE, z=z + 0.2, glow=tuple(c * g * 0.7 for c in EYE_GLOW))
+    br = p['mouth'] * 0.6 + p['claw'] * 0.3
+    cv.stroke([Q(1.4, -4.9 + br * 0.2), Q(3.6, -5.6 + br * 0.5), Q(5.6, -4.6 + br * 0.9)], 1.1, z=z + 0.22, col=HAIR.base, taper=(0.3, 0.5))
+    # taç: yüksek, üç sivri, ortada zümrüt; yanlarda yılan başları
+    cr = cv.blob([Q(-4.5, -7.0), Q(-5.5, -12.0), Q(-3.0, -11.0), Q(-1.5, -17.0), Q(0.8, -12.0), Q(2.2, -21.0, 0.0), Q(3.8, -12.0), Q(5.4, -16.0),
+                  Q(6.6, -10.5), Q(6.0, -6.6), Q(1.0, -8.6)])
+    cdet = [('ink', [Q(-4.4, -8.6), Q(1.0, -10.2), Q(6.2, -8.2)], 1.0, (0.1, 0.1))]
+    cv.shape(cr, GOLD, z=z + 0.3, sd=1.2, hi=0.45, details=cdet, ol=0.95)
+    cv.fill(cv.blob([Q(1.0, -11.0), Q(2.2, -14.0, 0.0), Q(3.4, -11.0), Q(2.2, -9.6, 0.0)]), GEM, z=z + 0.35, glow=tuple(c * g for c in GEM_GLOW))
+    for u in (-3.0, 5.0):
+        cv.fill(cv.ellipse(Q(u, -9.6), 0.7, 0.7), (0.9, 0.15, 0.2), z=z + 0.35, glow=(0.5, 0.05, 0.08))
+    return Q(5.5, 4.6), ec
+
+
+def draw(cv, p):
+    g = 0.5 + 0.5 * p['glow']
+    W = (p['wx'], p['wy'])
+    lean = p['lean']
+    up = (math.sin(lean), -math.cos(lean))
+    fw = (math.cos(lean), math.sin(lean))
+
+    def T(u, f, *t):
+        return add(add(W, up, u * WS), fw, f * WS) + tuple(t)
+    CH = T(20.0, 0.0)            # göğüs merkezi
+    NK = T(30.0, 1.5)            # boyun kökü
+    sh_f = T(27.0, -2.5)
+    sh_b = T(28.5, 6.0)
+    ht = p['ht'] + lean * 0.4
+    H = add(T(36.5, 4.0), (0.0, 0.0))
+
+    # ---- kobra yelpazesi + saç yılanları (en arkada)
+    _hood(cv, NK, ht, p, -30.0, g)
+    for k in range(4):
+        root = T(31.0 - k * 4.0, -4.0 - k * 1.2)
+        ang = math.pi * (0.95 + k * 0.1) - lean * 0.6 - p['hair'] * 0.15
+        _hair_snake(cv, root, ang, (13.0 - k) * WS, p['wv'], -28.0 + k * 0.01, g, k)
+    # ---- uzak kol
+    _arm(cv, sh_b, p['arm_b'], p['el_b'], -20.0, False, p['claw'], g)
+    # ---- yılan gövdesi + kuyruk başı
+    pts, widths = _serpent(cv, p, -10.0)
+    _tail_head(cv, p, pts, -9.0, g)
+    # ---- kadın gövdesi: bel (pullar tene geçer) + göğüs kafesi + omuzlar
+    front = [(-2.0, 6.8), (2.0, 6.4), (6.0, 6.6), (10.0, 7.8), (14.0, 10.0), (18.0, 9.2), (21.0, 7.4), (25.0, 5.4), (28.5, 3.4)]
+    back = [(29.0, -2.0), (27.0, -4.8), (22.0, -6.8), (16.0, -6.4), (10.0, -5.0), (5.0, -5.8), (0.0, -6.8), (-2.0, -6.8)]
+    body_ = cv.blob([T(u, f) for u, f in front] + [T(u, f) for u, f in back])
+    shoulders = cv.capsule(sh_f, sh_b, 3.6 * WS, 3.2 * WS)
+    neck = cv.capsule(NK, add(H, (-1.0 * WS, 4.0 * WS)), 2.5 * WS, 2.1 * WS)
+    torso = ik.union(body_, shoulders, neck)
+    tdet = [('ink', [T(4.6, 5.4), T(4.0, 5.5)], 1.4, (0.2, 0.2)),                    # göbek
+            ('ink', [T(7.0, 1.0), T(4.0, 2.0), T(1.0, 1.5)], 0.9, (0.3, 0.5)),      # karın çizgisi
+            ('ink', [T(24.5, 0.0), T(25.5, 3.0), T(24.0, 5.5)], 0.9, (0.3, 0.3)),   # köprücük
+            ('shade', cv.wedge([T(16.0, -6.0), T(11.0, -4.6), T(6.0, -5.4)], 1.2, -1.0))]
+    cv.shape(torso, SKIN, z=0, sd=4.0, hi=0.45, details=tdet, bounce=0.4, cast=0.8, hatch=0.25)
+    # bel kuşağı: pul -> ten geçişi altın kemer; sarkan zincir ve zümrütler
+    belt = ik.isect(torso, cv.poly([T(-2.0, -12), T(-2.0, 12), T(4.0, 12), T(4.0, -12)]))
+    cv.shape(belt, GOLD, z=0.5, sd=1.0, hi=0.4, details=[('ink', [T(1.0, -7), T(1.2, 0), T(1.0, 7)], 0.9, (0.1, 0.1))])
+    for k in range(4):
+        q = T(0.0, -4.0 + k * 3.2)
+        cv.shape(cv.blob([q, add(q, (1.0, 0.0)), (add(q, up, -4.0 - (k % 2) * 1.5)[0] + 0.5, add(q, up, -4.0 - (k % 2) * 1.5)[1], 0.0)]), GOLD,
+                 z=0.6 + k * 0.01, sd=0.4, ol=0.7)
+    cv.fill(cv.ellipse(T(1.0, 5.0), 1.1 * WS, 1.1 * WS), GEM, z=0.7, glow=tuple(c * g * 0.7 for c in GEM_GLOW))
+    # altın pullu göğüslük
+    bp = cv.blob([T(21.5, 0.5), T(22.0, 6.8), T(19.0, 9.8), T(14.0, 10.6), T(10.2, 8.6), T(10.4, 3.0), T(13.0, -0.5), T(18.0, -1.0)])
+    bdet = []
+    for r in range(4):
+        for c in range(4):
+            q = T(20.0 - r * 2.6, 1.0 + c * 2.3 + (1.1 if r % 2 else 0.0))
+            bdet.append(('ink', [add(q, fw, -1.1), add(q, up, -1.0), add(q, fw, 1.1)], 0.8, (0.2, 0.2)))
+    cv.shape(bp, GOLD, z=1.0, sd=2.0, hi=0.5, details=bdet, cast=0.6)
+    cv.fill(cv.blob([T(16.5, 5.2), T(15.0, 6.6, 0.0), T(13.0, 5.4), T(15.0, 4.2, 0.0)]), GEM, z=1.05, glow=tuple(c * g for c in GEM_GLOW))
+    cv.stroke([T(21.0, 1.0), T(25.0, -1.5), T(28.0, -3.0)], 1.2, z=1.02, col=GOLD.shadow, taper=(0.1, 0.1))     # askı
+    # kolye: altın yarım ay + zümrüt damla
+    nk = [T(28.0, -1.0), T(25.5, 2.5), T(26.5, 5.5)]
+    cv.stroke(nk, 1.8, z=1.2, col=GOLD.base, taper=(0.1, 0.1))
+    cv.fill(cv.blob([T(25.8, 2.2), T(23.6, 2.8, 0.0), T(25.8, 3.4)]), GEM, z=1.25, glow=tuple(c * g for c in GEM_GLOW))
+    # boyuna dolanan küçük yılan
+    _hair_snake(cv, T(29.0, -3.0), -0.2 - lean, 9.0 * WS, p['wv'] + 1.0, 1.4, g, 7)
+    # ---- baş
+    mouth, ec = _head(cv, H, ht, p, 8.0, g)
+    # ---- yakın kol (zehir küresi)
+    e, h = _arm(cv, sh_f, p['arm'], p['el'], 14.0, True, p['claw'], g, p['orb'])
+    return {'hand': h, 'mouth': mouth}
+
+
+SHADE = dict(outer=0.65, rim=0.75, rim_col=(0.6, 1.0, 0.75), rim_dir=(0.6, -0.8), rim_w=1.6, form=(8.0, (0.72, 0.72, 0.86)))
+
+
+def render_frame(anim, i, ss=3):
+    n, fn = ANIMS[anim]
+    p = fn(i)
+    cv = bk.new_canvas(CELL, FEET, ss)
+    info = draw(cv, p)
+    rgba, nm, em = cv.finish(**SHADE)
+    return rgba, nm, em, info

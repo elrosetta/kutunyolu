@@ -24,8 +24,8 @@ BG = [('0_sky', 'layer_sky'), ('1_far', 'layer_far'), ('2_farmid', 'layer_farmid
       ('3_mid', 'layer_mid'), ('4_fog', 'layer_fogband'), ('5_shafts', 'layer_shafts'), ('6_near', 'layer_near')]
 
 MODS = {
-    'sahmeran': ('sahmeran_ink', 'sahmeran_ink_ground', 'sahmeran_ink_decor'),
-    'tamu': ('tamu_ink', 'tamu_ink_ground', 'tamu_ink_decor'),
+    'sahmeran': ('sahmeran_ink_ortam', 'sahmeran_ink_ground', 'sahmeran_ink_decor'),
+    'tamu': ('tamu_ink_ortam', 'tamu_ink_ground', 'tamu_ink_decor'),
 }
 
 

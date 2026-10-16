@@ -42,6 +42,13 @@ func _ready() -> void:
 		var dt: Node = load("res://tools/tests/dovus_testi.gd").new()
 		dt.set("main", self)
 		add_child(dt)
+	var sus := false
+	for arg in OS.get_cmdline_user_args():
+		sus = sus or String(arg).begins_with("--sus=")
+	if sus:  # stil v2 süs / toplanabilir / âlem çekimi (tools/tests/sus_testi.gd)
+		var st: Node = load("res://tools/tests/sus_testi.gd").new()
+		st.set("main", self)
+		add_child(st)
 	var firca := false
 	for arg in OS.get_cmdline_user_args():
 		firca = firca or String(arg).begins_with("--firca")
@@ -49,12 +56,24 @@ func _ready() -> void:
 		var ft: Node = load("res://tools/tests/firca_testi.gd").new()
 		ft.set("main", self)
 		add_child(ft)
+	# yaratık testleri: --yaratik_cikti=... verilirse poz galerisi (yaratik_galeri.gd), yoksa canlı yapay zekâlı
+	# çekim sahnesi ve Bozkurt biçimi (yaratik_testi.gd)
+	var galeri := false
+	for arg in OS.get_cmdline_user_args():
+		galeri = galeri or String(arg).begins_with("--yaratik_cikti")
+	for arg in OS.get_cmdline_user_args():
+		if String(arg) == "--yaratik" or String(arg).begins_with("--yaratik="):
+			var yt: Node = load("res://tools/tests/yaratik_galeri.gd" if galeri else "res://tools/tests/yaratik_testi.gd").new()
+			yt.set("main", self)
+			add_child(yt)
+			firca = true  # oyun kipinde başla (başlık ekranı yok)
+			break
 	for arg in OS.get_cmdline_user_args():
 		if String(arg) == "--boss":
 			_build_boss("kara_boru_han")
 		elif String(arg).begins_with("--boss="):
 			_build_boss(String(arg).trim_prefix("--boss="))
-	if auto_test or showcase or _ekran != "" or firca or OS.get_cmdline_user_args().has("--mekanik") or OS.get_cmdline_user_args().has("--dovus"):
+	if auto_test or showcase or _ekran != "" or firca or sus or OS.get_cmdline_user_args().has("--mekanik") or OS.get_cmdline_user_args().has("--dovus"):
 		hud.mode = "play"
 		get_tree().paused = false
 	else:
@@ -477,9 +496,11 @@ func _lab(delta: float) -> void:
 	var f := int(_sc_t * 60.0)
 	# v5: silaha özgü savuruşlar (hepsi sağa bakar; kontak sayfasında kol pozları karşılaştırılır)
 	var order := ["diag_down", "diag_up", "cross_x", "overhead_2h", "ground_drag", "sweep_low", "reverse_grip", "twirl", "windmill", "pole_thrust",
-		"pole_sweep", "reap", "rake", "whip_crack", "axe_hook", "iai", "uppercut_2h", "slam_2h", "stab_heavy", "helicopter"]
+		"pole_sweep", "reap", "rake", "whip_crack", "axe_hook", "iai", "uppercut_2h", "slam_2h", "stab_heavy", "helicopter",
+		"pole_thrust_lo", "pole_rise", "dual_l", "dual_r", "whip_side"]
 	var items := ["alp_kilici", "alp_kilici", "alp_kilici", "ulu_kilic", "ulu_kilic", "ayaz_kilici", "yatagan", "ay_palasi", "gurz", "kargi",
-		"teber", "erlik_tirpani", "kurt_pencesi", "kement", "savas_baltasi", "yildirim_kilici", "dag_cekici", "dag_cekici", "kargi", "teber"]
+		"teber", "erlik_tirpani", "kurt_pencesi", "kement", "savas_baltasi", "yildirim_kilici", "dag_cekici", "dag_cekici", "kargi", "teber",
+		"kargi", "kargi", "ikiz_bicak", "ikiz_bicak", "kement"]
 	if f >= 30 and f % 80 == 30 and _lab_i < order.size():
 		pl.facing = 1
 		pl.debug_swing(order[_lab_i], items[_lab_i])

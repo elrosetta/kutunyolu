@@ -75,6 +75,22 @@ func _add_leaves(path: String, n: int) -> void:
 	p.scale_amount_min = 0.35
 	p.scale_amount_max = 0.7
 	p.color = Color(spec.get("leaf_col", "1e0c1e"))
+	if spec.has("leaf_dir"):
+		# biyoma özgü süzülme (bozkır: rüzgârla yatay savrulan kırıntı, Kaf: tipide iri kar taneleri)
+		var ld: Array = spec["leaf_dir"]
+		var lg: Array = spec.get("leaf_grav", [0.0, 12.0])
+		var lv: Array = spec.get("leaf_vel", [16.0, 34.0])
+		var ls: Array = spec.get("leaf_scale", [0.35, 0.7])
+		p.direction = Vector2(float(ld[0]), float(ld[1]))
+		p.gravity = Vector2(float(lg[0]), float(lg[1]))
+		p.initial_velocity_min = float(lv[0])
+		p.initial_velocity_max = float(lv[1])
+		p.scale_amount_min = float(ls[0])
+		p.scale_amount_max = float(ls[1])
+		if spec.has("leaf_emit"):
+			var le: Array = spec["leaf_emit"]
+			p.position = Vector2(float(le[0]), float(le[1]))
+			p.emission_rect_extents = Vector2(float(le[2]), float(le[3]))
 	var mat := CanvasItemMaterial.new()
 	mat.light_mode = CanvasItemMaterial.LIGHT_MODE_UNSHADED
 	p.material = mat

@@ -42,11 +42,16 @@ static func font() -> Font:
 
 
 static func width(s: String, sc := 1) -> float:
+	if InkUI.on():
+		return InkUI.width(s, sc)
 	return font().get_string_size(s, HORIZONTAL_ALIGNMENT_LEFT, -1, FS * sc).x
 
 
 static func text(ci: CanvasItem, pos: Vector2, s: String, col: Color, sc := 1, align := HORIZONTAL_ALIGNMENT_LEFT, w := -1.0, style := 1) -> void:
 	## pos: satır kutusunun SOL ÜST köşesi. style 0: düz, 1: gölge, 2: tam dış çizgi.
+	if InkUI.on():
+		InkUI.text(ci, pos, s, col, sc, align, w, style)
+		return
 	var x := pos.x
 	if w > 0.0 and align != HORIZONTAL_ALIGNMENT_LEFT:
 		var tw := width(s, sc)
@@ -84,6 +89,9 @@ static func rect(ci: CanvasItem, r: Rect2, col: Color) -> void:
 
 static func panel(ci: CanvasItem, r: Rect2, edge := EDGE, fill := INK, drop := true) -> void:
 	## Çentikli köşeli panel: 1 px gölge, iç dolgu, kenarda açık üst / koyu alt çizgi.
+	if InkUI.on():
+		InkUI.panel(ci, r, edge, fill, drop)
+		return
 	var x := roundf(r.position.x)
 	var y := roundf(r.position.y)
 	var w := roundf(r.size.x)
@@ -107,6 +115,9 @@ static func panel(ci: CanvasItem, r: Rect2, edge := EDGE, fill := INK, drop := t
 
 static func fancy_panel(ci: CanvasItem, r: Rect2, edge := EDGE, fill := INK) -> void:
 	## Süslü panel: köşelerde koçboynuzu motifi
+	if InkUI.on():
+		InkUI.fancy_panel(ci, r, edge, fill)
+		return
 	panel(ci, r, edge, fill)
 	var x := roundf(r.position.x)
 	var y := roundf(r.position.y)
@@ -120,6 +131,9 @@ static func fancy_panel(ci: CanvasItem, r: Rect2, edge := EDGE, fill := INK) -> 
 
 static func horn(ci: CanvasItem, p: Vector2, col: Color, dir := 1) -> void:
 	## Küçük koçboynuzu (kilim motifi), 5x4 px
+	if InkUI.on():
+		InkUI.horn(ci, p, col, dir)
+		return
 	var pts := [Vector2(0, 0), Vector2(1, 0), Vector2(2, 0), Vector2(0, 1), Vector2(0, 2), Vector2(1, 2), Vector2(2, 1), Vector2(3, 3), Vector2(4, 3)]
 	for q in pts:
 		var qx: float = q.x if dir > 0 else 4.0 - q.x
@@ -128,6 +142,9 @@ static func horn(ci: CanvasItem, p: Vector2, col: Color, dir := 1) -> void:
 
 static func divider(ci: CanvasItem, x: float, y: float, w: float, col := EDGE) -> void:
 	## Ortasında elmas olan ince ayraç
+	if InkUI.on():
+		InkUI.divider(ci, x, y, w, col)
+		return
 	var cx := roundf(x + w / 2.0)
 	ci.draw_rect(Rect2(roundf(x), roundf(y), roundf(w / 2.0) - 4, 1), Color(col, 0.6))
 	ci.draw_rect(Rect2(cx + 4, roundf(y), roundf(w / 2.0) - 4, 1), Color(col, 0.6))
@@ -137,6 +154,9 @@ static func divider(ci: CanvasItem, x: float, y: float, w: float, col := EDGE) -
 
 
 static func icon(ci: CanvasItem, name: String, pos: Vector2, col: Color, sc := 1, shadow := true) -> void:
+	if InkUI.on() and InkUI.has_icon(name):
+		InkUI.icon(ci, name, pos, col, sc, shadow, icon_size(name) * sc)
+		return
 	var rows: Array = ICONS.get(name, [])
 	var p := pos.round()
 	for pass_i in (2 if shadow else 1):
@@ -162,8 +182,18 @@ static func icon_size(name: String) -> Vector2:
 	return Vector2(String(rows[0]).length() if rows.size() > 0 else 0, rows.size())
 
 
+static func key_w(k: String) -> float:
+	## Tuş rozetinin genişliği (yerleşim için)
+	if InkUI.on():
+		return InkUI.key_w(k)
+	return maxf(9.0, width(k) + 4.0)
+
+
 static func key_cap(ci: CanvasItem, pos: Vector2, k: String, col := GOLD, active := true) -> void:
 	## Tuş rozeti: [J]
+	if InkUI.on():
+		InkUI.key_cap(ci, pos, k, col, active)
+		return
 	var w := maxf(9.0, width(k) + 4.0)
 	var r := Rect2(pos.round(), Vector2(w, 11))
 	ci.draw_rect(Rect2(r.position + Vector2(1, 1), r.size), SHADOW)
@@ -181,6 +211,14 @@ static func ongun_stripe(ci: CanvasItem, r: Rect2, onguns: Array, active := "") 
 	## Yuva altındaki renk şeridi: tek ya da iki renk (Dead Cells gibi); etkin olan parlak.
 	if onguns.is_empty():
 		return
+	if InkUI.on():
+		var cs: Array = []
+		var dm: Array = []
+		for o in onguns:
+			cs.append(ongun_col(o))
+			dm.append(onguns.size() > 1 and active != "" and o != active)
+		InkUI.ongun_stripe(ci, r, cs, dm)
+		return
 	var n := onguns.size()
 	var w := roundf(r.size.x / n)
 	for i in n:
@@ -195,6 +233,8 @@ static func ongun_stripe(ci: CanvasItem, r: Rect2, onguns: Array, active := "") 
 
 static func weapon(ci: CanvasItem, it: Dictionary, center: Vector2, max_size: Vector2, sc := 1.0) -> void:
 	## Silah sprite'ını sıkı kırpılmış hâliyle ortalayarak çizer; sığmazsa küçültür.
+	if InkUI.on() and InkUI.weapon(ci, it, center, max_size, sc):
+		return
 	if it.is_empty() or not Data.has_weapon_sprite(it["id"]):
 		return
 	var reg := Data.weapon_icon_rect(it["id"], it["material"])
@@ -210,6 +250,9 @@ static func weapon(ci: CanvasItem, it: Dictionary, center: Vector2, max_size: Ve
 
 
 static func bar(ci: CanvasItem, r: Rect2, k: float, col: Color, bg := Color(0.12, 0.08, 0.14)) -> void:
+	if InkUI.on():
+		InkUI.bar(ci, r, k, col, bg)
+		return
 	var x := roundf(r.position.x)
 	var y := roundf(r.position.y)
 	var w := roundf(r.size.x)

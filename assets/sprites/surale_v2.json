@@ -1,0 +1,77 @@
+{
+ "cell": [
+  512,
+  480
+ ],
+ "origin": [
+  200,
+  464
+ ],
+ "texel": 4.0,
+ "filter": "linear",
+ "anims": {
+  "idle": {
+   "row": 0,
+   "frames": 4,
+   "fps": 8,
+   "loop": true,
+   "data": [
+    {},
+    {},
+    {},
+    {}
+   ],
+   "arm": true
+  },
+  "walk": {
+   "row": 1,
+   "frames": 6,
+   "fps": 8,
+   "loop": true,
+   "data": [
+    {},
+    {},
+    {},
+    {},
+    {},
+    {}
+   ],
+   "arm": true
+  },
+  "windup": {
+   "row": 2,
+   "frames": 2,
+   "fps": 8,
+   "loop": false,
+   "data": [
+    {},
+    {}
+   ],
+   "arm": true
+  },
+  "grab": {
+   "row": 3,
+   "frames": 2,
+   "fps": 10,
+   "loop": false,
+   "data": [
+    {},
+    {}
+   ],
+   "arm": true
+  },
+  "hurt": {
+   "row": 4,
+   "frames": 1,
+   "fps": 10,
+   "loop": false,
+   "data": [
+    {}
+   ],
+   "arm": true
+  }
+ },
+ "glow": true,
+ "page_rows": 8,
+ "pages": 1
+}

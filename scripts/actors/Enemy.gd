@@ -163,8 +163,11 @@ func _ready() -> void:
 	add_child(cs)
 	anim = SpriteAnim.new()
 	add_child(anim)
-	anim.setup(sprite_kind)
-	if def.has("tint"):
+	# stil v2: düşmanın kendi kimliğiyle çizilmiş çeşitlemesi varsa (ör. kan_yarasasi_v2) onu kullan; renkleri
+	# çizimde olduğundan biyom tonu uygulanmaz. v1'de stil_id kimliği aynen döndürür: değişiklik yok.
+	var own_v2 := kind != sprite_kind and Data.stil_id(kind, "res://assets/sprites/%s.json") != kind
+	anim.setup(kind if own_v2 else sprite_kind)
+	if def.has("tint") and not own_v2:
 		var tt: Array = def["tint"]
 		base_tint = Color(tt[0], tt[1], tt[2])
 		anim.set_tint(base_tint)
@@ -389,8 +392,24 @@ func take_hit(d: float, opts: Dictionary) -> bool:
 	var kb := float(opts.get("kb", 60.0))
 	if kb > 140.0 and not heavy:
 		_slam_t = 0.3
-	if not heavy or opts.get("stagger", false) or crit:
-		hurt_t = 0.16 if not heavy else 0.08
+	var big_hit: bool = big or opts.get("stagger", false) or opts.get("heavy", false)
+	var now := Game.clock()
+	if now - _flinch_last > float(POISE["window"]):
+		_flinch_n = 0
+	var armored: bool = now < _poise_until and not big_hit and not is_boss
+	if armored and (not heavy or opts.get("stagger", false) or crit):
+		# direniyor: hasar ve küçük itme, sarsılma yok, hazırlık sürer
+		_flinch_last = now
+		velocity.x = dir * kb * 0.2
+		vis_scale = Vector2(1.08, 0.94)
+	elif not heavy or opts.get("stagger", false) or crit:
+		_flinch_last = now
+		_flinch_n += 1
+		if _flinch_n >= int(POISE["n_elite"] if elite else POISE["n"]) and not is_boss:
+			_flinch_n = 0
+			_poise_until = now + float(POISE["armor"])
+			FX.ring(center(), 14.0, Color(0.95, 0.9, 0.8, 0.8), 0.16)
+		hurt_t = (float(POISE["flinch_big"]) if big_hit else float(POISE["flinch"])) if not heavy else 0.08
 		# v17 takas yok: sarsılan yaratığın süren saldırısı (sıçrama, hücum, çakma teması) kesilir; vurduğun düşman
 		# aynı anda sana çarpıp can götürmez. Ağırlar ve bosslar sarsılmadıkça saldırısını sürdürür (önceden okunur).
 		if contact and not is_boss:
@@ -398,7 +417,7 @@ func take_hit(d: float, opts: Dictionary) -> bool:
 		velocity.x = dir * kb * (0.4 if heavy else 1.0)
 		if not flying and not heavy and not opts.has("launch"):
 			velocity.y = minf(velocity.y, -kb * 0.25)
-		if state == "windup" and not heavy:
+		if state == "windup" and not heavy and big_hit:
 			state = "recover"
 			st = 0.3
 		if anim.has_anim("hurt"):
@@ -520,6 +539,13 @@ func _die_sfx() -> String:
 
 var realm := ""  # v12: "" bu dünya, "yer" Erlik'in gölge ruhu (yalnızca yeraltında var)
 var _hit_tilt := 0.0
+## v18 duruş (Dead Cells esinli): hızlı zincirler yaratığı sonsuza dek kilitlemesin. Kısa sürede art arda sarsılan
+## yaratık bir an "diretir" (sarsılmaz, hazırlığı sürer); büyük vuruş (bitiriş, kritik, ağır) direnci yine kırar.
+## Hafif vuruş hazırlığı iptal etmez, yalnızca geciktirir (sarsılma süresince yapay zekâ durur).
+const POISE := {"n": 4, "n_elite": 2, "window": 0.9, "armor": 0.75, "flinch": 0.12, "flinch_big": 0.2}
+var _flinch_n := 0
+var _flinch_last := -9.0
+var _poise_until := -9.0
 var _feel_done := false  # son darbenin kamera/ses hissini saldıran verdi mi (Player yakın vuruş)
 var _slam_t := 0.0
 var _bounced := false

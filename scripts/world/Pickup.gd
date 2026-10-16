@@ -14,6 +14,9 @@ var _grounded := false
 var spr: Sprite2D
 var light: PointLight2D
 var shadow: GroundShadow
+## stil v2: mürekkep-cel sprite'lar (SusV2 atlası); _draw yalnızca nadirlik zerrelerini çizer
+var ink_spr: Sprite2D
+var ink_base: Sprite2D   # kaide (eşya / tılsım)
 
 ## Yerdeki nesnelerin temas gölgesi genişliği (piksel); süzülen ruhlar (don, ruh_kusu, lutuf) gölgesiz
 const SHADOW_W := {"item": 18.0, "tilsim": 16.0, "parsomen": 14.0, "sifa": 10.0, "gold": 6.0, "kut": 6.0}
@@ -44,6 +47,55 @@ func _ready() -> void:
 		light = level.add_light(Vector2.ZERO, Color(0.75, 0.55, 1.0), 90.0, 1.0, self)
 	elif kind == "ruh_kusu":
 		light = level.add_light(Vector2.ZERO, Color(1.0, 0.85, 0.5), 50.0, 0.6, self)
+	if SusV2.on():
+		_ink_setup()
+
+
+func _ink_setup() -> void:
+	var nm: String = {"gold": "altin", "kut": "kut", "sifa": "sifa", "tilsim": "tilsim_muska", "parsomen": "parsomen",
+		"don": "don", "ruh_kusu": "ruh_kusu_0"}.get(kind, "")
+	if nm != "":
+		ink_spr = SusV2.sprite(nm, false, Color(1.3, 1.3, 1.3))
+		if ink_spr:
+			add_child(ink_spr)
+	if kind == "tilsim":
+		ink_base = SusV2.sprite("tilsim_kaide")
+	elif kind == "item":
+		ink_base = SusV2.sprite("kaide")
+		if ink_base:
+			ink_base.position = Vector2(0, 16)
+	if ink_base:
+		add_child(ink_base)
+		move_child(ink_base, 0)
+
+
+func _process(_delta: float) -> void:
+	if ink_spr == null and ink_base == null:
+		return
+	match kind:
+		"gold":
+			ink_spr.scale.x = 0.25 * maxf(0.18, absf(sin(_t * 6.0)))
+			ink_spr.position.y = -2.5
+		"kut":
+			var p := 1.0 + sin(_t * 8.0) * 0.12
+			ink_spr.scale = Vector2(p, p) * 0.25
+			ink_spr.position.y = -2.0
+		"sifa":
+			ink_spr.position.y = sin(_t * 3.0) * 1.5
+		"tilsim":
+			ink_spr.position = Vector2(0, -20 + sin(_t * 2.2) * 2.0)
+			ink_spr.rotation = sin(_t * 1.6) * 0.12
+		"parsomen":
+			ink_spr.position = Vector2(0, -10 + sin(_t * 3.0) * 1.5)
+		"don":
+			var p2 := 1.0 + sin(_t * 5.0) * 0.1
+			ink_spr.scale = Vector2(p2, p2) * 0.25
+			ink_spr.rotation = sin(_t * 2.0) * 0.15
+		"ruh_kusu":
+			SusV2.set_region(ink_spr, "ruh_kusu_0" if sin(_t * 14.0) > 0.0 else "ruh_kusu_1")
+		"item":
+			if ink_base:
+				ink_base.visible = pedestal
 
 
 func reset_ground() -> void:
@@ -132,7 +184,7 @@ func _physics_process(delta: float) -> void:
 				return
 		queue_redraw()
 		return
-	if pl and not pl.dead and _t > 0.45 and pl.center().distance_to(global_position) < 90.0:
+	if pl and not pl.dead and _t > 0.45 and pl.center().distance_to(global_position) < 90.0 and _reachable():
 		global_position = global_position.move_toward(pl.center(), (220.0 + 600.0 * _t) * delta)
 		if pl.center().distance_to(global_position) < 10.0:
 			if kind == "sifa":
@@ -170,6 +222,13 @@ func _physics_process(delta: float) -> void:
 	queue_redraw()
 
 
+func _reachable() -> bool:
+	## Gizli oda ganimeti yalnızca yeraltından / odanın içinden alınır (Alem.loot_open)
+	if not has_meta("oda") or level == null or level.get("alem") == null:
+		return true
+	return level.alem.loot_open(self)
+
+
 func _collect_blueprint(pl: Node) -> void:
 	var base := Data.find_item(item_id)
 	var fresh := Game.add_blueprint(item_id)
@@ -184,6 +243,13 @@ func _collect_blueprint(pl: Node) -> void:
 
 
 func _draw() -> void:
+	if ink_spr or ink_base:
+		if kind == "item":
+			var colr := Color.from_string(Data.items["rarities"][int(item.get("rarity", 0))]["color"], Color.WHITE)
+			for k in 3:
+				var a := _t * 2.0 + k * TAU / 3.0
+				draw_circle(Vector2(cos(a) * 14.0, -6.0 + sin(a) * 4.0), 1.0, colr, true, -1.0, true)
+		return
 	match kind:
 		"don":
 			# mor ruh: iç içe halkalar, yörüngede dönen üç zerre

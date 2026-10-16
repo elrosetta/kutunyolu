@@ -50,13 +50,17 @@ var _last_dir := Vector2.RIGHT
 
 static func acquire(parent: Node) -> InkTrail:
 	while not _pool.is_empty():
-		var t: InkTrail = _pool.pop_back()
-		if is_instance_valid(t) and t.get_parent() == parent:
+		# havuzdaki iz bölüm değişince (FX kökü silinince) serbest kalmış olabilir: tipli atamadan önce doğrula
+		var v: Variant = _pool.pop_back()
+		if not is_instance_valid(v):
+			continue
+		var t := v as InkTrail
+		if t != null and t.get_parent() == parent and not t.is_queued_for_deletion():
 			t._reset()
 			t.visible = true
 			t.set_process(true)
 			return t
-		elif is_instance_valid(t):
+		elif t != null:
 			t.queue_free()
 	var n := InkTrail.new()
 	parent.add_child(n)
@@ -103,7 +107,7 @@ const HEAVIES := ["gurz", "civili_topuz", "dag_cekici", "kor_cekici", "savas_bal
 const POLES := ["teber", "erlik_tirpani", "kayin_asasi"]
 const SPEARS := ["kargi", "tulpar_mizragi"]
 const WHIPS := ["kement", "od_kamcisi", "erlik_zinciri"]
-const THRUSTS := ["thrust", "pole_thrust", "lunge", "lunge_long", "stab_heavy", "flurry"]
+const THRUSTS := ["thrust", "pole_thrust", "pole_thrust_lo", "lunge", "lunge_long", "stab_heavy", "flurry"]
 const WHIP_SW := ["whip_crack", "whip_side"]
 
 

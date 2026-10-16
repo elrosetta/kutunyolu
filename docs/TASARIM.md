@@ -568,7 +568,7 @@ ileri, -470 yukarı), `crit` (adım kesin kritik), `tm`.
 
 | Silah | Tempo / ağırlık | Zincir | Bekleme bitirişi | Ağır (basılı tut) | İmza | Gövdeler |
 |---|---|---|---|---|---|---|
-| Alp Kılıcı | dengeli, 0,45 | diag_down → horiz → step_down (adım) | cross_x Alp Çaprazı | overhead_2h | 3. vuruş kritik (ucuncu_vurus) | down, horiz, overhead_2h |
+| Alp Kılıcı | dengeli, 0,45 | diag_down → diag_up (v18) → step_down (adım) | cross_x Alp Çaprazı | overhead_2h | 3. vuruş kritik (ucuncu_vurus) | down, horiz, overhead_2h |
 | Yıldırım Kılıcı | katana, 0,45 | iai → backstep → lunge | flurry | iai → şimşek hamlesi | geri sıçrayıp hücum | horiz, backstep, lunge |
 | Pala | kasap, 0,5 | diag_down → back → spin_2h | lunge Pala Akını | reap + pull Kanlı Kanca | **çarkta J basılı: 1,2 sn döner, iki yan** | down, horiz, spin_2h |
 | Yatağan | düellocu, 0,3 | reverse_grip → horiz → backstep → lunge | flurry | iai dash | **3. vuruş çekilirken kesin kritik** + ivme | horiz, backstep, lunge |
@@ -587,7 +587,7 @@ ileri, -470 yukarı), `crit` (adım kesin kritik), `tm`.
 | İkiz Balta | 0,8 | dual_l → dual_r (x2) → spin_2h | helicopter | spin_2h spin_hold | kanama; çark basılı sürer | dual, spin_2h |
 | Teber | 0,65 | pole_sweep → sweep_low (çelme) → overhead_2h | helicopter | sweep_low fırlat | geniş yay | horiz, sweep_low, overhead_2h |
 | Erlik Tırpanı | 0,8 | reap (**pull 240**) → sweep_low → spin_2h | reap pull 320 Ruh Biçen | reap pull 340 | **biçme düşmanı kendine çeker** | horiz, sweep_low, spin_2h |
-| Kargı | 0,5 | pole_thrust → pole_thrust → lunge_long | lunge | stab_heavy | **↑+J sırık atlayışı**, koşarken hücum kritiği | thrust, lunge_long, uppercut |
+| Kargı | 0,5 | pole_thrust → pole_thrust_lo → pole_rise (v18) | lunge | stab_heavy | **↑+J sırık atlayışı**, koşarken hücum kritiği | thrust, lunge_long, uppercut |
 | Tulpar Mızrağı | 0,5 | pole_thrust(+30) → pole_thrust(+30) → lunge_long(+90) | helicopter | stab_heavy dash 160 | her saplama ileri taşır, koşarken kritik | thrust, lunge_long |
 | Ulu Kayın Asası | 0,65 | pole_sweep → twirl → uppercut_2h | helicopter | pole_sweep stun | geri itme 1,8x, duvara çarptır | horiz, spin, uppercut |
 | İkiz Bıçak | hançer, 0,15 | dual_l → dual_r → rake → cross_dash (**through**) | flurry | cross_dash through | **4. vuruş çapraz kesikle içinden geçiş** | dual, down |
@@ -663,6 +663,125 @@ süreler bilerek değişmedi (silah temposu): ikiz bıçak 117 / 150 ms, yatağa
 Ulu Kılıç ~600 / ~900, Dağ Çekici ~670 / ~1000 ms (ölçüm ±2 kare oynar). `--klip` eki kısa bir gösteri oynatır
 (`--write-movie` ile çekim için: koşudan zincir, arkadakine dönüş, yuvarlanmadan Dönüş Kesiği, havada yön, zıplama ara belleği).
 
+## Dövüş temposu ve savuruş biçimleri (v18): Dead Cells esinli
+
+Geri bildirim: "silahların kombo hızları ve savuruşları iyi görünmüyor; art arda kombolar yük varmış gibi sıkıyor; Dead Cells
+kadar akıcı olsun, ağır silah ağır ama yine çevik." v17 girdileri düzeltmişti ama zamanlamaya dokunmamıştı. Ölçünce yük hissinin
+kaynağı: (1) her savuruşun süresi `1 / aps` idi ve sabit oranlarla bölünüyordu (hazırlık %30, toparlanma %44): Alp Kılıcı'nda
+basıştan temasa 200-233 ms, zincir aralığı 300-367 ms; Dağ Çekici'nde 683 ms / 1 sn; (2) zincirin her vuruşu kolu önce
+**dinlenme pozuna geri götürüp** oradan yeniden geriyordu (her vuruşta bir "hazırlık duraklaması"); (3) isabet bıçak daha
+hazırlıktayken (vuruş penceresinin ilk karesinde) sayılıyor, duraklama bıçak düşmana varmadan donuyordu.
+
+### Araştırma (kaynaklı)
+
+* **Dead Cells silah verisi** (deadcells.wiki.gg, `ItemDetails` şablonu: `charge` basıştan vuruşa, `lock` vuruştan sonraki
+  girdiye kadar "animasyon kilidi"; DPS = kombo hasarı / kombo süresi, örn. Balanced Blade 215 / 1,46 sn ≈ 147, yani süreler
+  oyunun verisi): Balanced Blade 0,10/0,05 · 0,10/0,15 · 0,07/0,05 · 0,07/0,15 · 0,07/0,05 · bitiriş 0,30/0,30 sn;
+  Rapier 0,2/0,1 · 0,1/0 · 0,1/0 · 0,1/0,25; Twin Daggers 0,2/0 · 0,25/0 · 0,37/0,25; Assassin's Dagger 0,2/0 · 0,2/0,1;
+  War Spear 0,38/0 · 0,1/0 · 0,2/0,2 (ilk hazırlık 2.4 yamasında 0,45 → 0,38); Impaler 0,2/0; Wrenching Whip 0,2/0,1 ·
+  0,2/0,1 · 0,3/0,3; Nutcracker 0,5/0,2 · 0,4/0,2 · 0,5/0,1; Broadsword 0,4/0,2 · 0,5/0,25 · 0,5/0,4. Desen: hafif silahta
+  hazırlık 0,07-0,2 sn (4-12 kare), kilit 0-0,15; bitiriş ~0,3/0,3 ve kritik / büyük hasar ondadır; ağırda hazırlık 0,4-0,5,
+  kilit 0,2-0,4; bekleme süresi neredeyse hep 0. Kaynaklar: https://deadcells.wiki.gg/wiki/Balanced_Blade ,
+  https://deadcells.wiki.gg/wiki/Broadsword , https://deadcells.wiki.gg/wiki/Twin_Daggers ,
+  https://deadcells.wiki.gg/wiki/War_Spear , https://deadcells.wiki.gg/wiki/Nutcracker ,
+  https://deadcells.wiki.gg/wiki/Wrenching_Whip , https://deadcells.wiki.gg/wiki/Rapier , https://deadcells.wiki.gg/wiki/Mechanics
+* **Animasyon hattı** (Thomas Vasseur, Game Developer 2018, "Art Design Deep Dive: Using a 3D pipeline for 2D animation in
+  Dead Cells", https://www.gamedeveloper.com/production/art-design-deep-dive-using-a-3d-pipeline-for-2d-animation-in-i-dead-cells-i-):
+  3B iskelet → kenar yumuşatmasız küçük çizim (~50 px karakter), "olabildiğince az kare", poz-pozdan; ara kareler
+  anahtarların arasına değil yalnızca önüne / arkasına eklenir; hareket hissini efektler verir; bir silahı zayıflatmak =
+  animasyonunu yavaşlatmak (anahtarlar dakikalar içinde onlarca kez yeniden zamanlanır).
+* **Bénard (Motion Twin) söyleşileri** (https://80.lv/articles/dead-cells-hidden-tricks-that-make-the-game-feel-fair ,
+  https://dtf.ru/51865-kak-dead-cells-meshaet-vam-umeret , GDC 2019 haberi): denetimler asla zorluğun kaynağı değil;
+  30-40 gizli oyuncu yardımı (atlamadan sonra düşmana kendiliğinden dönme, saldırıda serbest dönüş, otomatik nişan);
+  saldırıyı iptal edip kaçabilme sonradan eklendi (ikincil kaynak).
+* **Sendeleme** (wiki Mechanics): saldırısının ortasında vurulan düşmanın vuruş anı gecikir ama saldırı iptal olmaz;
+  gecikme kullanılan silahın kilidiyle ölçeklenir. **Yuvarlanma** 0,4 sn, bekleme 0,37; komboyu sıfırlamaz; yuvarlanmayla
+  kilit kesilip kombo sürdürülebilir (wiki Bible sayfası).
+* **Başka oyunlar**: Hollow Knight çivi 0,41 sn bekleme / Quick Slash 0,25 (https://hollowknight.wiki/w/Quick_Slash);
+  Celeste donmaları 0,05 sn atılma, 0,1 patlama (https://raw.githubusercontent.com/NoelFB/Celeste/master/Source/Player/Player.cs);
+  Sakurai: vuran ve vurulan aynı süre donar, hasarla ölçeklenir, üst sınırı vardır
+  (https://sourcegaming.info/2015/11/11/thoughts-on-hitstop-sakurais-famitsu-column-vol-490-1/); Smash hitlag formülleri
+  (https://www.ssbwiki.com/Hitlag).
+* Bulunamayanlar: Dead Cells'in duraklama (hitstop) / sarsıntı milisaniyeleri ve girdi ara belleği resmî olarak
+  belgelenmemiş; bizim değerler v14 kademeleri üstüne ölçülerek kondu.
+
+### Bizim sürümümüz (`Player.TEMPO`, `_phase_times`, `_atk_advance`)
+
+Dört evre gerçek saniye; savuruşun normalize anahtarları (k) zaman bükmesiyle bunlara oturur: **hazırlık** 0 → hit[0],
+**süpürme** hit[0] → `ck` (bıçağın son hızlı yayı, 2-3 kare, smear karesi), **kilit** `ck` → hit[1] (isabet `ck`de
+açılır; kilidin ilk yarısında takip / aşma, ikinci yarısında oturma; sonunda zincir ve iptal), **toparlanma** hit[1] → 1
+(yalnız girdi yoksa görünür). Eşyanın hızı (malzeme, kalite, "hız" niteliği, ivme) süreleri taban aps'e oranla ölçekler.
+
+| Sınıf (`_tempo_class`) | basış→temas ilk / zincir | süpürme | kilit | tutuş ilk / zincir | silahlar |
+|---|---|---|---|---|---|
+| hançer | 67 / 50 ms | 25 | 67 | 0 | ikiz bıçak, böri, kurt pençesi, ay palası |
+| düello | 83 / 67 | 30 | 83 | 0 | yatağan, rüzgâr kılıcı |
+| kılıç | 100 / 83 | 33 | 100 | 17 / 0 | alp, pala, ruh, yılan, ayaz, yıldırım |
+| mızrak | 117 / 83 | 33 | 83 | 17 / 0 | kargı, tulpar |
+| kırbaç | 150 / 117 | 33 | 100 | 17 / 0 | kement, od kamçısı |
+| uzun sap | 167 / 133 | 40 | 117 | 33 / 0 | teber, tırpan, kayın asası |
+| ağır | 250 / 200 | 50 | 150 | 50 / 17 | gürz, topuz, savaş baltası, ikiz balta |
+| dev | 330 / 267 | 50 | 200 | 67 / 33 | ulu kılıç, dağ / kor çekici, bozgun kılıcı |
+
+Zincir sonu (`last`) Dead Cells bitirişi gibi: hazırlık ×1,3, kilit ×1,5 (çarkta ×1,1). Bekleme bitirişi: hazırlık ×1,5.
+Savuruş çarpanları: çark / çok vuruşlu savuruşlar yayı kilitte döndürür (`ss`: spin 2,2, spin_2h 2,2, helicopter 2,6,
+flurry 3, cross_x / cross_dash 2, rake 1,8, twirl 2); sıçramalı çakma `ws` 1,6, yel değirmeni 1,4. Ağır saldırı tam şarjı
+0,85 → 0,55 sn, tanıma 0,22 → 0,2 sn; kılıç, pala ve mızrak da (ağırlık ≤ 0,5) dokunuşta beklemez (100 ms dokunuşta Alp
+vuruşu 150 → 83 ms), basılı kalırsa ağır şarj toparlanmadan açılır.
+
+**Savuruş biçimleri:** her tek vuruşlu savuruşa `ck` (temas) eklendi; takip pozu kilidin ilk yarısına çekildi, kilidin
+sonuna dinlenmeye %12 yaklaşan bir oturma anahtarı kondu (vuruş → aşma → oturma, Dead Cells'in tutulan darbe pozu gibi).
+Hızlanan evre kübik yerine kare: 2-3 karelik süpürmede ara kare yayın ortasında görünür (kübikte bıçak tek karede
+ışınlanıyordu). **Zincir akışı:** `_atk_pose` zincirdeki savuruşun hazırlığını önceki savuruşun son çizilen pozundan
+başlatır (açılar en kısa yoldan; çark 6,9 rad'dan geri sarılmaz); zincirler bir vuruşun bittiği yer ötekinin hazırlığı
+olacak biçimde dizildi: Alp Kılıcı çapraz iniş (yukarıdan aşağı) → çapraz yükseliş (aşağıdan yukarı) → adımlı baş üstü
+iniş; Kargı saplama → alçak saplama (`pole_thrust_lo`, diz hizası, uzun hamle gövdesi) → alttan baş üstüne süpürme
+(`pole_rise`, hafif kaldırır); Dağ Çekici baş üstü iniş → aparkat (yukarıda biter) → yeni iniş yukarıdan başlar.
+Hançer (`dual_l` / `dual_r`) ve kırbaç yan şaklaması (`whip_side`) ekrana doğru "kısalan" yatay savuruş yerine ekran
+düzleminde hilal: iniş / yükseliş dönüşümlü (uç yolunu izleyen fırça izi zikzak çiziyordu). Sırık süpürmesinin takibi
+yumuşatıldı (iz köşe yapıyordu). Savuruşta gövde: hazırlıkta geriye toplanır, vuruşta öne yüklenir (ağırlıkla).
+Çark hazırlığında (`spin_2h`, `helicopter`, `windmill`) iz vuruşun hemen öncesinde başlar (yerde sürüklenen kılıç yassı
+leke bırakıyordu). **İz örneklemesi:** karede süpürülen açıya göre 4-28 ara örnek (~0,06 rad'da bir; sabit 4 örnek hızlı
+yayda hilali çokgenleştiriyordu); InkTrail ayrıca kabza çevresinde açıyla ara örnek ekler.
+
+**Vuruş hissi:** isabet `ck`de (bıçak düşmanın üstündeyken) başlar, duraklama orada donar. Orta kademe (zincir sonu, ağır
+silah) duraklaması ağırlıkla: kılıç 55 ms → dev silah 80 ms; hafif 22-35 ms, büyük 105 ms (v14) aynı.
+
+**Düşman duruşu (`Enemy.POISE`, Dead Cells sendeleme kuralı):** hafif vuruş hazırlığı iptal etmez, sarsılma süresince
+geciktirir (0,12 sn; büyük vuruş 0,2 sn ve hazırlığı keser). 0,9 sn içinde 4 sarsılmadan sonra (seçkinde 2) yaratık
+0,75 sn "diretir": hasar alır, az itilir, sarsılmaz, hazırlığı sürer (küçük halka). Bitiriş, kritik ve ağır saldırı
+direnci kırar. Böylece hızlı zincirler sonsuz kilit yaratmaz; boss kuralı değişmedi.
+
+**Ölçüm** (`--dovus --boss`, v1 ve v2, 60 Hz, ±1-2 kare; "temas" = isabetin başladığı kare; zincir aralığı = 20 Hz seri
+basışta ardışık temaslar arası, düşmansız; "önce" aynı test betiğiyle 199b74e'de):
+
+| Silah | basış→temas önce → sonra | basış→iptal edilebilir | zincir aralığı önce → sonra |
+|---|---|---|---|
+| İkiz Bıçak | 117 → 83-100 ms | 150 → 150-167 | 117-167 → 100-117 |
+| Yatağan | 167 → 100-117 | 250 → 183-200 | 200-217 → 167 |
+| Alp Kılıcı | 200-233 → 133 | 300-367 → 233 | 300-367 → 200-250 |
+| Pala | 233 → 133 | – | 267-417 → 200 |
+| Kargı | 233-300 → 150 | 367-400 → 233 | 400-450 → 183-217 |
+| Kement | 283 → 183 | – | 400-433 → 267-300 |
+| Teber / Tırpan | 350 → 166-216 | – | 450-650 → 250-317 |
+| Savaş Baltası | 350 → 300 | – | 367-433 → 433-467 (kanca + fırlatma) |
+| Gürz | (seri basışta takılıyordu) → 316 | – | → 500 |
+| Ulu Kılıç | 583-600 → 350-400 | 883-900 → 600-617 | (takılıyordu) → 483-517 |
+| Dağ Çekici | 667-683 → 366-417 | 1000-1033 → 650-700 | (takılıyordu) → 533-583 |
+
+Hata düzeltmesi: ağır silahta hazırlık sırasında **yeni** basış, "basılı tutma bekleyişi"ni yeniden tetikleyip hazırlığı
+geri sarıyordu (seri basışta gürz / ulu / dağ çekici zinciri ilerlemiyordu; aynı testte eski sürüm TAKILMA=3). Bekleyiş
+artık yalnızca savuruşu başlatan basış hâlâ sürüyorsa. İptaller değişmedi: hazırlıkta yuvarlanma 1 kare, yuvarlanmadan
+Dönüş Kesiği aynı kare, ardışık yuvarlanma 100 ms, ara bellekler 3/3-5/5, TAKILMA=0 (v1 ve v2). Hazırlık artık 2-5 kare
+sürdüğünden hazırlıkta basılan zıplama çoğunlukla ara belleğe düşer ve kilit bitince çıkar (167 ms).
+
+Çekim: `-- --dovus --boss --stil=v2 --klip=alp_kilici,ikiz_bicak,kargi,dag_cekici` (her silahta önde iki düşmana tam zincir,
+her temas anında yeni basış; sonra basılı ağır saldırı; `--klip_bos` düşmansız). `--write-movie` kayıtta duraklama ve ağır
+çekim artık oyundaki süresiyle görünür (`Game.clock()`: çekimde kare saati; eskiden gerçek saat, çekim yavaş işlendiği için
+duraklamalar kayıtta kayboluyordu). 1080p çekim için proje köküne geçici `override.cfg` gerekir
+(`window/size/window_width_override=1920`, `window/size/window_height_override=1080`); `--resolution` proje pencere geçersiz
+kılmasını aşmıyor.
+
 ## Görsel düzeltmeler (v16)
 
 Eski tasarım `eski-tasarim-v13` git etiketinde saklı.
@@ -727,7 +846,7 @@ bunun üstüne çarpılır): ekranda 480x270 dünya birimi, Bengü 1080p'de ~225
 hızlı düşüşte aşağı bakış (54 birim), Camera2D konum yumuşatması 6 + sınır yumuşatması, ışınlanmada (>220 birim) anında
 oturur. **Boss arenası:** boss ve oyuncu (+ boss boyu) sığsın diye yakınlık `fit` ile en çok 0,62'ye (taban x0,62 = 1,24)
 düşer, merkez ikisinin arasına kayar ama oyuncu ekranın iç yarısında kalır; boss en geniş çerçeveye bile sığmayacak kadar
-uzaktaysa normal yakın kamera. Yurt v2 sanatı olmadığından v1 kamerasıyla kalır.
+uzaktaysa normal yakın kamera. Yurt v2'de kendi mürekkep sanatıyla 1,6 yakınlıkta (data/yurt_v2.json).
 Paralaks ve ön plan kayması birikimli (`_scroll += Δx · yakınlık · fit`): yakınlık değişince katmanlar sıçramaz; sabit
 yakınlıkta eski formülle aynı (v1 birebir).
 **Doku yoğunluğu (v15):** dünya uzayı (zemin atlası 96 px hücre, toprak 2048², çayır 1024², süsler, kule parçaları)
@@ -771,6 +890,41 @@ v1 yolu hiç değişmez (en yakın komşu, piksel keskin). Yalnızca `--stil=v2`
   çeker, hafif S eğrisi ve mor-siyah vinyet; hasar nabzı ("hurt") aynı. Test için `--derecesiz` kapatır.
 * **Işık** (`stil_v2.json`): ortam (CanvasModulate) 0,80/0,86/0,88, ay 0,32: boyalı ortam neredeyse kendi renginde görünür;
   aktörler v1'e göre daha aydınlık (karakter v2 sanatı bu ışıkla dengelenmeli).
+
+### Bozkır Kurganları ve Kaf Dağı v2 "mürekkep" ortamları
+
+Ötüken mürekkep kurgusunun (kamera 2,0, dünya uzayı 4 doku pikseli / birim, paralaks 1080 yükseklik, BPTC) biyoma özgü
+uygulaması. Üretim: `cd tools/artgen && python export_ink_biyom.py bozkir kaf [--bg [katman..]|--zemin|--on|--suslar|--tehlike]`
+(yalnızca `<biyom>_v2*` dosyaları; v1 ve Ötüken dokunulmaz). Kod: `ink_biyom.py` (biyomdan bağımsız: gök rampası, dağ sırası =
+sırt çizgilerinden cel yüz gölgesi + kar + kesik mürekkep + ters ışık siluet kenarı, yumuşak tepe, boyalı küme bulut, otluk,
+tül, yelpaze hüzme, kar tanesi), `ink_zemin.py` (Ötüken zemin kurucusunun üsluba bağlı genellemesi: ot bandı ya da kar
+başlığı, çatlak ağı, döşenen doku), `bozkir_ink*.py`, `kaf_ink*.py`, `ink_tehlike.py`. Tümü yordamsal, dış kaynak yok.
+
+* **Bozkır (alacakaranlık, ışık sağdan, ters ışık):** gök mor-indigodan yanık turuncu ve altın ufka; ufukta batan güneş,
+  alttan yanan küme bulutlar; Altay sıradağları (güneşe bakan siluet kenarı altın); dalgalı tepelerde kurganlar, balbal
+  dizisi, keçe yurt obası (kapıda ocak ışığı, tünlükten duman), at sürüsü; ortada taş halkalı büyük kurgan, kaplumbağa
+  kaideli Orhun yazılı bitig taşı, kurt başlı tuğlar, mavi-ak çaputlu oba taşı; önde yalnız kuru karaağaç, kazıklar, at
+  kafatası dikili sırık, kılçık otu. Hava: toz pusu ve savrulan alçak toz ("fog", sürüklenir), güneşten yelpaze hüzme
+  (sabit "add"), hızlı rüzgâr çizgileri. Zemin: kuru altın ot bandı (rüzgâra yatık), çatlak lös toprak (çokgen kuruma
+  çatlakları, kemik kırıkları), kuru çayır; örtü: sorguçlu kılçık otu, deve dikeni, yavşan, bozkır lalesi (rüzgârda
+  salınır: `tuft_sway`); platform: ağarmış tahta, ham deri bağ, at kılı püskül, uçlarda koçboynuzu desenli keçe flama.
+  Tehlike (diken): kanlı uçlu kazıklar. Parçacık: yatay savrulan kuru ot kırıntısı (`leaf_ramp`, `leaf_dir`).
+* **Kaf Dağı (gece-şafak, ışık soldan):** yıldızlı gök, hilal, kutup ışığı perdeleri (ayrı "add" katmanı, nefes alır);
+  dev Kaf zirvesi zümrüt ışıltılı ve şafak pembesi, çevresinde Zümrüdüanka; karlı ladin ormanlı sırtlar, kaya yüzünde donmuş
+  çağlayanlar, buz kristali kümeleri, karlı kam direği; önde karla yüklü koyu dev ladinler. Hava: vadide soğuk pus, tipi
+  tülleri, iki derinlikte düşen kar (ParallaxBG yeni "snow" türü: iki yönde döşenir, `bg_fx[3]` px/sn düşer), ön planda iri
+  kar taneleri. Zemin: yuvarlak dudaklı kar başlığı (mavi gölge, mürekkep, kenarda buz saçağı), katmanlı kar örtüsü
+  kesiti, buz damarlı arduvaz kaya; örtü: kırağılı ot, kar tümseği, buz kristali, karlı ardıç, kardelen; tavan: buz
+  sarkıtları; platform: karlı koyu tahta, altında saçaklar. Tehlike (buz): çukurda donmuş göl.
+* **Süsler:** `decor_v2_<biyom>.json` + `<süs>_<biyom>_v2.png`; `Level._decor_v2` önce biyom adını arar (yoksa ortak
+  `_v2`). "noflip": yönlü ışıklı süsler aynalanmaz; "glow_pulse": soğuk ışıma yavaş nefes (buz kristali). Biyom ek süsleri
+  `stil_v2.json` "ink_extras" (aralıklı) ve boss arenası için "boss_extras" (sabit "at" konumları): bozkır balbal, oba taşı,
+  bitig taşı; Kaf ladin, buz kristali. Kule parçaları da biyoma özgü (`kule_*_<biyom>_v2`).
+* **Diğer art anahtarları (yalnızca bu biyomlar):** `meadow_depth` (çayır/kar örtüsü kalınlığı), `tuft_sway` (+ env_ink
+  `cell_px`), `leaf_ramp/leaf_dir/leaf_grav/leaf_vel`, ön plan `fg.leaf_dir/leaf_grav/leaf_vel/leaf_scale/leaf_emit`.
+  Tehlike: `assets/tiles/hazards_<biyom>_v2.png` (v1 satır düzeni, 96 px hücre). Ötüken'in davranışı değişmez.
+* **Başarım (UHD 750, 1080p, --otomatik):** Bozkır v2 ~47 fps (Ötüken v2 ~30, Bozkır v1 ~32); Kaf v2 ~35 (yoğun dövüşte
+  15-20, Ötüken v2 de 14'e iner).
 
 ### Stil v2 "mürekkep-cel" karakterler (çizgi roman; piksel sanatın yerini alır)
 
@@ -892,6 +1046,207 @@ kızıl çekirdek, turuncu-kızıl gövde, siyah fırça izleri, zerreler). Yaln
 * **Test:** `-- --stil=v2 --firca[=silah,silah:malzeme,...] [--firca_bos]` (`tools/tests/firca_testi.gd`: her silahta
   3'lü zincir, basılı ağır saldırı; sonunda savuşturma ve kusursuz kaçış; "[firca] ... kare=N ekran=x,y" satırları).
   Çekimler ve referans yan yana karşılaştırmaları `rec_v15/firca/` (depo dışı).
+
+### Stil v2 mürekkep: Ulu Kayın Yurdu, ortak süsler, toplanabilirler, mermiler, tehlikeler, efektler
+
+Piksel kalan dünya nesnelerinin mürekkep-cel karşılıkları. Hepsi yordamsal (skia-python + numpy), `--stil=v2` dışında
+v1 çizimi aynen durur. Üretim: `cd tools/artgen && python export_sus.py [--yurt [ad...]|--yurt-bg|--suslar|--atlas|--tehlike|--efekt]`.
+
+* **Ortak takım** `tools/artgen/inkprop.py`: `Prop` (dünya biriminde InkCanvas, `TEX` = 4 doku pikseli / dünya birimi,
+  köken ayak noktası), gece malzemeleri (ak keçe, kilim kızılı, lacivert, firuze çini, altın, tunç, demir, kayın kabuğu...),
+  alev (`flame`: ışıma katmanına da yazar), koçboynuzu (`ram_motif`), püskül, ot tutamı. Süs meta biçimi `decor_v2.json` ile
+  aynı ama ayrı dosyada: `assets/decor/sus_v2.json` (`Level._decor_v2` ikisini birleştirir; biyom süsleriyle dosya çakışmaz).
+* **Ulu Kayın Yurdu** (`yurt_ink.py`, adlar v1 + `_v2`, köken/dünya boyu v1 ile uyumlu, yerleşim `_place_hub` ortak):
+  han otağı (silindirik duvar gölgesi + saçak, kavisli kilim kuşakları, kolan ipleri, altın kaburgalar, koçboynuzlu kızıl kapı,
+  kapı aralığından sızan ışık, tündükte tuğ), süslü yurt, dilek kayını (çaputlar rüzgârda, ışıyan kut yaprakları), kuş başlıklı
+  Umay heykelli sunak, ışıyan çağlayanlı pınar, demirhane (kor ağızlı taş ocak, saçak, alet askısı, silah sehpası, körük, fıçı),
+  örs ve kızgın kılıç, bürküt tüneği, eğerli doru at, Ozan'ın kilimi + minderler + kopuz, yer kilimleri, taş yol, seki,
+  mangal / kandil / fener / kazan (alevler `_e` ışıma, titrer), kızıl ve gök tuğlar, balballar, Orhun runlu kurgan, güneş
+  kurslu taç kapı. `Level._hub_prop` v2'de `_hub_prop_ink` (env_ink, doğrusal + mipmap, ışıma nefes alır); bayrakçık dizileri
+  kenar yumuşatmalı, mürekkep konturlu, alt uçları cel gölgeli.
+* **Yurt paralaksı** (`yurt_ink_bg.py`, `data/yurt_v2.json`): 0 gök (çivit, kuzey ışığı perdeleri, samanyolu, Ülker, Demir
+  Kazık, mürekkep konturlu hilal), 1 karlı sıradağlar ve ardında göğü tutan Ulu Kayın (ak gövde, dallar, yaprak kütleleri
+  kuzey ışığıyla kenarlı, ışıyan kut yaprakları), 2 uzak oba (kapısı yanan yurtlar, duman, tuğ, kamp ateşi, at sürüsü),
+  3 huş korusu + fenerli çit + balballar, 4 sürüklenen gece sisi. `yurt_v2.json` yurdun art değerlerini ezer (ışık, derecelendirme,
+  ön plan otları) ve **kamerayı v2'ye alır**: `camera_zoom` 1,6 (yurt vitrin: biraz daha geniş kadraj; CameraV2).
+* **Ortak süsler** (`sus_ink.py` DECOR): Tengri sunağı (lütuf odası `_decor("sunak")`), Kut Kapısı (`KutGate.gd`: kemer +
+  karanlık eşik + ters dönen iki kut girdabı; v2'de piksel `rift_portal` oynamaz; yurtta yalnızca eşik + girdap, çerçeve taç
+  kapı), Davul Totemi (`Totem.gd`: gövde ezilip zıplar, tüyler salınır), ruh taşı kapağı (`Alem`: mor damarlı kara taş,
+  Erlik mührü nabız gibi atar, yeraltında saydamlaşır), Ülgen'in altın bulutları (`Alem._CloudVis`, 4 çeşit).
+* **Atlas** (`assets/fx/ink/sus_v2.png` + `_e` + json; `scripts/world/SusV2.gd`): altın sikke (döner), kut damlası, şifa otu,
+  tılsım (kaide + salınan muska), parşömen, eşya kaidesi, don ruhu, ruh kuşu (iki kare), oklar (6 tür, serbest açıyla döner;
+  saplanan ok düşmanda kalır), sapan taşı, kaya, buz, ateş topu, spor, lanet, tüy, hayalet kartal, yel dalgası, yer dalgası,
+  kök. `Pickup` / `Projectile` v2'de sprite kullanır, `_draw` yalnızca nadirlik zerrelerini ve kenar yumuşatmalı izi çizer.
+* **Tehlike karoları** `assets/tiles/hazards_v2.png` (+ `_e`, 96 px hücre, 2 kare): diken, zehir, lav, buz; biyomdan bağımsız,
+  `Level._build_hazards` v2'de doğrusal süzgeçli env_ink ile döşer.
+* **Efektler** (`sus_fx.py`, `assets/fx/anim/<ad>_v2.png` + `anim_v2.json`): smoke_puff, radiant_heal, hush_lock,
+  focus_charge, splash_crown, landing_dust; kare sayısı / hız / pivot v1 ile aynı, hücre 384 (texel 4). `AnimFX` v2'de bunları
+  seçer (`tex_k`), `FX.anim` ölçeği çarpar. Kök dikenleri, alev gölü, yer uyarısı v2'de kenar yumuşatmalı mürekkep çizimi;
+  darbe karesi siluetleri doğrusal süzgeçli.
+* **Gizli oda ganimeti (düzeltme, iki stilde):** eşya, şifa ve altın kapağın (cover, z 6) altında (z 5) çizilir, bu dünyadan
+  görünmez ve ışığı yanmaz; yalnızca yeraltındayken ya da odanın içindeyken görünür ve alınır (`Alem.loot_open`, altın
+  mıknatısı ve `Level.nearest_item` buna uyar).
+* **Test:** `-- --stil=v2 --yurt --sus=yurt --cikti=<klasör>` (yurdun 9 durağı), `-- --stil=v2 --sus=dunya --cikti=<klasör>`
+  (toplanabilirler, mermiler, Kut Kapısı, bulut, ruh taşı, oda; "kapak üstü altın farkı=0" kontrolü). `tools/tests/sus_testi.gd`.
+  Çekimler `rec_v16/sus/` (depo dışı).
+* **Kalanlar:** NPC'ler (yaratık sırası), ceset/erime, hasar sayıları (arayüz) bu bölümün dışında.
+
+
+
+### Stil v2 yaratıklar (A takımı): Çor, Kara İye, Balbal, Kara Kam ve biyom çeşitlemeleri
+
+Dört temel sprite ve onları paylaşan düşmanlar mürekkep-cel olarak yeniden çizildi; biyom tonu (`tint`) yerine her
+düşmanın kendi çizimi var (`<kimlik>_v2`). Pozlar, kare sayıları, fps/döngü, çapalar (`mouth` = fener, `hand` = yumruk /
+lanet küresi) ve çarpışma v1 ile aynı; hücreler dünya biriminde biraz geniş (mürekkep konturu ve savrulan parçalar sığsın).
+
+* **Çalışma zamanı:** `Enemy.setup` v2'de düşmanın kendi kimliğiyle `_v2` sprite'ı varsa (ör. `kan_yarasasi_v2`) onu
+  yükler ve biyom tonunu uygulamaz (renkler çizimde); yoksa `def.sprite` (ör. `cor` -> `cor_v2`). v1'de `stil_id` kimliği
+  aynen döndürdüğü için hiçbir şey değişmez. Seçkin/durum tonları aynı.
+* **Üretim:** `cd tools/artgen && python export_yaratik_a.py [--cor|--iye|--balbal|--kam] [kimlik ...]` (~1,5 dk, süreç
+  havuzu). Çizim: `cor_ink.py`, `agac_iyesi_ink.py`, `balbal_ink.py`, `arcura_ink.py` (her biri `VARIANTS` sözlüğü:
+  malzemeler + biçim anahtarları), ortak ekler `yaratik_ink_kit.py` (bulanık ışıma `glow_soft`, ışımanın z sırasına
+  göre örtülmesi `occlude_glow` — arkada kalan fener/çatlak ışığı önündeki gövdeden sızmaz, yırtık kenar, zincir, kemik
+  el, buz sarkıtı, duman teli `wisp`, bulut patlaması `cloud`, kıvılcım). Önizleme: `python preview_yaratik.py x.png
+  --mod cor_ink --var all --glow --all`. Oyun içi çekim: `-- --stil=v2 --derinlik=1 --yaratik=cor,agac_iyesi
+  --yaratik_cikti=C:/x` (`tools/tests/yaratik_galeri.gd`: AI kapalı, her poz `show_frame` ile, 1080p kırpım).
+* **Çor Ruhu** (`cor`, hücre 80x76): küllü kefen, geriye sarkan sivri başlık, karanlıkta iki göz + kafatası dişleri,
+  güve yeniği delikler, bileğe bağlı çalınmış dilek çaputları, kemik eller, zincirde kafes pencereli tunç buhurdan
+  (salgın ateşi), sporlu duman telleri. Uyarı: buhurdan geriye/öne çekilir, ateş ve gözler parlar, kıvılcım; saldırı:
+  spor bulutu patlaması. Çeşitlemeler: Kurgan Ruhu (`kara_kus_yavrusu`: aşı keçe, sivri Saka börkü, altın ölü maskesi),
+  Kan Çoru (`kan_yarasasi`: kulaklı başlık, yarasa kanatları, kızıl), Ayaz Çoru (`kaf_kartali`: donmuş kefen, kartal
+  tüyü yaka, buz sarkıtları), Kayıp Ruh (`kayip_ruh`: ağlayan soluk maske, saydamlaşan kuyruk, kırık pranga, ruh
+  kafesi feneri), Demir Gaga (`demir_gaga`: kurum kefen, demir kuş gagası maske, kor dolu demir buhurdan).
+* **Kara İye** (`agac_iyesi`, hücre 128x112): kök bacaklar (kök saçaklı ayak), kabuk olukları ve budak, kamburdan çıkan
+  kırık dallar, sırta oturan yosun örtüsü + mantarlar, geyik kafatası, boynuzlarda dilek çaputları, mor yanan Erlik
+  çatlakları ve öz. Uyarı: yumruk havada, çene açılır, çatlaklar/göz/yumruk alevlenir. Çeşitlemeler: Tozkoparan (ağarmış
+  saksağul, kuru bozkır otu, koç boynuzu, toz hortumu teli), Su İyesi (ıslak kütük, su yosunu, midye, damlalar,
+  camgöbeği), Dev Çocuğu (ayaz kayası, kar örtüsü, buz kristali boynuz/dikenler, ağır kaşlı dev başı ve buz dişler),
+  Od İyesi (kömür kabuk, lav çatlakları, kül örtü, alev dilleri, kor uçlu dallar/boynuzlar).
+* **Balbal** (`balbal`, hücre 88x80): yontu düzlemli granit, keski izleri, bozkır taşlarının turuncu likeni, börk,
+  sarkık bıyık, kadeh, kemer plakaları, geniş taş kılıç; Orhun runaları (çizgi damgalar), göz yarıkları ve kılıç oluğu
+  uyanınca camgöbeği yanar; uykuda sönük, kılıç kında. Uyarı: kılıç başın üstünde, runalar parlar, omuzdan taş tozu.
+  Buz Balbalı: buzlu taş, bıyıktan/börkten/kollardan sarkıtlar, buz kılıç, ayaz mavisi runalar.
+* **Kara Kam** (`arcura`, hücre 76x72): saçaklı deri kam postu (kızıl şeritler, demir çıngıraklar, göğüste kuzgu),
+  baykuş tüyü yelpazesi + geyik boynuzlu taç, kemik maske ve gözün önüne sarkan saçak, boyalı tüngür (Hayat Ağacı, Ay,
+  Güneş), lanet küresi (sarmal, uyarıda halka + kıvılcım). Çeşitlemeler: Kurgan Kamı (at kafatası maske, kartal tüyü,
+  altın kuzgu, kehribar), Işıltı Kamı (gözleri bağlı kör kam, kristal taç, yeşil ışık), Erlik'in Kızı (kara uzun saç,
+  solgun yüz, kara boynuzlar, dar belli yırtık kızıl elbise, davul yerine kemik dişli kara ayna, macenta).
+* **Bilinen eksikler:** düşman sola dönünce çizili ışık yönü aynalanır (tüm v2 sprite'larda olduğu gibi); yaralanma
+  karesi çoğunlukla geri çekilme + söndürülmüş göz (oyunda vuruş parlaması ile okunur); diğer biyomların v2 ortamı
+  bu dalda yok (çekimler Ötüken'de 1:1).
+
+### Stil v2 mürekkep arayüzü (HUD, menüler, hasar rakamları)
+
+Yalnızca `--stil=v2`; v1 piksel arayüzü (`PixUI`, `pixel.fnt`) birebir aynı kalır. Yerleşim değişmedi: `PixUI`'nin her
+yardımcısı (`text`, `width`, `panel`, `fancy_panel`, `bar`, `icon`, `key_cap`, `horn`, `divider`, `ongun_stripe`, `weapon`)
+v2'de aynı imzayla `scripts/ui/InkUI.gd`'ye düşer; özel parçalar `scripts/ui/InkHUD.gd`'de (HUD.gd'de `if InkUI.on()` dalları).
+* **Yazı tipleri** (`assets/ui/fonts/`, hepsi SIL OFL 1.1, kaynak ve lisanslar `LICENSE*.txt`): Alegreya Sans Medium/Bold
+  (gövde, sayılar), Cinzel (değişken, wght 700: BÜYÜK HARF yazıt başlıkları; büyük harfli metin otomatik buna geçer),
+  Kaushan Script (fırça: ekran başlıkları, kombo ve hasar rakamları, büyük adlar; büyük harf başlıklar Türkçe kurallarla
+  "Kam Tılsımı" biçimine çevrilir: `InkUI.tr_title`), Alegreya (hikâye, Ozan, tören sözleri). Vektör yazı; Godot dinamik
+  aşırı örneklemesi sayesinde 960x540 x2 (HUD) ve x3 (menü) ölçekte 1080p / 4K keskin. `★` Alegreya'da yok: `◆`.
+* **Dokular** (`tools/artgen/ui_ink.py` -> `assets/ui/ink/`, kayıpsız + mipmap): kuru fırça çerçeve (`frame_ink` siyah,
+  `frame_line` renkli ince çizgi), mürekkep yıkaması dolgu, yatay sürme (`swash`, alçak rozetler), fırça çubuk (`stroke`),
+  kızıl mühür (`seal`, tuş rozetleri), ensō halka, sıçrantı, yıkama şeridi, koçboynuzu, 4 tamga, yanık kenarlı parşömen,
+  fırça kenarlı vinyet ve 14 mürekkep simge (can, matara, sikke, Kut alevi, kurt, kartal, ayı, kafatası, kum saati, kılıç,
+  üçgen muska, kam davulu, ruh, kalkan). 9 dilimde orta parçalar kırpılır (sıkıştırılmaz): küçük panelde çizgi bulanmaz.
+* **Paneller:** yükseklik < 19 birim yatay sürme + renkli alt çizgi; < 44 satır (alt fırça çizgisi, uç tırnakları);
+  büyükler siyah fırça çerçeve + renkli iç çizgi, kenarın üstünde (içerik alanını yemez). Süslü panel: üstte mürekkep
+  lekesi üstünde koçboynuzu.
+* **HUD:** sol üstte yıkama üstünde kızıl yürek + kızıl mürekkep can fırçası (gecikme izi kemik rengi), matara simgeleri,
+  kızıl `Q` mührü, sikke / Kut / banka; ongunlar mürekkep simgeyle. Yuvalar v2 silah atlasından (`Data.weapon_sprite`)
+  çizilir; Kut / kam / don halkaları ensō + fırça yayı (kurt, davul, ruh simgesi). Kombo sağda: mürekkep sıçrantısı
+  üstünde fırça rakam, Cinzel rütbe adı. Boss çubuğu: yıkama şeridi, Cinzel ad, iki yanda tamga, uçlarda koçboynuzu.
+* **Menüler:** başlık ekranı fırça "Kut'un Yolu" + kızıl alt çizgi + Kayı tamgalı mühür; hikâye ve Ozan parşömende koyu
+  mürekkeple; Ad töreninde adın altında kızıl fırça ve mühür; ölümde kan kırmızısı sıçrantılar; karartmalara fırça vinyeti.
+* **Dünya yazıları:** `FX.number` kalın fırça rakam, mürekkep dış çizgi + fırça gölgesi; kritik kızıl rakam, arkada
+  mürekkep sıçrantısı ve eğik kızıl mühür. `FX.text` Alegreya Sans Bold / Cinzel. NPC adları PixUI üzerinden; Label'ların
+  varsayılan yazısı ve düşman "!" uyarısı da v2'de fırça/gövde yazısına geçer (`InkUI.setup`).
+* **Test:** `-- --stil=v2 --ekran=<ekran> --pencere=1920x1080 --goruntu=x.png --bekle=22` ve ek olarak
+  `--arayuz=intro|ozan|done|ad|kombo|hasar|flash|ipucu|dusuk[,...]` (HUD.gd, 45 kare sonra uygulanır). Çekimler
+  `rec_v16/ui/` (depo dışı).
+
+### Stil v2 mürekkep yaratıkları, seti B: Gulyabani, Bekçi, Tosbağa, Bozkurt biçimi, yurt sakinleri
+
+`tools/artgen/<kimlik>_ink.py` + `export_ink.py --surale|--bekci|--tosbaga|--bengu_kurt|--npc` (yalnızca `_v2` yazar;
+v1 dosyaları değişmez). Animasyon adları, kare sayıları, fps/döngü, satır sırası v1 json'undan; çapalar aynı anlamla
+('hand', 'head', 'mouth' dünya biriminde, ayak orijinli); çarpışma kodda değişmedi. Doku 4 piksel / dünya birimi,
+`"filter": "linear"`, ışıyan parçalar `_e` sayfasında. Hücreler v1 dünya boyutundan biraz büyük olabilir (yalnızca
+pay; orijin buna göre): surale 128x120, bekci 96x104, tosbaga 104x72, bengu_kurt 160x120, NPC 80x104.
+
+* **Gulyabani** (`surale_ink.py`; Karakoncolos aynı çizim + soğuk ton): v1 iskelet ve pozları (`creatures.GUL_ANIMS`).
+  Soğuk mavi-gri gergin deri, kaburga ve omur çıkıntıları, çökük karın, düğüm dizler, yere değen kollar ve sarı
+  tırnaklı uzun parmaklar; toprak lekeli yırtık kefen başlık gibi kafayı örter, yüzün önüne yağlı saç tutamları
+  düşer; oyuk göz çukurunda soluk sarı ışık (hazırlık ve yakalamada büyür), iğne dişli açılan çene.
+* **Kurgan Bekçisi** (`bekci_ink.py`; 10 düşman bu çizimi `tint` ile kullanır): kurumuş kafatası yüz + soğuk Kut gözü,
+  sivri dilimli tunç miğfer (burun siperi, yanak siperi, zincir ensel, kızıl at kılı sorguç), tunç lamel zırh, omuzluk,
+  lamel etek parçaları, kızıl keçe kaftan, sargılı baldır + tunç baldır siperi, kemik parmaklarda dilimli tunç topuz;
+  deri kaplı yuvarlak kalkan (perçinli tunç kasnak, sivri göbek, ışıyan Göktürk runa halkası). Pozlar yeniden
+  kurgulandı (ayaklar yere çözülür): hazırlıkta topuz başın üstünden arkaya, gözler alevlenip iz bırakır; vuruşta
+  hamle adımı; kalkan darbesi ve hücumda kalkan yarı dönük. Taban orta değerli ve az doygun: yeşil/mavi/kızıl/mor
+  tonlar okunur (`rec_v16/yaratik_b/biyom_1e1.png`). Atlılar (al_atli, kara_atli, kurgan_atlisi) v1'deki gibi yaya;
+  ad ve davranış "gul/akıncı" olduğundan ayrı binek çizimi yapılmadı.
+* **Taş Tosbağa** (`tosbaga_ink.py`; Taş Gulü, Buz Tosbağası ton): yüksek kubbe; her biri ayrı yüzey gölgesi alan
+  altıgen taş plakalar (sırt/yan/kenar sıraları, yosun, çatlak), sırtta ışıyan mağara kristalleri, kabuk kenarı
+  altından çıkan kalın sütun bacaklar, kancalı gagalı iri baş. Isırık hazırlığında göz alevlenir. 'shell' kabuğa
+  çekilmiş (ağızdan bakan göz), 'spin' kabuk yerde yuvarlanır (4 karede tam tur, ışık dünyada sabit).
+* **Bozkurt biçimi** (`bengu_kurt_ink.py`): v1 iskelet (K 1.75, wolfkit eklemleri) ve pozları; kar beyazı post
+  (mavi-mor gölge, kıl darbeleri, tutamlar), kafa tepesinden omuza Kut alevi yelesi (dış/orta/göbek üç kat tek
+  kütle halinde, dış dilde ince mürekkep, kıvılcımlar; uluma ve ısırıkta uzar), kuyruk ucu ve bilek/topuk ruh
+  alevleri, kalçada ve omuzda ışıyan altın tamga, boynu saran tunç halka + Kut taşı, rüzgârda turkuaz atkı.
+* **Yurt sakinleri** (`npc_ink.py`, yüz sola): Umay Ana (ak entari + turkuaz/altın işlemeli keçe üstlük, gümüş
+  örgüler, geyik boynuzlu altın taç, ak kayın asa ve dolaşan Kut zerreleri; konuşurken kutsama eli), Demirci Kam
+  Kuzgun (kuzgun tüylü kam başlığı, örgülü kara sakal, sıvalı kızıl kaftan, deri önlük + muskalar, kerpeten; balyozun
+  başı yerde, konuşurken kalkar, yüzünde kızgın runa), Ozan Bilge Kopuz (ak keçe börk, uzun ak sakal, işlemeli
+  çapan, nazar boncuğu; kopuz kucakta, iki el IK ile sapa ve tellere oturur).
+* **Test:** `-- --stil=v2 --yaratik[=tür,...] [--yaratik_kurt] [--yaratik_sure=7]` (`tools/tests/yaratik_testi.gd`:
+  her tür oyuncunun önünde canlı yapay zekâyla, oyuncu ölümsüz, sonra iki vuruş; sonunda Bozkurt koşu/ısırık/sıçrayış/
+  uluma; "[yaratik] ... kare=N" satırları). 1080p 1:1 kareler için `--pencere=1920x1080 --goruntu=x.png --seri=N
+  --aralik=s` (film kaydı pencereyi 1280x720'de tutar). Çekimler `rec_v16/yaratik_b/` (depo dışı).
+
+### Stil v2 mürekkep-cel bosslar (Kara Börü Han, Tepegöz, Şahmeran Ana, Yelbegen, Erlik Han)
+
+Beş boss `--stil=v2`'de `<kimlik>_v2` sayfalarını kullanır (`Data.stil_id`); v1 dosyaları ve boss mantığı (Boss.gd) değişmedi.
+Animasyon adları, kare sayıları, fps, döngü bayrakları ve çapa adları v1 json'undan; çarpışma kutuları aynı. Hepsi yordamsal.
+
+* **Üretim:** `cd tools/artgen && python export_boss_ink.py [kimlik ...] [--anim ad ...] [--is N]` (paralel; boss başına
+  ~1-2 dk). Ortak takım `bosskit.py` (profil uzuv/kas, sap kavrayan el, açık pençe, alev dili, ışıyan çatlak, yırtık kenar,
+  anahtar kare yardımcıları, `BossCanvas`: ışımasız opak parça altındaki ışımayı siler, arkada kalan kor/kristal önündeki
+  kolun üstünden parlamaz). Önizleme `export_boss_ink.py --onizleme out.png <kimlik> anim:kare ...`, kontak sayfası
+  `sheet_boss_ink.py`, kenar kırpma denetimi `check_boss_ink.py`, hızlı kutu `bbox_boss_ink.py`.
+* **Yoğunluk/ölçü:** doku 4 piksel / dünya birimi (2,0 kamerada 1080p'de 1:1; boss kamerası genelde 1,6-2,0 arasında kalır).
+  Hücre yüksekliği v1 ile aynı dünya boyunda (CameraV2 boss boyunu hücreden okur), genişlik saldırı menziline göre büyüdü:
+  Tepegöz / Erlik 256x200, Yelbegen 256x208, Şahmeran 256x176, Kara Börü Han 224x144 (dünya). Ayak noktası json "origin".
+* **Sayfa düzeni:** 8 kare x 1024 px bir sıraya sığmadığı için animasyon başına düzen: json anim `page`, `row` (sayfadaki
+  ilk satır), `cols` (kareler bu sütun sayısında alt satıra sarar). `SpriteAnim._apply` bu alanlar varsa onları kullanır
+  (yoksa eski satır/sayfa düzeni, bütün diğer sprite'lar aynen). Sütun sayısı toplam alan + sayfa sayısını en küçük yapar;
+  sayfalar en çok 4096x4096, BPTC + mipmap.
+* **Işıma:** `_e` sayfaları yarım çözünürlükte (json `"glow_scale": 2`; SpriteAnim ışıma sprite'ını 2x ölçekler, bölgeyi
+  yarıya böler). VRAM (BPTC 1 bayt/px + mip, ışıma dahil): Kara Börü Han ~22 MB, Tepegöz ~55, Şahmeran ~48, Yelbegen ~57,
+  Erlik Han ~55 (beşi ~236 MB). Boss sahneden çıkınca `Data.forget_sprite` sayfaları önbellekten bırakır (Boss._exit_tree;
+  yalnızca doğrusal süzgeçli v2 sprite'larda): koşu boyunca bosslar birikmez, aynı anda en çok bir boss yüklü.
+* **Tasarımlar:**
+  * *Kara Börü Han* (`kara_boru_han_ink.py`): Erlik Tazısı iskeleti ve v1 pozları (KBH_ANIMS), tazı birimiyle 2,3 kat
+  (k = 9,2); daha ağır kütle, sırtta öfkede uzayan mor-kızıl bozgun kristalleri, böğürde kristal damarları, perçinli kemik
+  omuzluk, kemik maske + kemik dişli demir han tacı, kan koru gözler, hep görünen azılar, dikenli pranga + kırık zincir;
+  ulumada baş boyun kökü etrafında göğe döner.
+  * *Tepegöz* (`tepegoz_ink.py`): kambur dev, 3/4 önden göğüs; iri kehribar tek göz (damarlı akı, dikey bebek), ağır kaş,
+  azılar, sırtta kırık Oğuz okları, dikişli kılıç izleri, kemik/kafatası kolye, koyun postu etek, deri dolak, peri yüzüğü
+  (ışır), pranga; demir çemberli çivili meşe gürz. Hazırlık: gürzü yana-geriye çeker (yüz açıkta), atılış dört kare yay.
+  Büyüde kaya kaldırır (çatlakları yanar).
+  * *Şahmeran Ana* (`sahmeran_ink.py`): yerde iki katlı kangal + kuyruk ucunda yılan başı (halk resmi), bele S kıvrımı;
+  zümrüt pul + baklava deseni, krem karın pulları hep alta/öne bakar; taçlı kraliçe (zümrüt yılan gözleri, sürme, altın
+  pullu göğüslük, kolye, kolluk), saç yılanları, boynunda yılan, açılan kobra yelpazesi; büyüde zehir küresi örer.
+  * *Yelbegen* (`yelbegen_ink.py`): Tepegöz iskeleti/zamanlaması; ayaz mavisi deri ve kırağı desenleri, üç ayrı boyunlu baş
+  (arkadaki geriye bakar, öndeki hırlar), buz kristali taçlar, sırtta/omuzda/ön kolda buz kristalleri, ak post pelerin ve
+  yaka, kemik saplı buz uçlu mızrak; büyüde elinde kristal demeti büyütür.
+  * *Erlik Han* (`erlik_ink.py`): iri lir biçimli boğa boynuzları, kara sakal (demir halkalı) ve kulağa kıvrık bıyık, kor
+  gözler, demir taç, omuzlardan yükselen tamu alev yelesi, lamel zırh + boğa kafatası amblemi (çatlaklarından ocak yanar),
+  boynuz çıkıntılı omuzluklar, kor kenarlı yırtık pelerin, tamga işlemeli kaftan paneli, kanatlı topuz (kor çatlaklı);
+  büyüde ateş küresi.
+* **Telgraf pozları:** `windup` son karesi tutulur: silah geride (yüz ve göz görünür), uzak el önde, göz/alev parıltısı en
+  yüksek. `cast` 0. kare = salış (mermi bu karede çıkar), 2. kare = yükleniş (tutulur). `rage` baş yukarı, kükreme.
+* **Kayıtlar:** `rec_v16/boss/` (depo dışı): kontak sayfaları, önizlemeler, oyun içi 1080p kareler.
 
 ### Yaygınlaştırma planı (onay sonrası)
 

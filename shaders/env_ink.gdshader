@@ -7,14 +7,16 @@ uniform float moon_gain : hint_range(0.0, 2.0) = 0.6;
 uniform float point_gain : hint_range(0.0, 2.0) = 1.0;
 // ot öbekleri için hafif rüzgâr: dokunun üst kısmı yatayda salınır (sway_px: doku pikseli)
 uniform float sway_px = 0.0;
+// atlas hücresi (doku pikseli): v2 zemin atlası 96 (WORLD_K 2); varsayılan eski 48
+uniform float cell_px = 48.0;
 
 void fragment() {
 	vec2 uv = UV;
 	if (sway_px > 0.0) {
 		vec2 tp = 1.0 / vec2(textureSize(TEXTURE, 0));
-		float cell = 48.0 * tp.y;
+		float cell = cell_px * tp.y;
 		float local = 1.0 - fract(UV.y / cell);
-		float ph = TIME * 1.3 + floor(UV.x / (48.0 * tp.x)) * 1.7;
+		float ph = TIME * 1.3 + floor(UV.x / (cell_px * tp.x)) * 1.7;
 		uv.x += sin(ph) * sway_px * tp.x * local * local;
 	}
 	COLOR = texture(TEXTURE, uv) * COLOR * tint;

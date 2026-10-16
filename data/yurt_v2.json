@@ -1,0 +1,33 @@
+{
+ "_not": "Ulu Kayın Yurdu, stil v2 (mürekkep) art ezmeleri: Level.build_hub --stil=v2 ve mürekkep zemininde bu değerleri yurt art'ının üstüne yazar. Paralaks: tools/artgen/yurt_ink_bg.py, süsler: yurt_ink.py (export_sus.py).",
+ "bg": ["yurt_v2_0_sky", "yurt_v2_1_tree", "yurt_v2_2_camp", "yurt_v2_3_mid", "yurt_v2_4_fog"],
+ "bg_fx": [[0.0, 0.0, 0.0], [0.03, 0.02, 0.0], [0.12, 0.06, 0.0], [0.3, 0.12, 0.0], [0.42, 0.18, 6.0]],
+ "bg_kind": ["", "", "", "", "fog"],
+ "rays": [0.0, 0.0, 0.0, 0.0],
+ "ambient": [0.8, 0.84, 0.98],
+ "ambient_k": 1.0,
+ "sun": [0.62, 0.78, 1.0],
+ "sun_energy": 0.3,
+ "sun_k": 1.0,
+ "ground_moon_gain": 0.45,
+ "glow": 0.55,
+ "glow_threshold": 1.0,
+ "saturation": 1.0,
+ "contrast": 1.0,
+ "deep_color": [0.05, 0.04, 0.09],
+ "deep_amount": 0.85,
+ "decor_tint": [0.94, 0.96, 1.0],
+ "grade": {
+  "strength": 0.5,
+  "saturation": 1.0,
+  "contrast": 1.1,
+  "mid_tint": [0.98, 1.0, 1.04],
+  "shadow_tint": [0.9, 0.82, 1.06],
+  "edge_color": [0.03, 0.02, 0.09, 1.0]
+ },
+ "fg": {
+  "grass": "res://assets/bg/otuken_v2_fg_grass.png",
+  "grass_fx": 1.3
+ },
+ "camera_zoom": 1.6
+}
