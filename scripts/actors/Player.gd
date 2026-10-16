@@ -2423,6 +2423,8 @@ func _impact_kind(it: Dictionary) -> String:
 
 func _slash_fx(it: Dictionary, c: Dictionary) -> void:
 	## Vuruş anında savuruşa uygun kesik sprite'ı: yay (omuz merkezli, bıçak ucundan geçer), çizgi, halka, çapraz
+	if FX.ink():
+		return  # stil v2: büyük hilal/çizgi/halka mürekkep izinin katmanlarıyla çizilir (InkTrail.setup)
 	var sname: String = c["s"]
 	var R := _reach(it)
 	var f: Dictionary = WFX.get(it.get("id", ""), {})

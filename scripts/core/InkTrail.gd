@@ -146,8 +146,10 @@ func setup(it: Dictionary, atk: Dictionary, weight: float) -> void:
 			life = 0.24
 			fleck_k = 1.2
 		"hancer":
-			w_frac = 0.95
-			life = 0.17
+			# hançer: kısa bıçağın süpürdüğü alan küçük; uç yolunu izleyen iki paralel hızlı fırça çizgisi
+			mode = PATH
+			path_w = 3.2
+			life = 0.18
 			double = true
 			fleck_k = 0.7
 			ramp_len = 0.3
@@ -490,6 +492,11 @@ func _draw() -> void:
 			_ribbon(0, 0.32, 0.36, 0.53, 0.18)
 		if double and mode == SWEEP:
 			_ribbon(0, 0.45, -0.62, 0.71, 0.22)
+		if double and mode == PATH:
+			var a0: Vector2 = _s[0][1]
+			var b0: Vector2 = _s[_s.size() - 1][1]
+			var td0 := (b0 - a0).normalized() if a0.distance_to(b0) > 1.0 else Vector2.RIGHT
+			_ribbon(0, 0.6, 0.0, 0.71, 0.18, td0.orthogonal() * 5.0 - td0 * 2.0)
 		if echoes > 0 and mode == PATH:
 			var a: Vector2 = _s[0][1]
 			var b: Vector2 = _s[_s.size() - 1][1]

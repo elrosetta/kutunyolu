@@ -113,6 +113,9 @@ def ink_shade(c, mid):
         g2 = np.abs(u - 3.4 * OVERS) < 0.45 * OVERS
         gl = bm & (g1 | g2) & (ndl > 0.2)
         col[gl] = col[gl] * 0.15 + 0.85
+    # Türk süsü: bıçak kökünde kazınmış koçboynuzu (iki karşılıklı sarmal) — koyu oyuk + altında ışık çizgisi
+    if bm.sum() > 40 * OVERS * OVERS:
+        _kocboynuzu(col, bm, c, mm, ndl)
     # ruh: bıçak yarı saydam (v1 ile aynı)
     alpha = A.astype(float)
     # ---- mürekkep
@@ -145,6 +148,63 @@ def ink_shade(c, mid):
                 alpha[sel] = 0.8
     rgba = np.dstack([col, alpha])
     return rgba, emis_mask
+
+
+def _seg_dist(px, py, P):
+    best = np.full(px.shape, 1e9)
+    for i in range(len(P) - 1):
+        ax, ay = P[i]
+        bx, by = P[i + 1]
+        sx, sy = bx - ax, by - ay
+        t = np.clip(((px - ax) * sx + (py - ay) * sy) / (sx * sx + sy * sy + 1e-9), 0, 1)
+        d = np.hypot(px - (ax + t * sx), py - (ay + t * sy))
+        best = np.minimum(best, d)
+    return best
+
+
+def _kocboynuzu(col, bm, c, mm, ndl):
+    """Bıçağın kabzaya yakın ucunda (kök) yatay koçboynuzu motifi: ortada dikey sap, iki yana kıvrılan sarmallar."""
+    ys, xs = np.nonzero(bm)
+    bx0, bx1 = xs.min(), xs.max()
+    L = bx1 - bx0
+    # kök kesitinde bıçak yüksekliği
+    sel = xs < bx0 + 0.18 * L
+    if sel.sum() < 10:
+        return
+    yk0, yk1 = ys[sel].min(), ys[sel].max()
+    hgt = yk1 - yk0
+    if hgt < 5.5 * OVERS or L < 40 * OVERS:
+        return
+    cx = bx0 + 0.13 * L
+    cy = (yk0 + yk1) * 0.5
+    s = hgt * 0.36
+    curves = []
+    for sg in (-1, 1):
+        pts = [(cx, cy + s * 0.55), (cx, cy - s * 0.05)]
+        for t in np.linspace(0, 1, 18):
+            a = math.pi * 0.5 + sg * (-math.pi * 0.5 - t * math.pi * 1.6)
+            r = s * (0.62 - 0.42 * t)
+            ox = cx + sg * s * 0.55
+            oy = cy - s * 0.05
+            pts.append((ox + math.cos(a) * r * 1.0 - sg * s * 0.0, oy - math.sin(a) * r * -1.0 * 0 + math.sin(a) * r))
+        curves.append(pts)
+    x0, x1 = int(cx - s * 1.6), int(cx + s * 1.6) + 1
+    y0, y1 = int(cy - s * 1.3), int(cy + s * 1.3) + 1
+    H, W = bm.shape
+    x0, y0 = max(0, x0), max(0, y0)
+    x1, y1 = min(W, x1), min(H, y1)
+    if x1 <= x0 or y1 <= y0:
+        return
+    yy, xx = np.mgrid[y0:y1, x0:x1] + 0.5
+    d = np.minimum(_seg_dist(xx, yy, curves[0]), _seg_dist(xx, yy, curves[1]))
+    dl = np.minimum(_seg_dist(xx, yy - 0.9 * OVERS, curves[0]), _seg_dist(xx, yy - 0.9 * OVERS, curves[1]))
+    sub = bm[y0:y1, x0:x1]
+    groove = sub & (d < 0.55 * OVERS)
+    lit = sub & (dl < 0.45 * OVERS) & ~groove
+    r = np.array(mm['b'].ramp)
+    blk = col[y0:y1, x0:x1]
+    blk[lit] = r[4] * 0.6 + 0.4 * blk[lit]
+    blk[groove] = r[0] * 0.7 + INK * 0.3
 
 
 def downsample(rgba, f):
@@ -239,9 +299,10 @@ def build(only=None, workers=8, preview=None):
     meta = {'texel': TEXEL_V2, 'filter': 'linear', 'pages': [], 'items': {}}
     for p, im in enumerate(imgs):
         nm = 'weapons_v2_%d.png' % p
-        _save(im, os.path.join(OUT, nm))
         meta['pages'].append(nm)
-        _import_file(nm)
+        if not only:
+            _save(im, os.path.join(OUT, nm))
+            _import_file(nm)
     for iid in ids:
         d = items[iid]
         meta['items'][iid] = {'pivot': [float(d['pivot'][0]), float(d['pivot'][1])], 'size': d['size'], 'm': d['m']}

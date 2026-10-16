@@ -683,6 +683,7 @@ static func ground_slam(pos: Vector2, facing := 1, power := 1.0, col := Color(1.
 	g.metal = metal
 	g.fire = fire
 	g.juice = juice
+	g.ink = ink()
 	root.add_child(g)
 	return g
 
