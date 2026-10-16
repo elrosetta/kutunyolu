@@ -1,0 +1,156 @@
+{
+ "kaya_1_bozkir_v2": {
+  "size": [
+   192,
+   112
+  ],
+  "origin": [
+   96,
+   96
+  ],
+  "texel": 4.0,
+  "noflip": true
+ },
+ "kaya_2_bozkir_v2": {
+  "size": [
+   144,
+   94
+  ],
+  "origin": [
+   72,
+   78
+  ],
+  "texel": 4.0,
+  "noflip": true
+ },
+ "cira_bozkir_v2": {
+  "size": [
+   128,
+   300
+  ],
+  "origin": [
+   64,
+   294
+  ],
+  "texel": 4.0,
+  "noflip": true,
+  "glow": true
+ },
+ "kam_diregi_bozkir_v2": {
+  "size": [
+   340,
+   500
+  ],
+  "origin": [
+   68,
+   492
+  ],
+  "texel": 4.0,
+  "noflip": true
+ },
+ "cicek_1_bozkir_v2": {
+  "size": [
+   180,
+   140
+  ],
+  "origin": [
+   90,
+   134
+  ],
+  "texel": 4.0,
+  "noflip": true
+ },
+ "cicek_2_bozkir_v2": {
+  "size": [
+   180,
+   140
+  ],
+  "origin": [
+   90,
+   134
+  ],
+  "texel": 4.0,
+  "noflip": true
+ },
+ "cicek_3_bozkir_v2": {
+  "size": [
+   180,
+   140
+  ],
+  "origin": [
+   90,
+   134
+  ],
+  "texel": 4.0,
+  "noflip": true
+ },
+ "balbal_bozkir_v2": {
+  "size": [
+   160,
+   248
+  ],
+  "origin": [
+   80,
+   240
+  ],
+  "texel": 4.0,
+  "noflip": true
+ },
+ "obo_bozkir_v2": {
+  "size": [
+   300,
+   220
+  ],
+  "origin": [
+   120,
+   212
+  ],
+  "texel": 4.0,
+  "noflip": true
+ },
+ "bitig_bozkir_v2": {
+  "size": [
+   220,
+   400
+  ],
+  "origin": [
+   100,
+   392
+  ],
+  "texel": 4.0,
+  "noflip": true
+ },
+ "kule_dikme_bozkir_v2": {
+  "size": [
+   32,
+   512
+  ],
+  "origin": [
+   0,
+   0
+  ],
+  "texel": 4.0
+ },
+ "kule_capraz_bozkir_v2": {
+  "size": [
+   512,
+   28
+  ],
+  "origin": [
+   0,
+   0
+  ],
+  "texel": 4.0
+ },
+ "kule_bag_bozkir_v2": {
+  "size": [
+   44,
+   36
+  ],
+  "origin": [
+   0,
+   0
+  ],
+  "texel": 4.0
+ }
+}
