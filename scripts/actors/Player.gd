@@ -657,10 +657,14 @@ var _bow_nock_ok := false
 var _bow_tip_cache: Dictionary = {}
 const BOW_REL := 0.24
 const BAKED_ARROW_BOWS := ["saganak_yayi", "tufan_yayi", "od_oklari"]
+## v19 Okçuluk (Okculuk.gd): gerilme / atış / tam bırakış / ok sökme / ok toplama / süzülüş
+var okc: Okculuk
 
 
 class BowString extends Node2D:
-	## Piksel kiriş: uçlardan geri çekilen gez noktasına iki düz çizgi; isteğe bağlı yaydaki ok.
+	## Kiriş: uçlardan geri çekilen gez noktasına iki çizgi; isteğe bağlı yaydaki ok.
+	## v1 piksel; stil v2 mürekkep: kenar yumuşatmalı koyu mürekkep kiriş + açık çekirdek, yaydaki ok uçuştaki okla
+	## aynı mürekkep sprite'ı, tam bırakış penceresi: ok ucunda daralan altın halka ve dört kollu parıltı.
 	var top := Vector2.ZERO
 	var bot := Vector2.ZERO
 	var nock := Vector2.ZERO
@@ -670,6 +674,13 @@ class BowString extends Node2D:
 	var fletch := Color(0.85, 0.25, 0.2)
 	var glow := 0.0
 	var str_col := Color(0.93, 0.88, 0.75)
+	var ink := false
+	var ring := -1.0          # tam bırakış halkası 1 -> 0 (yoksa < 0)
+	var perfect := false      # pencere açık: parıltı
+	var variant := "normal"
+	var tilt := 0.0           # v2: hedef yardımı eğimi (yay ve ok bu açıyla döner)
+	var _ink_arrow: Sprite2D
+	var _ink_var := ""
 
 	func _seg(a: Vector2, b: Vector2, col: Color) -> void:
 		var n := maxi(1, int(ceilf(maxf(absf(b.x - a.x), absf(b.y - a.y)))))
@@ -677,7 +688,46 @@ class BowString extends Node2D:
 			var q := a.lerp(b, float(i) / n).floor()
 			draw_rect(Rect2(q, Vector2.ONE), col)
 
+	func _draw_ink() -> void:
+		var pts := PackedVector2Array([top, nock, bot])
+		draw_polyline(pts, Color(0.05, 0.035, 0.04, 0.95), 0.95, true)
+		draw_polyline(pts, str_col, 0.38, true)
+		# yaydaki ok: uçuştaki okla aynı mürekkep sprite'ı (gövdesi 24 birim), kuyruğu gezde
+		if arrow_on:
+			if _ink_arrow == null or _ink_var != variant:
+				if _ink_arrow:
+					_ink_arrow.queue_free()
+				_ink_arrow = SusV2.sprite("ok_" + variant, true)
+				_ink_var = variant
+				if _ink_arrow:
+					add_child(_ink_arrow)
+			if _ink_arrow:
+				_ink_arrow.visible = true
+				var k := 0.8 / float(SusV2.meta().get("texel", 4.0))
+				_ink_arrow.scale = Vector2(k * dir, k)
+				_ink_arrow.rotation = tilt
+				_ink_arrow.position = nock + Vector2(dir * 13.6, 0).rotated(tilt)
+		elif _ink_arrow:
+			_ink_arrow.visible = false
+		var head := nock + Vector2(dir * (24.0 if arrow_on else 12.0), 0).rotated(tilt)
+		if ring >= 0.0:
+			var gc := Color(1.0, 0.86, 0.45, 0.35 + 0.55 * (1.0 - ring))
+			draw_arc(head, 2.0 + 7.0 * ring, 0.0, TAU, 28, Color(0.05, 0.035, 0.04, gc.a * 0.7), 0.85, true)
+			draw_arc(head, 2.0 + 7.0 * ring, 0.0, TAU, 28, gc, 0.4, true)
+		if perfect:
+			var t := Time.get_ticks_msec() / 1000.0
+			var s := 4.5 + 1.2 * sin(t * 40.0)
+			var gc2 := Color(1.0, 0.9, 0.55, 0.95)
+			draw_line(head + Vector2(-s, 0), head + Vector2(s, 0), Color(0.05, 0.035, 0.04, 0.7), 1.0, true)
+			draw_line(head + Vector2(0, -s), head + Vector2(0, s), Color(0.05, 0.035, 0.04, 0.7), 1.0, true)
+			draw_line(head + Vector2(-s, 0), head + Vector2(s, 0), gc2, 0.45, true)
+			draw_line(head + Vector2(0, -s), head + Vector2(0, s), gc2, 0.45, true)
+			draw_arc(head, 1.6, 0.0, TAU, 16, gc2, 0.6, true)
+
 	func _draw() -> void:
+		if ink:
+			_draw_ink()
+			return
 		_seg(top, nock, str_col)
 		_seg(nock, bot, str_col)
 		if arrow_on:
@@ -789,7 +839,9 @@ func _ready() -> void:
 	arm_root.add_child(shield_spr)
 	bow_str = BowString.new()
 	bow_str.visible = false
+	bow_str.ink = FX.ink() and SusV2.on()
 	arm_root.add_child(bow_str)
+	okc = Okculuk.new(self)
 	arm_fist = _arm_piece(arm_tex, Rect2(cw * 2, 0, cw, ch), fpv, am)
 	# arka kol: gövdenin arkasında (z -1), iki elli silahlarda kabzaya IK ile uzanır
 	arm_root_b = Node2D.new()
@@ -1251,6 +1303,7 @@ func _physics_process(delta: float) -> void:
 	for k in cd.keys():
 		cd[k] = maxf(0.0, cd[k] - delta)
 	bow_rel_t -= delta
+	okc.process(delta)
 	coyote -= delta
 	jump_buf -= delta
 	roll_cd -= delta
@@ -1363,9 +1416,7 @@ func _physics_process(delta: float) -> void:
 			roll_t = 0.0
 			_set_crouch(false)
 			_jump(false)
-		if sec_act != "" and slot(sec_slot).get("id", "") == "akinci_yayi" and Input.is_action_just_pressed(sec_act) and cd[sec_slot] <= 0.0:
-			_fire_bow(0.5)
-			sec_buf = 0.0
+		okc.roll_tick()  # v19: Akıncı Yayı yuvarlanırken atar; diğer yaylarda basış yuvarlanma bitince çıkar
 		return
 	if crouched and not crouch_hold:
 		# yuvarlanma bitti ama hâlâ alçak yerdeyiz: sürün
@@ -1424,6 +1475,9 @@ func _physics_process(delta: float) -> void:
 			FX.burst(center() + Vector2(facing * 6, 2), Color(1.0, 0.85, 0.45), 6, 40, 0.3, 0.18, -40, true)
 			anim.set_flash(0.35)
 			get_tree().create_timer(0.06).timeout.connect(func() -> void: anim.set_flash(0.0))
+	# v19: gerilirken saldırı basışı kaybolmaz: yeterince gerildiyse ok çıkar (çabuk atış), saldırı aynı karede başlar
+	if melee_buf > 0.0 and aim_t >= 0.0 and drink_t <= 0.0:
+		okc.melee_interrupt()
 	if melee_buf > 0.0 and drink_t <= 0.0 and aim_t < 0.0 and block_t < 0.0:
 		if atk.is_empty():
 			if since_atk < CHAIN_WINDOW and last_step >= 0:
@@ -1456,25 +1510,7 @@ func _physics_process(delta: float) -> void:
 	var sec_press := sec_buf > 0.0 and sec_act != ""
 	if atk.is_empty() and drink_t <= 0.0:
 		if sec_kind == "bow":
-			if sec_press and cd[sec_slot] <= 0.0:
-				sec_buf = 0.0
-				aim_t = 0.0
-				_bow_full = false
-				Ses.play("yay_ger", -8.0)
-			if aim_t >= 0.0:
-				aim_t += delta
-				if aim_t >= 0.55 and not _bow_full:
-					_bow_full = true
-					Ses.play("yay_dolu", -6.0)
-					anim.set_flash(0.3)
-					get_tree().create_timer(0.05).timeout.connect(func() -> void: anim.set_flash(0.0))
-					if _bow_nock_ok:
-						FX.burst(arm_root.to_global(_bow_nock + Vector2(facing * 21, 0)), Color(1.0, 0.9, 0.5), 6, 40, 0.25, 0.14, 0, true)
-				if aim_t > 0.5 and Engine.get_physics_frames() % 3 == 0:
-					FX.burst(global_position + Vector2(facing * 14, -30), Color(1.0, 0.95, 0.7), 1, 20, 0.25, 0.14, 0, true)
-				if not Input.is_action_pressed(sec_act):
-					_fire_bow(clampf(aim_t / 0.55, 0.0, 1.0))
-					aim_t = -1.0
+			okc.tick(delta, sec, sec_press)  # v19 Okçuluk: dokunuş / basılı tut / tam bırakış / süzülüş
 		elif sec_kind == "throw":
 			if sec_press and cd[sec_slot] <= 0.0 and throw_t < 0.0:
 				sec_buf = 0.0
@@ -1534,7 +1570,7 @@ func _physics_process(delta: float) -> void:
 	if crouch_hold:
 		target *= 0.35
 	if aim_t >= 0.0 or block_t >= 0.0:
-		target *= 0.3
+		target *= okc.move_k() if aim_t >= 0.0 else 0.3  # v19: gerilirken yaya göre %40-85 hız
 		if block_t >= 0.0 and sec.get("mech_id", "") == "agir_blok":
 			target *= 1.0 - float(sec.get("mech_v", 40.0)) / 100.0
 	if charge_t > 0.2:
@@ -3389,6 +3425,9 @@ func _deal(e: Node, base: float, it: Dictionary, opts: Dictionary = {}) -> void:
 				_spirit_wave.call_deferred(it, Color(0.78, 0.95, 1.0), {"kb": 60.0}, 0.0, 380.0)
 			if not e.is_on_floor():
 				crit = true
+	# v19 ok sökme: saplı oku olan düşmana yakın dövüş vuruşu okları söker (ok başına +%30, 3+ okta kritik)
+	if not opts.get("ok", false) and not atk.is_empty() and okc:
+		d *= okc.melee_rip(e, it, opts)
 	if opts.get("force_crit", false):
 		crit = true
 	if crit:
@@ -3500,62 +3539,8 @@ func _hit_sfx(it: Dictionary, big: bool, crit: bool, sname: String) -> void:
 
 
 func _fire_bow(charge: float) -> void:
-	var on_beat := _usul_press()
-	Ses.play("yay_birak_tam" if charge >= 0.99 else "yay_birak", -3.0, 0.95 + 0.1 * charge)
-	var it := slot(sec_slot)
-	var full := charge >= 0.98
-	var spd := lerpf(300.0, 560.0, charge)
-	var mech: String = it.get("mech_id", "")
-	var n_arrows := int(it.get("mech_v", 1)) if mech == "yelpaze" else 1
-	for i in n_arrows:
-		var p := Projectile.new()
-		p.kind = "arrow"
-		p.team = "p"
-		p.position = (arm_root.to_global(_bow_nock + Vector2(facing * 12, 0)) if _bow_nock_ok else global_position + Vector2(facing * 10, -30))
-		var ang := 0.0
-		if n_arrows > 1:
-			ang = lerpf(-0.42, 0.42, float(i) / float(n_arrows - 1))
-		p.velocity = Vector2(facing * spd, -20.0 * (1.0 - charge)).rotated(ang * facing)
-		p.gravity = 260.0 * (1.0 - charge)
-		p.pierce = int(it.get("mech_v", 1)) if (full and mech == "kemankes") else (1 if (full and mech == "yelpaze") else 0)
-		if Adlar.earned("bamsi_beyrek"):
-			p.pierce += 1
-		# her yayın kendi iz rengi ve uçuş efekti
-		match String(it.get("id", "")):
-			"akinci_yayi":
-				p.trail_col = Color(1.0, 0.35, 0.3)
-			"saganak_yayi", "tufan_yayi":
-				p.trail_col = Color(0.5, 0.8, 1.0)
-				p.fx_kind = "sel"
-			"od_oklari":
-				p.trail_col = Color(1.0, 0.55, 0.15)
-				p.fx_kind = "od"
-			_:
-				p.trail_col = Color(1.0, 0.95, 0.8)
-		if full and p.fx_kind == "":
-			p.trail_col = Color(1.0, 0.85, 0.4)
-			p.fx_kind = "altin"
-		var dmg_k := lerpf(0.6, 1.6, charge) * (0.75 if n_arrows > 1 else 1.0)
-		p.on_hit = func(e: Node) -> void:
-			_deal(e, float(it["dmg"]) * dmg_k, it, {"full": full, "kb": 60.0, "dir": facing, "ok": true, "usul_ok": on_beat})
-			if mech == "alev_oku":
-				level.fire_pool(e.global_position, 22.0, float(it.get("mech_v", 2.0)), 2.0)
-		level.add_projectile(p)
-	if mech == "alev_oku":
-		FX.fire(global_position + Vector2(facing * 14, -30), 4, 0.3)
-	cd[sec_slot] = 1.0 / float(it["aps"])
-	cd_max[sec_slot] = cd[sec_slot]
-	vis_scale = Vector2(0.94, 1.04)
-	bow_rel_t = BOW_REL
-	_bow_full = false
-	Ses.play("ok_ucus", -12.0, 0.9 + 0.25 * charge, 0.08, 0.03, center())
-	var muzzle := arm_root.to_global(_bow_nock + Vector2(facing * 20, 0)) if _bow_nock_ok else global_position + Vector2(facing * 10, -30)
-	if full:
-		Game.hitstop(0.03)
-	FX.burst(muzzle, Color(1, 0.95, 0.8), 4 + int(6 * charge), 40 + 60 * charge, 0.2, 0.15, 0, true)
-	if full:
-		FX.ring(muzzle, 14, Color(1.0, 0.9, 0.5), 0.18)
-		Game.kick(Vector2(-facing, 0), 3.0)
+	## v19: atış Okculuk'ta (hız, hedef yardımı, yelpaze, tam bırakış, saplanma); eski çağrılar için ince sarmalayıcı
+	okc.fire(charge)
 
 
 func _throw_item(it: Dictionary) -> void:
@@ -3992,14 +3977,14 @@ func _update_weapon_visual() -> void:
 		pose = [-0.5, 1.95, -0.15, 1.0, 1.0]
 	elif aim_t >= 0.0:
 		it = slot(sec_slot)
-		var pull := clampf(aim_t / 0.55, 0.0, 1.0)
-		# tam gerilince ok ucu hafifçe titrer (gerginlik)
+		var pull := okc.pull()
+		# tam gerilince ok ucu hafifçe titrer (gerginlik); v19: kol hedef yardımının açısına eğilir
 		var quiver := 0.012 * sin(aim_t * 70.0) if pull >= 1.0 else 0.0
-		pose = [1.55 + quiver, 0.05, 0.0, 1.0, 1.0 - 0.05 * pull]
+		pose = [1.55 - okc.tilt + quiver, 0.05, 0.0, 1.0, 1.0 - 0.05 * pull]
 	elif bow_rel_t > 0.0 and slot(sec_slot).get("kind", "") == "bow":
 		it = slot(sec_slot)
 		var rk := bow_rel_t / BOW_REL
-		pose = [1.55 + 0.12 * rk, 0.05, -0.1 * rk, 1.0, 1.0 + 0.04 * rk]
+		pose = [1.55 - okc.tilt + 0.12 * rk, 0.05, -0.1 * rk, 1.0, 1.0 + 0.04 * rk]
 	elif throw_t >= 0.0:
 		it = slot(sec_slot)
 		var tk := clampf(throw_t / 0.28, 0.0, 1.0)
@@ -4140,12 +4125,16 @@ func _bow_tips(it: Dictionary) -> Array:
 
 func _update_bow(it: Dictionary, h: Vector2) -> void:
 	## Yay: gerildikçe kollar esner (yatay sıkışma), kiriş gez noktasına geri çekilir, ok yayda durur;
-	## bırakınca kiriş sönümlü titrer ve yay geri teper.
-	var pull := clampf(aim_t / 0.55, 0.0, 1.0) if aim_t >= 0.0 else 0.0
+	## bırakınca kiriş sönümlü titrer ve yay geri teper. v19: gerilme süresi yaya özgü (Okculuk.PROF), stil v2'de yay
+	## hedef yardımının açısına eğilir, kiriş / ok mürekkep, tam bırakış penceresi ok ucunda halka + parıltı.
+	var pull := okc.pull()
 	var rk := clampf(bow_rel_t / BOW_REL, 0.0, 1.0) if aim_t < 0.0 else 0.0
 	var flex := 1.0 - 0.1 * pull
+	var ink := bow_str.ink
+	var tilt := okc.tilt * float(facing) if ink else 0.0
 	weapon.scale = Vector2(flex, facing) * float(Data.weapon_sprite(String(it["id"]), String(it["material"]))["scale"])
 	weapon.position = h + Vector2(-facing * 2.0 * rk * rk, 0)
+	weapon.rotation = (0.0 if facing > 0 else PI) + tilt
 	var tips := _bow_tips(it)
 	var t0: Vector2 = tips[0]
 	var t1: Vector2 = tips[1]
@@ -4156,13 +4145,26 @@ func _update_bow(it: Dictionary, h: Vector2) -> void:
 	if rk > 0.0:
 		var tt := Time.get_ticks_msec() / 1000.0
 		nock.x = mid.x + facing * sin(tt * 75.0) * 2.5 * rk
+	if tilt != 0.0:
+		var wp := weapon.position
+		top = wp + (top - wp).rotated(tilt)
+		bot = wp + (bot - wp).rotated(tilt)
+		nock = wp + (nock - wp).rotated(tilt)
 	bow_str.visible = true
 	bow_str.top = top
 	bow_str.bot = bot
-	bow_str.nock = nock.round()
+	bow_str.nock = nock if ink else nock.round()
 	bow_str.dir = facing
+	bow_str.rotation = 0.0
 	bow_str.arrow_on = aim_t >= 0.0 and not (String(it["id"]) in BAKED_ARROW_BOWS)
 	bow_str.glow = (0.6 + 0.4 * sin(aim_t * 18.0)) if (aim_t >= 0.0 and pull >= 1.0) else 0.0
+	if ink:
+		var pr := Okculuk.prof(it)
+		bow_str.variant = "altin" if (okc.in_perfect() or (okc.hazir > 0 and aim_t < 0.05)) else String(pr["var"])
+		bow_str.ring = okc.ring_k()
+		bow_str.perfect = okc.in_perfect()
+		bow_str.tilt = tilt
+		bow_str.str_col = Color(0.95, 0.9, 0.78) if not bow_str.perfect else Color(1.0, 0.9, 0.55)
 	match String(it["id"]):
 		"akinci_yayi":
 			bow_str.fletch = Color(0.75, 0.1, 0.16)

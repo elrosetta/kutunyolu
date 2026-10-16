@@ -1319,3 +1319,81 @@ Animasyon adları, kare sayıları, fps, döngü bayrakları ve çapa adları v1
 ## Varsayılan görsel stil: v2 (mürekkep)
 
 Oyun artık varsayılan olarak v2 mürekkep + cel tarzında açılır (`Data.stil = "v2"`). Eski piksel görünüm: `-- --stil=v1`.
+
+
+## Okçuluk (v19): Dead Cells esinli yay sistemi
+
+Şikâyet: yay "hantal" (0,55 sn sabit gerilme + 1/aps bekleme = Türk Yayı'nda atış başına ~1,4 sn; gerilirken saldırı
+basışı düşüyordu; oklar 300-560 px/sn ile süzülüyordu) ve v2'de hâlâ piksel görünüyordu (1 px `draw_rect` kiriş, kare
+ok, `FX.burst` parıltıları). Yeni sistem `scripts/actors/Okculuk.gd` (durum + kurallar) ve `scripts/actors/Ok.gd`
+(oyuncu oku, `Projectile`'dan türer); `Player.gd` yalnızca girdi noktalarından çağırır.
+
+### Dead Cells'ten alınanlar
+
+* **Dokunuş = ok.** Hızlı yaylarda (Quick Bow) gerilme ~0,1 sn; basıp hemen bırakmak da atar. Bizde her yayın en kısa
+  gerilmesi (`min`) dolunca ok çıkar: seri basış seri atış, hiçbir basış kaybolmaz (bekleme sırasındaki basış 0,45 sn saklanır).
+* **Basılı tut = seri atış** (Quick Bow / Sonic Carbine): Akıncı Yayı basılı tutuldukça kendiliğinden yineler.
+* **Gerilen yaylar** (Marksman's Bow, Heavy Crossbow) dolup bırakılmayı bekler; tam gerilme yaya göre 0,3-0,5 sn.
+* **Neredeyse anında oklar:** 650-1100 px/sn; yalnızca yarım gerilmiş ya da ağır oklar hafifçe düşer. 150 px'teki
+  düşmana ok 7-9 karede (117-150 ms) varır. Hızlı ok ince düşmanın içinden geçmesin diye kare içinde 6 px'lik alt adımlarla süpürülür.
+* **Dikey hedef yardımı:** öndeki en yakın düşmana kendiliğinden nişan; koni uzakta ±26°, dipte ±63° (alçak kurt dibinde de
+  vurulur); nişan noktası gövde kutusunun okun yüksekliğine en yakın yeri; yerçekimi düşüşü kadar yukarı. Kol, yay ve
+  yaydaki ok bu açıya eğilir (v2). Önde kimse yok, arkada biri varsa (yön tuşu basılı değilken) ona dönülür.
+* **Hareket:** gerilirken yürünür (yaya göre %40-85 hız; eski: %30), havada atılır, yuvarlanma gerilmeyi keser.
+* **Kritik koşulları** (Nerves of Steel, Multiple-nocks, Heavy Crossbow): tam zamanlama, dipten atış, geri çekilme.
+
+### Yaylar (`Okculuk.PROF`, süreler sn)
+
+| Yay | Esin | Gerilme (tam / en kısa) | Atış sonrası kilit | Hız px/sn | Yürüme | Kendine özgü |
+|---|---|---|---|---|---|---|
+| Türk Yayı | Marksman's Bow + Nerves of Steel | 0,40 / 0,06 | 0,14 | 640 → 1100, tamda düz | %60 | Tam gerilince {v} düşman deler; **tam bırakış kesin kritik** (eskiden her tam gerilme kritikti) |
+| Akıncı Yayı | Quick Bow | 0,12 / 0,05 | 0,08 | 980-1050, düz | %85 | Basılı tut: ~5 ok/sn seri atış; 10 Hz basışta 10/12; yuvarlanırken atar; geri çekilirken kritik (part atışı) |
+| Sağanak Yayı | Multiple-nocks Bow | 0,30 / 0,08 | 0,20 | 720 → 960 | %60 | 3-4 ok yelpaze; **gerildikçe yelpaze daralır** (±19° → ±7°); 80 px içinde "dipten!" kesin kritik |
+| Od Okları | (Ice/Fire Bow) | 0,32 / 0,08 | 0,18 | 700 → 940 | %65 | Çarptığı yerde alev; yanan düşmana kritik; tam bırakış |
+| Tufan Yayı | Heavy Crossbow | 0,50 / 0,13 | 0,32 | 680 → 900, hafif düşer | %40 | 5-6 ok geniş saçma (±24° → ±11°), 120-200 itme + sendeletme, 65-130 px/sn geri tepme, 90 px içinde dipten kritik |
+
+Ölçülen (`--yay --boss`): basış→ok Türk 100 ms, Akıncı 67 ms, Sağanak / Od 117 ms, Tufan 167 ms; basış→tam gerilme
+417 / 317 / 350 / 517 ms. Hasar çarpanı en kısa ↔ tam arasında doğrusal (Türk 0,45 → 1,0; yelpaze okları ×0,85).
+
+### Yeni mekanikler
+
+* **Tam Bırakış:** gerilen yaylarda yay dolduğu an 0,1-0,11 sn'lik pencere açılır. Pencereden 0,18 sn önce ok ucunda
+  daralan altın halka belirir; dolunca dört kollu parıltı + mürekkep pırıltısı + `yay_dolu` sesi + gövde flaşı. Pencerede
+  bırakılan ok: kesin kritik, +1 delme, %10 hızlı, altın mürekkep iz; 35 ms duraklama, kamera itişi, altın ensō, "TAM BIRAKIŞ".
+  Geç bırakış tam güçte ama kritik değil (oyuncu ritim tutturmayı öğrenir: Nerves of Steel).
+* **Ok Sökme (ok + yakın dövüş sinerjisi):** isabet eden son ok düşmanın gövdesinde saplı kalır (en çok 5, 6 sn). Saplı oku
+  olan düşmana yakın dövüş vuruşu okları söker: ok başına +%30 hasar, ok sayısı kadar kanama, 3+ okta kesin kritik; sökülen
+  oklar dönerek geri fırlar, kızıl mürekkep damlaları + pençe izi, "OK SÖKÜLDÜ ×n", yay beklemesi sıfırlanır ve bir hazır ok
+  kazanılır. Akış: uzaktan 2-3 ok → dalış → sökme vuruşu → hazır okla anında tam bırakış.
+* **Ok Toplama:** ıskalanan oklar duvara / zemine saplanır, 6 sn nabız atarak kalır; ölen düşmandaki saplı oklar (en çok 3)
+  yere dökülür. Üstünden geçince (yuvarlanırken de) toplanır: **hazır ok** (en çok 3, baş üstünde küçük mürekkep oklar).
+  Hazır okla başlayan gerilme anında dolu ve tam bırakış sayılır (Akıncı'da sıradaki ok kesin kritik + delici).
+* **Kartal Süzülüşü:** havada gerilirken düşüş 50 px/sn'ye iner (hava başına 0,55 sn); havadaki ilk atış küçük bir sıçrama
+  (-70 px/sn) verir. Ölçülen: serbest düşüş 208 px/sn, gerilirken en çok 69 px/sn.
+
+### Akış (FLOW ile)
+
+* Saldırının vuruş anında yay basışı: toparlanma başlar başlamaz saldırıyı keser, ok çıkar (167 ms). Basış ağır savuruşta da
+  kaybolmaz (`Okculuk.process` ara belleği tazeler).
+* Gerilirken saldırı basışı: en kısa gerilme dolduysa ok o anda çıkar (**çabuk atış**), saldırı aynı karede başlar (eskiden
+  basış yay bırakılana dek bekleyip eriyordu).
+* Gerilirken yuvarlanma: aynı karede yuvarlanır, gerilme bırakılır. Yuvarlanırken basılan yay: yuvarlanma biter bitmez ok (267 ms).
+* Atış sonrası kilit 0,08-0,32 sn (eskiden 1/aps = 0,6-1,1 sn); kilit sırasındaki basış saklanır.
+
+### Görünüş (stil v2; v1 piksel görünüm `--stil=v1` ile aynen)
+
+* **Kiriş:** kenar yumuşatmalı `draw_polyline`, koyu mürekkep dış çizgi (0,95 birim) + açık çekirdek (0,38); tam bırakış
+  penceresinde altına döner. Yaydaki ok uçuştaki okla aynı SusV2 mürekkep sprite'ı (`ok_<tür>`), kuyruğu gezde, eğimle döner.
+* **Uçuş izi:** `shaders/ok_iz.gdshader` — ucu dolgun, kuyruğa incelen fırça şeridi; koyu mürekkep kenar, oka özgü çekirdek
+  (Türk krem, Akıncı kızıl, Sağanak / Tufan buz mavisi, Od turuncu, tam bırakış altın; başta HDR parıltı), kuyrukta `bristle.png`
+  kıllarına ayrılarak erir. Kenarlar türevle yumuşatılır.
+* **Namlu / isabet / duvar:** atış yönünde kısa mürekkep kesiği + yönlü sıçrantı (`InkFX` "cut_b" + "burst_dir"); isabette
+  `InkFX.hit("pierce")` (kritikte kademe 2), duvarda soluk kuru fırça tozu; saplı oklar düşmanın çocuğu olarak gövdede kalır.
+* Tam gerilme parıltısı: `InkFX` "shard" + kuru halka (eski `FX.burst` piksel kareleri kalktı); tam bırakış altın ensō.
+
+### Test
+
+`godot --headless --path . --quit-after 99999 -- --yay --boss [--stil=v1]`: her yay için dokunuş→atış→isabet, tam bırakış /
+geç bırakış, basılı tutma, 10 Hz seri basış; akış (vuruşta yay, gerilirken saldırı / yuvarlanma, yuvarlanırken yay, Akıncı
+yuvarlanma atışı), ok sökme + hazır ok, ok toplama (dökülen / yere saplanan), süzülüş, takılma denetimi. Ekran görüntüleri:
+`godot --path . -- --yay --boss --pencere=1920x1080 --yay_goruntu=C:/mutlak/klasor`.

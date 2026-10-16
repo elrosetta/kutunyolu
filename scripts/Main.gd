@@ -42,6 +42,11 @@ func _ready() -> void:
 		var dt: Node = load("res://tools/tests/dovus_testi.gd").new()
 		dt.set("main", self)
 		add_child(dt)
+	if OS.get_cmdline_user_args().has("--yay"):
+		# v19 okçuluk testi (tools/tests/yay_testi.gd): her yayın dokunuş / tam bırakış / seri atış / akış ölçümü
+		var yt2: Node = load("res://tools/tests/yay_testi.gd").new()
+		yt2.set("main", self)
+		add_child(yt2)
 	var sus := false
 	for arg in OS.get_cmdline_user_args():
 		sus = sus or String(arg).begins_with("--sus=")
@@ -73,7 +78,7 @@ func _ready() -> void:
 			_build_boss("kara_boru_han")
 		elif String(arg).begins_with("--boss="):
 			_build_boss(String(arg).trim_prefix("--boss="))
-	if auto_test or showcase or _ekran != "" or firca or sus or OS.get_cmdline_user_args().has("--mekanik") or OS.get_cmdline_user_args().has("--dovus"):
+	if auto_test or showcase or _ekran != "" or firca or sus or OS.get_cmdline_user_args().has("--mekanik") or OS.get_cmdline_user_args().has("--dovus") or OS.get_cmdline_user_args().has("--yay"):
 		hud.mode = "play"
 		get_tree().paused = false
 	else:
