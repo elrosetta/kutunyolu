@@ -111,7 +111,8 @@ const R0 := 0.62   # ilk karedeki açılış payı
 
 var _els: Array = []       # sözlükler
 var _t := 0.0
-var auto_pal := false      # paleti ilk karede oyuncunun (aynı karede başlayan) izinden al
+var auto_pal := false      # paleti ilk karelerde oyuncunun (aynı karede başlayan) izinden al
+var _auto_n := 0
 var follow: Node2D
 var _follow_off := Vector2.ZERO
 
@@ -133,10 +134,14 @@ func el(shape: String, off: Vector2, rot: float, size: Vector2, variant := V_SPL
 
 func _process(delta: float) -> void:
 	if auto_pal:
-		# vuruş, izin oluştuğu karede izden ÖNCE işlenir: palet bir kare sonra izden okunur
-		auto_pal = false
-		if _near_player_swing(global_position):
-			material = _mat(InkTrail.active.pal)
+		# vuruş, izin oluştuğu karede izden ÖNCE işlenir: palet ilk birkaç karede yakındaki taze izden okunur
+		_auto_n += 1
+		var t := InkTrail.active
+		if t != null and is_instance_valid(t) and t._s.size() > 0 and (t._s[t._s.size() - 1][1] as Vector2).distance_to(global_position) < 90.0:
+			material = _mat(t.pal)
+			auto_pal = false
+		elif _auto_n > 12:
+			auto_pal = false
 	_t += delta
 	if follow and is_instance_valid(follow):
 		global_position = follow.global_position + _follow_off
@@ -240,15 +245,15 @@ static func hit(kind: String, pos: Vector2, dir: Vector2, p: int, tier := 1, siz
 		_:
 			# cut / spark: savuruş yönünde kesik izi + yönlü yıldız
 			var sd := _swing_dir(pos, hd)
-			var cl := base * (2.1 if tier == 0 else 2.6)
-			n.el("burst_dir", hd * base * 0.15, hd.angle(), Vector2.ONE * base * (0.95 if tier == 0 else 1.2), V_SPLASH, 0.0, 0.045, 0.05, 0.28 + 0.04 * tier)
+			var cl := base * (1.9 if tier == 0 else 2.2)
+			n.el("burst_dir", hd * base * 0.15, hd.angle(), Vector2.ONE * base * (0.9 if tier == 0 else 1.05), V_SPLASH, 0.0, 0.045, 0.05, 0.28 + 0.04 * tier)
 			n.el("cut_a" if tier > 0 else "cut_b", Vector2.ZERO, sd.angle(), Vector2(cl, cl * 0.25), V_CUT, 0.0, 0.03, 0.06 + 0.02 * tier, 0.22 + 0.05 * tier)
 	if tier >= 1 and kind != "blunt":
 		var a := hd.angle()
-		n.el("dab_a", hd.rotated(0.9) * base * 0.35, a + 0.9 + randf_range(-0.3, 0.3), Vector2.ONE * base * 0.75, V_SPLASH, 0.02, 0.05, 0.05, 0.3)
-		n.el("dab_b", hd.rotated(-0.9) * base * 0.35, a - 0.9 + randf_range(-0.3, 0.3), Vector2.ONE * base * 0.65, V_SPLASH, 0.03, 0.05, 0.05, 0.3)
+		var sg := 1.0 if randf() < 0.5 else -1.0
+		n.el("dab_a" if sg > 0.0 else "dab_b", hd.rotated(0.9 * sg) * base * 0.35, a + 0.9 * sg + randf_range(-0.3, 0.3), Vector2.ONE * base * 0.7, V_SPLASH, 0.02, 0.05, 0.05, 0.3)
 	if tier >= 2:
-		n.el("spray", hd * base * 0.55, hd.angle(), Vector2.ONE * base * 1.7, V_SPLASH, 0.01, 0.07, 0.08, 0.4)
+		n.el("spray", hd * base * 0.55, hd.angle(), Vector2.ONE * base * 1.4, V_SPLASH, 0.01, 0.07, 0.08, 0.38)
 	return n
 
 

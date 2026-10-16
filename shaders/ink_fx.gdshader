@@ -39,7 +39,7 @@ void fragment() {
 		col = mix(c_rim, c_body, inner);
 		col = mix(col, c_core, smoothstep(0.62, 0.9, sdf) * 0.5);
 		col = mix(col, c_ink, clamp(d.g * 0.6, 0.0, 1.0));
-		col = mix(col, c_hot * hot_gain, front * fresh * (1.0 - d.g) * 0.8);
+		col = mix(col, c_hot * hot_gain, front * fresh * (1.0 - d.g) * 0.45);
 	} else if (var_f < 1.5) {
 		// mürekkep damgası: koyu (paletin mürekkebi siyaha yakın), ince renkli kenar, uçlarda koyu kızıl
 		col = mix(c_rim * 1.2, c_ink * 0.3, smoothstep(0.5, 0.56, sdf));

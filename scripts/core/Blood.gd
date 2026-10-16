@@ -362,8 +362,23 @@ class _Stains:
 		if ink:
 			var ci := col.darkened(0.06)
 			if surface:
-				var w := float(spread) * 1.15 + randf_range(1.6, 2.8)
-				_ink_add(Vector2(p.x, p.y - PX * 0.5), Vector2(w, clampf(w * 0.32, 1.1, 2.4)), ci, 1)
+				# yakındaki taze lekeye düşen damla onu büyütür: zemin kenarında ince kırmızı çizgi yerine
+				# seyrek, iri, düzensiz mürekkep lekeleri
+				var sy := p.y - PX * 0.5
+				for k in range(_ik.size() - 1, maxi(-1, _ik.size() - 48), -1):
+					var e: Array = _ik[k]
+					var ec: Vector2 = e[0]
+					var es: Vector2 = e[1]
+					if int(e[4]) == 1 and absf(ec.y + es.y * 0.18 - sy) < 1.2 and absf(ec.x - p.x) < es.x * 0.5 + 1.5:
+						var nw := minf(es.x + float(spread) * 0.45 + 0.6, 15.0)
+						var nh := clampf(nw * 0.4, 1.8, 4.2)
+						e[1] = Vector2(nw, nh)
+						e[0] = Vector2(lerpf(ec.x, p.x, 0.2), sy - nh * 0.18)
+						_dirty = true
+						return
+				var w := float(spread) * 1.2 + randf_range(2.2, 3.4)
+				var h := clampf(w * 0.4, 1.6, 3.6)
+				_ink_add(Vector2(p.x, sy - h * 0.18), Vector2(w, h), ci, 1)
 			else:
 				var r := randf_range(1.1, 1.9)
 				_ink_add(p, Vector2(r, r * randf_range(0.9, 1.3)), ci, 1)

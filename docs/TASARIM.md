@@ -728,9 +728,66 @@ artık bu yönde: `bengu_v2` ve `kara_boru_v2` (`bengu_kol_v2` dahil) `tools/art
 * **Araçlar:** `preview_ink.py out.png [--mod m] [--zoom 2] [--all | --anim ad | anim:kare ...]`,
   `compare_ink.py referans.png out.png anim:kare ...` (referansla aynı 1080p ölçeğinde). Karşılaştırmalar:
   `rec_v14/karakter/` (depo dışı).
-* **Bilinen eksikler:** silah atlası, efektler ve diğer yaratıklar hâlâ piksel; ön kol iskeleti parçalarının gölgesi
+* **Bilinen eksikler:** diğer yaratıklar hâlâ piksel (silah atlası, savuruş izi, vuruş efektleri ve kan: aşağıdaki
+  "mürekkep fırçası" bölümü); ön kol iskeleti parçalarının gölgesi
   parça yerelinde çizili (kol başın üstüne kalkınca ışık yönü dönmüş görünür); yüz/el ayrıntısı 1080p'de küçük
   (oyun kamerası karakteri ~115 px gösteriyor, referansta ~185 px: kamera yakınlaştırması ortam tarafında).
+
+### Stil v2 mürekkep fırçası: savuruş izi, vuruş efektleri, silahlar, kan
+
+Referans: Shinobi: Art of Vengeance'taki kızıl fırça darbesi (kalın kuru fırça hilali, pürüzlü kıl kenarları, koyu
+kızıl çekirdek, turuncu-kızıl gövde, siyah fırça izleri, zerreler). Yalnızca `--stil=v2`; v1 yolları değişmez
+(`FX.ink()` = `Data.stil == "v2"`). Hepsi yordamsal (dışarıdan doku yok).
+
+* **Savuruş izi** (`scripts/core/InkTrail.gd`, `shaders/ink_brush.gdshader`): `FX.trail` v2'de `InkTrail` verir
+  (WeaponTrail alt sınıfı, aynı `add/done/life` arayüzü; Player yalnızca `setup(it, atk, ağırlık)` çağırır). Şerit
+  bıçak ucunun süpürdüğü alan (SÜPÜRME) ya da uç yolu (YOL: saplama, kırbaç; Catmull-Rom ile yumuşatılır). Genişlik
+  fırça baskısı: ucun ilk yolu ince başlar (`ramp_len`), hızlı orta kısım dolgun karın, yaşla incelir, kuyruk ucu her
+  zaman sivri. Uç bıçak ekseni boyunca kayınca (geriden öne savurma) enine yön yol normaline kayar (çizgiye çökmez).
+  Gölgelendirici: kıl dokusu (`assets/fx/ink/bristle.png`: R kıl yükü, G koyu fırça izleri, B kıl kimliği, A tane),
+  iç kenar kuru ve pürüzlü, dış kenar keskin; kuru fırça boşlukları; koyu kızıl çekirdek bandı + siyah/koyu kızıl
+  fırça izleri; bıçağın hemen arkasında HDR sıcak ön kenar (bloom), kısa dış ışıma; yaşlandıkça kenardan yenir ve
+  kıl tellerine ayrılarak erir. Mip düzeyi yalnızca enine türevden (`textureGrad`). Mürekkep zerreleri / kıvılcımlar
+  aynı üçgen dizisinde: iz başına tek çizim çağrısı, düğümler havuzda (`InkTrail.acquire`). Köşe verisi yalnızca UV
+  ve COLOR.a'da (HDR 2D'de COLOR.rgb doğrusala çevrilir).
+* **Tasarımlar** (`InkTrail.setup`): kılıç temiz hilal (genişlik bıçak boyunun %62'si) · ağır (gürz, topuz, çekiç,
+  balta, ulu/bozgun kılıcı) geniş (%95), daha kuru, kalın siyah izler, iri zerreler, bitişte uçta sıçrantı · uzun sap
+  (teber, tırpan, asa) ince uzun hilal · hançer (ikiz bıçak, böri hançeri, pençe) hızlı çift fırça (içte ikinci ince
+  darbe, en az 4 birim) · saplama savuruşları (mızrak, lunge, flurry) düz fırça çizgisi + iki soluk yankı · kırbaç
+  (kement, od kamçısı) ince kıvrak şerit, baş iğne gibi. Ağır / bitiriş: arka koyu geniş katman; tam şarj ve bekleme
+  bitirişinde + dış ikinci ince hilal. Paletler (`InkFX.PALETTES`, sRGB → doğrusal): 0 kızıl (referanstan ölçüldü),
+  1 od, 2 ayaz, 3 zehir, 4 ruh, 5 yıldırım, 6 erlik/bozgun, 7 ay, 8 yel/kayın, 9 altın; silah kimliği (`ID_PAL`)
+  ya da malzeme (`MAT_PAL`: od taşı, ayaz, ruh, gök demiri).
+* **Vuruş efektleri** (`scripts/core/InkFX.gd`, `shaders/ink_fx.gdshader`, atlas `assets/fx/ink/ink_fx.png` +
+  `ink_fx.json`; `tools/artgen/inkfx.py`): atlas veri taşır (R işaretli uzaklık alanı, G koyu/sıcak çekirdek, B çizim
+  sırası, A erime gürültüsü), renk paletten. Şekiller: patlama yıldızları, yönlü patlama, kritik damgası, fırça
+  dokunuşları, damlalar, ensō, iki kesik izi, yönlü sıçrantı, kıvılcım yıldızı, kuru halka, pençe, yer sıçrantısı.
+  `InkFX.hit` (kesik izi savuruş yönünde: taze izin uç yönünden; yönlü yıldız; kademe 1+ fırça dokunuşu; kademe 2
+  arkaya sıçrantı), `stamp` (kritik: siyah damga + kızıl patlama + beyaz-sıcak kesik), `slam` (yer sıçrantısı,
+  GroundSlamFX ile birlikte), `flourish` (savuşturma: ensō + kıvılcım; kusursuz kaçış: ayaz ensō + halka), `ring`,
+  `kill`. Açılış ilk karede %62 hazır (hitstop'ta zaman durur; donmuş karede boş kalmaz). Vuruş izden önce işlendiği
+  için palet ilk karelerde yakındaki taze izden alınır (`auto_pal`). FX yönlendirmeleri: `slash_sprite` (yay/çizgi/
+  halka/x: iz zaten çizer; spark_m / crit_burst / kill_flash → mürekkep; boss arc_* → `InkTrail.auto_arc`),
+  `impact_sprite`, `impact`, `slash` (düşman yayı → kendiliğinden süpürülen fırça), `ring`, `ground_slam` (+ mürekkep
+  sıçrantısı), darbe animasyonları (`FX.INK_ANIM`: PVFX piksel kareleri yerine mürekkep), parçacık ve kalan
+  animasyonlarda doğrusal süzgeç (yakın kamerada bloklaşmasın). Player'da savuşturma ve kusursuz kaçışa birer satır.
+* **Silahlar** (`tools/artgen/weapons_ink.py` → `assets/weapons/weapons_v2.json` + `weapons_v2_<n>.png`): geometri
+  v1 `weapons_myth.draw_item` ile birebir (aynı kimlik, pivot, dünya boyu); hacim tuvali 2x süper örneklemle
+  rasterlanıp mürekkep-cel boyanır: düz taban + tek sert gölge tonu + ışığa bakan pah için açık ton, metal/taşta
+  küçük keskin parlama ve bıçak boyunun %62'sinde çift çapraz çizgi roman parıltısı, alttakine düşen gölge,
+  dış silüet ışık yanında ince / gölge yanında kalın mürekkep (#15161d), parçaların üst üste geldiği yerde ince iç
+  çizgi; ahşap damarı, sargı, süs, ışıyan damarlar v1 boyamasından. Doku 4 piksel / dünya birimi (v2 kamerası 2x:
+  1080p'de 1:1). Eşya başına 11 malzemeye ortak sıkı kırpma, raf paketleme, 4096 genişlikte sayfalar (şu an tek
+  sayfa 4096x1920; 4096x8192 dolunca yeni sayfa). `Data.weapon_sprite(kimlik, malzeme)` → {tex, region, pivot,
+  scale, linear}: Player kol iskeleti (`_apply_wspr`, ink_char gölgelendiricisi), Projectile, Pickup kullanır;
+  arayüz simgeleri v1 piksel atlasında kalır. `python weapons_ink.py [--is N] [--onizleme x.png]` (~1 dk).
+* **Kan** (`Blood.gd`, `shaders/ink_blood.gdshader`): fizik aynı; damla hız yönünde gözyaşı fırça zerresi, zemin
+  lekesi düzensiz mürekkep lekesi (koyu kenar, ıslak parlama, uydu noktalar; yakına düşen damla mevcut lekeyi
+  büyütür: kenarda ince kırmızı çizgi yerine iri seyrek lekeler), duvar akıntısı incelen fırça izi, et parçası
+  mürekkep konturlu parça. Her katman tek üçgen dizisi.
+* **Test:** `-- --stil=v2 --firca[=silah,silah:malzeme,...] [--firca_bos]` (`tools/tests/firca_testi.gd`: her silahta
+  3'lü zincir, basılı ağır saldırı; sonunda savuşturma ve kusursuz kaçış; "[firca] ... kare=N ekran=x,y" satırları).
+  Çekimler ve referans yan yana karşılaştırmaları `rec_v15/firca/` (depo dışı).
 
 ### Yaygınlaştırma planı (onay sonrası)
 

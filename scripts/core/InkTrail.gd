@@ -312,13 +312,23 @@ func _update_pressure(from: int) -> void:
 		var L := maxf(((s[1] as Vector2) - (s[0] as Vector2)).length() / 0.65, 6.0)
 		# ince başlangıç: ucun ilk ramp_len yolu boyunca baskı artar (süre değil yol: hızlı savuruşta da görünür)
 		var ramp := smoothstep(0.0, L * ramp_len, float(s[4])) * 0.8 + 0.2
+		# uç hızı: en az 1/60 sn'lik pencere üzerinden yay uzunluğu / süre (ara örnekler aynı zamanı paylaşabilir),
+		# sonra örnekten örneğe yumuşatılır: iç kenar basamaklanmasın
 		var spd := 0.0
-		if i > 0:
-			var dt := maxf(float(s[2]) - float(_s[i - 1][2]), 1.0 / 240.0)
-			spd = ((s[1] as Vector2) - (_s[i - 1][1] as Vector2)).length() / dt
+		var j := i
+		while j > 0 and float(s[2]) - float(_s[j][2]) < 1.0 / 60.0:
+			j -= 1
+		var dt := float(s[2]) - float(_s[j][2])
+		if dt > 0.0001:
+			spd = (float(s[4]) - float(_s[j][4])) / dt
 		var sp := clampf(spd / (L * 20.0), 0.0, 1.0)
-		var prevp: float = float(_s[i - 1][3]) if i > 0 else sp
-		s[3] = ramp * lerpf(0.55, 1.0, lerpf(prevp, sp, 0.5))
+		var prev_sp: float = float(_s[i - 1][5]) if i > 0 and _s[i - 1].size() > 5 else sp
+		sp = lerpf(prev_sp, sp, 0.3)
+		if s.size() > 5:
+			s[5] = sp
+		else:
+			s.append(sp)
+		s[3] = ramp * lerpf(0.55, 1.0, sp)
 
 
 func _release() -> void:
@@ -396,7 +406,9 @@ func _ribbon(layer: int, wmul: float, shift: float, u_shift: float, age_add: flo
 						nside = -nside
 					across = (dir * pw + nside * (1.0 - pw)).normalized()
 					wk = lerpf(0.45, 1.0, pw)
-			var w := maxf(w_frac * bl, min_w) * press * shrink * wmul * wk
+			# kuyruk ucu (en eski örnek) her zaman sivri: kare bayrak gibi kesik başlangıç yok
+			var tail := smoothstep(0.0, bl * 0.45, float(s[4]) - float(_s[0][4]))
+			var w := maxf(w_frac * bl, min_w) * press * shrink * wmul * wk * lerpf(0.12, 1.0, tail)
 			var c := tip + across * shift * bl
 			inner = c - across * w
 			outer = c + across * w * 0.3
@@ -483,7 +495,8 @@ func _draw() -> void:
 			var b: Vector2 = _s[_s.size() - 1][1]
 			var td := (b - a).normalized() if a.distance_to(b) > 1.0 else Vector2.RIGHT
 			for k in echoes:
-				_ribbon(2, 0.75 - 0.2 * k, 0.0, 0.17 * (k + 1), 0.12 * (k + 1), -td * (7.0 + 7.0 * k) + td.orthogonal() * (2.5 * (k + 1) * (1 if k % 2 == 0 else -1)))
+				# yankı: saplamanın arkada kalan soluk kopyaları (iz + sonraki görüntü), dönüşümlü üst/alt
+				_ribbon(2, 0.7 - 0.22 * k, 0.0, 0.17 * (k + 1), 0.1 * (k + 1), -td * (9.0 + 9.0 * k) + td.orthogonal() * (3.5 * (k + 1) * (1 if k % 2 == 0 else -1)))
 	for f in _flecks:
 		var p: Vector2 = f[0]
 		var vel: Vector2 = f[1]

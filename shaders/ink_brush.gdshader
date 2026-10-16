@@ -54,7 +54,12 @@ void fragment() {
 		COLOR = vec4(c * a, typ > 1.5 ? a * 0.4 : a);
 	} else {
 		float vi = v / INK_W;                         // 0 iç kenar, 1 mürekkep dış kenarı (bıçak ucu), >1 ışıma
-		vec4 b = texture(bristle, vec2(UV.x, clamp(vi, 0.004, 0.996)));
+		// kıllar boyuna uzandığından mip düzeyi yalnızca enine türevden: hızlı süpürmede boyuna sıkışma
+		// (u türevi büyük) dokuyu enine de bulanıklaştırıp bloklu kesikler üretmesin
+		vec2 buv = vec2(UV.x, clamp(vi, 0.004, 0.996));
+		vec2 gx = dFdx(buv) * vec2(0.12, 1.0);
+		vec2 gy = dFdy(buv) * vec2(0.12, 1.0);
+		vec4 b = textureGrad(bristle, buv, gx, gy);
 		float back = step(0.5, layer) * step(layer, 1.5);
 		float ghost = step(1.5, layer);
 		float rg = rough * (1.0 + back * 0.6 + ghost * 0.4);
@@ -69,7 +74,7 @@ void fragment() {
 		float dry = 0.05 + dry_in * rg * (1.0 - smoothstep(0.0, 0.62, e_in)) + age * (0.75 + 0.2 * rg) + ghost * 0.25;
 		float strand = (b.r - dry) * 5.0;
 		// erime: yaşlandıkça yalnızca kimliği yüksek kıllar kalır -> kıl telleri
-		float survive = (b.b + 0.3 - age * 1.25) * 5.0;
+		float survive = (b.b * 0.7 + b.a * 0.3 + 0.3 - age * 1.25) * 5.0;
 		float m = min(shape, min(strand, survive));
 		float aa = fwidth(m) * 0.75 + 0.015;
 		float alpha = smoothstep(-aa, aa, m);
