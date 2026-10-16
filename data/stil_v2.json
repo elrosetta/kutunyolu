@@ -700,7 +700,7 @@
    0.04,
    0.05
   ],
-  "deep_amount": 0.85,
+  "deep_amount": 0.72,
   "decor": [
    "mantar",
    "kaya",
@@ -751,6 +751,18 @@
    1.0,
    0.92,
    0.75
+  ],
+  "ink_extras": [
+   {
+    "names": [
+     "balbal"
+    ],
+    "every": [
+     50,
+     90
+    ],
+    "z": -3
+   }
   ],
   "camera_zoom": 2.0,
   "tower_brace": false,
@@ -900,7 +912,7 @@
    0.012,
    0.016
   ],
-  "deep_amount": 0.85,
+  "deep_amount": 0.72,
   "decor": [
    "kaya",
    "cira",
@@ -947,6 +959,18 @@
   "leaf_tex": "res://assets/bg/tamu_v2_ash.png",
   "leaf_amount": 34,
   "pollen_amount": 70,
+  "ink_extras": [
+   {
+    "names": [
+     "balbal"
+    ],
+    "every": [
+     70,
+     120
+    ],
+    "z": -3
+   }
+  ],
   "camera_zoom": 2.0,
   "tower_brace": true,
   "soil_emit": 1.2,

@@ -926,6 +926,58 @@ başlığı, çatlak ağı, döşenen doku), `bozkir_ink*.py`, `kaf_ink*.py`, `i
 * **Başarım (UHD 750, 1080p, --otomatik):** Bozkır v2 ~47 fps (Ötüken v2 ~30, Bozkır v1 ~32); Kaf v2 ~35 (yoğun dövüşte
   15-20, Ötüken v2 de 14'e iner).
 
+### Şahmeran Mağaraları ve Tamu (Erlik'in Ülkesi) v2 "mürekkep" ortamları
+
+Ötüken ile aynı dil (değişken kalınlıklı mavi-siyah mürekkep, boyalı dokular, satır başına sis/pus, 1080p'de 1:1 doku),
+yeraltına göre ışık: Şahmeran'da ışık kristallerden ve tavan çatlaklarından, Tamu'da aşağıdan lavdan gelir.
+* **Üretim:** `cd tools/artgen && python export_ink_yeralti.py sahmeran|tamu|hepsi [--bg [katman...]|--zemin|--on|--suslar|--tehlike]`.
+  `inkkit_yeralti.py` ortak parçalar: `lathe` (dönel katı: sarkıt/dikit/sütun; silindirik ışık, kenar ışığı, ıslak parıltı,
+  halka çıkıntıları, akıntı çizgileri, gölge taraması), `crystal_cluster` (iki yüzlü altıgen prizmalar + ayrı ışıma
+  tuvali, `halo`), `reflect` (katmanın su çizgisi üstünü dalgalı, kararan yansıma olarak suya düşürür + parıltı
+  çizgileri), `chain` (katener halka zincir), `basalt_prism` (üç yüzlü altıgen sütun, eğik kesik tepe, eklemler,
+  lav kenar ışığı), `rib` (kaburga kemiği), `lava_fall`, `smoke_layer`. `inkkit_zemin.py`: biyomdan bağımsız atlas
+  kurucusu (Ötüken yerleşimi; biyom `Spec`: üst bant, gömülü süs, örtü öbekleri, tavan, platform) + ışıma atlası.
+  Biyom dosyaları: `sahmeran_ink_ortam.py` / `tamu_ink_ortam.py` (paralaks; `sahmeran_ink.py` boss çizimidir),
+  `*_ink_ground.py` (atlas, dokular, ön plan, parçacık), `*_ink_decor.py` (süsler), `hazard_ink.py` (sıvı veri dokusu).
+* **Şahmeran paralaksı:** 0 uzak mağara (kubbe, sisli kütleler, kristal bokehi) · 1 kum saati sütunlar, kayaya oyulmuş
+  Şahmeran sarayı (basamaklı teraslar, kehribar ışıklı kemerler, yılan başlı burçlar), yansımalı göl · 2 sarkıt perdesi,
+  dikitler, kristaller, göl · 2b teal pus · 3 yılan kabartmalı sütunlar (sarmal yılanın ön kıvrımları, karın pulları,
+  başlıkta kehribar gözlü kukuletalı baş), kıyı setleri, kristaller, yansıma · 4 göl sisi · 5 tavan çatlağı hüzmeleri +
+  ışıklı zerreler (toplamalı) · 6 yakın koyu sarkıt/dikit, ıslak kaya kıyısı, parlak kristaller.
+* **Tamu paralaksı:** 0 tutulmuş kara güneş (açısal gürültülü ateş tacı), lavla alttan aydınlanan duman kuşakları · 1
+  volkanik sırtlar, Erlik Han'ın boynuzlu demir kalesi, lav şelaleleri, perspektifli kabuklu lav denizi + yansıma · 2
+  bazalt org boruları, şelaleler, lav denizi · 2b kızıl duman · 3 zincir gerili bazalt sütunlar, dev kaburga kemerleri,
+  boynuzlu öküz kafatası, kül zemin · 4 alçak duman · 5 lav ışıması, ısı tülleri, yükselen korlar (toplamalı) · 6 yakın
+  bazalt sütunlar, kancalı zincirler, kemik çıkıntıları.
+* **Boss arenası** (`stil_v2.json` "boss_bg" -> `Level.build_boss` paralaks listesini değiştirir): orta katman
+  `<biyom>_v2_3_mid_boss`: Şahmeran Ana'nın kobra tahtı (taçlı dev kobra kukuletası, sarmal oturak, kristalli kürsü) ve
+  Erlik Han'ın demir tahtı (öküz boynuzları, kara güneş amblemi, kafatası basamaklar, lav mangalları, sancaklar).
+* **Zemin:** Şahmeran: ıslak koyu kaya, yosun yastığı üst bant (ışık sporları), yan yüzde kristal kümesi, oymalı taş
+  platform (pul frizi, kehribar taşlı yılan başı), dünya uzayı tortul kaya (kristal damarları ve geod cepleri ışır) +
+  yosun dokusu. Tamu: sütunlu bazalt (Voronoi eklemler, bazı eklemler lav), kül örtüsü (kor tanecikleri), yan yüzde lav
+  çatlağı, demir kuşaklı bazalt platform (kafatası süsü), kül dokusu. Örtü: Şahmeran yosun/eğrelti, kristal filizi,
+  ışıyan mantar, yılan iskeleti; tavanda damlalı sarkıt, ışıl böceği iplikleri, sarkık kristal. Tamu kül tümseği, kor
+  öbeği, kafatası/kemik, demir kazık, bazalt kıymığı, alev dili, kömür çalı; tavanda lav damlası, kancalı zincir.
+* **Işıma:** `ground_ink.gdshader` `soil_e` + `emit_gain` (art "soil_emit") + `emit_pulse` (nabız, derinde söner; 0 =
+  kapalı, Ötüken değişmez); atlas ışıması `<id>_v2_e.png` yalnızca `emit_cells` hücrelerinde ayrı ADD + gölgesiz karo
+  katmanında (`Level._lay_emit_tiles`, art "tile_emit" çarpanı). Işıma dokuları kenarda söner (`inkkit_zemin.edge_fade`).
+* **Süsler** (`decor_v2_<biyom>.json`, ad karşılıkları): dilek_agaci -> Şahmeran heykeli / kara kayın (zincir, demir
+  kafes), kam_diregi -> yılan ongunu / Erlik ongunu (boynuzlu öküz kafatası), cira -> kristal kandil / demir mangal,
+  kaya, mantar (ışıyan mağara / ateş mantarı), cicek (kristal filizi, mağara zambağı, eğrelti / kemik yığını, alev ağzı,
+  dikenli çalı), balbal -> yılan yuvası / kafatası kazığı (art "ink_extras" ile Ötüken'den seyrek); platform ayakları sarmal yılanlı taş sütun (çapraz yok,
+  art "tower_brace": false) / bazalt sütun + zincir çapraz + demir kelepçe.
+* **Tehlike:** art "hazard_v2" varsa zehir / lav karoları yerine her bağlı bölgeye tek çokgen (`liquid_ink.gdshader`,
+  `Level._build_hazards_ink`): dalgalı yüzey (mürekkep + parlak kenar), lavda kabuk plakaları arası ışıyan çatlaklar,
+  zehirde girdap, köpük ağı, yükselen kabarcık halkaları; karo katmanı gizli kalır (hazard_at aynı). Test: `--tehlikeye`
+  oyuncuyu ilk havuzun yanına koyar (ör. `--derinlik=5 --tohum=4`, `--derinlik=9 --tohum=4`).
+* **Parçacık / ön plan / derecelendirme:** Şahmeran: spor + tavandan düşen damla (art "drip_tex"), ön planda dikit
+  ve kristal siluetleri, sarkıt/yosun saçağı; derecelendirme gölgeleri maviye. Tamu: kor + kül, ön planda bazalt sivri
+  / kemik ve sarkan zincir siluetleri; derecelendirme gölgeleri bordoya, `grade_v2` "heat" ısı dalgası (art "heat_haze").
+* **Ölçüm** (Intel UHD 750, 1280x720, vsync kapalı, 900 kare): Ötüken v2 ~45 FPS, Şahmeran v2 ~45, Tamu v2 ~46.
+* **1080p çekim:** proje pencere ezmesi 1280x720 olduğundan `--write-movie` 720p yazar; geçici `override.cfg`
+  (`window/size/window_{width,height}_override=1920/1080`) + `--pencere=1920x1080` ile gerçek 1080p kare alınır (dosya
+  çekimden sonra silinir, depoya girmez).
+
 ### Stil v2 "mürekkep-cel" karakterler (çizgi roman; piksel sanatın yerini alır)
 
 Referans yeniden okundu: Shinobi: Art of Vengeance piksel sanat değil, el çizimi çizgi roman / animasyon. v2 karakterleri

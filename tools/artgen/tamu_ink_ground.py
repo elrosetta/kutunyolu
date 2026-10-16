@@ -17,7 +17,7 @@ from inkkit_zemin import C
 ASH_TOP = (138, 124, 118)
 ASH_MID = (92, 78, 78)
 ASH_DARK = (44, 32, 36)
-BAS_A = (40, 32, 38)
+BAS_A = (52, 42, 48)
 BAS_B = (58, 46, 52)
 BAS_C = (26, 20, 26)
 BAS_L = (120, 80, 72)
