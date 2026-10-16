@@ -568,7 +568,7 @@ ileri, -470 yukarı), `crit` (adım kesin kritik), `tm`.
 
 | Silah | Tempo / ağırlık | Zincir | Bekleme bitirişi | Ağır (basılı tut) | İmza | Gövdeler |
 |---|---|---|---|---|---|---|
-| Alp Kılıcı | dengeli, 0,45 | diag_down → horiz → step_down (adım) | cross_x Alp Çaprazı | overhead_2h | 3. vuruş kritik (ucuncu_vurus) | down, horiz, overhead_2h |
+| Alp Kılıcı | dengeli, 0,45 | diag_down → diag_up (v18) → step_down (adım) | cross_x Alp Çaprazı | overhead_2h | 3. vuruş kritik (ucuncu_vurus) | down, horiz, overhead_2h |
 | Yıldırım Kılıcı | katana, 0,45 | iai → backstep → lunge | flurry | iai → şimşek hamlesi | geri sıçrayıp hücum | horiz, backstep, lunge |
 | Pala | kasap, 0,5 | diag_down → back → spin_2h | lunge Pala Akını | reap + pull Kanlı Kanca | **çarkta J basılı: 1,2 sn döner, iki yan** | down, horiz, spin_2h |
 | Yatağan | düellocu, 0,3 | reverse_grip → horiz → backstep → lunge | flurry | iai dash | **3. vuruş çekilirken kesin kritik** + ivme | horiz, backstep, lunge |
@@ -587,7 +587,7 @@ ileri, -470 yukarı), `crit` (adım kesin kritik), `tm`.
 | İkiz Balta | 0,8 | dual_l → dual_r (x2) → spin_2h | helicopter | spin_2h spin_hold | kanama; çark basılı sürer | dual, spin_2h |
 | Teber | 0,65 | pole_sweep → sweep_low (çelme) → overhead_2h | helicopter | sweep_low fırlat | geniş yay | horiz, sweep_low, overhead_2h |
 | Erlik Tırpanı | 0,8 | reap (**pull 240**) → sweep_low → spin_2h | reap pull 320 Ruh Biçen | reap pull 340 | **biçme düşmanı kendine çeker** | horiz, sweep_low, spin_2h |
-| Kargı | 0,5 | pole_thrust → pole_thrust → lunge_long | lunge | stab_heavy | **↑+J sırık atlayışı**, koşarken hücum kritiği | thrust, lunge_long, uppercut |
+| Kargı | 0,5 | pole_thrust → pole_thrust_lo → pole_rise (v18) | lunge | stab_heavy | **↑+J sırık atlayışı**, koşarken hücum kritiği | thrust, lunge_long, uppercut |
 | Tulpar Mızrağı | 0,5 | pole_thrust(+30) → pole_thrust(+30) → lunge_long(+90) | helicopter | stab_heavy dash 160 | her saplama ileri taşır, koşarken kritik | thrust, lunge_long |
 | Ulu Kayın Asası | 0,65 | pole_sweep → twirl → uppercut_2h | helicopter | pole_sweep stun | geri itme 1,8x, duvara çarptır | horiz, spin, uppercut |
 | İkiz Bıçak | hançer, 0,15 | dual_l → dual_r → rake → cross_dash (**through**) | flurry | cross_dash through | **4. vuruş çapraz kesikle içinden geçiş** | dual, down |
@@ -662,6 +662,125 @@ zaman ölçeği). Çıktı `[dovus]` satırları, sonda `OZET` ve `TAKILMA=0`. B
 süreler bilerek değişmedi (silah temposu): ikiz bıçak 117 / 150 ms, yatağan 167 / 250, Alp 217 / 333, kargı 267 / 400,
 Ulu Kılıç ~600 / ~900, Dağ Çekici ~670 / ~1000 ms (ölçüm ±2 kare oynar). `--klip` eki kısa bir gösteri oynatır
 (`--write-movie` ile çekim için: koşudan zincir, arkadakine dönüş, yuvarlanmadan Dönüş Kesiği, havada yön, zıplama ara belleği).
+
+## Dövüş temposu ve savuruş biçimleri (v18): Dead Cells esinli
+
+Geri bildirim: "silahların kombo hızları ve savuruşları iyi görünmüyor; art arda kombolar yük varmış gibi sıkıyor; Dead Cells
+kadar akıcı olsun, ağır silah ağır ama yine çevik." v17 girdileri düzeltmişti ama zamanlamaya dokunmamıştı. Ölçünce yük hissinin
+kaynağı: (1) her savuruşun süresi `1 / aps` idi ve sabit oranlarla bölünüyordu (hazırlık %30, toparlanma %44): Alp Kılıcı'nda
+basıştan temasa 200-233 ms, zincir aralığı 300-367 ms; Dağ Çekici'nde 683 ms / 1 sn; (2) zincirin her vuruşu kolu önce
+**dinlenme pozuna geri götürüp** oradan yeniden geriyordu (her vuruşta bir "hazırlık duraklaması"); (3) isabet bıçak daha
+hazırlıktayken (vuruş penceresinin ilk karesinde) sayılıyor, duraklama bıçak düşmana varmadan donuyordu.
+
+### Araştırma (kaynaklı)
+
+* **Dead Cells silah verisi** (deadcells.wiki.gg, `ItemDetails` şablonu: `charge` basıştan vuruşa, `lock` vuruştan sonraki
+  girdiye kadar "animasyon kilidi"; DPS = kombo hasarı / kombo süresi, örn. Balanced Blade 215 / 1,46 sn ≈ 147, yani süreler
+  oyunun verisi): Balanced Blade 0,10/0,05 · 0,10/0,15 · 0,07/0,05 · 0,07/0,15 · 0,07/0,05 · bitiriş 0,30/0,30 sn;
+  Rapier 0,2/0,1 · 0,1/0 · 0,1/0 · 0,1/0,25; Twin Daggers 0,2/0 · 0,25/0 · 0,37/0,25; Assassin's Dagger 0,2/0 · 0,2/0,1;
+  War Spear 0,38/0 · 0,1/0 · 0,2/0,2 (ilk hazırlık 2.4 yamasında 0,45 → 0,38); Impaler 0,2/0; Wrenching Whip 0,2/0,1 ·
+  0,2/0,1 · 0,3/0,3; Nutcracker 0,5/0,2 · 0,4/0,2 · 0,5/0,1; Broadsword 0,4/0,2 · 0,5/0,25 · 0,5/0,4. Desen: hafif silahta
+  hazırlık 0,07-0,2 sn (4-12 kare), kilit 0-0,15; bitiriş ~0,3/0,3 ve kritik / büyük hasar ondadır; ağırda hazırlık 0,4-0,5,
+  kilit 0,2-0,4; bekleme süresi neredeyse hep 0. Kaynaklar: https://deadcells.wiki.gg/wiki/Balanced_Blade ,
+  https://deadcells.wiki.gg/wiki/Broadsword , https://deadcells.wiki.gg/wiki/Twin_Daggers ,
+  https://deadcells.wiki.gg/wiki/War_Spear , https://deadcells.wiki.gg/wiki/Nutcracker ,
+  https://deadcells.wiki.gg/wiki/Wrenching_Whip , https://deadcells.wiki.gg/wiki/Rapier , https://deadcells.wiki.gg/wiki/Mechanics
+* **Animasyon hattı** (Thomas Vasseur, Game Developer 2018, "Art Design Deep Dive: Using a 3D pipeline for 2D animation in
+  Dead Cells", https://www.gamedeveloper.com/production/art-design-deep-dive-using-a-3d-pipeline-for-2d-animation-in-i-dead-cells-i-):
+  3B iskelet → kenar yumuşatmasız küçük çizim (~50 px karakter), "olabildiğince az kare", poz-pozdan; ara kareler
+  anahtarların arasına değil yalnızca önüne / arkasına eklenir; hareket hissini efektler verir; bir silahı zayıflatmak =
+  animasyonunu yavaşlatmak (anahtarlar dakikalar içinde onlarca kez yeniden zamanlanır).
+* **Bénard (Motion Twin) söyleşileri** (https://80.lv/articles/dead-cells-hidden-tricks-that-make-the-game-feel-fair ,
+  https://dtf.ru/51865-kak-dead-cells-meshaet-vam-umeret , GDC 2019 haberi): denetimler asla zorluğun kaynağı değil;
+  30-40 gizli oyuncu yardımı (atlamadan sonra düşmana kendiliğinden dönme, saldırıda serbest dönüş, otomatik nişan);
+  saldırıyı iptal edip kaçabilme sonradan eklendi (ikincil kaynak).
+* **Sendeleme** (wiki Mechanics): saldırısının ortasında vurulan düşmanın vuruş anı gecikir ama saldırı iptal olmaz;
+  gecikme kullanılan silahın kilidiyle ölçeklenir. **Yuvarlanma** 0,4 sn, bekleme 0,37; komboyu sıfırlamaz; yuvarlanmayla
+  kilit kesilip kombo sürdürülebilir (wiki Bible sayfası).
+* **Başka oyunlar**: Hollow Knight çivi 0,41 sn bekleme / Quick Slash 0,25 (https://hollowknight.wiki/w/Quick_Slash);
+  Celeste donmaları 0,05 sn atılma, 0,1 patlama (https://raw.githubusercontent.com/NoelFB/Celeste/master/Source/Player/Player.cs);
+  Sakurai: vuran ve vurulan aynı süre donar, hasarla ölçeklenir, üst sınırı vardır
+  (https://sourcegaming.info/2015/11/11/thoughts-on-hitstop-sakurais-famitsu-column-vol-490-1/); Smash hitlag formülleri
+  (https://www.ssbwiki.com/Hitlag).
+* Bulunamayanlar: Dead Cells'in duraklama (hitstop) / sarsıntı milisaniyeleri ve girdi ara belleği resmî olarak
+  belgelenmemiş; bizim değerler v14 kademeleri üstüne ölçülerek kondu.
+
+### Bizim sürümümüz (`Player.TEMPO`, `_phase_times`, `_atk_advance`)
+
+Dört evre gerçek saniye; savuruşun normalize anahtarları (k) zaman bükmesiyle bunlara oturur: **hazırlık** 0 → hit[0],
+**süpürme** hit[0] → `ck` (bıçağın son hızlı yayı, 2-3 kare, smear karesi), **kilit** `ck` → hit[1] (isabet `ck`de
+açılır; kilidin ilk yarısında takip / aşma, ikinci yarısında oturma; sonunda zincir ve iptal), **toparlanma** hit[1] → 1
+(yalnız girdi yoksa görünür). Eşyanın hızı (malzeme, kalite, "hız" niteliği, ivme) süreleri taban aps'e oranla ölçekler.
+
+| Sınıf (`_tempo_class`) | basış→temas ilk / zincir | süpürme | kilit | tutuş ilk / zincir | silahlar |
+|---|---|---|---|---|---|
+| hançer | 67 / 50 ms | 25 | 67 | 0 | ikiz bıçak, böri, kurt pençesi, ay palası |
+| düello | 83 / 67 | 30 | 83 | 0 | yatağan, rüzgâr kılıcı |
+| kılıç | 100 / 83 | 33 | 100 | 17 / 0 | alp, pala, ruh, yılan, ayaz, yıldırım |
+| mızrak | 117 / 83 | 33 | 83 | 17 / 0 | kargı, tulpar |
+| kırbaç | 150 / 117 | 33 | 100 | 17 / 0 | kement, od kamçısı |
+| uzun sap | 167 / 133 | 40 | 117 | 33 / 0 | teber, tırpan, kayın asası |
+| ağır | 250 / 200 | 50 | 150 | 50 / 17 | gürz, topuz, savaş baltası, ikiz balta |
+| dev | 330 / 267 | 50 | 200 | 67 / 33 | ulu kılıç, dağ / kor çekici, bozgun kılıcı |
+
+Zincir sonu (`last`) Dead Cells bitirişi gibi: hazırlık ×1,3, kilit ×1,5 (çarkta ×1,1). Bekleme bitirişi: hazırlık ×1,5.
+Savuruş çarpanları: çark / çok vuruşlu savuruşlar yayı kilitte döndürür (`ss`: spin 2,2, spin_2h 2,2, helicopter 2,6,
+flurry 3, cross_x / cross_dash 2, rake 1,8, twirl 2); sıçramalı çakma `ws` 1,6, yel değirmeni 1,4. Ağır saldırı tam şarjı
+0,85 → 0,55 sn, tanıma 0,22 → 0,2 sn; kılıç, pala ve mızrak da (ağırlık ≤ 0,5) dokunuşta beklemez (100 ms dokunuşta Alp
+vuruşu 150 → 83 ms), basılı kalırsa ağır şarj toparlanmadan açılır.
+
+**Savuruş biçimleri:** her tek vuruşlu savuruşa `ck` (temas) eklendi; takip pozu kilidin ilk yarısına çekildi, kilidin
+sonuna dinlenmeye %12 yaklaşan bir oturma anahtarı kondu (vuruş → aşma → oturma, Dead Cells'in tutulan darbe pozu gibi).
+Hızlanan evre kübik yerine kare: 2-3 karelik süpürmede ara kare yayın ortasında görünür (kübikte bıçak tek karede
+ışınlanıyordu). **Zincir akışı:** `_atk_pose` zincirdeki savuruşun hazırlığını önceki savuruşun son çizilen pozundan
+başlatır (açılar en kısa yoldan; çark 6,9 rad'dan geri sarılmaz); zincirler bir vuruşun bittiği yer ötekinin hazırlığı
+olacak biçimde dizildi: Alp Kılıcı çapraz iniş (yukarıdan aşağı) → çapraz yükseliş (aşağıdan yukarı) → adımlı baş üstü
+iniş; Kargı saplama → alçak saplama (`pole_thrust_lo`, diz hizası, uzun hamle gövdesi) → alttan baş üstüne süpürme
+(`pole_rise`, hafif kaldırır); Dağ Çekici baş üstü iniş → aparkat (yukarıda biter) → yeni iniş yukarıdan başlar.
+Hançer (`dual_l` / `dual_r`) ve kırbaç yan şaklaması (`whip_side`) ekrana doğru "kısalan" yatay savuruş yerine ekran
+düzleminde hilal: iniş / yükseliş dönüşümlü (uç yolunu izleyen fırça izi zikzak çiziyordu). Sırık süpürmesinin takibi
+yumuşatıldı (iz köşe yapıyordu). Savuruşta gövde: hazırlıkta geriye toplanır, vuruşta öne yüklenir (ağırlıkla).
+Çark hazırlığında (`spin_2h`, `helicopter`, `windmill`) iz vuruşun hemen öncesinde başlar (yerde sürüklenen kılıç yassı
+leke bırakıyordu). **İz örneklemesi:** karede süpürülen açıya göre 4-28 ara örnek (~0,06 rad'da bir; sabit 4 örnek hızlı
+yayda hilali çokgenleştiriyordu); InkTrail ayrıca kabza çevresinde açıyla ara örnek ekler.
+
+**Vuruş hissi:** isabet `ck`de (bıçak düşmanın üstündeyken) başlar, duraklama orada donar. Orta kademe (zincir sonu, ağır
+silah) duraklaması ağırlıkla: kılıç 55 ms → dev silah 80 ms; hafif 22-35 ms, büyük 105 ms (v14) aynı.
+
+**Düşman duruşu (`Enemy.POISE`, Dead Cells sendeleme kuralı):** hafif vuruş hazırlığı iptal etmez, sarsılma süresince
+geciktirir (0,12 sn; büyük vuruş 0,2 sn ve hazırlığı keser). 0,9 sn içinde 4 sarsılmadan sonra (seçkinde 2) yaratık
+0,75 sn "diretir": hasar alır, az itilir, sarsılmaz, hazırlığı sürer (küçük halka). Bitiriş, kritik ve ağır saldırı
+direnci kırar. Böylece hızlı zincirler sonsuz kilit yaratmaz; boss kuralı değişmedi.
+
+**Ölçüm** (`--dovus --boss`, v1 ve v2, 60 Hz, ±1-2 kare; "temas" = isabetin başladığı kare; zincir aralığı = 20 Hz seri
+basışta ardışık temaslar arası, düşmansız; "önce" aynı test betiğiyle 199b74e'de):
+
+| Silah | basış→temas önce → sonra | basış→iptal edilebilir | zincir aralığı önce → sonra |
+|---|---|---|---|
+| İkiz Bıçak | 117 → 83-100 ms | 150 → 150-167 | 117-167 → 100-117 |
+| Yatağan | 167 → 100-117 | 250 → 183-200 | 200-217 → 167 |
+| Alp Kılıcı | 200-233 → 133 | 300-367 → 233 | 300-367 → 200-250 |
+| Pala | 233 → 133 | – | 267-417 → 200 |
+| Kargı | 233-300 → 150 | 367-400 → 233 | 400-450 → 183-217 |
+| Kement | 283 → 183 | – | 400-433 → 267-300 |
+| Teber / Tırpan | 350 → 166-216 | – | 450-650 → 250-317 |
+| Savaş Baltası | 350 → 300 | – | 367-433 → 433-467 (kanca + fırlatma) |
+| Gürz | (seri basışta takılıyordu) → 316 | – | → 500 |
+| Ulu Kılıç | 583-600 → 350-400 | 883-900 → 600-617 | (takılıyordu) → 483-517 |
+| Dağ Çekici | 667-683 → 366-417 | 1000-1033 → 650-700 | (takılıyordu) → 533-583 |
+
+Hata düzeltmesi: ağır silahta hazırlık sırasında **yeni** basış, "basılı tutma bekleyişi"ni yeniden tetikleyip hazırlığı
+geri sarıyordu (seri basışta gürz / ulu / dağ çekici zinciri ilerlemiyordu; aynı testte eski sürüm TAKILMA=3). Bekleyiş
+artık yalnızca savuruşu başlatan basış hâlâ sürüyorsa. İptaller değişmedi: hazırlıkta yuvarlanma 1 kare, yuvarlanmadan
+Dönüş Kesiği aynı kare, ardışık yuvarlanma 100 ms, ara bellekler 3/3-5/5, TAKILMA=0 (v1 ve v2). Hazırlık artık 2-5 kare
+sürdüğünden hazırlıkta basılan zıplama çoğunlukla ara belleğe düşer ve kilit bitince çıkar (167 ms).
+
+Çekim: `-- --dovus --boss --stil=v2 --klip=alp_kilici,ikiz_bicak,kargi,dag_cekici` (her silahta önde iki düşmana tam zincir,
+her temas anında yeni basış; sonra basılı ağır saldırı; `--klip_bos` düşmansız). `--write-movie` kayıtta duraklama ve ağır
+çekim artık oyundaki süresiyle görünür (`Game.clock()`: çekimde kare saati; eskiden gerçek saat, çekim yavaş işlendiği için
+duraklamalar kayıtta kayboluyordu). 1080p çekim için proje köküne geçici `override.cfg` gerekir
+(`window/size/window_width_override=1920`, `window/size/window_height_override=1080`); `--resolution` proje pencere geçersiz
+kılmasını aşmıyor.
 
 ## Görsel düzeltmeler (v16)
 

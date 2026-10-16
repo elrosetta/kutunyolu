@@ -477,9 +477,11 @@ func _lab(delta: float) -> void:
 	var f := int(_sc_t * 60.0)
 	# v5: silaha özgü savuruşlar (hepsi sağa bakar; kontak sayfasında kol pozları karşılaştırılır)
 	var order := ["diag_down", "diag_up", "cross_x", "overhead_2h", "ground_drag", "sweep_low", "reverse_grip", "twirl", "windmill", "pole_thrust",
-		"pole_sweep", "reap", "rake", "whip_crack", "axe_hook", "iai", "uppercut_2h", "slam_2h", "stab_heavy", "helicopter"]
+		"pole_sweep", "reap", "rake", "whip_crack", "axe_hook", "iai", "uppercut_2h", "slam_2h", "stab_heavy", "helicopter",
+		"pole_thrust_lo", "pole_rise", "dual_l", "dual_r", "whip_side"]
 	var items := ["alp_kilici", "alp_kilici", "alp_kilici", "ulu_kilic", "ulu_kilic", "ayaz_kilici", "yatagan", "ay_palasi", "gurz", "kargi",
-		"teber", "erlik_tirpani", "kurt_pencesi", "kement", "savas_baltasi", "yildirim_kilici", "dag_cekici", "dag_cekici", "kargi", "teber"]
+		"teber", "erlik_tirpani", "kurt_pencesi", "kement", "savas_baltasi", "yildirim_kilici", "dag_cekici", "dag_cekici", "kargi", "teber",
+		"kargi", "kargi", "ikiz_bicak", "ikiz_bicak", "kement"]
 	if f >= 30 and f % 80 == 30 and _lab_i < order.size():
 		pl.facing = 1
 		pl.debug_swing(order[_lab_i], items[_lab_i])
