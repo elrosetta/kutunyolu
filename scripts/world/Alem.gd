@@ -24,6 +24,7 @@ var _t := 0.0
 var overlay: ColorRect
 var _layer: CanvasLayer
 var _motes: CPUParticles2D
+var ink := SusV2.on()   # piksel denetimi: v2'de mühür izleri / bulutlar mürekkep sprite'ları (_draw boş)
 var _spirits: Array = []
 var _door_cells: Array = []
 

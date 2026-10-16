@@ -61,7 +61,7 @@ func _build(targets: Array, strength: float) -> void:
 		# stil v2: mürekkep sprite'ları doğrusal süzgeçli (yakın kamerada siluet kenarı bloklaşmasın)
 		s.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS if Data.stil == "v2" else CanvasItem.TEXTURE_FILTER_NEAREST
 		var m := ShaderMaterial.new()
-		m.shader = Game.toon_shader
+		m.shader = Data.INK_SHADER if Data.stil == "v2" else Game.toon_shader  # v2: piksel-AA'sız mürekkep gölgelendiricisi
 		m.set_shader_parameter("flash", 1.0)
 		m.set_shader_parameter("flash_color", Color(1.0, 0.98, 0.94, 1.0))
 		s.material = m

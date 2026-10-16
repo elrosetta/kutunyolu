@@ -6,6 +6,8 @@ extends Node2D
 ## soluk geniş hale. 3 kez titrer (dallar yeniden atılır, şiddet %100 → %60 → %85 → 0) ~0,18 s içinde.
 ## Piksel keskin: her katman tam piksel karelerle (draw_rect) çizilir, kenar yumuşatma yok.
 ## Çizim yalnızca evre değişince yenilenir (piksel kümeleri önbelleklenir).
+## Stil v2 (ink): aynı kanal ve dallar piksel kümesine dökülmez; incelen şerit fırça çizgileri (InkDraw.line)
+## olarak çizilir: geniş soluk yıkama + renkli fırça + beyaz kılcal çekirdek, dal uçları incelir.
 
 var a := Vector2.ZERO
 var b := Vector2(60, 0)
@@ -20,6 +22,8 @@ var _core: Array = []    # PackedVector2Array listesi: ana + dallar (piksel küm
 var _glow: Array = []
 var _halo := PackedVector2Array()
 var _branch_from := 0    # dalların ana kanal üzerindeki başlangıç indeksleri için tohum
+var ink := FX.ink()
+var _lines: Array = []   # v2: [çoklu nokta, kalınlık çarpanı] (ana kanal 1, dal 0,55, dalcık 0,35)
 
 const PHASES := [0.0, 0.3, 0.55, 0.8, 0.9]
 const INTENS := [1.0, 0.6, 0.85, 0.45, 0.2]
@@ -32,6 +36,8 @@ func _ready() -> void:
 	m.blend_mode = CanvasItemMaterial.BLEND_MODE_ADD
 	m.light_mode = CanvasItemMaterial.LIGHT_MODE_UNSHADED
 	material = m
+	if ink:
+		InkDraw.prep(self)
 	_main = _bolt(a, b, 0.24, _depth(a.distance_to(b)))
 	_rebuild_branches()
 
@@ -69,7 +75,10 @@ static func _bolt(p0: Vector2, p1: Vector2, frac: float, depth: int) -> PackedVe
 func _rebuild_branches() -> void:
 	_core.clear()
 	_glow.clear()
-	var main_px := _rasterize([_main])
+	_lines.clear()
+	if ink:
+		_lines.append([_main, 1.0])
+	var main_px := _rasterize([_main]) if not ink else PackedVector2Array()
 	_core.append(main_px)
 	var n := branches if branches >= 0 else 2 + randi() % 3
 	var dir := (b - a).normalized()
@@ -90,7 +99,14 @@ func _rebuild_branches() -> void:
 			var s2 := pts[j]
 			var e2 := s2 + bd.rotated(-sgn * randf_range(0.5, 1.0)) * blen * 0.35
 			lines.append(_bolt(s2, e2, 0.3, 2))
+		if ink:
+			_lines.append([pts, 0.55])
+			if lines.size() > 1:
+				_lines.append([lines[1], 0.35])
+			continue
 		_core.append(_rasterize(lines))
+	if ink:
+		return
 	# parıltı: ana kanal 1 px genişletilir (dallar yarım parıltı: yalnız çekirdek + hale yok)
 	var glow_main := _dilate(main_px, 1)
 	_glow.append(glow_main)
@@ -158,6 +174,9 @@ func _process(delta: float) -> void:
 
 
 func _draw() -> void:
+	if ink:
+		_ink_draw()
+		return
 	var I: float = INTENS[maxi(0, _phase)]
 	var halo := Color(col.r * 0.22 * I, col.g * 0.22 * I, col.b * 0.26 * I, 1.0)
 	var glow := Color(col.r * 0.9 * I, col.g * 0.9 * I, col.b * 1.0 * I, 1.0)
@@ -173,3 +192,15 @@ func _draw() -> void:
 		var c := core if i == 0 else branch_core
 		for p in _core[i]:
 			draw_rect(Rect2(p, one), c)
+
+
+func _ink_draw() -> void:
+	var I: float = INTENS[maxi(0, _phase)]
+	var w := float(width)
+	for L in _lines:
+		var pts: PackedVector2Array = L[0]
+		var k: float = L[1]
+		# geniş soluk yıkama, renkli fırça, beyaz kılcal çekirdek (dal uçları incelir)
+		InkDraw.line(self, pts, 9.0 * w * k, 3.0 * w * k, Color(col.r * 0.3 * I, col.g * 0.3 * I, col.b * 0.4 * I, 1.0))
+		InkDraw.line(self, pts, 4.2 * w * k, 1.0 * w * k, Color(col.r * 1.1 * I, col.g * 1.1 * I, col.b * 1.2 * I, 1.0))
+		InkDraw.line(self, pts, 1.8 * w * k, 0.5, Color(1.3 * I, 1.3 * I, 1.35 * I, 1.0))

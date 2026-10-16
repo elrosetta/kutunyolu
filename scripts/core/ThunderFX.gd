@@ -7,6 +7,8 @@ extends Node2D
 ##   +90 ms       gürleme: Game.shake_dir(0.5, AŞAĞI), rumble(0.9, 0.5, 0.35), kick, ekran kırılma halkası;
 ##                Ses: gok_gurleme (yoksa yildirim)
 ##   1,4 s        kavrulma izi erir, düğüm silinir
+## Stil v2 (ink): ön kıvılcım ve ışınlar fırça darbesi, çarpma flaşı yumuşak mürekkep halesi, kavrulma izi
+## piksel serpintisi yerine yere yatık yanık mürekkep lekesi + kül pulları (InkDraw).
 ## Ses adları Ses.has ile korunur (ses ajanı paralel üretiyor); yedek "yildirim".
 
 var strength := 1.0
@@ -23,10 +25,14 @@ var _rays: Array = []
 var _scorch: Array = []         # kavrulma pikselleri (yerel)
 var _strike_t := 0.0
 const T_BOOM := 0.09
+var ink := FX.ink()
 
 
 func _ready() -> void:
-	position = position.round()
+	if ink:
+		InkDraw.prep(self)
+	else:
+		position = position.round()
 	z_index = 66
 	var m := CanvasItemMaterial.new()
 	m.light_mode = CanvasItemMaterial.LIGHT_MODE_UNSHADED
@@ -105,6 +111,9 @@ static func _snd(names: Array) -> void:
 
 
 func _draw() -> void:
+	if ink:
+		_ink_draw()
+		return
 	var one := Vector2.ONE
 	if not _struck:
 		# ön kıvılcım: kare 0 ve 2'de görünür (kare 1 sönük)
@@ -143,3 +152,32 @@ func _disc(c: Vector2, r: int, colr: Color) -> void:
 	for y in range(-r, r + 1):
 		var hw := int(floor(sqrt(maxf(0.0, rr - float(y * y)))))
 		draw_rect(Rect2(cx - hw, cy + y, 2 * hw + 1, 1), colr)
+
+
+func _ink_draw() -> void:
+	if not _struck:
+		if _frame % 2 == 0:
+			var pts := LightningFX._bolt(_sky, _sky + Vector2(randf_range(-4, 4), randf_range(8, 12)), 0.35, 2)
+			var lp := PackedVector2Array()
+			for q in pts:
+				lp.append(to_local(q))
+			InkDraw.line(self, lp, 2.2, 0.4, Color(1.3, 1.3, 1.35))
+			InkDraw.soft(self, to_local(_sky), 3.0, Color(col, 0.9))
+		return
+	var dt := _t - _strike_t
+	if dt < 0.035:
+		var r := 9.0 + 6.0 * strength
+		InkDraw.soft(self, Vector2(0, -2), r * 1.4, Color(col, 0.7))
+		InkDraw.blot(self, Vector2(0, -2), r * 0.75, Color(1.4, 1.4, 1.45), 3)
+		for a in _rays:
+			var d := Vector2.from_angle(a)
+			InkDraw.stroke(self, d * (r * 0.6), d * (r * 3.2), 3.0, Color(1.3, 1.3, 1.35))
+	elif dt < 0.07:
+		InkDraw.blot(self, Vector2(0, -2), 5.0 + 3.0 * strength, col, 5)
+	# kavrulma izi: yanık mürekkep lekesi ve kül pulları, 0,9 sn sonra solar
+	var sk := clampf((dt - 0.9) / 0.45, 0.0, 1.0)
+	var rx := 10.0 + 8.0 * strength
+	InkDraw.ellipse(self, Vector2(0, 2), rx, rx * 0.28, Color(0.07, 0.05, 0.07, 0.85 * (1.0 - sk)), "leke_1")
+	for i in mini(6, _scorch.size()):
+		var q: Vector2 = _scorch[i]
+		InkDraw.flake(self, q, 2.2, float(i) * 1.7, Color(0.14, 0.11, 0.12, 1.0 - sk))

@@ -10,6 +10,7 @@ var anim: SpriteAnim
 var near := false
 var talk_t := 0.0
 var _t := 0.0
+var ink := InkUI.on()   # piksel denetimi: v2'de ad / balon yazıları InkUI'ye düşer (PixUI v2 yönlendirmesi)
 
 
 func _ready() -> void:

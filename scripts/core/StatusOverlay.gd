@@ -3,8 +3,12 @@ extends Node2D
 ## Düşmanın üstünde durum görselleri: donmuşken buz bloğu (yarı saydam, parlak kenarlı, alt kenarda
 ## buz sarkıtları) ve başın üstünde küçük durum simgeleri (alev, kar tanesi, zehir damlası, kan damlası).
 
+## Stil v2 (ink): buz bloğu ayaz yıkaması + fırça kenar + damla sarkıtlar; simgeler fırça alev, mürekkep yıldız,
+## zehir / kan damlası (InkDraw).
+
 var host: Node2D
 var _t := 0.0
+var ink := FX.ink()
 
 
 func _ready() -> void:
@@ -12,6 +16,8 @@ func _ready() -> void:
 	var m := CanvasItemMaterial.new()
 	m.light_mode = CanvasItemMaterial.LIGHT_MODE_UNSHADED
 	material = m
+	if ink:
+		InkDraw.prep(self)
 
 
 func _process(delta: float) -> void:
@@ -24,7 +30,9 @@ func _draw() -> void:
 		return
 	var sz: Vector2 = host.size
 	# --- buz bloğu
-	if host.freeze_t > 0.0:
+	if host.freeze_t > 0.0 and ink:
+		_ink_ice(sz)
+	elif host.freeze_t > 0.0:
 		var r := Rect2(-sz.x / 2.0 - 3.0, -sz.y - 4.0, sz.x + 6.0, sz.y + 5.0)
 		var a := clampf(host.freeze_t * 2.0, 0.0, 1.0)
 		draw_rect(r, Color(0.55, 0.85, 1.0, 0.32 * a))
@@ -80,7 +88,45 @@ func _exec_mark(p: Vector2) -> void:
 		draw_polyline(PackedVector2Array([c + t1 * 0.85, c, c + t2 * 0.85]), red, 1.3, true)
 
 
+func _ink_ice(sz: Vector2) -> void:
+	## Buz: dikdörtgen kutu yerine gövdeyi saran düzensiz ayaz yıkaması, kenarlarda kırık kristal fırça darbeleri,
+	## altta damla sarkıtlar (sabit tohumlu: kare kare titremez)
+	var r := Rect2(-sz.x / 2.0 - 3.0, -sz.y - 4.0, sz.x + 6.0, sz.y + 5.0)
+	var a := clampf(host.freeze_t * 2.0, 0.0, 1.0)
+	var cc := r.get_center()
+	InkDraw.quad(self, "duman_1", cc, r.size * 1.5, 0.3, Color(0.55, 0.85, 1.0, 0.42 * a))
+	InkDraw.quad(self, "leke_2", cc + Vector2(0, 1), r.size * 1.2, 0.0, Color(0.6, 0.88, 1.0, 0.22 * a))
+	var ec := Color(0.88, 0.98, 1.0, 0.9 * a)
+	var n := 7
+	for i in n:
+		# kristal kırıkları: çevre boyunca dışa bakan kısa sivri darbeler
+		var ang := TAU * float(i) / float(n) + 0.4
+		var d := Vector2(cos(ang), sin(ang))
+		var p0 := cc + Vector2(d.x * r.size.x * 0.46, d.y * r.size.y * 0.46)
+		var l := 3.0 + float((i * 5) % 4)
+		InkDraw.stroke(self, p0 - d * l * 0.4, p0 + d.rotated(0.35 * (1 if i % 2 == 0 else -1)) * l, 2.0, ec)
+	InkDraw.stroke(self, r.position + Vector2(4, 4), r.position + Vector2(10, 11), 2.2, Color(1, 1, 1, 0.75 * a))
+	var m := int(r.size.x / 6.0)
+	for i in m:
+		var x := r.position.x + 4.0 + i * 6.0
+		var hgt := 2.0 + float((i * 7) % 4)
+		InkDraw.drop(self, Vector2(x, r.end.y + hgt * 0.3), 1.2 + hgt * 0.35, PI * 0.5, Color(0.75, 0.93, 1.0, 0.8 * a))
+
+
 func _icon(kind: String, p: Vector2) -> void:
+	if ink:
+		match kind:
+			"ates":
+				InkDraw.flame(self, p + Vector2(0, 3.5), 5.0, 8.5, Color(1.0, 0.55, 0.15), sin(_t * 18.0) * 0.3)
+				InkDraw.flame(self, p + Vector2(0, 3.5), 2.6, 4.5, Color(1.0, 0.95, 0.5))
+			"buz":
+				InkDraw.star(self, p, 4.2, 0.0, Color(0.75, 0.95, 1.0))
+				InkDraw.star(self, p, 3.0, PI * 0.25, Color(0.85, 1.0, 1.0, 0.8))
+			"zehir":
+				InkDraw.drop(self, p + Vector2(0, 0.5), 3.0, PI * 0.5, Color(0.45, 0.9, 0.25))
+			"kan":
+				InkDraw.drop(self, p + Vector2(0, 0.5), 2.8, PI * 0.5, Color(0.85, 0.12, 0.15))
+		return
 	match kind:
 		"ates":
 			var fl := sin(_t * 18.0) * 0.6

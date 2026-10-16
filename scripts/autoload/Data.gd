@@ -92,6 +92,8 @@ func stil_id(id: String, probe: String) -> String:
 	var pth := probe % alt
 	if ResourceLoader.exists(pth) or FileAccess.file_exists(pth):
 		return alt
+	if not id.contains("_" + stil):  # kimlik zaten stil sürümüyse (ör. otuken_v2_0_sky) geri dönüş değil
+		PikselIz.iz("stil_id geri dönüşü: " + probe % id)  # v2 sürümü yok: v1 piksel varlık kullanılacak
 	return id
 
 
@@ -99,6 +101,12 @@ func _ready() -> void:
 	for arg in OS.get_cmdline_user_args():
 		if String(arg).begins_with("--stil="):
 			stil = String(arg).trim_prefix("--stil=")
+		elif String(arg).begins_with("--piksel_tara"):
+			PikselIz.acik = true  # piksel denetimi (tools/tests/piksel_tara.gd)
+	# proje varsayılan doku süzgeci en yakın komşu (v1 piksel sanatı). v2'de kökün varsayılanı doğrusal + mipmap:
+	# süzgeci açıkça ayarlanmamış her düğüm (parçacık, etiket, CanvasLayer altı) mürekkep gibi yumuşak çizilir.
+	if stil != "v1":
+		get_tree().root.canvas_item_default_texture_filter = Viewport.DEFAULT_CANVAS_ITEM_TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
 	_init_pack()
 	items = load_json("res://data/items.json")
 	world = load_json("res://data/world.json")
@@ -163,7 +171,8 @@ func canvas_tex(diffuse: String, normal: String) -> CanvasTexture:
 	ct.diffuse_texture = tex(diffuse)
 	if ResourceLoader.exists(normal):
 		ct.normal_texture = load(normal)
-	ct.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	# v1 piksel sanatı en yakın komşu; v2'de geri dönüş dokuları bile bloklaşmasın
+	ct.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST if stil == "v1" else CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
 	return ct
 
 

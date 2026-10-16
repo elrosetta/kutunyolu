@@ -39,6 +39,7 @@ const ARROW_VARIANTS := ["normal", "altin", "od", "sel", "kizil", "dusman"]
 static var _arrow_tex: Texture2D
 ## stil v2: mürekkep-cel mermi sprite'ı (SusV2 atlası); serbest açıyla döner, iz kenar yumuşatmalı fırça çizgisi
 var ink_spr: Sprite2D
+var ink := FX.ink()   # v2: atlas sprite'ı olmayan mermiler ve fırlatılan silahların izi de mürekkep (_ink_body)
 const INK_KIND := {"stone": ["tas", true], "stone_big": ["tas_buyuk", true], "ice": ["buz", true], "fireball": ["ates_topu", false],
 	"spore": ["spor", false], "curse": ["lanet", false], "feather": ["tuy", true], "eagle": ["kartal_ruhu", false],
 	"wave": ["dalga", false], "ground_wave": ["yer_dalgasi", false], "root": ["kok", true]}
@@ -386,8 +387,9 @@ func _ink_tick() -> void:
 
 
 func _draw() -> void:
-	if ink_spr:
-		_ink_tick()
+	if ink_spr or ink:
+		if ink_spr:
+			_ink_tick()
 		# v2 iz: kenar yumuşatmalı, kuyruğa doğru incelen ve solan fırça çizgisi
 		if trail_col.a > 0.0 and _trail.size() >= 2:
 			var n2 := _trail.size()
@@ -397,6 +399,8 @@ func _draw() -> void:
 				var f2 := 1.0 - float(i) / n2
 				draw_line(prev2, cur2, Color(trail_col.r, trail_col.g, trail_col.b, trail_col.a * f2 * 0.8), (2.2 if fx_kind != "" else 1.4) * f2 + 0.3, true)
 				prev2 = cur2
+		if ink_spr == null and spr == null:
+			_ink_body()
 		return
 	if trail_col.a > 0.0 and _trail.size() >= 2:
 		# piksel iz: geçmiş konumlar boyunca tam sayı karelere oturan, kuyruğa doğru incelen/solan noktalar
@@ -499,3 +503,18 @@ func _draw() -> void:
 			draw_rect(Rect2(-12, 12, 24, 2), Color(col.lightened(0.4), 0.9))
 		_:
 			draw_circle(Vector2.ZERO, 3.0, Color(1, 1, 1))
+
+
+func _ink_body() -> void:
+	## v2: mürekkep atlasında karşılığı olmayan mermi gövdeleri (lanet, varsayılan) yumuşak mürekkep lekesi
+	match kind:
+		"curse":
+			var pulse := 1.0 + sin(_t * 20.0) * 0.25
+			InkDraw.soft(self, Vector2.ZERO, 5.0 * pulse, Color(0.6, 0.2, 0.9, 0.45))
+			InkDraw.blot(self, Vector2.ZERO, 2.6, Color(0.85, 0.45, 1.0), int(_t * 8.0))
+			InkDraw.star(self, Vector2.ZERO, 2.2, _t * 6.0, Color(1.0, 0.85, 1.0))
+		"arrow":
+			pass
+		_:
+			InkDraw.soft(self, Vector2.ZERO, 4.0, Color(1, 1, 1, 0.5))
+			InkDraw.blot(self, Vector2.ZERO, 2.6, Color(1, 1, 1), 2)

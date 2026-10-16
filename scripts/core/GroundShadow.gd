@@ -7,6 +7,8 @@ extends Node2D
 ## ile sprite arasında kalır. Sahip ölüyse ya da izlediği SpriteAnim görünmezse çizilmez.
 ## Işıktan etkilenmez (unshaded); yalnızca boyut/alfa değişince yeniden çizilir (konum değişimi
 ## ucuz bir dönüşüm güncellemesidir).
+## Stil v2 (ink): tarama satırı piksel elips yerine yumuşak kenarlı mürekkep yıkaması elipsi (InkDraw.ellipse),
+## kesirli boyut ve konum (yükselirken basamaklanmaz).
 
 const INK := Color(0.03, 0.02, 0.06)
 const CORE_A := 0.36  # kenar elipsinin üstüne biner: toplam ≈ 0.55
@@ -27,6 +29,9 @@ var _shade_hit := false
 var _rx := 0
 var _ry := 0
 var _a := 0.0
+var ink := FX.ink()
+var _rxf := 0.0
+var _ryf := 0.0
 
 
 static func attach(h: Node2D, w: float, a: CanvasItem = null, sf: Node2D = null) -> GroundShadow:
@@ -46,6 +51,8 @@ func _ready() -> void:
 		_mat = CanvasItemMaterial.new()
 		_mat.light_mode = CanvasItemMaterial.LIGHT_MODE_UNSHADED
 	material = _mat
+	if ink:
+		InkDraw.prep(self)
 
 
 func _level() -> Node:
@@ -97,6 +104,23 @@ func _process(_delta: float) -> void:
 			hide()
 		return
 	var w := width * (absf(scale_from.scale.x) if scale_from != null else 1.0)
+	if ink:
+		var rxf := maxf(2.0, w * 0.5 * (0.4 + 0.6 * k))
+		var oxf := 0.0
+		var mn = lv.get("moon")
+		if mn != null:
+			oxf = -sin(mn.rotation) * (1.5 + maxf(0.0, h) * 0.12)
+		global_position = Vector2(feet.x + oxf, gy)
+		if host.rotation != 0.0:
+			global_rotation = 0.0
+		if not visible:
+			show()
+		if absf(rxf - _rxf) > 0.08 or absf(alpha - _a) > 0.02:
+			_rxf = rxf
+			_ryf = clampf(rxf * 0.25, 1.0, 6.0)
+			_a = alpha
+			queue_redraw()
+		return
 	var rx := maxi(2, int(round(w * 0.5 * (0.4 + 0.6 * k))))
 	var ry := clampi(int(round(float(rx) * 0.25)), 1, 6)
 	# ay ışığının gölge yönü: yükseldikçe biraz daha kayar
@@ -138,6 +162,11 @@ func _update_moon_shade(lv: Node, feet: Vector2, delta: float) -> void:
 
 
 func _draw() -> void:
+	if ink:
+		# çekirdek leke + daha geniş soluk yıkama (iki ton, yumuşak kenar)
+		InkDraw.ellipse(self, Vector2(0, -_ryf * 0.45), _rxf * 1.2, _ryf * 1.25, Color(INK, EDGE_A * _a))
+		InkDraw.ellipse(self, Vector2(0, -_ryf * 0.45), _rxf * 0.85, _ryf * 0.85, Color(INK, (CORE_A + 0.1) * _a))
+		return
 	# Elips zemin çizgisinin ÜSTÜNE oturur (alt satırı çizgide): karo üst kenarının koyu pikselleriyle
 	# karışmaz, ayakların dibinde yassı bir leke olarak okunur.
 	var cy := -_ry + 1

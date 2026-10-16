@@ -12,6 +12,7 @@ var _pulse := 0.0
 ## stil v2: mürekkep totem (sus_v2 "totem" gövde + "totem_tuy" salınan tüyler); vuruşta davul ezilip zıplar
 var _body: Sprite2D
 var _plume: Sprite2D
+var ink := false   # piksel denetimi: v2 mürekkep totem çiziliyor
 
 
 func _ready() -> void:
@@ -21,6 +22,7 @@ func _ready() -> void:
 		_plume = SusV2.decor_sprite("totem_tuy")
 		if _body:
 			add_child(_body)
+			ink = true
 		if _plume:
 			_plume.position = Vector2(0, -39)
 			add_child(_plume)
