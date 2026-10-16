@@ -104,8 +104,13 @@ func set_facing(dir: int) -> void:
 	base.position = Vector2(x, -float(org[1])) / texel
 	if glow:
 		glow.flip_h = base.flip_h
-		glow.scale = base.scale
+		glow.scale = base.scale * _glow_k()
 		glow.position = base.position
+
+
+func _glow_k() -> float:
+	## Işıma sayfası çözünürlüğü (json "glow_scale": 2 = yarım boy ışıma sayfası; export_boss_ink.py). Yoksa 1.
+	return float(meta.get("glow_scale", 1.0))
 
 
 func set_flash(v: float) -> void:
@@ -140,7 +145,20 @@ func _apply() -> void:
 	var a: Dictionary = meta["anims"][anim]
 	var cell: Array = meta["cell"]
 	var row := int(a["row"])
-	if meta.has("page_texs"):
+	var col := frame
+	if a.has("page"):
+		# animasyon başına sayfa + sarmalı satır (tools/artgen/export_boss_ink.py; dev boss kareleri): kareler "cols"
+		# sütunda bir alt satıra geçer, "row" sayfadaki ilk satır
+		var fc := maxi(1, int(a.get("cols", 9999)))
+		row += frame / fc
+		col = frame % fc
+		var pg2 := int(a["page"])
+		if meta.has("page_texs"):
+			pg2 = mini(pg2, (meta["page_texs"] as Array).size() - 1)
+			base.texture = meta["page_texs"][pg2]
+			if glow and meta["page_glows"][pg2] != null:
+				glow.texture = meta["page_glows"][pg2]
+	elif meta.has("page_texs"):
 		# sayfalı sayfa: satırın sayfası (Data.sprite); kopyalar (hayalet, ceset, vuruş karesi) base.texture'ı izler
 		var pr := maxi(1, int(meta.get("page_rows", 9999)))
 		var pg := mini(row / pr, (meta["page_texs"] as Array).size() - 1)
@@ -148,10 +166,11 @@ func _apply() -> void:
 		base.texture = meta["page_texs"][pg]
 		if glow and meta["page_glows"][pg] != null:
 			glow.texture = meta["page_glows"][pg]
-	var r := Rect2(frame * float(cell[0]), float(row) * float(cell[1]), float(cell[0]), float(cell[1]))
+	var r := Rect2(col * float(cell[0]), float(row) * float(cell[1]), float(cell[0]), float(cell[1]))
 	base.region_rect = r
 	if glow:
-		glow.region_rect = r
+		var gk := _glow_k()
+		glow.region_rect = Rect2(r.position / gk, r.size / gk)
 
 
 func anchor(key: String) -> Variant:
