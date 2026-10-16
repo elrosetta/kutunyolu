@@ -893,6 +893,50 @@ kızıl çekirdek, turuncu-kızıl gövde, siyah fırça izleri, zerreler). Yaln
   3'lü zincir, basılı ağır saldırı; sonunda savuşturma ve kusursuz kaçış; "[firca] ... kare=N ekran=x,y" satırları).
   Çekimler ve referans yan yana karşılaştırmaları `rec_v15/firca/` (depo dışı).
 
+### Stil v2 mürekkep-cel bosslar (Kara Börü Han, Tepegöz, Şahmeran Ana, Yelbegen, Erlik Han)
+
+Beş boss `--stil=v2`'de `<kimlik>_v2` sayfalarını kullanır (`Data.stil_id`); v1 dosyaları ve boss mantığı (Boss.gd) değişmedi.
+Animasyon adları, kare sayıları, fps, döngü bayrakları ve çapa adları v1 json'undan; çarpışma kutuları aynı. Hepsi yordamsal.
+
+* **Üretim:** `cd tools/artgen && python export_boss_ink.py [kimlik ...] [--anim ad ...] [--is N]` (paralel; boss başına
+  ~1-2 dk). Ortak takım `bosskit.py` (profil uzuv/kas, sap kavrayan el, açık pençe, alev dili, ışıyan çatlak, yırtık kenar,
+  anahtar kare yardımcıları, `BossCanvas`: ışımasız opak parça altındaki ışımayı siler, arkada kalan kor/kristal önündeki
+  kolun üstünden parlamaz). Önizleme `export_boss_ink.py --onizleme out.png <kimlik> anim:kare ...`, kontak sayfası
+  `sheet_boss_ink.py`, kenar kırpma denetimi `check_boss_ink.py`, hızlı kutu `bbox_boss_ink.py`.
+* **Yoğunluk/ölçü:** doku 4 piksel / dünya birimi (2,0 kamerada 1080p'de 1:1; boss kamerası genelde 1,6-2,0 arasında kalır).
+  Hücre yüksekliği v1 ile aynı dünya boyunda (CameraV2 boss boyunu hücreden okur), genişlik saldırı menziline göre büyüdü:
+  Tepegöz / Erlik 256x200, Yelbegen 256x208, Şahmeran 256x176, Kara Börü Han 224x144 (dünya). Ayak noktası json "origin".
+* **Sayfa düzeni:** 8 kare x 1024 px bir sıraya sığmadığı için animasyon başına düzen: json anim `page`, `row` (sayfadaki
+  ilk satır), `cols` (kareler bu sütun sayısında alt satıra sarar). `SpriteAnim._apply` bu alanlar varsa onları kullanır
+  (yoksa eski satır/sayfa düzeni, bütün diğer sprite'lar aynen). Sütun sayısı toplam alan + sayfa sayısını en küçük yapar;
+  sayfalar en çok 4096x4096, BPTC + mipmap.
+* **Işıma:** `_e` sayfaları yarım çözünürlükte (json `"glow_scale": 2`; SpriteAnim ışıma sprite'ını 2x ölçekler, bölgeyi
+  yarıya böler). VRAM (BPTC 1 bayt/px + mip, ışıma dahil): Kara Börü Han ~22 MB, Tepegöz ~55, Şahmeran ~48, Yelbegen ~57,
+  Erlik Han ~55 (beşi ~236 MB). Boss sahneden çıkınca `Data.forget_sprite` sayfaları önbellekten bırakır (Boss._exit_tree;
+  yalnızca doğrusal süzgeçli v2 sprite'larda): koşu boyunca bosslar birikmez, aynı anda en çok bir boss yüklü.
+* **Tasarımlar:**
+  * *Kara Börü Han* (`kara_boru_han_ink.py`): Erlik Tazısı iskeleti ve v1 pozları (KBH_ANIMS), tazı birimiyle 2,3 kat
+  (k = 9,2); daha ağır kütle, sırtta öfkede uzayan mor-kızıl bozgun kristalleri, böğürde kristal damarları, perçinli kemik
+  omuzluk, kemik maske + kemik dişli demir han tacı, kan koru gözler, hep görünen azılar, dikenli pranga + kırık zincir;
+  ulumada baş boyun kökü etrafında göğe döner.
+  * *Tepegöz* (`tepegoz_ink.py`): kambur dev, 3/4 önden göğüs; iri kehribar tek göz (damarlı akı, dikey bebek), ağır kaş,
+  azılar, sırtta kırık Oğuz okları, dikişli kılıç izleri, kemik/kafatası kolye, koyun postu etek, deri dolak, peri yüzüğü
+  (ışır), pranga; demir çemberli çivili meşe gürz. Hazırlık: gürzü yana-geriye çeker (yüz açıkta), atılış dört kare yay.
+  Büyüde kaya kaldırır (çatlakları yanar).
+  * *Şahmeran Ana* (`sahmeran_ink.py`): yerde iki katlı kangal + kuyruk ucunda yılan başı (halk resmi), bele S kıvrımı;
+  zümrüt pul + baklava deseni, krem karın pulları hep alta/öne bakar; taçlı kraliçe (zümrüt yılan gözleri, sürme, altın
+  pullu göğüslük, kolye, kolluk), saç yılanları, boynunda yılan, açılan kobra yelpazesi; büyüde zehir küresi örer.
+  * *Yelbegen* (`yelbegen_ink.py`): Tepegöz iskeleti/zamanlaması; ayaz mavisi deri ve kırağı desenleri, üç ayrı boyunlu baş
+  (arkadaki geriye bakar, öndeki hırlar), buz kristali taçlar, sırtta/omuzda/ön kolda buz kristalleri, ak post pelerin ve
+  yaka, kemik saplı buz uçlu mızrak; büyüde elinde kristal demeti büyütür.
+  * *Erlik Han* (`erlik_ink.py`): iri lir biçimli boğa boynuzları, kara sakal (demir halkalı) ve kulağa kıvrık bıyık, kor
+  gözler, demir taç, omuzlardan yükselen tamu alev yelesi, lamel zırh + boğa kafatası amblemi (çatlaklarından ocak yanar),
+  boynuz çıkıntılı omuzluklar, kor kenarlı yırtık pelerin, tamga işlemeli kaftan paneli, kanatlı topuz (kor çatlaklı);
+  büyüde ateş küresi.
+* **Telgraf pozları:** `windup` son karesi tutulur: silah geride (yüz ve göz görünür), uzak el önde, göz/alev parıltısı en
+  yüksek. `cast` 0. kare = salış (mermi bu karede çıkar), 2. kare = yükleniş (tutulur). `rage` baş yukarı, kükreme.
+* **Kayıtlar:** `rec_v16/boss/` (depo dışı): kontak sayfaları, önizlemeler, oyun içi 1080p kareler.
+
 ### Yaygınlaştırma planı (onay sonrası)
 
 1. **Ortak altyapı:** `style_v2` malzeme kütüphanesi (`materials_v2`: kumaş/deri/metal/post/kemik/taş rampaları) ve poz yardımcıları;

@@ -32,6 +32,12 @@ func _ready() -> void:
 		level.add_light(Vector2(0, -size.y * 0.6), lc, 260.0, 1.1, self)
 
 
+func _exit_tree() -> void:
+	# stil v2 dev boss sayfaları koşu boyunca önbellekte birikmesin (beşi birden ~240 MB VRAM); gölge kopya değil, asıl boss
+	if anim and Data.is_linear(anim.meta) and not get_meta("golge", false):
+		Data.forget_sprite(sprite_kind)
+
+
 func _ai_custom(delta: float, player: Node, to_p: Vector2, dist: float) -> void:
 	if kind == "kara_boru_han":
 		_ai_kbh(delta, player, to_p, dist)

@@ -198,6 +198,20 @@ func sprite(sprite_name: String) -> Dictionary:
 	return meta
 
 
+func forget_sprite(sprite_name: String) -> void:
+	## Büyük sprite sayfalarını (stil v2 bosslar, 20-55 MB VRAM) önbellekten bırakır; dokular son kullanıcısıyla
+	## (sahne düğümleri, ceset kopyası) birlikte serbest kalır. Yeniden istenirse diskten yüklenir.
+	if not _sprites.has(sprite_name):
+		return
+	var sid := stil_id(sprite_name, "res://assets/sprites/%s.json")
+	_sprites.erase(sprite_name)
+	var base := "res://assets/sprites/%s" % sid
+	for k in _tex_cache.keys():
+		var ks := String(k)
+		if ks == base + ".png" or ks.begins_with(base + "_p"):
+			_tex_cache.erase(k)
+
+
 ## Stil v2 mürekkep-cel sprite'ları (tools/artgen/inkkit.py; json "filter": "linear"): kenar yumuşatmalı çizim,
 ## doğrusal süzgeç + mipmap ile ve ink_char.gdshader ile çizilir (piksel-AA ve 3 bantlı toon ışığı yok).
 ## CanvasTexture süzgeci onu kullanan her düğüme (hayalet, ceset, vuruş karesi) geçer.
