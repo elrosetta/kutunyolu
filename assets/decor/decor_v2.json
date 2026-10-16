@@ -1,0 +1,157 @@
+{
+ "dilek_agaci_v2": {
+  "size": [
+   390,
+   495
+  ],
+  "origin": [
+   195,
+   486
+  ],
+  "texel": 3.0
+ },
+ "kam_diregi_v2": {
+  "size": [
+   180,
+   360
+  ],
+  "origin": [
+   90,
+   354
+  ],
+  "texel": 3.0
+ },
+ "kaya_1_v2": {
+  "size": [
+   150,
+   84
+  ],
+  "origin": [
+   75,
+   72
+  ],
+  "texel": 3.0
+ },
+ "kaya_2_v2": {
+  "size": [
+   114,
+   75
+  ],
+  "origin": [
+   57,
+   63
+  ],
+  "texel": 3.0
+ },
+ "mantar_1_v2": {
+  "size": [
+   135,
+   105
+  ],
+  "origin": [
+   68,
+   99
+  ],
+  "texel": 3.0
+ },
+ "mantar_2_v2": {
+  "size": [
+   135,
+   105
+  ],
+  "origin": [
+   68,
+   99
+  ],
+  "texel": 3.0
+ },
+ "cicek_1_v2": {
+  "size": [
+   135,
+   90
+  ],
+  "origin": [
+   68,
+   86
+  ],
+  "texel": 3.0
+ },
+ "cicek_2_v2": {
+  "size": [
+   135,
+   90
+  ],
+  "origin": [
+   68,
+   86
+  ],
+  "texel": 3.0
+ },
+ "cicek_3_v2": {
+  "size": [
+   135,
+   90
+  ],
+  "origin": [
+   68,
+   86
+  ],
+  "texel": 3.0
+ },
+ "cira_v2": {
+  "size": [
+   84,
+   210
+  ],
+  "origin": [
+   42,
+   206
+  ],
+  "texel": 3.0,
+  "glow": true
+ },
+ "balbal_v2": {
+  "size": [
+   120,
+   180
+  ],
+  "origin": [
+   60,
+   174
+  ],
+  "texel": 3.0
+ },
+ "kule_dikme_v2": {
+  "size": [
+   24,
+   384
+  ],
+  "origin": [
+   0,
+   0
+  ],
+  "texel": 3.0
+ },
+ "kule_capraz_v2": {
+  "size": [
+   384,
+   21
+  ],
+  "origin": [
+   0,
+   0
+  ],
+  "texel": 3.0
+ },
+ "kule_bag_v2": {
+  "size": [
+   33,
+   27
+  ],
+  "origin": [
+   0,
+   0
+  ],
+  "texel": 3.0
+ }
+}

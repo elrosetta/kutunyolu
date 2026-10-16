@@ -73,8 +73,18 @@ func _snap(path: String) -> void:
 			await get_tree().create_timer(step, true, false, true).timeout
 		await RenderingServer.frame_post_draw
 		var img := get_viewport().get_texture().get_image()
-		var out := path if count == 1 else "%s_%d.png" % [path.get_basename(), i]
-		img.save_png(out)
+		# HDR 2D görüntü alanı doğrusal renk uzayında döner: ekranda görünenle aynı olsun diye sRGB'ye çevrilir.
+		# .exr uzantısı: kayıpsız doğrusal yarım kayan nokta (koyu tonlarda bantlaşma yok; dönüştürme araç tarafında).
+		var exr := path.get_extension().to_lower() == "exr"
+		if get_viewport().use_hdr_2d and not exr:
+			if img.get_format() != Image.FORMAT_RGBA8 and img.get_format() != Image.FORMAT_RGB8:
+				img.convert(Image.FORMAT_RGBA8)
+			img.linear_to_srgb()
+		var out := path if count == 1 else "%s_%d.%s" % [path.get_basename(), i, path.get_extension()]
+		if exr:
+			img.save_exr(out, false)
+		else:
+			img.save_png(out)
 		print("goruntu: %s pencere=%s goruntu=%s hd=%d" % [out.get_file(), str(get_tree().root.size), str(img.get_size()), hd_active])
 	get_tree().quit()
 

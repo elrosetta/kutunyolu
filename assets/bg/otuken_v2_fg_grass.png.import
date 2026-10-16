@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://dkt0b6k37xyy4"
-path="res://.godot/imported/otuken_3_mid_v2.png-b8131840f3802a36f59ad6d7fcf31ec1.ctex"
+uid="uid://c8yrkr0qtjkjd"
+path="res://.godot/imported/otuken_v2_fg_grass.png-54d35bca2533294431bd01fc3ae8c18e.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/bg/otuken_3_mid_v2.png"
-dest_files=["res://.godot/imported/otuken_3_mid_v2.png-b8131840f3802a36f59ad6d7fcf31ec1.ctex"]
+source_file="res://assets/bg/otuken_v2_fg_grass.png"
+dest_files=["res://.godot/imported/otuken_v2_fg_grass.png-54d35bca2533294431bd01fc3ae8c18e.ctex"]
 
 [params]
 
@@ -23,7 +23,7 @@ compress/rdo_quality_loss=0.0
 compress/hdr_compression=1
 compress/normal_map=0
 compress/channel_pack=0
-mipmaps/generate=false
+mipmaps/generate=true
 mipmaps/limit=-1
 roughness/mode=0
 roughness/src_normal=""

@@ -635,18 +635,64 @@ Yalnızca dikey kesit: Bengü (boşta, koşu, yukarıdan kesiş; diğer animasyo
   atlas, `_n`, `_soil`, `_soil_n`, json), paralaks katmanları (otuken_3_mid -> otuken_3_mid_v2). Eksik dosya = v1'e düşer, karışık
   kullanım güvenli. HD paketlerinde (assets_hd) v2 dosyası yok: v2 dokuları temel boyutta yüklenir.
 * **Üretim:** `cd tools/artgen && python export_v2.py [--otuken]` (Ötüken) ve `python export_ink.py [--bengu|--kara_boru]` (karakterler, mürekkep-cel; aşağıya bkz.) yalnızca `_v2` dosyalarını yazar.
+
+  atlas, `_mask`, `_soil`, `_meadow`, json), paralaks katmanları (otuken_3_mid -> otuken_3_mid_v2). Eksik dosya = v1'e düşer, karışık
+  kullanım güvenli. Biyom art değerleri (katman listesi, ışık, ön plan, renk derecelendirme) `data/stil_<stil>.json` ile ezilir
+  (`Level._stil_art`); karo meta bilgisi `Level._tmeta()` (v2'de `<biyom>_v2.json`). HD paketlerinde (assets_hd) v2 dosyası yok: v2 dokuları temel boyutta yüklenir.
+* **Üretim:** `cd tools/artgen && python export_v2.py [--bengu|--otuken]` yalnızca `_v2` dosyalarını yazar.
   `style_v2.py`: 7 tonlu rampa (`tones`), malzeme türü (`M2(..., kind=cloth|leather|metal|fur|skin)`: kumaş geniş bant/mat,
   deri dar orta ton + kısa parlama, metal gök/yer yansıması + keskin parlama), yansıyan ışık (gölgedeki aşağı bakan yüzey +1 ton),
   ışığa dönüklüğe göre 1-2 piksel ay kenar ışığı, seçici kontur (`VCanvas2`).
 * **Bengü v2** (`bengu_v2.py`): ~7 baş boy (bacak 12+11.8, gövde 17, kol 10+9.4; v1: 10.5+10.5, 14, 8.5+8), daha küçük ve anatomik
   kurt başı, diz boyu kaftan (pliler, altın sırma etek), çelik lamel yelek + omuzluk + dizlik, geniş kemer ve altın plakalar,
   uzun çizme, ak post yaka, ince çift kuyruklu atkı. Doku yoğunluğu 2x (v1: 1.5x): 1080p'de 1 doku pikseli = 1 ekran pikseli.
-* **Ötüken v2** (`otuken_v2.py`): toprak = çarpıtılmış katmanlar (sert kil dışa, humus içe), yükseklikten normal + ay ışığı ile
-  7 ton, kesik tortul çizgileri, yontulmuş yüzlü (6 yön) gömülü kayalar (üst/sağ kenarda ay parıltısı, altında temas gölgesi),
-  seyrek çakıl, kök ve çatlaklar; v1'deki eş boy "konfeti" çakıl yok. Atlas v1 yerleşimi + v2 paleti. Orta katman: üç iç derinlik
-  (uzak sıra pusa gömülü), sıralar arası yer sisi, ağaç kenarında ay ışığı, oyun alanından koyu (değer x0,78), 96 renk.
+* **Ötüken v2** ilk denemede piksel sanattı (`otuken_v2.py`, artık yalnızca kayıt); yerini aşağıdaki "mürekkep" ortamı aldı.
 * **Test:** `--ekran=kilic --silah=alp_kilici --stil=v2 --bekle=4.6 --seri=10 --aralik=0.12 --goruntu=x.png` tek açılışta 10 kare
   (`x_0.png` ...). `Ayarlar._snap`: `--bekle` (varsayılan 6 sn), `--seri`, `--aralik`. Karşılaştırmalar: `docs/stil_v2/` (.gdignore).
+  Görüntü alanı HDR 2D olduğundan çekilen kare doğrusal renktedir: `.png` çıktısı sRGB'ye çevrilir (8 bit; koyularda hafif
+  bantlaşma), `--goruntu=x.exr` kayıpsız doğrusal yarım kayan nokta yazar (araç tarafında sRGB'ye çevrilir).
+
+### Ötüken v2 "mürekkep" ortamı (el çizimi çizgi roman görünümü)
+
+Piksel sanat değil: kenar yumuşatmalı, boyalı dokular + değişken kalınlıklı mavi-siyah mürekkep (#15161d).
+**Kamera:** v2 mürekkep ortamında taban yakınlık 1,5 (`stil_v2.json` "camera_zoom", `Game.base_zoom`; zoom_punch bunun üstüne
+çarpılır): ekranda 640x360 dünya birimi, karakterler 1,5 kat büyük (referanstaki oran). v1 çerçevesi (960x540, 1,0) değişmez.
+Paralaks ve ön plan kayma çarpanları yakınlıkla çarpılır (derinlik hissi aynı kalır).
+**Doku yoğunluğu:** dünya uzayı (zemin atlası 72 px hücre, toprak/çayır, süsler, kule parçaları) 3 doku pikseli / dünya birimi;
+ekran uzayı katmanlar (paralaks, ön plan) 1080 yükseklik: **1080p'de 1 doku pikseli = 1 ekran pikseli**. Üreticiler mantıksal
+piksellerle yazılır, `inkkit.K` (dünya dokularında 1,5) çıktı çözünürlüğünü ölçekler.
+Bütün v2 ortam dokuları doğrusal süzgeç + mipmap (`.import` mipmaps açık, düğümde `TEXTURE_FILTER_LINEAR_WITH_MIPMAPS`);
+v1 yolu hiç değişmez (en yakın komşu, piksel keskin). Yalnızca `--stil=v2` ve `assets/tiles/otuken_v2.json` "ink": true iken.
+
+* **Üretim:** `cd tools/artgen && python export_ink.py [--bg [katman...]|--zemin|--on|--suslar]` (ya da `export_v2.py --otuken`).
+  `inkkit.py` (skia-python + numpy): önçarpılmış katman, döşenebilir gürültü, değişken kalınlık fırça darbesi (`ribbon`), ot yaprağı,
+  mızrak yaprak, organik kontur, analitik ağaç gövdesi (`trunk`: silindirik gölge, sisten kenar ışığı, iki yanda değişken mürekkep,
+  çam = kırık dikey sırt + levha çatlağı, huş = mercimek izi + dal yarası, gölge tarafında çizgi roman taraması, pürüzlü kök
+  boğazı), satır başına sis karıştırma. `otuken_ink.py` paralaks katmanları, `otuken_ink_ground.py` zemin/ön plan,
+  `otuken_ink_decor.py` süsler. Tümü yordamsal; dışarıdan doku yok.
+* **Paralaks** (`data/stil_v2.json` "otuken": "bg", "bg_fx", "bg_kind"): 0 gök/uzak sis (1920x1080, sabit; ay ışığının süzüldüğü
+  parıltı, tepe yaprak gölgesi), 1 uzak gövdeler (3840x1080, x0,06), 2 uzak-orta gövde + dal + çalı tümsekleri (x0,13),
+  3 orta gövdeler + sise gömülü ahşap gözetleme kulesi + balballar + kayalar + eğreltiler + otluk (x0,24), 4 sürüklenen yer sisi
+  ("fog": 7 px/sn kayar, yavaş nefes alır), 5 ışık hüzmeleri ("add": toplamalı, çapraz, nefes alır), 6 yakın koyu gövdeler + tepeden
+  sarkan yaprak kümeleri + balballar + kayalar + otluk (x0,44). Atmosfer perspektifi: her katman `SKY` rampasına (zeytin-teal sis,
+  en parlak bant oyuncunun ayak hizasının hemen üstünde) satır başına sis payıyla karışır; geridekiler daha açık ve düşük karşıtlıklı.
+* **Zemin** (`ground_ink.gdshader`): atlas = sanat RGBA (ot bandı, yar yüzünde mürekkep konturu + soğuk kenar ışığı, tavan altı
+  gölgesi, gömülü taşlar, ot öbekleri, kök saçakları, halatla bağlı tahta platform) + maske (`otuken_v2_mask.png`: R toprak
+  kaplaması, G kenar gölgesi; CanvasTexture normal yuvasında). Kaplamada dünya uzayı dokular: `_meadow` (sık ot darbeleri; üstteki
+  2-3 karo, `Level._top_depth_texture` = yüzeyden dikey derinlik) ve `_soil` (yumuşak tortul bantlar, kök, mürekkepli çakıl),
+  derinlikte mor-siyaha kararır. Karo/çarpışma düzeni ve dünya ölçüsü aynı: hücre 72 doku pikseli, katman ölçeği 1/3.
+  Örtü katmanı (ot öbekleri) `env_ink.gdshader`. Işık: boyalı dokular ışığı içerir, ay ve çıralar yumuşak/kısık eklenir.
+* **Gözetleme kuleleri:** `Level._place_towers` her tek yönlü platform koşusunun uçlarından zemine kütük ayak indirir, geniş ve
+  yüksekse X destek, kiriş ve halat bağları ekler (yalnızca görsel; çarpışma değişmez). Boss arenasında da.
+* **Süsler** (`decor_v2.json`, `Level._decor_v2`): dilek ağacı (çaputlu huş), kam direği (kartal başlı), kaya, mantar, çiçek,
+  çıra (alev ayrı toplamalı doku, titrer), balbal (v2'de seyrek ek yerleşim). v2 karşılığı olmayan süs v1 olarak kalır.
+* **Ön plan** (`ForegroundV2.gd`, katman 3): alt kenarda aktörlerin önünde mor-siyah siluet otlar (x1,3 paralaks, rüzgârda salınır,
+  `fg_sway.gdshader`), üst kenarda seyrek sarkan dallar (x1,15), ekranda süzülen iri koyu yapraklar; dünyada koyu yaprak
+  parçacıkları. Oyuncu ve ekranın alt yarısındaki en çok 5 düşman çevresinde şerit yarı saydamlaşır.
+* **Renk derecelendirme** (`grade_v2.gdshader`, vinyetin yerine, katman 5): sahneyi okur; koyuları mora, ortaları zeytin-yeşile
+  çeker, hafif S eğrisi ve mor-siyah vinyet; hasar nabzı ("hurt") aynı. Test için `--derecesiz` kapatır.
+* **Işık** (`stil_v2.json`): ortam (CanvasModulate) 0,80/0,86/0,88, ay 0,32: boyalı ortam neredeyse kendi renginde görünür;
+  aktörler v1'e göre daha aydınlık (karakter v2 sanatı bu ışıkla dengelenmeli).
 
 ### Stil v2 "mürekkep-cel" karakterler (çizgi roman; piksel sanatın yerini alır)
 
@@ -700,3 +746,4 @@ artık bu yönde: `bengu_v2` ve `kara_boru_v2` (`bengu_kol_v2` dahil) `tools/art
 6. **HD paketleri:** v2 Bengü zaten 1080p'de 1:1; 4K için `export_hd.py` v2 dosyalarını da üretir (manifest'e `_v2` girişleri).
 7. **Geçiş:** her şey v2'de bitince `--stil` varsayılanı v2 olur (Ayarlar'da "Görsel stil" seçeneği), v1 dosyaları bir sürüm daha
    kalır, sonra `eski-tasarim-v16` etiketiyle arşivlenip silinir.
+

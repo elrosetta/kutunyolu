@@ -1,8 +1,9 @@
 """Stil v2 dışa aktarımı: v1 dosyalarına DOKUNMAZ, yalnızca *_v2 adlı varlıkları yazar.
 
-Kullanım:  python export_v2.py               (hepsi: Ötüken)
+Kullanım:  python export_v2.py                  (hepsi: Ötüken ortamı)
            python export_v2.py --bengu-piksel   ARŞİV: piksel v2 Bengü (bengu_v2 artık export_ink.py ile mürekkep-cel)
-           python export_v2.py --otuken      assets/tiles/otuken_v2* ve assets/bg/otuken_v2_*.png
+           python export_v2.py --otuken         mürekkep Ötüken ortamı (export_ink_ortam.py; tiles/bg/decor *_v2)
+Karakterler (mürekkep-cel): python export_ink.py [--bengu|--kara_boru]
 Adlandırma: v1 kimliğinin sonuna "_v2" (bengu -> bengu_v2, bengu_kol -> bengu_kol_v2, otuken -> otuken_v2,
 otuken_3_mid -> otuken_3_mid_v2). Oyunda: -- --stil=v2 (Data.stil_id): _v2 sürümü varsa o, yoksa v1 kullanılır.
 """
@@ -31,8 +32,13 @@ def export_bengu():
 
 
 def export_otuken():
-    import otuken_v2
-    otuken_v2.export(A)
+    # v2 Ötüken artık "mürekkep" ortamıdır (export_ink_ortam.py: paralaks, zemin, ön plan, süsler). Eski piksel v2
+    # üreticisi (otuken_v2.py) yalnızca kayıt için durur; çağrılırsa mürekkep atlasının üstüne yazardı.
+    import export_ink_ortam as export_ink
+    export_ink.export_bg()
+    export_ink.export_ground()
+    export_ink.export_fg()
+    export_ink.export_decor()
 
 
 def main():

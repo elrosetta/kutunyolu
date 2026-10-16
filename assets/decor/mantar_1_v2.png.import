@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://soh2wex13fvf"
-path="res://.godot/imported/otuken_v2_n.png-571de4eb2dda080025128f60e2bb8cd6.ctex"
+uid="uid://dc82x03xf8j76"
+path="res://.godot/imported/mantar_1_v2.png-a324539faab86762fc20b1050608b1a3.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/tiles/otuken_v2_n.png"
-dest_files=["res://.godot/imported/otuken_v2_n.png-571de4eb2dda080025128f60e2bb8cd6.ctex"]
+source_file="res://assets/decor/mantar_1_v2.png"
+dest_files=["res://.godot/imported/mantar_1_v2.png-a324539faab86762fc20b1050608b1a3.ctex"]
 
 [params]
 
@@ -23,7 +23,7 @@ compress/rdo_quality_loss=0.0
 compress/hdr_compression=1
 compress/normal_map=0
 compress/channel_pack=0
-mipmaps/generate=false
+mipmaps/generate=true
 mipmaps/limit=-1
 roughness/mode=0
 roughness/src_normal=""
