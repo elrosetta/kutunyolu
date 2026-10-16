@@ -893,6 +893,37 @@ kızıl çekirdek, turuncu-kızıl gövde, siyah fırça izleri, zerreler). Yaln
   3'lü zincir, basılı ağır saldırı; sonunda savuşturma ve kusursuz kaçış; "[firca] ... kare=N ekran=x,y" satırları).
   Çekimler ve referans yan yana karşılaştırmaları `rec_v15/firca/` (depo dışı).
 
+### Stil v2 mürekkep arayüzü (HUD, menüler, hasar rakamları)
+
+Yalnızca `--stil=v2`; v1 piksel arayüzü (`PixUI`, `pixel.fnt`) birebir aynı kalır. Yerleşim değişmedi: `PixUI`'nin her
+yardımcısı (`text`, `width`, `panel`, `fancy_panel`, `bar`, `icon`, `key_cap`, `horn`, `divider`, `ongun_stripe`, `weapon`)
+v2'de aynı imzayla `scripts/ui/InkUI.gd`'ye düşer; özel parçalar `scripts/ui/InkHUD.gd`'de (HUD.gd'de `if InkUI.on()` dalları).
+* **Yazı tipleri** (`assets/ui/fonts/`, hepsi SIL OFL 1.1, kaynak ve lisanslar `LICENSE*.txt`): Alegreya Sans Medium/Bold
+  (gövde, sayılar), Cinzel (değişken, wght 700: BÜYÜK HARF yazıt başlıkları; büyük harfli metin otomatik buna geçer),
+  Kaushan Script (fırça: ekran başlıkları, kombo ve hasar rakamları, büyük adlar; büyük harf başlıklar Türkçe kurallarla
+  "Kam Tılsımı" biçimine çevrilir: `InkUI.tr_title`), Alegreya (hikâye, Ozan, tören sözleri). Vektör yazı; Godot dinamik
+  aşırı örneklemesi sayesinde 960x540 x2 (HUD) ve x3 (menü) ölçekte 1080p / 4K keskin. `★` Alegreya'da yok: `◆`.
+* **Dokular** (`tools/artgen/ui_ink.py` -> `assets/ui/ink/`, kayıpsız + mipmap): kuru fırça çerçeve (`frame_ink` siyah,
+  `frame_line` renkli ince çizgi), mürekkep yıkaması dolgu, yatay sürme (`swash`, alçak rozetler), fırça çubuk (`stroke`),
+  kızıl mühür (`seal`, tuş rozetleri), ensō halka, sıçrantı, yıkama şeridi, koçboynuzu, 4 tamga, yanık kenarlı parşömen,
+  fırça kenarlı vinyet ve 14 mürekkep simge (can, matara, sikke, Kut alevi, kurt, kartal, ayı, kafatası, kum saati, kılıç,
+  üçgen muska, kam davulu, ruh, kalkan). 9 dilimde orta parçalar kırpılır (sıkıştırılmaz): küçük panelde çizgi bulanmaz.
+* **Paneller:** yükseklik < 19 birim yatay sürme + renkli alt çizgi; < 44 satır (alt fırça çizgisi, uç tırnakları);
+  büyükler siyah fırça çerçeve + renkli iç çizgi, kenarın üstünde (içerik alanını yemez). Süslü panel: üstte mürekkep
+  lekesi üstünde koçboynuzu.
+* **HUD:** sol üstte yıkama üstünde kızıl yürek + kızıl mürekkep can fırçası (gecikme izi kemik rengi), matara simgeleri,
+  kızıl `Q` mührü, sikke / Kut / banka; ongunlar mürekkep simgeyle. Yuvalar v2 silah atlasından (`Data.weapon_sprite`)
+  çizilir; Kut / kam / don halkaları ensō + fırça yayı (kurt, davul, ruh simgesi). Kombo sağda: mürekkep sıçrantısı
+  üstünde fırça rakam, Cinzel rütbe adı. Boss çubuğu: yıkama şeridi, Cinzel ad, iki yanda tamga, uçlarda koçboynuzu.
+* **Menüler:** başlık ekranı fırça "Kut'un Yolu" + kızıl alt çizgi + Kayı tamgalı mühür; hikâye ve Ozan parşömende koyu
+  mürekkeple; Ad töreninde adın altında kızıl fırça ve mühür; ölümde kan kırmızısı sıçrantılar; karartmalara fırça vinyeti.
+* **Dünya yazıları:** `FX.number` kalın fırça rakam, mürekkep dış çizgi + fırça gölgesi; kritik kızıl rakam, arkada
+  mürekkep sıçrantısı ve eğik kızıl mühür. `FX.text` Alegreya Sans Bold / Cinzel. NPC adları PixUI üzerinden; Label'ların
+  varsayılan yazısı ve düşman "!" uyarısı da v2'de fırça/gövde yazısına geçer (`InkUI.setup`).
+* **Test:** `-- --stil=v2 --ekran=<ekran> --pencere=1920x1080 --goruntu=x.png --bekle=22` ve ek olarak
+  `--arayuz=intro|ozan|done|ad|kombo|hasar|flash|ipucu|dusuk[,...]` (HUD.gd, 45 kare sonra uygulanır). Çekimler
+  `rec_v16/ui/` (depo dışı).
+
 ### Yaygınlaştırma planı (onay sonrası)
 
 1. **Ortak altyapı:** `style_v2` malzeme kütüphanesi (`materials_v2`: kumaş/deri/metal/post/kemik/taş rampaları) ve poz yardımcıları;

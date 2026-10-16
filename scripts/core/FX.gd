@@ -108,6 +108,9 @@ static func _ls(size: int, col: Color) -> LabelSettings:
 static func number(pos: Vector2, value: float, crit := false, col := Color(1, 0.97, 0.9)) -> void:
 	if root == null:
 		return
+	if ink():
+		_ink_number(pos, value, crit, col)
+		return
 	var l := Label.new()
 	l.text = str(int(maxf(1.0, roundf(value))))
 	l.label_settings = _ls(13 if crit else 9, Color(1.0, 0.82, 0.3) if crit else col)
@@ -135,7 +138,9 @@ static func text(pos: Vector2, s: String, col := Color(1, 1, 1), size := 9) -> v
 		return
 	var l := Label.new()
 	l.text = s
-	l.label_settings = _ls(size, col)
+	l.label_settings = _ink_ls_text(size, col, s) if ink() else _ls(size, col)
+	if ink():
+		l.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
 	l.z_index = 100
 	l.position = pos + Vector2(-60, -20)
 	l.size = Vector2(120, 14)
@@ -145,6 +150,80 @@ static func text(pos: Vector2, s: String, col := Color(1, 1, 1), size := 9) -> v
 	tw.tween_property(l, "position:y", l.position.y - 14.0, 1.0)
 	tw.parallel().tween_property(l, "modulate:a", 0.0, 0.4).set_delay(0.7)
 	tw.tween_callback(l.queue_free)
+
+
+## ---- v2 mürekkep yazıları: kalın fırça rakamlar (Kaushan Script), mürekkep dış çizgi ve fırça gölgesi;
+## kritik: kızıl rakam + arkasında eğik kızıl mühür damgası (InkUI "seal").
+static func _ink_ls_num(crit: bool, col: Color) -> LabelSettings:
+	var key := "ink_n_%s_%s" % [str(crit), col.to_html()]
+	if not _label_settings.has(key):
+		var ls := LabelSettings.new()
+		ls.font = InkUI.font("brush")
+		ls.font_size = 12 if crit else 9
+		ls.font_color = col
+		ls.outline_size = 4 if crit else 3
+		ls.outline_color = Color(InkUI.INK, 0.95)
+		ls.shadow_color = Color(InkUI.INK, 0.6)
+		ls.shadow_offset = Vector2(1.0, 1.2)
+		ls.shadow_size = 2
+		_label_settings[key] = ls
+	return _label_settings[key]
+
+
+static func _ink_ls_text(size: int, col: Color, s: String) -> LabelSettings:
+	var caps := InkUI.is_caps(s)
+	var key := "ink_t_%d_%s_%s" % [size, col.to_html(), str(caps)]
+	if not _label_settings.has(key):
+		var ls := LabelSettings.new()
+		ls.font = InkUI.font("caps" if caps else "bold")
+		ls.font_size = int(round(size * (0.8 if caps else 0.95)))
+		ls.font_color = col
+		ls.outline_size = 3
+		ls.outline_color = Color(InkUI.INK, 0.92)
+		ls.shadow_color = Color(InkUI.INK, 0.55)
+		ls.shadow_offset = Vector2(1.2, 1.5)
+		ls.shadow_size = 2
+		_label_settings[key] = ls
+	return _label_settings[key]
+
+
+static func _ink_number(pos: Vector2, value: float, crit: bool, col: Color) -> void:
+	var n := Node2D.new()
+	n.z_index = 100
+	n.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
+	n.position = pos + Vector2(randf_range(-6, 6), -14)
+	if crit:
+		# kritik: arkada mürekkep sıçrantısı, sağ üstte eğik kızıl mühür damgası
+		var sp := Sprite2D.new()
+		sp.texture = InkUI.tex("splat")
+		sp.modulate = Color(InkUI.INK, 0.78)
+		sp.rotation = randf() * TAU
+		sp.scale = Vector2.ONE * (34.0 / 512.0)
+		n.add_child(sp)
+		var s := Sprite2D.new()
+		s.texture = InkUI.tex("seal")
+		s.modulate = Color(InkUI.SEAL, 0.95)
+		s.rotation = randf_range(-0.4, -0.15)
+		s.scale = Vector2.ONE * (9.0 / 160.0)
+		s.position = Vector2(11, -7)
+		n.add_child(s)
+	var l := Label.new()
+	l.text = str(int(maxf(1.0, roundf(value))))
+	l.label_settings = _ink_ls_num(crit, Color(1.0, 0.24, 0.16) if crit else col)
+	l.size = Vector2(60, 20)
+	l.position = Vector2(-30, -11)
+	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	l.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	n.add_child(l)
+	root.add_child(n)
+	var tw := n.create_tween()
+	tw.set_parallel(true)
+	n.scale = Vector2.ONE * (2.0 if crit else 1.35)
+	n.rotation = randf_range(-0.12, 0.12) if crit else 0.0
+	tw.tween_property(n, "scale", Vector2.ONE, 0.2 if crit else 0.12).set_trans(Tween.TRANS_BACK if crit else Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	tw.tween_property(n, "position:y", n.position.y - (24.0 if crit else 15.0), 0.75).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	tw.tween_property(n, "modulate:a", 0.0, 0.3).set_delay(0.55 if crit else 0.45)
+	tw.chain().tween_callback(n.queue_free)
 
 
 static func dot_tex() -> Texture2D:
