@@ -1,4 +1,5 @@
-"""Kararan Ötüken — stil v2 örneği (karo atlası, toprak dokusu, bir paralaks katmanı). v1 dosyaları değişmez.
+"""ESKİ (kayıt için): piksel v2 Ötüken. Yerini otuken_ink*.py "mürekkep" ortamı aldı (export_ink.py).
+Kararan Ötüken — stil v2 örneği (karo atlası, toprak dokusu, bir paralaks katmanı). v1 dosyaları değişmez.
 
 Toprak (v1: düz bantlar + her yere serpilmiş eş boy çakıl "konfeti"):
   * çarpıtılmış katmanlar (strata) ve her katmanın kendi sertliği: sert kil dışa taşar, humus içe çöker;

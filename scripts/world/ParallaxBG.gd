@@ -16,6 +16,9 @@ const LAYERS := [
 
 var level: Node
 var layers: Array = LAYERS
+## Stil v2 (mürekkep): dokular doğrusal süzgeç + mipmap ile çizilir (v1 keskin piksel kalır). Katman türü
+## (spec[4]): "" normal, "add" toplamalı ışık hüzmesi (yavaş nefes alır), "fog" sürüklenen yer sisi (nefes alır).
+var smooth := false
 var ray_color := Color(0.62, 0.8, 1.0, 0.07)
 var _layers: Array = []
 var _rays: Array = []
@@ -37,15 +40,24 @@ func _ready() -> void:
 		var n := 1 if spec[1] == 0.0 else 3
 		# katmanlar görüntü yüksekliğine (540) oturacak şekilde ölçeklenir; 540 px üretilen katmanlar 1:1 çizilir
 		var k_px := _vh / float(tex.get_height())
+		var kind: String = String(spec[4]) if spec.size() > 4 else ""
+		var mat: CanvasItemMaterial = null
+		if kind == "add":
+			mat = CanvasItemMaterial.new()
+			mat.blend_mode = CanvasItemMaterial.BLEND_MODE_ADD
 		for k in n:
 			var s := Sprite2D.new()
 			s.texture = tex
 			s.centered = false
 			s.scale = Vector2(k_px, k_px)
+			if smooth:
+				s.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
+			if mat:
+				s.material = mat
 			holder.add_child(s)
 			copies.append(s)
-		_layers.append({"holder": holder, "copies": copies, "w": float(tex.get_width()) * k_px, "k": k_px, "fx": spec[1], "fy": spec[2], "drift": spec[3]})
-		if i == layers.size() - 3:
+		_layers.append({"holder": holder, "copies": copies, "w": float(tex.get_width()) * k_px, "k": k_px, "fx": spec[1], "fy": spec[2], "drift": spec[3], "kind": kind, "ph": randf() * TAU})
+		if i == layers.size() - 3 and ray_color.a > 0.0:
 			_add_rays()
 
 
@@ -86,6 +98,11 @@ func _process(_delta: float) -> void:
 		var off := -fposmod(c.x * fx + t * float(L["drift"]), w)
 		for k in L["copies"].size():
 			L["copies"][k].position = Vector2(off + k * w, y)
+		match L["kind"]:
+			"add":
+				L["holder"].modulate.a = 0.78 + 0.22 * sin(t * 0.35 + float(L["ph"]))
+			"fog":
+				L["holder"].modulate.a = 0.85 + 0.15 * sin(t * 0.22 + float(L["ph"]))
 	for r in _rays:
 		var x := fposmod(float(r["x"]) - c.x * 0.3, vp.x + 300.0) - 150.0
 		r["s"].position = Vector2(x, -40)

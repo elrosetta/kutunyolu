@@ -58,7 +58,7 @@ var _shadow_dir := Vector2(0, 1)  # ay ışığının gidiş yönü (karo engell
 func build(seed_value: int) -> void:
 	rng.seed = seed_value
 	biome = Game.biome_for_depth(int(Game.run.get("depth", 1)))
-	art = biome.get("art", {})
+	art = _stil_art(biome.get("art", {}))
 	Game.run["biome"] = biome.get("id", "otuken")
 	_generate()
 	# v12: gizli yeraltı odaları karolar kurulmadan oyulur; bölüm başı destan sayaçları
@@ -114,8 +114,8 @@ func build_boss(seed_value: int, bid_boss: String) -> void:
 	for b in Data.world["biomes"]:
 		if b["id"] == bdef.get("biome", biome.get("id", "otuken")):
 			biome = b
-	art = biome.get("art", {}).duplicate()
-	art["ambient"] = [0.36, 0.3, 0.42]
+	art = _stil_art(biome.get("art", {}))
+	art["ambient"] = art.get("boss_ambient", [0.36, 0.3, 0.42])
 	art["decor"] = ["kaya", "cira", "kam_diregi"]
 	Game.run["biome"] = biome.get("id", "otuken")
 	_generate_arena()
@@ -142,6 +142,8 @@ func build_boss(seed_value: int, bid_boss: String) -> void:
 		_decor("cira", x, surface_y(x), -2, true)
 	for x in [20, 40, 60]:
 		_decor("kam_diregi", x, surface_y(x), -3)
+	if ink():
+		_place_towers()
 	_spawn_player()
 	camera.limit_right = 84 * TS
 	# boss: sağdan, uzak
@@ -780,8 +782,44 @@ func _generate() -> void:
 func _art_cell() -> int:
 	## Atlas hücresi (doku pikseli). Zemin dokuları 1.5 kat yoğun üretilir (36 px) ve karo katmanları
 	## TS / hücre oranında küçültülür: dünya ölçüleri (TS = 24) ve fizik değişmez, 1080p'de her doku
-	## pikseli 2x2 ekran pikseline düşer.
-	return int(Data.tile_meta.get("tile", TS))
+	## pikseli 2x2 ekran pikseline düşer. v2 mürekkep zemini 48 px (1080p'de 1:1).
+	return int(_tmeta().get("tile", TS))
+
+
+var _tile_meta_cache: Dictionary = {}
+
+
+func _tmeta() -> Dictionary:
+	## Karo atlası meta bilgisi: v1'de ortak otuken.json (Data.tile_meta); --stil=v2'de varsa "<biyom>_v2.json"
+	## (hücre boyu, "ink": mürekkep zemini, "filter": doğrusal süzgeç). Yerleşim (sütun/satır) her ikisinde aynı.
+	if _tile_meta_cache.is_empty():
+		var tid := _tile_id()
+		var jp := "res://assets/tiles/%s.json" % tid
+		if tid.ends_with("_" + Data.stil) and FileAccess.file_exists(jp):
+			_tile_meta_cache = Data.load_json(jp)
+		if _tile_meta_cache.is_empty():
+			_tile_meta_cache = Data.tile_meta
+	return _tile_meta_cache
+
+
+func ink() -> bool:
+	## Stil v2 "mürekkep" ortamı etkin mi (el çizimi, doğrusal süzgeçli zemin; tools/artgen/otuken_ink*.py)
+	return bool(_tmeta().get("ink", false))
+
+
+func _stil_art(base: Dictionary) -> Dictionary:
+	## Görsel stil v1 dışındaysa data/stil_<stil>.json içindeki biyom girdisi art değerlerini ezer
+	## (paralaks katman listesi, ışık, ön plan, renk derecelendirme). v1'de art olduğu gibi döner.
+	var a := base.duplicate(true)
+	if Data.stil == "v1":
+		return a
+	var path := "res://data/stil_%s.json" % Data.stil
+	if not FileAccess.file_exists(path):
+		return a
+	var over: Dictionary = Data.load_json(path).get(String(biome.get("id", "")), {})
+	for k in over:
+		a[k] = over[k]
+	return a
 
 
 var _tile_pack := 1  # karo atlası doku paketinden geldiyse çarpanı (TileSet gerçek doku boyutunu kullanır)
@@ -796,6 +834,11 @@ func _atlas_tex(path: String, normal: String) -> CanvasTexture:
 	## Karo atlası: paket varsa gerçek boyutlu HD doku + temel normal map (UV ile örneklenir)
 	var ct := CanvasTexture.new()
 	ct.diffuse_texture = Data.tex_full(path)
+	if ink():
+		# v2 mürekkep: normal yuvasında toprak kaplama maskesi (ground_ink.gdshader), doğrusal süzgeç + mipmap
+		ct.normal_texture = load("res://assets/tiles/%s" % String(_tmeta().get("mask", "")))
+		ct.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
+		return ct
 	if ResourceLoader.exists(normal):
 		ct.normal_texture = load(normal)
 	ct.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
@@ -832,7 +875,7 @@ func _make_tileset() -> TileSet:
 	src.texture = _atlas_tex("res://assets/tiles/%s.png" % bid, "res://assets/tiles/%s_n.png" % bid)
 	src.texture_region_size = Vector2i(ac, ac)
 	ts.add_source(src, 0)
-	var meta := Data.tile_meta
+	var meta := _tmeta()
 	var cols := int(meta["cols"])
 	# çarpışma çokgenleri karo yerelinde (hücre pikseli); katman ölçeğiyle tam olarak TS'ye iner
 	var h := ac * 0.5
@@ -936,7 +979,26 @@ func _depth_texture() -> ImageTexture:
 	return ImageTexture.create_from_image(img)
 
 
+func _top_depth_texture() -> ImageTexture:
+	## v2 çayırı için: her katı karonun üstündeki kesintisiz katı karo sayısı (yalnızca dikey), 4 karoda 1.
+	## Yüzey karosu 0: üstteki 2-3 karo otluk görünür, yar yüzleri ve derinlik toprak kalır.
+	var img := Image.create(W, H, false, Image.FORMAT_L8)
+	for x in W:
+		var run := 0
+		for y in H:
+			if cell(x, y) == 1:
+				img.set_pixel(x, y, Color(1, 1, 1) * clampf(run / 4.0, 0.0, 1.0))
+				run += 1
+			else:
+				run = 0
+				img.set_pixel(x, y, Color(0, 0, 0))
+	return ImageTexture.create_from_image(img)
+
+
 func _build_tiles() -> void:
+	if ink():
+		_build_tiles_ink()
+		return
 	var ts := _make_tileset()
 	var gmat := ShaderMaterial.new()
 	gmat.shader = load("res://shaders/ground.gdshader")
@@ -960,6 +1022,39 @@ func _build_tiles() -> void:
 		gmat.set_shader_parameter("glow_col", Color(gc[0], gc[1], gc[2]))
 	var tmat := ShaderMaterial.new()
 	tmat.shader = Game.toon_shader
+	_lay_tiles(ts, gmat, tmat)
+
+
+func _build_tiles_ink() -> void:
+	## Stil v2 mürekkep zemini: sanat + kaplama maskesi atlası, dünya uzayı toprak (ground_ink.gdshader);
+	## örtü katmanı (ot öbekleri, kökler) env_ink.gdshader. Karo/çarpışma düzeni v1 ile birebir aynı.
+	var ts := _make_tileset()
+	var bid2: String = _tile_id()
+	var gmat := ShaderMaterial.new()
+	gmat.shader = load("res://shaders/ground_ink.gdshader")
+	gmat.set_shader_parameter("soil_tex", load("res://assets/tiles/%s_soil.png" % bid2))
+	gmat.set_shader_parameter("soil_density", float(_tmeta().get("soil_density", 2.0)))
+	var dc: Array = art.get("deep_color", [0.06, 0.06, 0.08])
+	gmat.set_shader_parameter("deep_color", Color(dc[0], dc[1], dc[2]))
+	gmat.set_shader_parameter("deep_amount", float(art.get("deep_amount", 0.8)))
+	gmat.set_shader_parameter("depth_tex", _depth_texture())
+	gmat.set_shader_parameter("map_size_px", Vector2(W * TS, H * TS))
+	gmat.set_shader_parameter("moon_gain", float(art.get("ground_moon_gain", 0.6)))
+	var mp := "res://assets/tiles/%s" % String(_tmeta().get("meadow", ""))
+	if _tmeta().has("meadow") and ResourceLoader.exists(mp):
+		gmat.set_shader_parameter("meadow_tex", load(mp))
+		gmat.set_shader_parameter("top_tex", _top_depth_texture())
+	else:
+		gmat.set_shader_parameter("meadow_on", 0.0)
+	var tmat := ShaderMaterial.new()
+	tmat.shader = load("res://shaders/env_ink.gdshader")
+	tmat.set_shader_parameter("moon_gain", float(art.get("ground_moon_gain", 0.6)))
+	_lay_tiles(ts, gmat, tmat)
+	ground.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
+	overlay.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
+
+
+func _lay_tiles(ts: TileSet, gmat: ShaderMaterial, tmat: ShaderMaterial) -> void:
 	var art_scale := Vector2.ONE * (float(TS) / _tile_px())
 	ground = TileMapLayer.new()
 	ground.tile_set = ts
@@ -974,7 +1069,7 @@ func _build_tiles() -> void:
 	overlay.collision_enabled = false
 	overlay.z_index = 5
 	add_child(overlay)
-	var meta := Data.tile_meta
+	var meta := _tmeta()
 	var prow := int(meta["platform_row"])
 	var orow := int(meta["overlay_row"])
 	var gcols := int(meta["grass_cols"])
@@ -1166,8 +1261,10 @@ func _build_background() -> void:
 		var layers: Array = []
 		for i in names.size():
 			var f: Array = fxs[i] if i < fxs.size() else [0.3, 0.1, 0.0]
-			layers.append(["res://assets/bg/%s.png" % Data.stil_id(String(names[i]), "res://assets/bg/%s.png"), float(f[0]), float(f[1]), float(f[2])])
+			var kinds: Array = art.get("bg_kind", [])
+			layers.append(["res://assets/bg/%s.png" % Data.stil_id(String(names[i]), "res://assets/bg/%s.png"), float(f[0]), float(f[1]), float(f[2]), kinds[i] if i < kinds.size() else ""])
 		bg.layers = layers
+	bg.smooth = ink()
 	var rc: Array = art.get("rays", [0.62, 0.8, 1.0, 0.07])
 	bg.ray_color = Color(rc[0], rc[1], rc[2], rc[3])
 	add_child(bg)
@@ -1255,6 +1352,27 @@ func _build_particles() -> void:
 	leaves.color_initial_ramp = cg
 	leaves.local_coords = false
 	leaves.z_index = 40
+	if ink() and art.has("leaf_tex"):
+		# v2: referanstaki gibi koyu siluet yapraklar (dönerek süzülür), biraz daha çok ve iri
+		leaves.texture = load(String(art["leaf_tex"]))
+		leaves.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
+		leaves.amount = int(art.get("leaf_amount", 30))
+		leaves.scale_amount_min = 0.22
+		leaves.scale_amount_max = 0.45
+		leaves.angle_min = 0.0
+		leaves.angle_max = 360.0
+		leaves.emission_rect_extents = Vector2(520, 10)
+		leaves.position = Vector2(80, -300)
+		leaves.direction = Vector2(-0.5, 1)
+		leaves.gravity = Vector2(-4, 14)
+		var lg := Gradient.new()
+		lg.set_color(0, Color(0.13, 0.07, 0.12))
+		lg.set_color(1, Color(0.16, 0.2, 0.15))
+		leaves.color_initial_ramp = lg
+		var lm := CanvasItemMaterial.new()
+		lm.light_mode = CanvasItemMaterial.LIGHT_MODE_UNSHADED
+		leaves.material = lm
+		pollen.amount = int(art.get("pollen_amount", pollen.amount))
 	match kind:
 		"polen":
 			leaves.amount = 10  # bozkırda birkaç kuru ot parçası
@@ -1287,6 +1405,18 @@ func _build_overlay_fx() -> void:
 	vig.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var sm := ShaderMaterial.new()
 	sm.shader = load("res://shaders/vignette.gdshader")
+	if ink() and not OS.get_cmdline_user_args().has("--derecesiz"):
+		# v2: sahneyi okuyan renk derecelendirme + vinyet (aynı "hurt" nabzı); test: --derecesiz kapatır
+		sm.shader = load("res://shaders/grade_v2.gdshader")
+		var gr: Dictionary = art.get("grade", {})
+		for k in gr:
+			var v = gr[k]
+			if v is Array and (v as Array).size() == 3:
+				sm.set_shader_parameter(k, Vector3(v[0], v[1], v[2]))
+			elif v is Array and (v as Array).size() == 4:
+				sm.set_shader_parameter(k, Color(v[0], v[1], v[2], v[3]))
+			else:
+				sm.set_shader_parameter(k, float(v))
 	vig.material = sm
 	vig_mat = sm
 	cl.add_child(vig)
@@ -1295,6 +1425,11 @@ func _build_overlay_fx() -> void:
 	red_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	red_rect.color = Color(1, 0.1, 0.1, 0.0)
 	cl.add_child(red_rect)
+	if ink() and art.has("fg"):
+		var fg := ForegroundV2.new()
+		fg.spec = art["fg"]
+		fg.level = self
+		add_child(fg)
 
 
 func flash_red() -> void:
@@ -1309,7 +1444,78 @@ func flash_red() -> void:
 
 
 # ------------------------------------------------------------------ süsler
+var _decor_v2_meta: Dictionary = {}
+var _decor_v2_tex: Dictionary = {}
+
+
+func _decor_v2(dname: String) -> Dictionary:
+	## Stil v2 mürekkep süsü: assets/decor/<ad>_v2.png (+ _e ışıma), decor_v2.json (boyut/köken doku pikseli,
+	## "texel" = dünya birimi başına doku pikseli). Yoksa boş sözlük (v1 süsü kullanılır).
+	if _decor_v2_meta.is_empty():
+		_decor_v2_meta = Data.load_json("res://assets/decor/decor_v2.json") if FileAccess.file_exists("res://assets/decor/decor_v2.json") else {"_": {}}
+	var key := dname + "_v2"
+	if not _decor_v2_meta.has(key):
+		return {}
+	if not _decor_v2_tex.has(key):
+		var d: Dictionary = (_decor_v2_meta[key] as Dictionary).duplicate()
+		d["tex"] = load("res://assets/decor/%s.png" % key)
+		var gp := "res://assets/decor/%s_e.png" % key
+		d["glow_tex"] = load(gp) if ResourceLoader.exists(gp) else null
+		_decor_v2_tex[key] = d
+	return _decor_v2_tex[key]
+
+
+func _decor_ink(d: Dictionary, dname: String, tile_x: int, tile_y_surface: int, z: int, glow_light: bool) -> Sprite2D:
+	var s := Sprite2D.new()
+	s.texture = d["tex"]
+	s.centered = false
+	var k := 1.0 / float(d.get("texel", 2.0))
+	s.scale = Vector2(k, k)
+	s.offset = Vector2(-float(d["origin"][0]), -float(d["origin"][1]))
+	s.position = Vector2(tile_x * TS + TS / 2.0 + rng.randf_range(-4, 4), tile_y_surface * TS + 2)
+	s.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
+	var m := ShaderMaterial.new()
+	m.shader = load("res://shaders/env_ink.gdshader")
+	m.set_shader_parameter("moon_gain", float(art.get("ground_moon_gain", 0.6)))
+	if not dname.begins_with("cira"):
+		var dt: Array = art.get("decor_tint", [1.0, 1.0, 1.0])
+		m.set_shader_parameter("tint", Color(dt[0], dt[1], dt[2]))
+	s.material = m
+	s.z_index = z
+	if rng.randf() < 0.5 and dname != "kam_diregi":
+		s.flip_h = true
+	decor_root.add_child(s)
+	if d.get("glow_tex") != null:
+		var g := Sprite2D.new()
+		g.texture = d["glow_tex"]
+		g.centered = false
+		g.offset = s.offset
+		g.flip_h = s.flip_h
+		g.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
+		var gm := CanvasItemMaterial.new()
+		gm.blend_mode = CanvasItemMaterial.BLEND_MODE_ADD
+		gm.light_mode = CanvasItemMaterial.LIGHT_MODE_UNSHADED
+		g.material = gm
+		g.self_modulate = Color(1.6, 1.4, 1.2)
+		s.add_child(g)
+		var tw := g.create_tween().set_loops()
+		tw.tween_property(g, "self_modulate:a", 0.8, 0.16)
+		tw.tween_property(g, "self_modulate:a", 1.0, 0.2)
+	if glow_light:
+		var tcol: Array = art.get("torch_col", [1.0, 0.58, 0.26])
+		var l := add_light(s.position + Vector2(0, -56), Color(tcol[0], tcol[1], tcol[2]), 240.0, 1.35, decor_root)
+		var tw2 := l.create_tween().set_loops()
+		tw2.tween_property(l, "energy", 1.1, 0.18)
+		tw2.tween_property(l, "energy", 1.45, 0.22)
+	return s
+
+
 func _decor(dname: String, tile_x: int, tile_y_surface: int, z := -2, glow_light := false) -> void:
+	if ink():
+		var d2 := _decor_v2(dname)
+		if not d2.is_empty():
+			_decor_ink(d2, dname, tile_x, tile_y_surface, z, glow_light)
+			return
 	var d := Data.decor(dname)
 	if d.is_empty() or not d.has("size"):
 		return
@@ -1352,6 +1558,128 @@ func _decor(dname: String, tile_x: int, tile_y_surface: int, z := -2, glow_light
 		tw.tween_property(l, "energy", 1.45, 0.22)
 
 
+func _place_ink_extras() -> void:
+	## Stil v2: platform altlarına gözetleme kulesi ayakları (yalnızca görsel; çarpışma değişmez) ve seyrek balballar.
+	_place_towers()
+	var nxt := 30 + rng.randi_range(0, 20)
+	while nxt < W - 12:
+		var sy := surface_y(nxt)
+		var roofed := cell(nxt, sy - 5) == 1 or cell(nxt, sy - 6) == 1
+		if cell(nxt, sy) == 1 and not roofed:
+			_decor("balbal", nxt, sy, -3)
+			if rng.randf() < 0.4:
+				_decor("balbal", nxt + 1, sy, -3)
+		nxt += rng.randi_range(38, 70)
+
+
+func _place_towers() -> void:
+	## Her tek yönlü platform koşusunun altına kule ayakları (bkz. _tower_under)
+	var y := 1
+	while y < H - 1:
+		var x := 0
+		while x < W:
+			if cell(x, y) == 2:
+				var x0 := x
+				while x < W and cell(x, y) == 2:
+					x += 1
+				_tower_under(x0, x - 1, y)
+			else:
+				x += 1
+		y += 1
+
+
+func _ground_below(x: int, y: int, max_d := 14) -> int:
+	## (x, y) altında ilk katı karo satırı; bulunamazsa -1
+	for d in range(1, max_d + 1):
+		if y + d >= H:
+			return -1
+		var c := cell(x, y + d)
+		if c == 1:
+			return y + d
+		if c == 2:
+			return -1
+	return -1
+
+
+func _tower_under(x0: int, x1: int, y: int) -> void:
+	## Platform koşusunun (x0..x1, satır y) iki ucundan zemine inen kütük ayaklar; geniş ve yüksekse X destek ve kiriş.
+	var d: Dictionary = _decor_v2("kule_dikme")
+	if d.is_empty():
+		return
+	var k := 1.0 / float(d.get("texel", 2.0))
+	var ends: Array = []
+	var gl := _ground_below(x0, y)
+	if gl > 0:
+		ends.append([x0 * TS + 4.5, gl])
+	var gr := _ground_below(x1, y)
+	if gr > 0 and (x1 > x0 or gl < 0):
+		ends.append([x1 * TS + TS - 4.5, gr])
+	var top := (y + 1) * TS - 1.0
+	for e in ends:
+		var bottom := float(e[1]) * TS + 3.0
+		_log_sprite(d, Vector2(float(e[0]), top), Vector2(float(e[0]), bottom), k, -1)
+	if ends.size() == 2 and x1 - x0 >= 2:
+		var gy := minf(float(ends[0][1]), float(ends[1][1])) * TS
+		var h := gy - top
+		if h > TS * 2.5:
+			var c: Dictionary = _decor_v2("kule_capraz")
+			var a := Vector2(float(ends[0][0]), top + 6.0)
+			var b := Vector2(float(ends[1][0]), gy - 8.0)
+			var a2 := Vector2(float(ends[1][0]), top + 6.0)
+			var b2 := Vector2(float(ends[0][0]), gy - 8.0)
+			if not c.is_empty():
+				_log_sprite(c, a, b, k, -2, true)
+				_log_sprite(c, a2, b2, k, -2, true)
+				var mid := top + h * 0.55
+				_log_sprite(c, Vector2(float(ends[0][0]) - 6.0, mid), Vector2(float(ends[1][0]) + 6.0, mid), k, -1, true)
+				var bag: Dictionary = _decor_v2("kule_bag")
+				if not bag.is_empty():
+					for e in ends:
+						for yy in [mid, top + 6.0]:
+							var s := Sprite2D.new()
+							s.texture = bag["tex"]
+							s.scale = Vector2(k, k)
+							s.position = Vector2(float(e[0]), yy)
+							s.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
+							s.material = _ink_mat()
+							s.z_index = 0
+							decor_root.add_child(s)
+
+
+var _ink_mat_cache: ShaderMaterial
+
+
+func _ink_mat() -> ShaderMaterial:
+	if _ink_mat_cache == null:
+		_ink_mat_cache = ShaderMaterial.new()
+		_ink_mat_cache.shader = load("res://shaders/env_ink.gdshader")
+		_ink_mat_cache.set_shader_parameter("moon_gain", float(art.get("ground_moon_gain", 0.6)))
+	return _ink_mat_cache
+
+
+func _log_sprite(d: Dictionary, a: Vector2, b: Vector2, k: float, z: int, horizontal := false) -> void:
+	## Döşenen kütük dokusunu a'dan b'ye uzat (dikme: doku dikeyde, kiriş: yatayda tekrarlanır)
+	var s := Sprite2D.new()
+	s.texture = d["tex"]
+	s.texture_repeat = CanvasItem.TEXTURE_REPEAT_ENABLED
+	s.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
+	s.region_enabled = true
+	var ln := a.distance_to(b) / k
+	var tw := float((d["size"] as Array)[0])
+	var th := float((d["size"] as Array)[1])
+	if horizontal:
+		s.region_rect = Rect2(0, 0, ln, th)
+		s.rotation = (b - a).angle()
+	else:
+		s.region_rect = Rect2(0, 0, tw, ln)
+		s.rotation = (b - a).angle() - PI / 2.0
+	s.scale = Vector2(k, k)
+	s.position = (a + b) * 0.5
+	s.material = _ink_mat()
+	s.z_index = z
+	decor_root.add_child(s)
+
+
 func _has_decor(n: String) -> bool:
 	return n in art.get("decor", ["dilek_agaci", "kam_diregi", "mantar", "cicek", "kaya", "cira"])
 
@@ -1382,6 +1710,8 @@ func _place_decor() -> void:
 			_decor("kam_diregi", x, sy, -3)
 		elif r < 0.285 and not roofed and style != "harabe" and _has_decor("dilek_agaci"):
 			_decor("dilek_agaci", x, sy, -3)
+	if ink():
+		_place_ink_extras()
 	# çıkış: Kut Kapısı
 	var ex := W - 7
 	exit_pos = Vector2(ex * TS + TS / 2.0, surface_y(ex) * TS)

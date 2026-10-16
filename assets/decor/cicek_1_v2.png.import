@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://ksggvsdqxx23"
-path="res://.godot/imported/otuken_v2_soil_n.png-eea18800c6baac56c9dcb52b18771180.ctex"
+uid="uid://jxdo2mwatb42"
+path="res://.godot/imported/cicek_1_v2.png-4c6d3ae39abf03e049b30ebc5aa1c96b.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/tiles/otuken_v2_soil_n.png"
-dest_files=["res://.godot/imported/otuken_v2_soil_n.png-eea18800c6baac56c9dcb52b18771180.ctex"]
+source_file="res://assets/decor/cicek_1_v2.png"
+dest_files=["res://.godot/imported/cicek_1_v2.png-4c6d3ae39abf03e049b30ebc5aa1c96b.ctex"]
 
 [params]
 
@@ -23,7 +23,7 @@ compress/rdo_quality_loss=0.0
 compress/hdr_compression=1
 compress/normal_map=0
 compress/channel_pack=0
-mipmaps/generate=false
+mipmaps/generate=true
 mipmaps/limit=-1
 roughness/mode=0
 roughness/src_normal=""

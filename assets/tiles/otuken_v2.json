@@ -1,7 +1,7 @@
 {
- "tile": 36,
+ "tile": 48,
  "world_tile": 24,
- "density": 1.5,
+ "density": 2.0,
  "cols": 16,
  "ground_rows": 3,
  "overlay_row": 3,
@@ -12,33 +12,12 @@
   10
  ],
  "platform_row": 4,
- "keys": {
-  "soil": [
-   1.0,
-   0.0,
-   1.0
-  ],
-  "shade": [
-   0.0,
-   1.0,
-   1.0
-  ],
-  "lit": [
-   1.0,
-   1.0,
-   0.0
-  ],
-  "edge": [
-   0.0,
-   0.0,
-   1.0
-  ],
-  "glow": [
-   1.0,
-   0.0,
-   0.0
-  ]
- },
+ "ink": true,
+ "filter": "linear_mipmap",
+ "mask": "otuken_v2_mask.png",
+ "soil_size": 1024,
+ "soil_density": 2.0,
+ "meadow": "otuken_v2_meadow.png",
  "glow": null,
- "soil_size": 768
+ "not": "v2 mürekkep zemini: sanat RGBA + R=toprak kaplaması, G=kenar gölgesi (CanvasTexture normal yuvasında)"
 }
