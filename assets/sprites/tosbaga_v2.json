@@ -1,0 +1,206 @@
+{
+ "cell": [
+  416,
+  288
+ ],
+ "origin": [
+  192,
+  272
+ ],
+ "texel": 4.0,
+ "filter": "linear",
+ "anims": {
+  "idle": {
+   "row": 0,
+   "frames": 4,
+   "fps": 8,
+   "loop": true,
+   "data": [
+    {
+     "mouth": [
+      35.1,
+      -15.57
+     ]
+    },
+    {
+     "mouth": [
+      35.1,
+      -14.81
+     ]
+    },
+    {
+     "mouth": [
+      35.1,
+      -15.57
+     ]
+    },
+    {
+     "mouth": [
+      35.1,
+      -16.33
+     ]
+    }
+   ],
+   "arm": true
+  },
+  "walk": {
+   "row": 1,
+   "frames": 6,
+   "fps": 8,
+   "loop": true,
+   "data": [
+    {
+     "mouth": [
+      35.1,
+      -15.49
+     ]
+    },
+    {
+     "mouth": [
+      35.1,
+      -15.0
+     ]
+    },
+    {
+     "mouth": [
+      35.1,
+      -15.0
+     ]
+    },
+    {
+     "mouth": [
+      35.1,
+      -15.49
+     ]
+    },
+    {
+     "mouth": [
+      35.1,
+      -15.86
+     ]
+    },
+    {
+     "mouth": [
+      35.1,
+      -15.86
+     ]
+    }
+   ],
+   "arm": true
+  },
+  "shell": {
+   "row": 2,
+   "frames": 2,
+   "fps": 8,
+   "loop": false,
+   "data": [
+    {
+     "mouth": [
+      30.0,
+      -6.12
+     ]
+    },
+    {
+     "mouth": [
+      30.0,
+      -6.19
+     ]
+    }
+   ],
+   "arm": true
+  },
+  "spin": {
+   "row": 3,
+   "frames": 4,
+   "fps": 16,
+   "loop": false,
+   "data": [
+    {
+     "mouth": [
+      30.0,
+      -10.7
+     ]
+    },
+    {
+     "mouth": [
+      30.0,
+      -10.7
+     ]
+    },
+    {
+     "mouth": [
+      30.0,
+      -10.7
+     ]
+    },
+    {
+     "mouth": [
+      30.0,
+      -10.7
+     ]
+    }
+   ],
+   "arm": true
+  },
+  "windup": {
+   "row": 4,
+   "frames": 2,
+   "fps": 8,
+   "loop": false,
+   "data": [
+    {
+     "mouth": [
+      35.1,
+      -17.34
+     ]
+    },
+    {
+     "mouth": [
+      35.1,
+      -18.12
+     ]
+    }
+   ],
+   "arm": true
+  },
+  "bite": {
+   "row": 5,
+   "frames": 2,
+   "fps": 10,
+   "loop": false,
+   "data": [
+    {
+     "mouth": [
+      35.1,
+      -12.34
+     ]
+    },
+    {
+     "mouth": [
+      35.1,
+      -12.34
+     ]
+    }
+   ],
+   "arm": true
+  },
+  "hurt": {
+   "row": 6,
+   "frames": 1,
+   "fps": 10,
+   "loop": false,
+   "data": [
+    {
+     "mouth": [
+      35.1,
+      -15.64
+     ]
+    }
+   ],
+   "arm": true
+  }
+ },
+ "glow": true,
+ "page_rows": 14,
+ "pages": 1
+}

@@ -56,12 +56,18 @@ func _ready() -> void:
 		var ft: Node = load("res://tools/tests/firca_testi.gd").new()
 		ft.set("main", self)
 		add_child(ft)
+	# yaratık testleri: --yaratik_cikti=... verilirse poz galerisi (yaratik_galeri.gd), yoksa canlı yapay zekâlı
+	# çekim sahnesi ve Bozkurt biçimi (yaratik_testi.gd)
+	var galeri := false
 	for arg in OS.get_cmdline_user_args():
-		if String(arg).begins_with("--yaratik="):  # yaratık galerisi (tools/tests/yaratik_galeri.gd): pozları oyun içinde çeker
-			var yg: Node = load("res://tools/tests/yaratik_galeri.gd").new()
-			yg.set("main", self)
-			add_child(yg)
-			firca = true  # oyun modunda başla (başlık ekranı yok)
+		galeri = galeri or String(arg).begins_with("--yaratik_cikti")
+	for arg in OS.get_cmdline_user_args():
+		if String(arg) == "--yaratik" or String(arg).begins_with("--yaratik="):
+			var yt: Node = load("res://tools/tests/yaratik_galeri.gd" if galeri else "res://tools/tests/yaratik_testi.gd").new()
+			yt.set("main", self)
+			add_child(yt)
+			firca = true  # oyun kipinde başla (başlık ekranı yok)
+			break
 	for arg in OS.get_cmdline_user_args():
 		if String(arg) == "--boss":
 			_build_boss("kara_boru_han")

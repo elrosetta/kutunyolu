@@ -1047,6 +1047,44 @@ v2'de aynı imzayla `scripts/ui/InkUI.gd`'ye düşer; özel parçalar `scripts/u
   `--arayuz=intro|ozan|done|ad|kombo|hasar|flash|ipucu|dusuk[,...]` (HUD.gd, 45 kare sonra uygulanır). Çekimler
   `rec_v16/ui/` (depo dışı).
 
+### Stil v2 mürekkep yaratıkları, seti B: Gulyabani, Bekçi, Tosbağa, Bozkurt biçimi, yurt sakinleri
+
+`tools/artgen/<kimlik>_ink.py` + `export_ink.py --surale|--bekci|--tosbaga|--bengu_kurt|--npc` (yalnızca `_v2` yazar;
+v1 dosyaları değişmez). Animasyon adları, kare sayıları, fps/döngü, satır sırası v1 json'undan; çapalar aynı anlamla
+('hand', 'head', 'mouth' dünya biriminde, ayak orijinli); çarpışma kodda değişmedi. Doku 4 piksel / dünya birimi,
+`"filter": "linear"`, ışıyan parçalar `_e` sayfasında. Hücreler v1 dünya boyutundan biraz büyük olabilir (yalnızca
+pay; orijin buna göre): surale 128x120, bekci 96x104, tosbaga 104x72, bengu_kurt 160x120, NPC 80x104.
+
+* **Gulyabani** (`surale_ink.py`; Karakoncolos aynı çizim + soğuk ton): v1 iskelet ve pozları (`creatures.GUL_ANIMS`).
+  Soğuk mavi-gri gergin deri, kaburga ve omur çıkıntıları, çökük karın, düğüm dizler, yere değen kollar ve sarı
+  tırnaklı uzun parmaklar; toprak lekeli yırtık kefen başlık gibi kafayı örter, yüzün önüne yağlı saç tutamları
+  düşer; oyuk göz çukurunda soluk sarı ışık (hazırlık ve yakalamada büyür), iğne dişli açılan çene.
+* **Kurgan Bekçisi** (`bekci_ink.py`; 10 düşman bu çizimi `tint` ile kullanır): kurumuş kafatası yüz + soğuk Kut gözü,
+  sivri dilimli tunç miğfer (burun siperi, yanak siperi, zincir ensel, kızıl at kılı sorguç), tunç lamel zırh, omuzluk,
+  lamel etek parçaları, kızıl keçe kaftan, sargılı baldır + tunç baldır siperi, kemik parmaklarda dilimli tunç topuz;
+  deri kaplı yuvarlak kalkan (perçinli tunç kasnak, sivri göbek, ışıyan Göktürk runa halkası). Pozlar yeniden
+  kurgulandı (ayaklar yere çözülür): hazırlıkta topuz başın üstünden arkaya, gözler alevlenip iz bırakır; vuruşta
+  hamle adımı; kalkan darbesi ve hücumda kalkan yarı dönük. Taban orta değerli ve az doygun: yeşil/mavi/kızıl/mor
+  tonlar okunur (`rec_v16/yaratik_b/biyom_1e1.png`). Atlılar (al_atli, kara_atli, kurgan_atlisi) v1'deki gibi yaya;
+  ad ve davranış "gul/akıncı" olduğundan ayrı binek çizimi yapılmadı.
+* **Taş Tosbağa** (`tosbaga_ink.py`; Taş Gulü, Buz Tosbağası ton): yüksek kubbe; her biri ayrı yüzey gölgesi alan
+  altıgen taş plakalar (sırt/yan/kenar sıraları, yosun, çatlak), sırtta ışıyan mağara kristalleri, kabuk kenarı
+  altından çıkan kalın sütun bacaklar, kancalı gagalı iri baş. Isırık hazırlığında göz alevlenir. 'shell' kabuğa
+  çekilmiş (ağızdan bakan göz), 'spin' kabuk yerde yuvarlanır (4 karede tam tur, ışık dünyada sabit).
+* **Bozkurt biçimi** (`bengu_kurt_ink.py`): v1 iskelet (K 1.75, wolfkit eklemleri) ve pozları; kar beyazı post
+  (mavi-mor gölge, kıl darbeleri, tutamlar), kafa tepesinden omuza Kut alevi yelesi (dış/orta/göbek üç kat tek
+  kütle halinde, dış dilde ince mürekkep, kıvılcımlar; uluma ve ısırıkta uzar), kuyruk ucu ve bilek/topuk ruh
+  alevleri, kalçada ve omuzda ışıyan altın tamga, boynu saran tunç halka + Kut taşı, rüzgârda turkuaz atkı.
+* **Yurt sakinleri** (`npc_ink.py`, yüz sola): Umay Ana (ak entari + turkuaz/altın işlemeli keçe üstlük, gümüş
+  örgüler, geyik boynuzlu altın taç, ak kayın asa ve dolaşan Kut zerreleri; konuşurken kutsama eli), Demirci Kam
+  Kuzgun (kuzgun tüylü kam başlığı, örgülü kara sakal, sıvalı kızıl kaftan, deri önlük + muskalar, kerpeten; balyozun
+  başı yerde, konuşurken kalkar, yüzünde kızgın runa), Ozan Bilge Kopuz (ak keçe börk, uzun ak sakal, işlemeli
+  çapan, nazar boncuğu; kopuz kucakta, iki el IK ile sapa ve tellere oturur).
+* **Test:** `-- --stil=v2 --yaratik[=tür,...] [--yaratik_kurt] [--yaratik_sure=7]` (`tools/tests/yaratik_testi.gd`:
+  her tür oyuncunun önünde canlı yapay zekâyla, oyuncu ölümsüz, sonra iki vuruş; sonunda Bozkurt koşu/ısırık/sıçrayış/
+  uluma; "[yaratik] ... kare=N" satırları). 1080p 1:1 kareler için `--pencere=1920x1080 --goruntu=x.png --seri=N
+  --aralik=s` (film kaydı pencereyi 1280x720'de tutar). Çekimler `rec_v16/yaratik_b/` (depo dışı).
+
 ### Yaygınlaştırma planı (onay sonrası)
 
 1. **Ortak altyapı:** `style_v2` malzeme kütüphanesi (`materials_v2`: kumaş/deri/metal/post/kemik/taş rampaları) ve poz yardımcıları;

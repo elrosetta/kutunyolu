@@ -4,6 +4,7 @@ Kullanım:  python export_ink.py               (hepsi)
            python export_ink.py --bengu       assets/sprites/bengu_v2.{png,json} (+_e) ve bengu_kol_v2.{png,json}
            python export_ink.py --kara_boru   assets/sprites/kara_boru_v2.{png,json} (+_e)
            python export_ink.py --bengu idle run   yalnızca bu animasyonlar yeniden çizilir (diğer satırlar korunur)
+           python export_ink.py --surale | --bekci | --tosbaga | --bengu_kurt | --npc   (yaratık seti B, *_ink.py)
 
 Sayfa düzeni (satır sırası, kare sayısı, fps, döngü, kol bayrağı) v1/v2 json'undan alınır: oyun kodu aynı adlarla çalışır.
 Meta: "texel": 4 (v2 kamerası 2,0 yakın: 1080p'de 1 doku pikseli = 1 ekran pikseli), "filter": "linear" (oyunda doğrusal
@@ -211,6 +212,24 @@ def export_kara_boru(only=()):
     export_sheet('kara_boru_v2', 'kara_boru.json', lambda an, i: kb.render_frame(an, i), kb.CELL, kb.FEET, kb.TEX, only)
 
 
+# ------------------------------------------------------------ yaratık seti B (surale, bekci, tosbaga, bengu_kurt, yurt NPC'leri)
+INK_B = {'surale': 'surale_ink', 'bekci': 'bekci_ink', 'tosbaga': 'tosbaga_ink', 'bengu_kurt': 'bengu_kurt_ink'}
+
+
+def export_ink_b(name, only=()):
+    """<name>_v2: <name>_ink.py modülünün render_frame(anim, i) çizimi; satır düzeni v1 <name>.json'dan."""
+    import importlib
+    m = importlib.import_module(INK_B[name])
+    export_sheet(name + '_v2', name + '.json', lambda an, i: m.render_frame(an, i), m.CELL, m.FEET, m.TEX, only)
+
+
+def export_npc(only=(), who=('umay', 'demirci', 'ozan')):
+    """npc_<kişi>_v2 (npc_ink.py): yüz sola, satır düzeni v1 npc_<kişi>.json'dan."""
+    import npc_ink as n
+    for w in who:
+        export_sheet('npc_%s_v2' % w, 'npc_%s.json' % w, lambda an, i, w=w: n.render_npc(w, an, i), n.CELL, n.FEET, n.TEX, only)
+
+
 def main():
     args = sys.argv[1:]
     flags = [a for a in args if a.startswith('--')]
@@ -220,6 +239,11 @@ def main():
         export_bengu(only)
     if every or '--kara_boru' in flags:
         export_kara_boru(only)
+    for nm in INK_B:
+        if every or '--' + nm in flags:
+            export_ink_b(nm, only)
+    if every or '--npc' in flags:
+        export_npc(only)
 
 
 if __name__ == '__main__':
