@@ -939,6 +939,48 @@ v1 çizimi aynen durur. Üretim: `cd tools/artgen && python export_sus.py [--yur
 
 
 
+### Stil v2 yaratıklar (A takımı): Çor, Kara İye, Balbal, Kara Kam ve biyom çeşitlemeleri
+
+Dört temel sprite ve onları paylaşan düşmanlar mürekkep-cel olarak yeniden çizildi; biyom tonu (`tint`) yerine her
+düşmanın kendi çizimi var (`<kimlik>_v2`). Pozlar, kare sayıları, fps/döngü, çapalar (`mouth` = fener, `hand` = yumruk /
+lanet küresi) ve çarpışma v1 ile aynı; hücreler dünya biriminde biraz geniş (mürekkep konturu ve savrulan parçalar sığsın).
+
+* **Çalışma zamanı:** `Enemy.setup` v2'de düşmanın kendi kimliğiyle `_v2` sprite'ı varsa (ör. `kan_yarasasi_v2`) onu
+  yükler ve biyom tonunu uygulamaz (renkler çizimde); yoksa `def.sprite` (ör. `cor` -> `cor_v2`). v1'de `stil_id` kimliği
+  aynen döndürdüğü için hiçbir şey değişmez. Seçkin/durum tonları aynı.
+* **Üretim:** `cd tools/artgen && python export_yaratik_a.py [--cor|--iye|--balbal|--kam] [kimlik ...]` (~1,5 dk, süreç
+  havuzu). Çizim: `cor_ink.py`, `agac_iyesi_ink.py`, `balbal_ink.py`, `arcura_ink.py` (her biri `VARIANTS` sözlüğü:
+  malzemeler + biçim anahtarları), ortak ekler `yaratik_ink_kit.py` (bulanık ışıma `glow_soft`, ışımanın z sırasına
+  göre örtülmesi `occlude_glow` — arkada kalan fener/çatlak ışığı önündeki gövdeden sızmaz, yırtık kenar, zincir, kemik
+  el, buz sarkıtı, duman teli `wisp`, bulut patlaması `cloud`, kıvılcım). Önizleme: `python preview_yaratik.py x.png
+  --mod cor_ink --var all --glow --all`. Oyun içi çekim: `-- --stil=v2 --derinlik=1 --yaratik=cor,agac_iyesi
+  --yaratik_cikti=C:/x` (`tools/tests/yaratik_galeri.gd`: AI kapalı, her poz `show_frame` ile, 1080p kırpım).
+* **Çor Ruhu** (`cor`, hücre 80x76): küllü kefen, geriye sarkan sivri başlık, karanlıkta iki göz + kafatası dişleri,
+  güve yeniği delikler, bileğe bağlı çalınmış dilek çaputları, kemik eller, zincirde kafes pencereli tunç buhurdan
+  (salgın ateşi), sporlu duman telleri. Uyarı: buhurdan geriye/öne çekilir, ateş ve gözler parlar, kıvılcım; saldırı:
+  spor bulutu patlaması. Çeşitlemeler: Kurgan Ruhu (`kara_kus_yavrusu`: aşı keçe, sivri Saka börkü, altın ölü maskesi),
+  Kan Çoru (`kan_yarasasi`: kulaklı başlık, yarasa kanatları, kızıl), Ayaz Çoru (`kaf_kartali`: donmuş kefen, kartal
+  tüyü yaka, buz sarkıtları), Kayıp Ruh (`kayip_ruh`: ağlayan soluk maske, saydamlaşan kuyruk, kırık pranga, ruh
+  kafesi feneri), Demir Gaga (`demir_gaga`: kurum kefen, demir kuş gagası maske, kor dolu demir buhurdan).
+* **Kara İye** (`agac_iyesi`, hücre 128x112): kök bacaklar (kök saçaklı ayak), kabuk olukları ve budak, kamburdan çıkan
+  kırık dallar, sırta oturan yosun örtüsü + mantarlar, geyik kafatası, boynuzlarda dilek çaputları, mor yanan Erlik
+  çatlakları ve öz. Uyarı: yumruk havada, çene açılır, çatlaklar/göz/yumruk alevlenir. Çeşitlemeler: Tozkoparan (ağarmış
+  saksağul, kuru bozkır otu, koç boynuzu, toz hortumu teli), Su İyesi (ıslak kütük, su yosunu, midye, damlalar,
+  camgöbeği), Dev Çocuğu (ayaz kayası, kar örtüsü, buz kristali boynuz/dikenler, ağır kaşlı dev başı ve buz dişler),
+  Od İyesi (kömür kabuk, lav çatlakları, kül örtü, alev dilleri, kor uçlu dallar/boynuzlar).
+* **Balbal** (`balbal`, hücre 88x80): yontu düzlemli granit, keski izleri, bozkır taşlarının turuncu likeni, börk,
+  sarkık bıyık, kadeh, kemer plakaları, geniş taş kılıç; Orhun runaları (çizgi damgalar), göz yarıkları ve kılıç oluğu
+  uyanınca camgöbeği yanar; uykuda sönük, kılıç kında. Uyarı: kılıç başın üstünde, runalar parlar, omuzdan taş tozu.
+  Buz Balbalı: buzlu taş, bıyıktan/börkten/kollardan sarkıtlar, buz kılıç, ayaz mavisi runalar.
+* **Kara Kam** (`arcura`, hücre 76x72): saçaklı deri kam postu (kızıl şeritler, demir çıngıraklar, göğüste kuzgu),
+  baykuş tüyü yelpazesi + geyik boynuzlu taç, kemik maske ve gözün önüne sarkan saçak, boyalı tüngür (Hayat Ağacı, Ay,
+  Güneş), lanet küresi (sarmal, uyarıda halka + kıvılcım). Çeşitlemeler: Kurgan Kamı (at kafatası maske, kartal tüyü,
+  altın kuzgu, kehribar), Işıltı Kamı (gözleri bağlı kör kam, kristal taç, yeşil ışık), Erlik'in Kızı (kara uzun saç,
+  solgun yüz, kara boynuzlar, dar belli yırtık kızıl elbise, davul yerine kemik dişli kara ayna, macenta).
+* **Bilinen eksikler:** düşman sola dönünce çizili ışık yönü aynalanır (tüm v2 sprite'larda olduğu gibi); yaralanma
+  karesi çoğunlukla geri çekilme + söndürülmüş göz (oyunda vuruş parlaması ile okunur); diğer biyomların v2 ortamı
+  bu dalda yok (çekimler Ötüken'de 1:1).
+
 ### Yaygınlaştırma planı (onay sonrası)
 
 1. **Ortak altyapı:** `style_v2` malzeme kütüphanesi (`materials_v2`: kumaş/deri/metal/post/kemik/taş rampaları) ve poz yardımcıları;

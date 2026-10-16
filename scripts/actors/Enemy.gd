@@ -163,8 +163,11 @@ func _ready() -> void:
 	add_child(cs)
 	anim = SpriteAnim.new()
 	add_child(anim)
-	anim.setup(sprite_kind)
-	if def.has("tint"):
+	# stil v2: düşmanın kendi kimliğiyle çizilmiş çeşitlemesi varsa (ör. kan_yarasasi_v2) onu kullan; renkleri
+	# çizimde olduğundan biyom tonu uygulanmaz. v1'de stil_id kimliği aynen döndürür: değişiklik yok.
+	var own_v2 := kind != sprite_kind and Data.stil_id(kind, "res://assets/sprites/%s.json") != kind
+	anim.setup(kind if own_v2 else sprite_kind)
+	if def.has("tint") and not own_v2:
 		var tt: Array = def["tint"]
 		base_tint = Color(tt[0], tt[1], tt[2])
 		anim.set_tint(base_tint)

@@ -57,6 +57,12 @@ func _ready() -> void:
 		ft.set("main", self)
 		add_child(ft)
 	for arg in OS.get_cmdline_user_args():
+		if String(arg).begins_with("--yaratik="):  # yaratık galerisi (tools/tests/yaratik_galeri.gd): pozları oyun içinde çeker
+			var yg: Node = load("res://tools/tests/yaratik_galeri.gd").new()
+			yg.set("main", self)
+			add_child(yg)
+			firca = true  # oyun modunda başla (başlık ekranı yok)
+	for arg in OS.get_cmdline_user_args():
 		if String(arg) == "--boss":
 			_build_boss("kara_boru_han")
 		elif String(arg).begins_with("--boss="):
