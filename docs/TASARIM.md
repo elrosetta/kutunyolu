@@ -772,6 +772,41 @@ v1 yolu hiç değişmez (en yakın komşu, piksel keskin). Yalnızca `--stil=v2`
 * **Işık** (`stil_v2.json`): ortam (CanvasModulate) 0,80/0,86/0,88, ay 0,32: boyalı ortam neredeyse kendi renginde görünür;
   aktörler v1'e göre daha aydınlık (karakter v2 sanatı bu ışıkla dengelenmeli).
 
+### Bozkır Kurganları ve Kaf Dağı v2 "mürekkep" ortamları
+
+Ötüken mürekkep kurgusunun (kamera 2,0, dünya uzayı 4 doku pikseli / birim, paralaks 1080 yükseklik, BPTC) biyoma özgü
+uygulaması. Üretim: `cd tools/artgen && python export_ink_biyom.py bozkir kaf [--bg [katman..]|--zemin|--on|--suslar|--tehlike]`
+(yalnızca `<biyom>_v2*` dosyaları; v1 ve Ötüken dokunulmaz). Kod: `ink_biyom.py` (biyomdan bağımsız: gök rampası, dağ sırası =
+sırt çizgilerinden cel yüz gölgesi + kar + kesik mürekkep + ters ışık siluet kenarı, yumuşak tepe, boyalı küme bulut, otluk,
+tül, yelpaze hüzme, kar tanesi), `ink_zemin.py` (Ötüken zemin kurucusunun üsluba bağlı genellemesi: ot bandı ya da kar
+başlığı, çatlak ağı, döşenen doku), `bozkir_ink*.py`, `kaf_ink*.py`, `ink_tehlike.py`. Tümü yordamsal, dış kaynak yok.
+
+* **Bozkır (alacakaranlık, ışık sağdan, ters ışık):** gök mor-indigodan yanık turuncu ve altın ufka; ufukta batan güneş,
+  alttan yanan küme bulutlar; Altay sıradağları (güneşe bakan siluet kenarı altın); dalgalı tepelerde kurganlar, balbal
+  dizisi, keçe yurt obası (kapıda ocak ışığı, tünlükten duman), at sürüsü; ortada taş halkalı büyük kurgan, kaplumbağa
+  kaideli Orhun yazılı bitig taşı, kurt başlı tuğlar, mavi-ak çaputlu oba taşı; önde yalnız kuru karaağaç, kazıklar, at
+  kafatası dikili sırık, kılçık otu. Hava: toz pusu ve savrulan alçak toz ("fog", sürüklenir), güneşten yelpaze hüzme
+  (sabit "add"), hızlı rüzgâr çizgileri. Zemin: kuru altın ot bandı (rüzgâra yatık), çatlak lös toprak (çokgen kuruma
+  çatlakları, kemik kırıkları), kuru çayır; örtü: sorguçlu kılçık otu, deve dikeni, yavşan, bozkır lalesi (rüzgârda
+  salınır: `tuft_sway`); platform: ağarmış tahta, ham deri bağ, at kılı püskül, uçlarda koçboynuzu desenli keçe flama.
+  Tehlike (diken): kanlı uçlu kazıklar. Parçacık: yatay savrulan kuru ot kırıntısı (`leaf_ramp`, `leaf_dir`).
+* **Kaf Dağı (gece-şafak, ışık soldan):** yıldızlı gök, hilal, kutup ışığı perdeleri (ayrı "add" katmanı, nefes alır);
+  dev Kaf zirvesi zümrüt ışıltılı ve şafak pembesi, çevresinde Zümrüdüanka; karlı ladin ormanlı sırtlar, kaya yüzünde donmuş
+  çağlayanlar, buz kristali kümeleri, karlı kam direği; önde karla yüklü koyu dev ladinler. Hava: vadide soğuk pus, tipi
+  tülleri, iki derinlikte düşen kar (ParallaxBG yeni "snow" türü: iki yönde döşenir, `bg_fx[3]` px/sn düşer), ön planda iri
+  kar taneleri. Zemin: yuvarlak dudaklı kar başlığı (mavi gölge, mürekkep, kenarda buz saçağı), katmanlı kar örtüsü
+  kesiti, buz damarlı arduvaz kaya; örtü: kırağılı ot, kar tümseği, buz kristali, karlı ardıç, kardelen; tavan: buz
+  sarkıtları; platform: karlı koyu tahta, altında saçaklar. Tehlike (buz): çukurda donmuş göl.
+* **Süsler:** `decor_v2_<biyom>.json` + `<süs>_<biyom>_v2.png`; `Level._decor_v2` önce biyom adını arar (yoksa ortak
+  `_v2`). "noflip": yönlü ışıklı süsler aynalanmaz; "glow_pulse": soğuk ışıma yavaş nefes (buz kristali). Biyom ek süsleri
+  `stil_v2.json` "ink_extras" (aralıklı) ve boss arenası için "boss_extras" (sabit "at" konumları): bozkır balbal, oba taşı,
+  bitig taşı; Kaf ladin, buz kristali. Kule parçaları da biyoma özgü (`kule_*_<biyom>_v2`).
+* **Diğer art anahtarları (yalnızca bu biyomlar):** `meadow_depth` (çayır/kar örtüsü kalınlığı), `tuft_sway` (+ env_ink
+  `cell_px`), `leaf_ramp/leaf_dir/leaf_grav/leaf_vel`, ön plan `fg.leaf_dir/leaf_grav/leaf_vel/leaf_scale/leaf_emit`.
+  Tehlike: `assets/tiles/hazards_<biyom>_v2.png` (v1 satır düzeni, 96 px hücre). Ötüken'in davranışı değişmez.
+* **Başarım (UHD 750, 1080p, --otomatik):** Bozkır v2 ~47 fps (Ötüken v2 ~30, Bozkır v1 ~32); Kaf v2 ~35 (yoğun dövüşte
+  15-20, Ötüken v2 de 14'e iner).
+
 ### Stil v2 "mürekkep-cel" karakterler (çizgi roman; piksel sanatın yerini alır)
 
 Referans yeniden okundu: Shinobi: Art of Vengeance piksel sanat değil, el çizimi çizgi roman / animasyon. v2 karakterleri

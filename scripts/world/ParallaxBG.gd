@@ -17,7 +17,8 @@ const LAYERS := [
 var level: Node
 var layers: Array = LAYERS
 ## Stil v2 (mürekkep): dokular doğrusal süzgeç + mipmap ile çizilir (v1 keskin piksel kalır). Katman türü
-## (spec[4]): "" normal, "add" toplamalı ışık hüzmesi (yavaş nefes alır), "fog" sürüklenen yer sisi (nefes alır).
+## (spec[4]): "" normal, "add" toplamalı ışık hüzmesi (yavaş nefes alır), "fog" sürüklenen yer sisi (nefes alır),
+## "snow" düşen kar: doku iki yönde döşenir, yatay kayma + spec[5] px/sn hızla aşağı akar (Kaf Dağı).
 var smooth := false
 var ray_color := Color(0.62, 0.8, 1.0, 0.07)
 var _layers: Array = []
@@ -42,6 +43,9 @@ func _ready() -> void:
 		add_child(holder)
 		var copies: Array = []
 		var n := 1 if spec[1] == 0.0 else 3
+		var kind0: String = String(spec[4]) if spec.size() > 4 else ""
+		if kind0 == "snow":
+			n = 6  # 3 sütun x 2 satır: dikeyde de dikişsiz akar
 		# katmanlar görüntü yüksekliğine (540) oturacak şekilde ölçeklenir; 540 px üretilen katmanlar 1:1 çizilir
 		var k_px := _vh / float(tex.get_height())
 		var kind: String = String(spec[4]) if spec.size() > 4 else ""
@@ -60,7 +64,7 @@ func _ready() -> void:
 				s.material = mat
 			holder.add_child(s)
 			copies.append(s)
-		_layers.append({"holder": holder, "copies": copies, "w": float(tex.get_width()) * k_px, "k": k_px, "fx": spec[1], "fy": spec[2], "drift": spec[3], "kind": kind, "ph": randf() * TAU})
+		_layers.append({"holder": holder, "copies": copies, "w": float(tex.get_width()) * k_px, "h": float(tex.get_height()) * k_px, "k": k_px, "fx": spec[1], "fy": spec[2], "drift": spec[3], "kind": kind, "ph": randf() * TAU, "fall": float(spec[5]) if spec.size() > 5 else 0.0})
 		if i == layers.size() - 3 and ray_color.a > 0.0:
 			_add_rays()
 
@@ -107,6 +111,12 @@ func _process(_delta: float) -> void:
 			L["copies"][0].scale = Vector2(maxf(kp, kp * vp.x / w), maxf(kp, vp.y / _vh * kp))
 			continue
 		var off := -fposmod(_scroll * fx + t * float(L["drift"]), w)
+		if L["kind"] == "snow":
+			var hh: float = L["h"]
+			var oy := fposmod(t * float(L["fall"]) + (_base_y - c.y) * float(L["fy"]) * z, hh) - hh
+			for k in L["copies"].size():
+				L["copies"][k].position = Vector2(off + (k % 3) * w, oy + floorf(k / 3.0) * hh)
+			continue
 		for k in L["copies"].size():
 			L["copies"][k].position = Vector2(off + k * w, y)
 		match L["kind"]:
