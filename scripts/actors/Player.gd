@@ -13,6 +13,44 @@ const MAX_FALL := 560.0
 const ROLL_V := 300.0
 const ROLL_T := 0.3
 
+## ------------------------------------------------------------------ AKICILIK (v17)
+## Dövüşün "akışı": girdi ara belleği, iptal pencereleri, saldırırken hareket, hedef yardımı, vuruş duraklaması.
+## Ölçüm: tools/tests/dovus_testi.gd (-- --dovus). Süreler saniye, mesafeler piksel.
+const FLOW := {
+	# --- ara bellek: basış bu süre saklanır; savuruş sürerken (hazırlık / vuruş / şarj) saldırı basışı erimez,
+	# toparlanma başlar başlamaz sıradaki adım çıkar (eski: 0,2 sn sonra yok oluyordu; ağır silahta basışlar düşüyordu)
+	"buf_melee": 0.3,
+	"buf_jump": 0.15,         # eski 0,13
+	"coyote": 0.11,           # eski 0,09
+	"buf_roll": 0.2,          # yuvarlanma basışı (yuvarlanma / bekleme sürerken basılırsa biter bitmez)
+	"buf_sec": 0.2,           # yay / fırlatma / büyü / kalkan: saldırı toparlanmasında basılırsa saldırıyı keser
+	"roll_gap": 0.05,         # yuvarlanma bitiminden yenisine bekleme (eski 0,12)
+	# --- ağır saldırı: basıştan itibaren bu kadar basılı tutulursa ağır (eski: hazırlık sonu + 0,16 sn bekleme)
+	"heavy_hold": 0.22,
+	"heavy_nowait_w": 0.3,    # bu ağırlığa dek (hançer, düellocu, kırbaç) hafif vuruş hiç bekletilmez; ağır toparlanmadan açılır
+	# --- yuvarlanma → saldırı (kaçış saldırısı)
+	"roll_atk_k": 0.45,       # yuvarlanmanın bu oranından sonra saldırı basışı yuvarlanmayı keser
+	"roll_atk_inv": 0.1,      # kesilince dokunulmazlık bu kadar daha sürer
+	"roll_atk_win": 0.32,     # yuvarlanma bitiminden sonra Dönüş Kesiği penceresi
+	# --- zıplama iptali: hazırlığın bu oranına dek zıplama saldırıyı keser (süper zırhlı savuruş kesilmez);
+	# vuruş anında basılan zıplama toparlanmada çıkar
+	"jump_cancel_k": [1.0, 0.75, 0.4],   # [hafif ≤0,3, orta ≤0,65, ağır] silah ağırlığı
+	# --- saldırırken hareket: yerde sürtünme (eski: hedef hız 0, 2400 px/sn² ile ~65 ms'de dururdu)
+	"atk_fric": 1100.0,
+	"atk_fric_heavy": 1500.0,
+	"step": [7.0, 9.0],       # vuruş anı öne adım (hafif, ağır); + adımın "dash" değeri × step_dash
+	"step_dash": 0.38,
+	"air_ctrl": 0.6,          # havada saldırırken yön tuşu (koşu hızının oranı)
+	"air_acc": 950.0,
+	# --- hedef yardımı
+	"assist_reach": 28.0,     # vuruş kutusunun ucunun bu kadar ötesindeki düşmana adım uzar
+	"assist_turn": 64.0,      # önde kimse yoksa arkadaki bu yakınlıktaki düşmana döner (yön tuşu basılı değilse)
+	"assist_dy": 44.0,
+	# --- vuruş hissi: aynı savuruşta ikinci, üçüncü düşman duraklamayı / kamera itişini yeniden vermez
+	"hs_extra": 0.008,        # her ek düşman için duraklama artışı
+	"hs_light_min": 0.75,     # hafif vuruş duraklaması hançerde bu orana iner (ağırlıkla ölçeklenir)
+}
+
 ## ------------------------------------------------------------------ SAVURUŞLAR
 ## Ön kol ve silah oyunda sürülür. Anahtar: [t, a1, a2, w, k, ext, ease]
 ##   a1 üst kol açısı, a2 dirsek bükümü, w bilek (silahın ön kola göre açısı); 0 aşağı, pi/2 ileri, pi yukarı
@@ -420,6 +458,10 @@ var atk: Dictionary = {}
 var combo_step := 0
 var combo_window := 0.0
 var melee_buf := 0.0
+var roll_buf := 0.0        # v17 ara bellekler (FLOW)
+var sec_buf := 0.0
+var _mel_down_t := -1.0    # saldırı tuşu ne zamandır basılı (-1: basılı değil); ağır saldırı bununla tanınır
+var _heavy_armed := false  # hafif silah: basılı tutulan tuşla başlayan saldırı -> süre dolunca ağır saldırıya geçer
 var aim_t := -1.0
 var throw_t := -1.0
 var thrown := false
@@ -855,13 +897,16 @@ func _resolve_roles() -> void:
 func on_equip() -> void:
 	## Yuva değişti: süren saldırı / nişan / siper bırakılır, roller yeniden çözülür.
 	_end_trail()
-	atk = {}
+	_cancel_attack(false)
 	aim_t = -1.0
 	block_t = -1.0
 	throw_t = -1.0
 	charge_t = -1.0
 	last_step = -1
 	_want_mel = ""
+	melee_buf = 0.0
+	sec_buf = 0.0
+	_heavy_armed = false
 	_resolve_roles()
 
 
@@ -1075,7 +1120,7 @@ func _physics_process(delta: float) -> void:
 		else:
 			# yakalandın: tuşlara basarak kurtul (4 basış)
 			velocity = Vector2.ZERO
-			atk = {}
+			_cancel_attack(false)
 			_end_trail()
 			anim.play("hurt")
 			anim.set_facing(facing)
@@ -1143,7 +1188,11 @@ func _physics_process(delta: float) -> void:
 	drop_t -= delta
 	land_t -= delta
 	combo_window -= delta
-	melee_buf -= delta
+	# v17: savuruş sürerken (hazırlık / vuruş / şarj) saldırı basışı erimez; toparlanmada sıradaki adım kesin çıkar
+	if atk.is_empty() or atk["phase"] == "rec":
+		melee_buf -= delta
+	roll_buf -= delta
+	sec_buf -= delta
 	momentum_t -= delta
 	rolled_t -= delta
 	if momentum_t <= 0.0:
@@ -1161,11 +1210,17 @@ func _physics_process(delta: float) -> void:
 	var dir := Input.get_axis("sol", "sag")
 	_resolve_roles()
 	if Input.is_action_just_pressed("zipla"):
-		jump_buf = 0.13
+		jump_buf = float(FLOW["buf_jump"])
+	# ağır saldırı tanıma: tuşun basılı kaldığı süre (basış anından)
+	if mel_act != "" and Input.is_action_pressed(mel_act):
+		_mel_down_t = 0.0 if Input.is_action_just_pressed(mel_act) or _mel_down_t < 0.0 else _mel_down_t + delta
+	else:
+		_mel_down_t = -1.0
+		_heavy_armed = false
 	if not is_on_floor():
 		_fall_peak = maxf(_fall_peak, velocity.y)
 	if is_on_floor():
-		coyote = 0.09
+		coyote = float(FLOW["coyote"])
 		air_jumps = 2 if Game.has_lutuf("umay") else 1
 		jumping = false
 		if not _was_floor:
@@ -1173,8 +1228,23 @@ func _physics_process(delta: float) -> void:
 	_was_floor = is_on_floor()
 
 	# yuvarlanma (alçak geçitlerde kendiliğinden sürer); Shift basılı tutulursa yuvarlanma biter bitmez koşuya geçer
-	if Input.is_action_just_pressed("yuvarlan") and roll_cd <= 0.0 and roll_t <= 0.0 and drink_t <= 0.0:
+	# v17: yuvarlanma basışı ara belleğe alınır (yuvarlanma / bekleme sürerken basılırsa biter bitmez yuvarlanır)
+	if Input.is_action_just_pressed("yuvarlan"):
+		roll_buf = float(FLOW["buf_roll"])
+	if sec_act != "" and Input.is_action_just_pressed(sec_act):
+		sec_buf = float(FLOW["buf_sec"])
+	if roll_buf > 0.0 and roll_cd <= 0.0 and roll_t <= 0.0 and drink_t <= 0.0:
+		roll_buf = 0.0
 		_start_roll(dir)
+	# v17 kaçış saldırısı: yuvarlanırken saldırı basışı saklanır; yuvarlanmanın son kısmında yuvarlanmayı keser,
+	# saldırı aynı karede çıkar (yuvarlanma sonrası penceredeyse Dönüş Kesiği)
+	if roll_t > 0.0 and mel_act != "":
+		if Input.is_action_just_pressed(mel_act):
+			melee_buf = float(FLOW["buf_melee"])
+		if melee_buf > 0.0 and roll_t <= ROLL_T * (1.0 - float(FLOW["roll_atk_k"])) and drink_t <= 0.0 and not _head_blocked():
+			roll_t = 0.0
+			_set_crouch(false)
+			inv_t = maxf(inv_t, float(FLOW["roll_atk_inv"]))
 	if Input.is_action_pressed("yuvarlan"):
 		_roll_hold += delta
 	else:
@@ -1222,6 +1292,7 @@ func _physics_process(delta: float) -> void:
 			_jump(false)
 		if sec_act != "" and slot(sec_slot).get("id", "") == "akinci_yayi" and Input.is_action_just_pressed(sec_act) and cd[sec_slot] <= 0.0:
 			_fire_bow(0.5)
+			sec_buf = 0.0
 		return
 	if crouched and not crouch_hold:
 		# yuvarlanma bitti ama hâlâ alçak yerdeyiz: sürün
@@ -1245,7 +1316,7 @@ func _physics_process(delta: float) -> void:
 		if lightning and atk.is_empty() and drink_t <= 0.0:
 			charge_t = 0.0  # basılı tutma başladı: kısa dokunuş = kombo, uzun = şimşek hamlesi
 		else:
-			melee_buf = 0.2
+			melee_buf = float(FLOW["buf_melee"])
 	if charge_t >= 0.0:
 		charge_t += delta
 		if mel_act != "" and Input.is_action_pressed(mel_act) and charge_t < 1.2:
@@ -1268,7 +1339,7 @@ func _physics_process(delta: float) -> void:
 				charge_fx.stop()
 			charge_fx = null
 			if held < 0.2:
-				melee_buf = 0.2
+				melee_buf = float(FLOW["buf_melee"])
 			else:
 				_lightning_dash(mel, held)
 	var busy: bool = not atk.is_empty() and atk["phase"] != "rec"
@@ -1288,8 +1359,16 @@ func _physics_process(delta: float) -> void:
 				_start_attack(-1)  # bekleme bitirişi
 			else:
 				_start_attack(0)
-		elif atk["phase"] == "rec" and not atk.get("pause", false):
-			_start_attack(atk["step"] + 1)
+		elif atk["phase"] == "rec":
+			# toparlanmadan sıradaki adım; bekleme bitirişinin toparlanması yeni zincir açar
+			_start_attack(0 if atk.get("pause", false) else int(atk["step"]) + 1)
+	# v17 hafif silahta ağır saldırı: hafif vuruş beklemeden çıktı; tuş FLOW.heavy_hold boyunca basılı kaldıysa
+	# toparlanmadan (ya da savuruş bitmişse hemen) şarja geç
+	if _heavy_armed and _mel_down_t >= float(FLOW["heavy_hold"]) and drink_t <= 0.0 and aim_t < 0.0 and block_t < 0.0 \
+			and (atk.is_empty() or (atk["phase"] == "rec" and _can_hold_heavy(atk["c"]))):
+		_heavy_armed = false
+		_cancel_attack()
+		_begin_heavy(slot(mel_slot))
 	if regen_t > 0.0:
 		regen_t -= delta
 		if Engine.get_physics_frames() % 30 == 0:
@@ -1298,9 +1377,14 @@ func _physics_process(delta: float) -> void:
 
 	var sec := slot(sec_slot)
 	var sec_kind: String = sec.get("kind", "")
+	# v17: ikincil (yay / fırlatma / büyü / kalkan) basışı saldırı toparlanmasını keser; ara bellekten çıkar
+	if sec_buf > 0.0 and sec_kind != "" and not atk.is_empty() and atk["phase"] == "rec" and melee_buf <= 0.0:
+		_cancel_attack()
+	var sec_press := sec_buf > 0.0 and sec_act != ""
 	if atk.is_empty() and drink_t <= 0.0:
 		if sec_kind == "bow":
-			if Input.is_action_just_pressed(sec_act) and cd[sec_slot] <= 0.0:
+			if sec_press and cd[sec_slot] <= 0.0:
+				sec_buf = 0.0
 				aim_t = 0.0
 				_bow_full = false
 				Ses.play("yay_ger", -8.0)
@@ -1319,14 +1403,17 @@ func _physics_process(delta: float) -> void:
 					_fire_bow(clampf(aim_t / 0.55, 0.0, 1.0))
 					aim_t = -1.0
 		elif sec_kind == "throw":
-			if Input.is_action_just_pressed(sec_act) and cd[sec_slot] <= 0.0 and throw_t < 0.0:
+			if sec_press and cd[sec_slot] <= 0.0 and throw_t < 0.0:
+				sec_buf = 0.0
 				throw_t = 0.0
 				thrown = false
 		elif sec_kind == "magic":
-			if Input.is_action_just_pressed(sec_act) and cd[sec_slot] <= 0.0:
+			if sec_press and cd[sec_slot] <= 0.0:
+				sec_buf = 0.0
 				_cast_magic(sec)
 		elif sec_kind == "shield":
-			if Input.is_action_just_pressed(sec_act):
+			if sec_press and block_t < 0.0:
+				sec_buf = 0.0
 				block_t = 0.0
 				vis_scale = Vector2(1.1, 0.92)
 			if block_t >= 0.0:
@@ -1357,8 +1444,18 @@ func _physics_process(delta: float) -> void:
 	if sprint and dir != 0:
 		spd *= 1.55
 	var target := dir * spd
+	# v17 saldırırken hareket: yerde hız birden sıfırlanmaz (koşu ivmesi savuruşa taşınır, sürtünmeyle söner);
+	# havada yön tuşu kısmen dinlenir. Kendi hareketi olan savuruşlar (geri sıçrayış, delip geçme, hamle) eski yolda.
+	var atk_move := ""
 	if busy:
 		target = 0.0
+		# (atk bu karede şişe / Kut gücü / teçhizatla boşalmış olabilir)
+		if not atk.is_empty() and not _atk_owns_motion():
+			if is_on_floor():
+				atk_move = "ground"
+			else:
+				atk_move = "air"
+				target = dir * spd * float(FLOW["air_ctrl"])
 	elif not atk.is_empty():
 		target *= 0.45
 	if crouch_hold:
@@ -1382,7 +1479,12 @@ func _physics_process(delta: float) -> void:
 	if on_ice:
 		acc *= 0.22
 	if hurt_t <= 0.0:
-		velocity.x = move_toward(velocity.x, target, acc * delta)
+		if atk_move == "ground":
+			velocity.x = move_toward(velocity.x, 0.0, _atk_fric(atk["item"]) * (0.22 if on_ice else 1.0) * delta)
+		elif atk_move == "air":
+			velocity.x = move_toward(velocity.x, target, float(FLOW["air_acc"]) * delta)
+		else:
+			velocity.x = move_toward(velocity.x, target, acc * delta)
 	if dir != 0 and not busy and aim_t < 0.0 and block_t < 0.0 and hurt_t <= 0.0:
 		facing = int(signf(dir))
 	# kayma tozu: yön değiştirirken
@@ -1393,8 +1495,14 @@ func _physics_process(delta: float) -> void:
 	else:
 		_skid = false
 
-	# zıplama
-	if jump_buf > 0.0:
+	# zıplama — v17: saldırı sürerken zıplama hazırlığı (ağırlığa göre) ya da toparlanmayı keser; vuruş anında
+	# basılırsa ara bellekte bekler, toparlanmada çıkar
+	if jump_buf > 0.0 and not atk.is_empty():
+		if _jump_cancels():
+			_cancel_attack()
+		else:
+			jump_buf += delta
+	if jump_buf > 0.0 and atk.is_empty():
 		if is_on_floor() and Input.is_action_pressed("asagi"):
 			drop_t = 0.25
 			jump_buf = 0.0
@@ -1424,11 +1532,10 @@ func _physics_process(delta: float) -> void:
 		cast_t -= delta
 	# toparlanma iptali: vuruş bitti, oyuncu yürür / zıplar / yuvarlanırsa savuruşun kuyruğunu bekletme
 	if not atk.is_empty() and atk["phase"] == "rec" and not atk.get("heavy", false) and (dir != 0 or jump_buf > 0.0):
-		_end_trail()
-		var cc: Dictionary = atk["c"]
-		last_step = -1 if (cc.get("last", false) or atk.get("pause", false)) else int(atk["step"])
-		since_atk = 0.0
-		atk = {}
+		_cancel_attack()
+	# v17 iniş iptali: havada başlayan savuruş toparlanırken yere inersen kuyruk beklemez
+	if not atk.is_empty() and atk.get("air", false) and atk["phase"] == "rec" and is_on_floor():
+		_cancel_attack()
 	if not atk.is_empty():
 		_update_attack(delta)
 
@@ -1573,12 +1680,12 @@ func _perfect_dodge(from: Node) -> void:
 func _start_roll(dir: float) -> void:
 	if dir != 0:
 		facing = int(signf(dir))
-	atk = {}
-	_end_trail()
+	_cancel_attack()
+	melee_buf = 0.0  # yuvarlanmadan önceki saldırı basışı yuvarlanmayı kesmesin (kesen yalnızca yuvarlanırken basılan)
 	aim_t = -1.0
 	block_t = -1.0
 	roll_t = ROLL_T
-	roll_cd = ROLL_T + 0.12
+	roll_cd = ROLL_T + float(FLOW["roll_gap"])
 	rolled_t = 2.0
 	_pd_done = false
 	Ses.play("yuvarlan", -6.0)
@@ -1602,6 +1709,133 @@ func _jump(air: bool) -> void:
 		FX.ghost(anim.base, Color(0.5, 0.9, 1.0, 0.45), 0.25)
 	else:
 		FX.dust(global_position, Vector2.UP, 5, 0.26)
+
+
+# ------------------------------------------------------------------ v17 akıcılık yardımcıları
+func _cancel_attack(keep_chain := true) -> void:
+	## Süren saldırıyı temiz bırak: iz, şarj efekti / döngü sesi, gürz şarj halkası. Toparlanmadan kesilirse zincir
+	## sürer (CHAIN_WINDOW içinde basınca sıradaki adım); hazırlık / vuruşta kesilirse önceki zincir durumu kalır.
+	if atk.is_empty():
+		return
+	if atk.has("charge_fx") and is_instance_valid(atk["charge_fx"]):
+		atk["charge_fx"].stop()
+	if atk["phase"] == "charge" or atk.get("heavy", false):
+		if _heavy_fx and is_instance_valid(_heavy_fx):
+			_heavy_fx.stop()
+		_heavy_fx = null
+		Ses.loop_stop("sarj")
+	_end_trail()
+	if atk["phase"] == "rec" and keep_chain:
+		var cc: Dictionary = atk["c"]
+		last_step = -1 if (cc.get("last", false) or atk.get("pause", false) or atk.get("heavy", false)) else int(atk["step"])
+		since_atk = 0.0
+	elif not keep_chain:
+		last_step = -1
+	atk = {}
+
+
+func _atk_owns_motion() -> bool:
+	## Kendi hareketini süren savuruşlar (eski hareket yolunda kalır): geri sıçrayış, delip geçme, şimşek hamlesi,
+	## sırık atlayışı, dalış, pençe sıçraması, hoplama
+	if atk.is_empty():
+		return false
+	var c: Dictionary = atk["c"]
+	return c.get("backstep", false) or atk.get("through", false) or atk.has("dash_px") or c.get("vault", false) \
+		or c.get("plunge", false) or atk.get("pounce", false) or c.has("hop")
+
+
+func _atk_fric(it: Dictionary) -> float:
+	return float(FLOW["atk_fric_heavy"]) if _weight(it) >= 0.75 else float(FLOW["atk_fric"])
+
+
+func _jump_cancels() -> bool:
+	## Zıplama bu karede saldırıyı kesebilir mi? Toparlanma ve şarj: evet. Hazırlık: silah ağırlığına göre ilk kısmı
+	## (süper zırhlı savuruş kesilmez). Vuruş anı: hayır (zıplama ara bellekte bekler).
+	var ph: String = atk["phase"]
+	if ph == "rec" or ph == "charge":
+		return true
+	if ph != "wind" or atk.get("super_armor", false) or atk.has("dash_px"):
+		return false
+	var w := _weight(atk["item"])
+	var lims: Array = FLOW["jump_cancel_k"]
+	var lim := float(lims[0] if w <= 0.3 else (lims[1] if w <= 0.65 else lims[2]))
+	return float(atk["t"]) / float(atk["dur"]) < float(atk["sw"]["hit"][0]) * lim
+
+
+func _foes_near(max_dx: float) -> Array:
+	## Hedef yardımı için yakındaki görünür düşmanlar (aynı âlem, dikeyde yakın)
+	var out: Array = []
+	for e in get_tree().get_nodes_in_group("dusman"):
+		if not is_instance_valid(e) or e.dead:
+			continue
+		if "realm" in e and String(e.realm) != realm:
+			continue
+		if "_hidden" in e and e._hidden:
+			continue
+		var r: Rect2 = e.hurt_rect()
+		if absf(r.get_center().y - center().y) > float(FLOW["assist_dy"]) + r.size.y * 0.5:
+			continue
+		if absf(r.get_center().x - global_position.x) - r.size.x * 0.5 > max_dx:
+			continue
+		out.append(e)
+	return out
+
+
+func _assist_face(it: Dictionary, c: Dictionary) -> void:
+	## Yön tuşu basılı değilken: önde (vuruş kutusu + yardım menzili içinde) düşman yoksa ve arkada yakın biri varsa dön
+	var R := _reach(it)
+	var box := _swing_box(String(c["s"]), R)
+	var front_reach := maxf(absf(box.end.x - global_position.x), absf(box.position.x - global_position.x)) + float(FLOW["assist_reach"])
+	var front := false
+	var back := false
+	for e in _foes_near(front_reach):
+		var r: Rect2 = e.hurt_rect()
+		var rel := (r.get_center().x - global_position.x) * float(facing)
+		var edge := absf(r.get_center().x - global_position.x) - r.size.x * 0.5
+		if rel >= -2.0:
+			front = true
+		elif edge <= float(FLOW["assist_turn"]):
+			back = true
+	if back and not front:
+		facing = -facing
+		anim.set_facing(facing)
+
+
+func _strike_step(it: Dictionary, c: Dictionary, heavy_w: bool) -> float:
+	## Vuruş anı öne adım hızı. Mesafe = taban + adımın dash değeri; sürtünmeyle söner. Hedef yardımı: vuruş
+	## kutusunun ucunun biraz ötesindeki düşmana adım uzar (vuruş penceresi içinde ulaşacak kadar); dibindeki düşmanın
+	## içinden geçip arkasına düşmemek için adım kısalır.
+	var steps: Array = FLOW["step"]
+	var D := float(steps[1] if heavy_w else steps[0]) + float(atk.get("dash", 0.0)) * float(FLOW["step_dash"])
+	var F := _atk_fric(it)
+	var sw: Dictionary = atk["sw"]
+	var T := maxf(0.05, (float(sw["hit"][1]) - float(sw["hit"][0])) * float(atk["dur"]))
+	var R := _reach(it)
+	var box := _swing_box(String(c["s"]), R)
+	var far := box.end.x if facing > 0 else box.position.x
+	var gap := INF
+	var closest := INF
+	for e in _foes_near(absf(far - global_position.x) + float(FLOW["assist_reach"])):
+		var r: Rect2 = e.hurt_rect()
+		var rel := (r.get_center().x - global_position.x) * float(facing)
+		if rel < -2.0:
+			continue
+		closest = minf(closest, rel)
+		var near_edge := r.position.x if facing > 0 else r.end.x
+		var ahead := (near_edge - far) * float(facing)
+		if ahead > 0.0 and ahead <= float(FLOW["assist_reach"]):
+			gap = minf(gap, ahead)
+		elif ahead <= 0.0:
+			gap = minf(gap, 0.0)
+	atk["step_cap"] = INF
+	if closest < INF:
+		D = minf(D, maxf(0.0, closest - 12.0))  # dibindekinin içinden geçme
+		atk["step_cap"] = sqrt(2.0 * F * maxf(0.0, closest - 12.0 + float(FLOW["assist_reach"]) * (1.0 if gap > 0.0 and gap < INF else 0.0)))
+	var v := sqrt(2.0 * F * D)
+	if gap > 0.0 and gap < INF:
+		var need := gap + 4.0
+		v = maxf(v, minf(need / T + F * T * 0.5, sqrt(2.0 * F * (D + float(FLOW["assist_reach"]) + 10.0))))
+	return v
 
 
 func _update_anim(dir: float) -> void:
@@ -1700,6 +1934,13 @@ func _start_attack(step: int) -> void:
 		c = sp
 		is_pause = false
 		step = maxi(0, last_step)
+	# v17 yön: zincir adımları arasında da dönülebilir — yön tuşu basılıysa o yöne, değilse hedef yardımı
+	var din := Input.get_axis("sol", "sag")
+	if din != 0.0 and roll_t <= 0.0:
+		facing = int(signf(din))
+		anim.set_facing(facing)
+	elif not c.get("plunge", false):
+		_assist_face(it, c)
 	var sw: Dictionary = SWINGS[c["s"]]
 	var spd_mult := 1.0 + ItemGen.aff(it, "hiz") / 100.0
 	if it.get("mech_id", "") == "ivme":
@@ -1725,6 +1966,8 @@ func _start_attack(step: int) -> void:
 		if c.get("plunge", false):
 			velocity = Vector2(velocity.x * 0.3, -160.0)
 	atk = {"step": step, "c": c, "sw": sw, "phase": "wind", "t": 0.0, "dur": total, "hit": [], "item": it, "hold": 0.0, "pause": is_pause, "multi_i": 0}
+	atk["air"] = not is_on_floor()
+	_heavy_armed = _mel_down_t >= 0.0 and _weight(it) <= float(FLOW["heavy_nowait_w"]) and _can_hold_heavy(c)
 	# v15 süper zırh: dev kılıç / dağ çekici savuruşları sarsılmaz (bayrağı take_hit / koordinatör okur)
 	atk["super_armor"] = bool(c.get("sa", false))
 	_usul_press()
@@ -1782,7 +2025,8 @@ func _special_move(it: Dictionary) -> Dictionary:
 		return {"s": "sweep_low", "mult": 1.1, "kb": 60.0, "special": true, "trip": true, "tm": 0.9, "name": "Diz Biçen"}
 	if sprint and absf(velocity.x) > RUN * 1.2:
 		return {"s": "lunge", "mult": 1.5, "kb": 240.0, "dash": 140.0, "special": true, "tm": 1.0, "name": "Akın Kesiği"}
-	if rolled_t > 1.4 and rolled_t < 1.72:
+	var since_roll := 2.0 - rolled_t
+	if since_roll >= ROLL_T * float(FLOW["roll_atk_k"]) and since_roll < ROLL_T + float(FLOW["roll_atk_win"]):
 		return {"s": "spin", "mult": 1.3, "kb": 180.0, "special": true, "crit": true, "tm": 0.9, "name": "Dönüş Kesiği"}
 	return {}
 
@@ -1892,17 +2136,21 @@ func _update_attack(delta: float) -> void:
 				return
 			atk["plunged"] = true
 			_plunge_land(it)
-	# Hazırlık bitince tuş hâlâ basılıysa kısa süre bekle; bırakılırsa normal vuruş, HOLD_T'yi aşarsa ağır saldırı.
-	if atk["phase"] == "wind" and _can_hold_heavy(c) and Input.is_action_pressed(_atk_act()):
+	# Hazırlık bitince tuş hâlâ basılıysa bekle; bırakılırsa normal vuruş, basış anından FLOW.heavy_hold geçerse ağır
+	# saldırı (v17: süre basıştan sayılır — eski: hazırlık sonundan +0,16 sn). Hafif silahlar (hançer, düellocu,
+	# kırbaç) hiç beklemez: hafif vuruş çıkar, tuş basılı kalırsa ağır saldırı toparlanmadan açılır.
+	var nowait := _weight(it) <= float(FLOW["heavy_nowait_w"])
+	if atk["phase"] == "wind" and not nowait and _can_hold_heavy(c) and _mel_down_t >= 0.0:
 		var wind_end: float = atk["dur"] * _hold_k(sw)
 		if atk["t"] + delta >= wind_end:
+			if _mel_down_t >= float(FLOW["heavy_hold"]):
+				_begin_heavy(it)
+				return
 			atk["t"] = wind_end
 			atk["hold_wait"] = float(atk.get("hold_wait", 0.0)) + delta
 			var bodyw: String = sw["body"]
 			anim.show_frame(bodyw, clampi(int((atk["t"] / atk["dur"]) * anim.frame_count(bodyw)), 0, anim.frame_count(bodyw) - 1))
 			_update_weapon_visual()
-			if float(atk["hold_wait"]) >= HOLD_T:
-				_begin_heavy(it)
 			return
 	# gürz şarjı: hazırlıkta tuş basılıysa bekle, güç birikir
 	if c.get("charge", false) and atk["phase"] == "wind" and Input.is_action_pressed(_atk_act()) and atk["hold"] < 0.7:
@@ -1923,6 +2171,8 @@ func _update_attack(delta: float) -> void:
 	if atk["phase"] == "wind" and not atk.get("heavy", false) and not atk.has("dash_px"):
 		var kk: float = atk["t"] / atk["dur"]
 		var hold_t := 0.03 + 0.045 * _weight(it)
+		if int(atk["step"]) > 0 and not atk.get("pause", false):
+			hold_t *= 0.5  # v17: zincirin içinde hazırlık tutuşu yarıya iner (ritim akar, ilk vuruş okunur kalır)
 		var hk := _hold_k(sw)
 		if kk >= hk and float(atk.get("antic", 0.0)) < hold_t:
 			if not atk.has("antic"):
@@ -2131,7 +2381,9 @@ func _on_strike_start() -> void:
 		FX.dust(global_position, Vector2(-facing, -0.4), 4, 0.24)
 	# silahın ağırlığı gövdeyi öne taşır
 	elif is_on_floor():
-		velocity.x = facing * ((95.0 if heavy_w else 70.0) + float(atk.get("dash", 0.0)) * 4.0)
+		# v17: mesafe tabanlı adım + hedef yardımı (_strike_step); koşudan gelen hız korunur
+		var stv := _strike_step(it, c, heavy_w)
+		velocity.x = float(facing) * minf(maxf(stv, velocity.x * float(facing)), float(atk.get("step_cap", INF)))
 	elif c.get("slam", false) or c.get("shock", false):
 		velocity.y = maxf(velocity.y, 420.0)  # havada ağır vuruş: aşağı çakılır
 	if atk.has("dash"):
@@ -2306,6 +2558,11 @@ func _update_charge(delta: float) -> void:
 		FX.burst(hand, col, 2, 40, 0.3, 0.14, -80, true)
 	vis_scale = Vector2(1.0 + 0.035 * wob * sin(ch * 45.0), 1.0 - 0.035 * wob * sin(ch * 45.0))
 	velocity.x = move_toward(velocity.x, 0.0, 1200.0 * delta)
+	# v17: şarj ederken yön tuşuyla dönülebilir (vuruş hangi yöne çıkacağı son ana dek seçilir)
+	var cdir := Input.get_axis("sol", "sag")
+	if cdir != 0.0 and int(signf(cdir)) != facing:
+		facing = int(signf(cdir))
+		anim.set_facing(facing)
 	Ses.loop_pitch("sarj", 0.8 + 0.7 * wob)
 	if full and not atk["full_fx"]:
 		atk["full_fx"] = true
@@ -2606,6 +2863,15 @@ func _melee_hits() -> void:
 				tier = 1
 			var feel: Array = HIT_FEEL[tier]
 			var killed: bool = not is_instance_valid(e) or e.dead
+			# v17: aynı savuruş geçişinde (çok vuruşlu savuruşta her geçiş ayrı) ilk isabet kamera / duraklama hissini
+			# tam verir; ikinci, üçüncü düşman yalnızca küçük bir ek duraklama ve hafif sarsıntı ekler (üst üste binmez)
+			var pass_key := "%d/%d" % [int(atk.get("multi_i", 0)), int(float(atk.get("spin_t", 0.0)) * 100.0)]
+			if atk.get("hs_key", "") != pass_key:
+				atk["hs_key"] = pass_key
+				atk["hs_n"] = 0
+				atk["hs_v"] = 0.0
+			var first_hit: bool = int(atk["hs_n"]) == 0
+			atk["hs_n"] = int(atk["hs_n"]) + 1
 			_hit_sfx(it, tier >= 1, crit_done, String(c["s"]))
 			if Ses.has_method("hit"):
 				Ses.call("hit", 3 if killed else tier, hp, "tas" if ("sprite_kind" in e and e.sprite_kind == "balbal") else "")
@@ -2631,10 +2897,11 @@ func _melee_hits() -> void:
 				FX.fire(hp, 3 + 2 * tier, 0.3)
 			elif it.get("material", "") == "ayaz" and tier >= 1:
 				FX.anim("frost_nova", hp, 0.0, 0.5, Color(0.7, 0.9, 1.0))
-			Game.kick(Vector2(facing, 0), float(feel[1]) * (1.2 if heavy_w else 1.0))
+			if first_hit:
+				Game.kick(Vector2(facing, 0), float(feel[1]) * (1.2 if heavy_w else 1.0))
 			if float(feel[2]) > 0.0:
-				Game.shake_dir(float(feel[2]) + (0.15 if killed else 0.0), Vector2(facing, 0.35))
-			if tier == 2:
+				Game.shake_dir((float(feel[2]) + (0.15 if killed else 0.0)) * (1.0 if first_hit else 0.25), Vector2(facing, 0.35))
+			if tier == 2 and first_hit:
 				Game.rumble(0.45 + 0.3 * hold, 0.2, 0.1)
 				# darbe karesi: kritik ya da tam şarjlı ağır vuruşta 2 kare siluet (+1 kare ters renk kritikte)
 				if crit_done or hold > 0.6 or killed:
@@ -2650,9 +2917,18 @@ func _melee_hits() -> void:
 			combo_add(e)
 			if not is_on_floor():
 				air_hang = 0.28
-			# hitstop: kademe + şarj + kombo (en çok %35) — 120 ms üstü "takılma" gibi okunur, sınır
+			# hitstop: kademe + şarj + kombo (en çok %35) — 120 ms üstü "takılma" gibi okunur, sınır.
+			# v17: hafif vuruşta silah ağırlığıyla ölçeklenir (hançer kısa, kılıç tam); savuruş başına bir kez
 			var hs_k := 1.0 + minf(0.35, 0.015 * float(combo_n))
-			Game.hitstop(minf(0.12, (float(feel[0]) + (0.03 * hold if atk.get("heavy", false) else 0.0)) * hs_k) + (0.03 if killed else 0.0))
+			var base_hs := float(feel[0])
+			if tier == 0:
+				base_hs *= lerpf(float(FLOW["hs_light_min"]), 1.0, clampf(_weight(it) / 0.45, 0.0, 1.0))
+			var hs := minf(0.12, (base_hs + (0.03 * hold if atk.get("heavy", false) else 0.0)) * hs_k) + (0.03 if killed else 0.0)
+			if first_hit:
+				Game.hitstop(hs)
+			else:
+				Game.hitstop(clampf(hs - float(atk["hs_v"]), float(FLOW["hs_extra"]), 0.04))
+			atk["hs_v"] = maxf(float(atk["hs_v"]), hs)
 			if atk.get("heavy", false) and hold > 0.5 and level and level.has_method("flash_white"):
 				level.flash_white(0.22)
 	if level and level.has_method("break_cracks"):
@@ -3200,7 +3476,7 @@ func _drink() -> void:
 	Game.run["flasks"] = int(Game.run["flasks"]) - 1
 	drink_t = 0.5
 	Ses.play("sise", -3.0)
-	atk = {}
+	_cancel_attack(false)
 	_end_trail()
 	heal(max_hp() * 0.5)
 	FX.anim("radiant_heal", global_position, 0.0, 1.0, Color(0.6, 1.0, 0.8), true, false, self)
@@ -3219,7 +3495,7 @@ func _begin_wolf() -> void:
 	## Bozkurt biçimi: 9 sn boyunca büyük ruh kurduna dönüşürsün. J ısırık zinciri, K sıçrayış, F uluma, Shift atılış.
 	wolf_t = 9.0
 	spirit_t = wolf_t
-	atk = {}
+	_cancel_attack(false)
 	_end_trail()
 	charge_t = -1.0
 	if charge_fx and is_instance_valid(charge_fx):
@@ -3678,7 +3954,9 @@ func take_hit(dmg: float, from: Node, projectile: Node = null, forced := false) 
 	var sh := slot(sec_slot)
 	var src_x: float = from.global_position.x if from else global_position.x + facing
 	var facing_src: bool = sign(src_x - global_position.x) == facing
+	var blocked := false
 	if block_t >= 0.0 and sh.get("kind", "") == "shield" and facing_src:
+		blocked = true
 		if block_t <= float(sh.get("parry_win", 0.18)):
 			_parry(sh, from, projectile)
 			return false
@@ -3726,11 +4004,14 @@ func take_hit(dmg: float, from: Node, projectile: Node = null, forced := false) 
 	if armored:
 		vis_scale = Vector2(1.06, 0.95)
 		FX.sparks(center() + Vector2(-kdir * 8, -4), Vector2(kdir, -0.5), Color(1.0, 0.85, 0.55), 6, 140.0)
+	elif blocked and float(Game.run["hp"]) > 0.0:
+		# v17: kalkanla karşılanan darbe sarsmaz, komboyu kırmaz; kısa geri kayma
+		inv_t = 0.35
+		velocity.x = kdir * 90.0
 	else:
 		hurt_t = 0.25
 		combo_break("kırıldı")
-		atk = {}
-		_end_trail()
+		_cancel_attack(false)
 		aim_t = -1.0
 		velocity = Vector2(kdir * 170.0, -160.0)
 		vis_scale = Vector2(1.25, 0.8)
@@ -4100,7 +4381,7 @@ func gain_don(k: String) -> void:
 
 
 func _begin_don() -> void:
-	atk = {}
+	_cancel_attack(false)
 	_end_trail()
 	charge_t = -1.0
 	if charge_fx and is_instance_valid(charge_fx):

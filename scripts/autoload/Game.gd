@@ -54,10 +54,12 @@ var _rumble_until := 0.0
 var look_ahead := 0.0   # kamera ileri bakış (oyuncu yazar, Level kamerayı taşır)
 var fx_scale := 1.0     # Ayarlar > Sarsıntı ve flaş: 1 tam, 0,5 azaltılmış, 0 kapalı
 const SHAKE_MAX := Vector2(10.0, 7.0)
+const KICK_MAX := 9.0
 const SHAKE_ROT := 0.012
 var _hitstop_until := 0.0
 var _slow_until := 0.0
 var _slow_scale := 1.0
+var _slows: Array = []   # [ölçek, bitiş] çiftleri (bitiş gerçek zaman, sn; float64 kalsın diye Vector2 değil)
 var _zoom := 0.0
 ## Kameranın taban yakınlığı (Level ayarlar): v1 1,0 (960x540 dünya birimi), stil v2 mürekkep ortamı 1,5 (640x360;
 ## karakterler ekranda 1,5 kat büyük). zoom_punch bunun üstüne çarpılır.
@@ -76,7 +78,7 @@ func _process(delta: float) -> void:
 	if now < _hitstop_until:
 		ts = 0.05
 	elif now < _slow_until:
-		ts = _slow_scale
+		ts = _slow_now(now)
 	if get_tree().paused:
 		ts = 1.0
 	Engine.time_scale = ts
@@ -138,6 +140,8 @@ func kick(dir: Vector2, amount := 4.0) -> void:
 	## Kamera itişi: darbe yönünde kısa bir kayma, hızla geri döner.
 	if dir.length() > 0.01:
 		kick_off += dir.normalized() * amount * (0.5 + 0.5 * fx_scale)
+		# v17: aynı anda gelen itişler toplanıp kamerayı savurmasın (çok düşmanlı vuruş, patlama + darbe)
+		kick_off = kick_off.limit_length(KICK_MAX)
 
 
 func zoom_punch(amount := 0.05) -> void:
@@ -153,9 +157,22 @@ func hitstop(duration: float) -> void:
 
 func slowmo(scale_v: float, duration: float) -> void:
 	## Ağır çekim (kritik, öldürücü vuruş, savuşturma).
+	## v17: üst üste gelen çağrılar birbirini ezmez — kısa ve sert bir ağır çekim (0,3 / 80 ms) uzun ve hafif bir
+	## ağır çekimin (0,5 / 450 ms) kalanını sertleştirmez, uzun olan da kısa olanın ölçeğini gevşetmez: her an
+	## süresi dolmamış çağrıların en yavaşı geçerli.
 	var now := Time.get_ticks_msec() / 1000.0
-	_slow_scale = scale_v
+	_slows = _slows.filter(func(s: Array) -> bool: return float(s[1]) > now)
+	_slows.append([scale_v, now + duration])
 	_slow_until = maxf(_slow_until, now + duration)
+	_slow_scale = _slow_now(now)
+
+
+func _slow_now(now: float) -> float:
+	var sc := 1.0
+	for s in _slows:
+		if float(s[1]) > now:
+			sc = minf(sc, float(s[0]))
+	return sc
 
 
 func new_run() -> void:

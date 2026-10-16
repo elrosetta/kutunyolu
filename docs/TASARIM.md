@@ -600,6 +600,69 @@ Vuruş kutuları: overhead_2h / slam_2h / step_down `[-6,-64 → R+14,2]` (dikey
 whip_side `[6,-52 → R+34,-18]` (kırbaç erimi 46 px), spin_2h `±(R+14)` daire, backstep `[-2,-50 → R+24,-6]`, dual `[-2,-46 → R+14,-10]`.
 Test: `--ekran=kilic --silah=<kimlik>` + temas sayfası; `--savurus` laboratuvarı yeni savuruşları da gösterir.
 
+## Dövüş akışı (v17): ara bellek, iptal, adım, hedef yardımı
+
+Geri bildirim: "kombat sistemini çok akıcı hale getirmemiz lazım." Ölçünce sertliğin kaynağı hız değil, **düşen girdiler**
+ve **ani duruşlardı**: ağır silahta saldırı basışı 0,2 sn'de eriyip toparlanmaya yetişmiyordu (Ulu Kılıç / Dağ Çekici'de
+savuruş içi basışın 0/5'i karşılanıyordu), yuvarlanırken basılan saldırı ve yuvarlanma bitmeden basılan ikinci yuvarlanma
+yok sayılıyordu, saldırı başlar başlamaz yatay hız ~65 ms'de sıfırlanıyor (havada bile), vuruş anı adımı 3,5 px'ti.
+Tüm ayarlar `Player.FLOW` tablosunda (Player.gd başı); savuruş zamanlaması (`SWINGS`, `aps`, `tm`) değişmedi: silahların
+ağırlığı ve önceden okunurluğu korunur, yalnızca aradaki "ölü" anlar kalktı.
+
+* **Ara bellek (Dead Cells / Hollow Knight kuyruğu):** saldırı basışı 0,3 sn saklanır; savuruş sürerken (hazırlık, vuruş,
+  şarj) hiç erimez, toparlanma başladığı karede sıradaki adım çıkar. Bekleme bitirişinin toparlanmasından da yeni zincir
+  açılır. Zıplama 0,15 sn (coyote 0,11), yuvarlanma 0,2 sn (yuvarlanma / bekleme sürerken basılırsa biter bitmez), ikincil
+  (yay, fırlatma, büyü, kalkan) 0,2 sn ara belleğe alınır. Öncelik: saldırı zinciri > ikincil > yürüme iptali.
+* **İptal pencereleri:** yuvarlanma her an keser (şarj dahil; şarj sesi / halkası `_cancel_attack` ile temizlenir).
+  Zıplama: toparlanma ve şarjda keser; hazırlıkta ağırlığa göre (hafif silah tamamı, orta ilk %75, ağır ilk %40; süper
+  zırhlı savuruş kesilmez); vuruş anında basılırsa ara bellekte bekler ve toparlanmanın ilk karesinde çıkar (eskiden vuruşun
+  ortasında zıplıyor, savuruş havada sürüyordu). İkincil basış toparlanmayı keser. Havada başlayan savuruş toparlanırken
+  yere inilirse kuyruk beklenmez (iniş iptali). Yürüme toparlanmayı kesmeye devam eder.
+* **Kaçış saldırısı:** yuvarlanırken saldırı basışı saklanır; yuvarlanmanın %45'inden sonra yuvarlanmayı keser (0,1 sn ek
+  dokunulmazlık) ve aynı karede Dönüş Kesiği çıkar (pencere: yuvarlanmanın %45'i → bitişten 0,32 sn sonrası). Ardışık
+  yuvarlanma beklemesi 0,12 → 0,05 sn.
+* **Ağır saldırı tanıma:** basılı tutma süresi basış anından sayılır (`heavy_hold` 0,22 sn; eski: hazırlık sonu + 0,16 sn).
+  Hafif silahlar (ağırlık ≤ 0,3: ikiz bıçak, Ay Palası, Böri, Kurt Pençesi, yatağan, Rüzgâr, kırbaçlar) hafif vuruşu hiç
+  bekletmez (100 ms'lik dokunuşta vuruş 167 → 100 ms); tuş basılı kalırsa ağır şarj toparlanmadan açılır. Şarj ederken
+  yön tuşuyla dönülebilir. Zincirin 2.+ adımında hazırlık tutuşu (v14) yarıya iner.
+* **Saldırırken hareket:** yerde hız sıfırlanmaz, sürtünmeyle söner (1100, ağır silahta 1500 px/sn²): koşudan saldırıya
+  ~20 px kayış (eski 9). Vuruş anı adımı mesafe tabanlı: 7 px (ağır 9) + adımın `dash` × 0,38 (Alp zinciri 11-19 px,
+  hamleler 35-60 px). Havada saldırırken yön tuşu koşu hızının %60'ına dek dinlenir (eski: 0'a çekiliyordu). Kendi hareketi
+  olan savuruşlar (geri sıçrayış, delip geçme, şimşek hamlesi, sırık, dalış, pençe sıçraması, Göğe Savur) eski yolda.
+* **Hedef yardımı:** saldırı başlarken yön tuşu basılı değilse ve önde (kutu + 28 px) kimse yokken arkada 64 px içinde
+  düşman varsa döner; zincir adımları arasında yön tuşuyla dönülür. Vuruş anında kutunun ucunun 28 px ötesindeki düşmana
+  adım uzar (vuruş penceresi içinde yetişecek hız); dibindeki düşmanın içinden geçmemek için adım (ve koşu ivmesi) kısalır.
+  Görünmez gölge ve öbür âlemdekiler sayılmaz.
+* **Vuruş hissi akışı bozmasın:** aynı savuruş geçişinde (çok vuruşlu savuruşta her geçiş ayrı) yalnızca ilk isabet tam
+  duraklama / kamera itişi / darbe karesi verir; ek düşmanlar +8 ms ve ¼ sarsıntı (4 düşmana Ulu Kılıç: 116 → 66 ms donma).
+  Hafif vuruş duraklaması ağırlıkla ölçeklenir (hançer ~29 ms, kılıç 35 ms). `Game.kick` toplamı 9 px ile sınırlı;
+  `Game.slowmo` üst üste binen çağrılarda en yavaşını süresince uygular (kısa sert çağrı uzun hafif olanın kalanını
+  sertleştirmez).
+* **Adil takas:** sarsılan (ağır / boss olmayan) yaratığın süren saldırı teması kesilir: sıçrarken vurulan kurt sana
+  çarpıp can götürmez. Kalkanla karşılanan darbe artık sarsmaz, savuruşu kesmez, komboyu kırmaz (kısa geri kayma).
+
+| Ölçüm (`--dovus --boss`, 60 Hz) | Önce | Sonra |
+|---|---|---|
+| Savuruş içinde basış karşılandı (Alp / Kargı / Ulu / Dağ Çekici) | 4/5 · 2/5 · 0/5 · 0/5 | 5/5 · 5/5 · 5/5 · 5/5 |
+| Yuvarlanırken saldırı (8. karede bas) | düşer | aynı kare, Dönüş Kesiği |
+| Yuvarlanma sonunda ikinci yuvarlanma (15. karede bas) | düşer | 100 ms sonra |
+| Vuruş anında zıpla | vuruşun ortasında zıplar, savuruş havada sürer | toparlanmanın ilk karesinde (67-100 ms sonra) |
+| Vuruş anında yay | düşer | toparlanmada ok (67-100 ms) |
+| Dururken vuruş adımı / koşudan saldırıda kayış | 3,5 / 9 px | 12 / 21 px |
+| Havada saldırı, yön basılı (hız, 10 kare) | 105 → 0 px/sn | 114 → 93 px/sn |
+| Arkadaki (26 px) / 22 px uzaktaki düşmana ilk vuruş | ıska / ıska | isabet / isabet |
+| Ağır saldırı tanıma (Alp / Dağ Çekici) | 267 / 633 ms | 250 / 517-550 ms |
+| İkiz bıçak 100 ms dokunuş → vuruş | 167 ms | 100 ms |
+| Sıçrayan düşman vurulunca temas | sürer (takas) | kesilir |
+
+Test: `godot --headless --path . --quit-after 99999 -- --dovus --boss [--stil=v2]` (`tools/tests/dovus_testi.gd`; boss
+arenası düz test sahnesi olarak kullanılır, boss kaldırılır). Betikli girdi (`Input.action_press`) oyuncunun kendi yolundan
+geçer; her senaryodan sonra 1,5 sn girdisiz bekleyip takılı durum arar (saldırı, yuvarlanma, şarj, nişan, şarj döngü sesi,
+zaman ölçeği). Çıktı `[dovus]` satırları, sonda `OZET` ve `TAKILMA=0`. Basıştan vuruşa / iptal edilebilir ana kadar
+süreler bilerek değişmedi (silah temposu): ikiz bıçak 117 / 150 ms, yatağan 167 / 250, Alp 217 / 333, kargı 267 / 400,
+Ulu Kılıç ~600 / ~900, Dağ Çekici ~670 / ~1000 ms (ölçüm ±2 kare oynar). `--klip` eki kısa bir gösteri oynatır
+(`--write-movie` ile çekim için: koşudan zincir, arkadakine dönüş, yuvarlanmadan Dönüş Kesiği, havada yön, zıplama ara belleği).
+
 ## Görsel düzeltmeler (v16)
 
 Eski tasarım `eski-tasarim-v13` git etiketinde saklı.
