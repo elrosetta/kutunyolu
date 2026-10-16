@@ -90,7 +90,7 @@ def export_sheet(name, layout_json, render, cell, origin, texel, only=(), extra_
     if glo[..., 3].max() > 0:
         _png(glo, out_e)
         meta['glow'] = True
-    json.dump(meta, open(out_json, 'w', encoding='utf-8'), ensure_ascii=False, indent=1)
+    json.dump(meta, open(out_json, 'w', encoding='utf-8', newline='\n'), ensure_ascii=False, indent=1)
     print('sprite', name, alb.shape[1], alb.shape[0])
 
 
@@ -107,7 +107,7 @@ def export_bengu(only=()):
     json.dump({'cell': list(b.ARM_CELL), 'pivot': list(b.ARM_PIVOT), 'fist_pivot': list(b.FIST_PIVOT), 'texel': b.TEX,
                'filter': 'linear', 'upper_len': b.L_UP, 'fore_len': b.L_FORE,
                'parts': ['upper', 'fore', 'fist', 'upper_b', 'fore_b', 'fist_b']},
-              open(os.path.join(SPR, 'bengu_kol_v2.json'), 'w', encoding='utf-8'), indent=1)
+              open(os.path.join(SPR, 'bengu_kol_v2.json'), 'w', encoding='utf-8', newline='\n'), indent=1)
     print('sprite bengu_kol_v2', alb.shape)
 
 
