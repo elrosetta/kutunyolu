@@ -97,17 +97,23 @@
    0.9
   ],
   "grade": {
-   "strength": 0.55,
-   "saturation": 0.95,
-   "contrast": 1.1,
+   "strength": 0.62,
+   "saturation": 0.97,
+   "contrast": 1.12,
    "mid_tint": [
     1.03,
     1.02,
-    0.9
+    0.92
    ],
    "shadow_tint": [
-    0.95,
-    0.82,
+    0.98,
+    0.78,
+    1.0
+   ],
+   "edge_color": [
+    0.09,
+    0.02,
+    0.08,
     1.0
    ]
   },
@@ -122,6 +128,7 @@
   },
   "leaf_tex": "res://assets/bg/otuken_v2_leaf.png",
   "leaf_amount": 34,
-  "pollen_amount": 16
+  "pollen_amount": 16,
+  "camera_zoom": 1.5
  }
 }

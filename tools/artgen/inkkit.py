@@ -13,6 +13,16 @@ from scipy import ndimage
 
 INK = (21, 22, 29)          # mavi-siyah mürekkep #15161d
 
+# Çizim ölçeği: çizim kodu "mantıksal" piksellerle yazılır, çıktı K kat çözünürlükte üretilir (skia tuvali ölçeklenir,
+# numpy ızgaraları mantıksal koordinatı K sıklıkta örnekler). Paralaks/ön plan (ekran uzayı) K = 1; dünya uzayı
+# dokuları (zemin, süsler) K = 1,5: mantıksal 2 doku pikseli / dünya birimi -> 3 (v2 kamerası 1,5x yakın, 1080p'de 1:1).
+K = 1.0
+
+
+def P(v):
+    """mantıksal uzunluk -> çıktı pikseli"""
+    return int(round(v * K))
+
 
 # ------------------------------------------------------------------ renk yardımcıları
 def c01(c):
@@ -41,15 +51,16 @@ def smoothstep(e0, e1, x):
 def noise(w, h, sigma, seed, wrap=True, sx=None, sy=None):
     """Döşenebilir yumuşak gürültü, yaklaşık [-1, 1]. sx/sy ile yönlü (yatay sis şeritleri vb.)."""
     rng = np.random.default_rng(seed)
+    w, h = max(1, P(w)), max(1, P(h))
     f = rng.standard_normal((h, w)).astype(np.float32)
-    sg = (sy if sy is not None else sigma, sx if sx is not None else sigma)
+    sg = ((sy if sy is not None else sigma) * K, (sx if sx is not None else sigma) * K)
     f = ndimage.gaussian_filter(f, sg, mode='wrap' if wrap else 'reflect')
     f /= (f.std() * 2.2 + 1e-6)
     return np.clip(f, -1, 1)
 
 
 def fbm(w, h, sigmas, seed, wrap=True, weights=None):
-    out = np.zeros((h, w), np.float32)
+    out = np.zeros((max(1, P(h)), max(1, P(w))), np.float32)
     weights = weights or [0.5 ** i for i in range(len(sigmas))]
     for i, (s, wt) in enumerate(zip(sigmas, weights)):
         out += noise(w, h, s, seed + 101 * i, wrap) * wt
@@ -61,11 +72,13 @@ class Layer:
     """Önçarpılmış float RGBA tuval."""
 
     def __init__(self, w, h):
-        self.w, self.h = w, h
-        self.a = np.zeros((h, w, 4), np.float32)
+        self.w, self.h = P(w), P(h)          # çıktı pikseli
+        self.a = np.zeros((self.h, self.w, 4), np.float32)
 
-    def over(self, src, x=0, y=0):
-        """src (önçarpılmış) bu katmanın ÜSTÜNE, (x, y) konumuna."""
+    def over(self, src, x=0, y=0, px=False):
+        """src (önçarpılmış) bu katmanın ÜSTÜNE, (x, y) konumuna (mantıksal; px=True ise piksel)."""
+        if not px:
+            x, y = P(x), P(y)
         sh, sw = src.shape[:2]
         x0, y0 = max(0, x), max(0, y)
         x1, y1 = min(self.w, x + sw), min(self.h, y + sh)
@@ -78,9 +91,10 @@ class Layer:
     def over_wrap(self, src, x, y):
         """Yatay döşenen katman için: kenardan taşan parça öbür uçtan girer."""
         sw = src.shape[1]
+        x, y = P(x), P(y)
         for dx in (-self.w, 0, self.w):
             if x + dx < self.w and x + dx + sw > 0:
-                self.over(src, x + dx, y)
+                self.over(src, x + dx, y, px=True)
 
     def fill_mask(self, mask, color, alpha=1.0):
         """mask (h, w) kaplama, color (3,) ya da (h, w, 3) 0..1."""
@@ -106,10 +120,12 @@ class Sk:
     """skia yüzeyi; çizim sonrası önçarpılmış float dizi (snap) verir."""
 
     def __init__(self, w, h):
-        self.w, self.h = w, h
-        self.s = skia.Surface(w, h)
+        self.w, self.h = P(w), P(h)          # çıktı pikseli; çizim koordinatları mantıksal
+        self.s = skia.Surface(self.w, self.h)
         self.c = self.s.getCanvas()
         self.c.clear(skia.ColorTRANSPARENT)
+        if K != 1.0:
+            self.c.scale(K, K)
 
     def paint(self, col, a=1.0, blur=0.0, stroke=0.0, blend=None):
         p = skia.Paint(AntiAlias=True, Color=sk_col(col, a))
@@ -242,7 +258,8 @@ def trunk(H, W, base_y, x0, width, seed, kind='pine', lean=0.0, bend=0.0, top_y=
     rng = np.random.default_rng(seed)
     y_top = int(max(top_y, -200))
     hh = int(base_y - y_top + 4)
-    ys = np.arange(y_top, y_top + hh, dtype=np.float32)
+    hhp = P(hh)
+    ys = y_top + (np.arange(hhp, dtype=np.float32) + 0.5) / K
     t = np.clip((base_y - ys) / max(1.0, base_y - y_top), 0, 1)        # 0 taban, 1 tepe
     cx = x0 + lean * (base_y - ys) + bend * np.sin(t * math.pi) * width
     cx += noise(1, hh, 18, seed, wrap=False)[:, 0] * width * 0.06
@@ -254,10 +271,10 @@ def trunk(H, W, base_y, x0, width, seed, kind='pine', lean=0.0, bend=0.0, top_y=
     xl = int(np.floor((cx - hw).min())) - 6
     xr = int(np.ceil((cx + hw).max())) + 6
     ww = xr - xl
-    xs = np.arange(xl, xr, dtype=np.float32)[None, :] + 0.5
+    xs = xl + (np.arange(P(ww), dtype=np.float32)[None, :] + 0.5) / K
     dx = xs - cx[:, None]
     hwc = hw[:, None]
-    cov = np.clip(hwc - np.abs(dx) + 0.5, 0, 1)
+    cov = np.clip((hwc - np.abs(dx)) * K + 0.5, 0, 1)
     u = np.clip(dx / np.maximum(hwc, 1), -1, 1)                        # -1 sol kenar, 1 sağ kenar
     # silindirik gölgeleme: ışık tarafı (light_side) açık
     lam = np.clip(0.55 + 0.6 * (-u * light_side) * 0.8 + 0.25 * np.sqrt(np.clip(1 - u * u, 0, 1)), 0, 1.2)
@@ -287,7 +304,7 @@ def trunk(H, W, base_y, x0, width, seed, kind='pine', lean=0.0, bend=0.0, top_y=
     iw_r = iw * (0.8 if light_side > 0 else 1.15)
     edge_d = hwc - np.abs(dx)
     iwc = np.where(dx < 0, iw_l[:, None], iw_r[:, None])
-    ink_m = np.clip(iwc - edge_d + 0.5, 0, 1) * cov
+    ink_m = np.clip((iwc - edge_d) * K + 0.5, 0, 1) * cov
     rgb = mix(rgb, c01(ink)[None, None, :], ink_m[..., None])
     out = premul(rgb, cov)
     # kabuk işaretleri skia ile (gövdenin içine kırpılır)
@@ -295,7 +312,7 @@ def trunk(H, W, base_y, x0, width, seed, kind='pine', lean=0.0, bend=0.0, top_y=
     n_marks = int(hh / (14 if kind == 'birch' else 6) * detail)
     for _ in range(n_marks):
         yy = rng.uniform(0, hh)
-        iy = int(np.clip(yy, 0, hh - 1))
+        iy = int(np.clip(yy * K, 0, hhp - 1))
         ccx = cx[iy] - xl
         w_here = hw[iy]
         if kind == 'birch':
@@ -325,6 +342,21 @@ def trunk(H, W, base_y, x0, width, seed, kind='pine', lean=0.0, bend=0.0, top_y=
                 yb = yy + ln * rng.uniform(0.3, 1.0)
                 xb = xa + rng.uniform(-0.4, 0.4) * w_here
                 sk.path(ribbon([(xb - 4, yb), (xb, yb + 0.8), (xb + 5, yb - 0.4)], [0.3, 1.4, 0.3]), ink, 0.5 * detail)
+    # çam kabuğu levhalarının ışık alan kenarları: açık, kısa dikey darbeler (koyu gövdede doku okunsun)
+    if kind != 'birch' and detail > 0.45:
+        lc = tuple(np.minimum(np.array(light, np.float32) * 0.9, 255))
+        for _ in range(int(hh / 9 * detail)):
+            yy = rng.uniform(0, hh)
+            iy = int(np.clip(yy * K, 0, hhp - 1))
+            ccx = cx[iy] - xl
+            w_here = hw[iy]
+            off = -light_side * abs(rng.normal(0.25, 0.35))
+            off = float(np.clip(off, -0.85, 0.85))
+            xa = ccx + off * w_here
+            ln = rng.uniform(6, 20)
+            pts = [(xa + rng.uniform(-0.6, 0.6), yy + ln * s_) for s_ in np.linspace(0, 1, 4)]
+            ws = np.sin(np.linspace(0, 1, 4) * math.pi) * rng.uniform(1.0, 2.6) + 0.2
+            sk.path(ribbon(pts, ws), lc, rng.uniform(0.18, 0.4) * (1.2 - 0.6 * abs(off)))
     # gölge tarafında çizgi roman taraması (kısa eğik darbeler, öbekler halinde)
     if detail > 0.45:
         yy = rng.uniform(0, 30)
@@ -333,7 +365,7 @@ def trunk(H, W, base_y, x0, width, seed, kind='pine', lean=0.0, bend=0.0, top_y=
                 n_h = rng.integers(3, 8)
                 for k in range(n_h):
                     y_ = yy + k * rng.uniform(4.5, 7.5)
-                    iy = int(np.clip(y_, 0, hh - 1))
+                    iy = int(np.clip(y_ * K, 0, hhp - 1))
                     ccx = cx[iy] - xl
                     w_here = hw[iy]
                     edge_x = ccx - light_side * w_here
@@ -346,7 +378,7 @@ def trunk(H, W, base_y, x0, width, seed, kind='pine', lean=0.0, bend=0.0, top_y=
     if detail > 0.45:
         for _ in range(int(6 + 10 * detail)):
             y_ = hh - rng.uniform(4, width * (1.4 if kind == 'birch' else 0.9))
-            iy = int(np.clip(y_, 0, hh - 1))
+            iy = int(np.clip(y_ * K, 0, hhp - 1))
             ccx = cx[iy] - xl
             w_here = hw[iy]
             xa = ccx + rng.uniform(-0.9, 0.9) * w_here

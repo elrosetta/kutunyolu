@@ -108,7 +108,7 @@ func _process(_delta: float) -> void:
 	holes.resize(6)
 	for S in _strips:
 		var w: float = S["w"]
-		var off := -fposmod(c.x * float(S["fx"]), w)
+		var off := -fposmod(c.x * float(S["fx"]) * Game.base_zoom, w)
 		var y: float
 		if S["bottom"]:
 			# alt kenara yaslı; kamera yükselince şerit biraz aşağı kayar (derinlik), alçalınca yükselmez

@@ -650,8 +650,13 @@ Yalnızca dikey kesit: Bengü (boşta, koşu, yukarıdan kesiş; diğer animasyo
 
 ### Ötüken v2 "mürekkep" ortamı (el çizimi çizgi roman görünümü)
 
-Piksel sanat değil: kenar yumuşatmalı, boyalı dokular + değişken kalınlıklı mavi-siyah mürekkep (#15161d). Görüntü 960x540
-dünya birimi; doku yoğunluğu 2 doku pikseli / dünya birimi = **1080p'de 1 doku pikseli = 1 ekran pikseli** (Bengü v2 ile aynı).
+Piksel sanat değil: kenar yumuşatmalı, boyalı dokular + değişken kalınlıklı mavi-siyah mürekkep (#15161d).
+**Kamera:** v2 mürekkep ortamında taban yakınlık 1,5 (`stil_v2.json` "camera_zoom", `Game.base_zoom`; zoom_punch bunun üstüne
+çarpılır): ekranda 640x360 dünya birimi, karakterler 1,5 kat büyük (referanstaki oran). v1 çerçevesi (960x540, 1,0) değişmez.
+Paralaks ve ön plan kayma çarpanları yakınlıkla çarpılır (derinlik hissi aynı kalır).
+**Doku yoğunluğu:** dünya uzayı (zemin atlası 72 px hücre, toprak/çayır, süsler, kule parçaları) 3 doku pikseli / dünya birimi;
+ekran uzayı katmanlar (paralaks, ön plan) 1080 yükseklik: **1080p'de 1 doku pikseli = 1 ekran pikseli**. Üreticiler mantıksal
+piksellerle yazılır, `inkkit.K` (dünya dokularında 1,5) çıktı çözünürlüğünü ölçekler.
 Bütün v2 ortam dokuları doğrusal süzgeç + mipmap (`.import` mipmaps açık, düğümde `TEXTURE_FILTER_LINEAR_WITH_MIPMAPS`);
 v1 yolu hiç değişmez (en yakın komşu, piksel keskin). Yalnızca `--stil=v2` ve `assets/tiles/otuken_v2.json` "ink": true iken.
 
@@ -671,7 +676,7 @@ v1 yolu hiç değişmez (en yakın komşu, piksel keskin). Yalnızca `--stil=v2`
   gölgesi, gömülü taşlar, ot öbekleri, kök saçakları, halatla bağlı tahta platform) + maske (`otuken_v2_mask.png`: R toprak
   kaplaması, G kenar gölgesi; CanvasTexture normal yuvasında). Kaplamada dünya uzayı dokular: `_meadow` (sık ot darbeleri; üstteki
   2-3 karo, `Level._top_depth_texture` = yüzeyden dikey derinlik) ve `_soil` (yumuşak tortul bantlar, kök, mürekkepli çakıl),
-  derinlikte mor-siyaha kararır. Karo/çarpışma düzeni ve dünya ölçüsü aynı: hücre 48 doku pikseli, katman ölçeği 0,5.
+  derinlikte mor-siyaha kararır. Karo/çarpışma düzeni ve dünya ölçüsü aynı: hücre 72 doku pikseli, katman ölçeği 1/3.
   Örtü katmanı (ot öbekleri) `env_ink.gdshader`. Işık: boyalı dokular ışığı içerir, ay ve çıralar yumuşak/kısık eklenir.
 * **Gözetleme kuleleri:** `Level._place_towers` her tek yönlü platform koşusunun uçlarından zemine kütük ayak indirir, geniş ve
   yüksekse X destek, kiriş ve halat bağları ekler (yalnızca görsel; çarpışma değişmez). Boss arenasında da.

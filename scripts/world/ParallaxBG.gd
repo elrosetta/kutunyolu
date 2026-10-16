@@ -86,16 +86,18 @@ func _process(_delta: float) -> void:
 		_base_y = c.y
 	var vp := get_viewport().get_visible_rect().size
 	var t := Time.get_ticks_msec() / 1000.0
+	# kamera yakınlığı (stil v2): oyun alanı ekranda z kat hızlı kayar, katmanlar da aynı oranda (derinlik hissi korunur)
+	var z: float = Game.base_zoom
 	for L in _layers:
 		var fx: float = L["fx"]
 		var w: float = L["w"]
-		var y := clampf((_base_y - c.y) * float(L["fy"]), -50.0, 60.0) + (vp.y - _vh)
+		var y := clampf((_base_y - c.y) * float(L["fy"]) * z, -50.0, 60.0) + (vp.y - _vh)
 		if fx == 0.0:
 			L["copies"][0].position = Vector2(0, 0)
 			var kp: float = L["k"]
 			L["copies"][0].scale = Vector2(maxf(kp, kp * vp.x / w), maxf(kp, vp.y / _vh * kp))
 			continue
-		var off := -fposmod(c.x * fx + t * float(L["drift"]), w)
+		var off := -fposmod(c.x * fx * z + t * float(L["drift"]), w)
 		for k in L["copies"].size():
 			L["copies"][k].position = Vector2(off + k * w, y)
 		match L["kind"]:

@@ -10,6 +10,7 @@ import os
 
 import numpy as np
 
+import inkkit as ik
 from inkkit import INK, Sk, Layer, blade, bezier, blob, c01, leaf_shape, poly_path, premul, ribbon, smooth_path, fbm, mix, smoothstep, trunk
 from otuken_ink import rock, foliage, balbal
 
@@ -130,9 +131,9 @@ def kam_diregi(seed=21):
 def kaya(seed, rx, ry):
     arr = rock(seed, rx, ry, base=(100, 104, 96), moss=(86, 124, 80), ink_w=3.0)
     h, w = arr.shape[:2]
-    L = _canvas(w, h)
+    L = _canvas(w / ik.K, h / ik.K)
     L.a = arr
-    return L, (w, h), (w // 2, h - 8)
+    return L, (w, h), (w / ik.K / 2, h / ik.K - 8)
 
 
 def mantar(seed, n):
@@ -259,9 +260,9 @@ def balbal_decor(seed=41):
 def kule_dikme():
     """Gözetleme kulesi ayağı: dikeyde döşenen kabuklu kütük (genişlik 12 doku pikseli + kontur)."""
     W, Hh = 16, 256
-    ys, xs = np.mgrid[0:Hh, 0:W].astype(np.float32) + 0.5
+    ys, xs = (np.mgrid[0:ik.P(Hh), 0:ik.P(W)].astype(np.float32) + 0.5) / ik.K
     u = (xs - W / 2) / 5.5
-    cov = np.clip(5.5 - np.abs(xs - W / 2) + 0.5, 0, 1)
+    cov = np.clip((5.5 - np.abs(xs - W / 2)) * ik.K + 0.5, 0, 1)
     tone = np.where(u < -0.3, 1.25, np.where(u < 0.35, 1.0, 0.68))
     n = fbm(W, Hh, [1.2, 6], 5, wrap=True)
     col = c01(WOOD)[None, None, :] * (tone * (1 + 0.1 * n))[..., None]
@@ -282,8 +283,8 @@ def kule_dikme():
 def kule_capraz():
     """Çapraz destek / kiriş: yatay döşenen ince kütük (yükseklik 10 + kontur)."""
     W, Hh = 256, 14
-    ys, xs = np.mgrid[0:Hh, 0:W].astype(np.float32) + 0.5
-    cov = np.clip(4.5 - np.abs(ys - Hh / 2) + 0.5, 0, 1)
+    ys, xs = (np.mgrid[0:ik.P(Hh), 0:ik.P(W)].astype(np.float32) + 0.5) / ik.K
+    cov = np.clip((4.5 - np.abs(ys - Hh / 2)) * ik.K + 0.5, 0, 1)
     v = (ys - Hh / 2) / 4.5
     tone = np.where(v < -0.3, 1.22, np.where(v < 0.35, 0.95, 0.66))
     n = fbm(W, Hh, [6, 1.2], 7, wrap=True)
@@ -312,10 +313,13 @@ def kule_bag():
 def export(save, to8, A):
     meta = {}
 
+    tex = 2.0 * ik.K   # doku pikseli / dünya birimi
+
     def put(name, res):
-        L, size, origin = res[0], res[1], res[2]
+        L, origin = res[0], res[2]
         save(to8(L.a), 'decor', name + '.png')
-        meta[name] = {"size": [int(size[0]), int(size[1])], "origin": [int(origin[0]), int(origin[1])], "texel": 2.0}
+        h, w = L.a.shape[:2]
+        meta[name] = {"size": [int(w), int(h)], "origin": [int(round(origin[0] * ik.K)), int(round(origin[1] * ik.K))], "texel": tex}
         if len(res) > 3:
             save(to8(res[3].a), 'decor', name + '_e.png')
             meta[name]["glow"] = True
@@ -334,5 +338,5 @@ def export(save, to8, A):
     for nm, fn in (('kule_dikme_v2', kule_dikme), ('kule_capraz_v2', kule_capraz), ('kule_bag_v2', kule_bag)):
         L = fn()
         save(to8(L.a), 'decor', nm + '.png')
-        meta[nm] = {"size": [L.w, L.h], "origin": [0, 0], "texel": 2.0}
+        meta[nm] = {"size": [L.w, L.h], "origin": [0, 0], "texel": tex}
     json.dump(meta, open(os.path.join(A, 'decor', 'decor_v2.json'), 'w', encoding='utf-8'), indent=1)

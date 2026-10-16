@@ -1357,8 +1357,8 @@ func _build_particles() -> void:
 		leaves.texture = load(String(art["leaf_tex"]))
 		leaves.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
 		leaves.amount = int(art.get("leaf_amount", 30))
-		leaves.scale_amount_min = 0.22
-		leaves.scale_amount_max = 0.45
+		leaves.scale_amount_min = 0.15
+		leaves.scale_amount_max = 0.3
 		leaves.angle_min = 0.0
 		leaves.angle_max = 360.0
 		leaves.emission_rect_extents = Vector2(520, 10)
@@ -1745,6 +1745,9 @@ func _spawn_player() -> void:
 	camera.limit_bottom = mini(H, deepest + 4) * TS
 	player.add_child(camera)
 	camera.position = Vector2(0, -40)
+	# stil v2 mürekkep ortamı: kamera yakın (art "camera_zoom", stil_v2.json); v1 çerçevesi değişmez
+	Game.base_zoom = float(art.get("camera_zoom", 1.0)) if ink() else 1.0
+	camera.zoom = Vector2.ONE * Game.base_zoom
 	camera.process_mode = Node.PROCESS_MODE_ALWAYS
 	camera.make_current()
 	camera.reset_smoothing.call_deferred()

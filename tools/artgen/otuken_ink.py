@@ -25,16 +25,16 @@ SKY_STOPS = [
     (300, (64, 72, 58)),
     (430, (100, 112, 84)),
     (520, (140, 154, 116)),
-    (585, (178, 200, 158)),
-    (630, (192, 216, 176)),
-    (680, (152, 172, 132)),
+    (585, (178, 208, 168)),
+    (630, (196, 230, 198)),
+    (680, (152, 178, 140)),
     (760, (96, 110, 82)),
     (880, (56, 62, 50)),
     (1080, (32, 32, 30)),
 ]
 FG_DARK = (30, 12, 30)        # en ön siluet (mor-siyah)
 CANOPY = (40, 34, 46)         # tepe gölgesi
-MINT = (206, 240, 206)        # en parlak sis
+MINT = (206, 244, 216)        # en parlak sis
 
 
 def sky_rgb():
@@ -147,7 +147,7 @@ def _branches_for(L, seed, xs, w_avg, base_y, fog, amount, bark, leaf_col, leaf_
             side = -1 if rng.random() < 0.5 else 1
             ln = rng.uniform(70, 210) * (w_avg / 60) ** 0.5
             ang = math.radians(rng.uniform(25, 60))
-            x0 = x + pad + side * w_avg * 0.3
+            x0 = x + pad + side * w_avg * 0.05   # gövdenin içinden başlar (gövde üstüne çizilir)
             p2 = (x0 + side * math.sin(ang) * ln, y0 - math.cos(ang) * ln * 0.55 + rng.uniform(-10, 30))
             p1 = ((x0 + p2[0]) / 2, (y0 + p2[1]) / 2 - rng.uniform(0, 18))
             pts = bezier((x0, y0), p1, p2, 12)
@@ -394,7 +394,8 @@ def rock(seed, rx, ry, base=(92, 98, 90), moss=(84, 120, 82), ink_w=3.0, light_d
     m = Sk(w, h)
     m.path(path, (255, 255, 255))
     cov = m.mask()
-    ys, xs = np.mgrid[0:h, 0:w].astype(np.float32)
+    import inkkit as ik
+    ys, xs = (np.mgrid[0:cov.shape[0], 0:cov.shape[1]].astype(np.float32) + 0.5) / ik.K
     u = (xs - cx) / rx
     v = (ys - cy) / ry
     nz = np.sqrt(np.clip(1 - u * u - v * v, 0.02, 1))

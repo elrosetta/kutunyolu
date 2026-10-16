@@ -4,7 +4,7 @@
 // "hurt" parametresi vignette.gdshader ile aynı (Level.flash_red kenardan kırmızı nabız).
 shader_type canvas_item;
 
-uniform sampler2D screen_tex : hint_screen_texture, filter_linear_mipmap;
+uniform sampler2D screen_tex : hint_screen_texture, filter_linear;
 uniform float strength : hint_range(0.0, 1.0) = 0.5;
 uniform vec4 edge_color : source_color = vec4(0.07, 0.03, 0.08, 1.0);
 uniform float hurt : hint_range(0.0, 1.0) = 0.0;

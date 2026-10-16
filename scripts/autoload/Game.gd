@@ -59,6 +59,9 @@ var _hitstop_until := 0.0
 var _slow_until := 0.0
 var _slow_scale := 1.0
 var _zoom := 0.0
+## Kameranın taban yakınlığı (Level ayarlar): v1 1,0 (960x540 dünya birimi), stil v2 mürekkep ortamı 1,5 (640x360;
+## karakterler ekranda 1,5 kat büyük). zoom_punch bunun üstüne çarpılır.
+var base_zoom := 1.0
 
 
 func _ready() -> void:
@@ -80,7 +83,7 @@ func _process(delta: float) -> void:
 	var rd := delta / maxf(0.05, ts)
 	if camera:
 		_zoom = lerpf(_zoom, 0.0, clampf(rd * 9.0, 0.0, 1.0))
-		camera.zoom = Vector2.ONE * (1.0 + _zoom)
+		camera.zoom = Vector2.ONE * base_zoom * (1.0 + _zoom)
 		kick_off = kick_off.lerp(Vector2.ZERO, clampf(rd * 14.0, 0.0, 1.0))
 		var off := kick_off
 		# eski doğrusal sarsıntı (küçük olaylar) + travma sarsıntısı (büyük olaylar, üstel sönüm, yönlü)
