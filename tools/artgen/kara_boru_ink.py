@@ -102,8 +102,9 @@ def draw(cv, p):
     legs(False)
     # ---- kuyruk: kalın kök, dumanlı uçlar
     tw = p.get('tw', 0.0)
-    tl = chain((hipp[0] - 4.5, hipp[1] - 3.2), 5, 3.0, math.pi * 1.06 + tw, -0.2, ph - 0.9, 0.32)
-    cv.shape(ik.taper_path([cv.W(q) for q in tl], cv.u(3.6), (0.0, 0.75)), FURK_B, z=-6, sd=1.0)
+    tl = chain((hipp[0] - 4.5, hipp[1] - 3.2), 5, 3.0, math.pi * 0.92 + tw, -0.12, ph - 0.9, 0.32)   # kurt gibi alçak taşınan kuyruk
+    cv.shape(ik.union(ik.taper_path([cv.W(q) for q in tl], cv.u(4.2), prof=lambda u: max(0.2, 0.55 + 0.6 * math.sin(math.pi * min(1.0, u * 1.3)) - 0.5 * u)),
+                       *[cv.blob(t) for t in _tufts(tl[1:5], math.pi * 0.62 + tw, 2.6, 1.8)]), FURK_B, z=-6, sd=1.4)
     for k_, da in enumerate((-0.35, 0.0, 0.4)):
         tt = chain(tl[-1], 3, 2.2 - abs(da), math.pi * 1.1 + tw * 1.3 + da, -0.1, ph - 1.4 + k_, 0.45)
         cv.shape(ik.taper_path([cv.W(q) for q in [tl[-2]] + tt], cv.u(2.6), (0.0, 0.8)), SMOKE, z=-6.2 + k_ * 0.1, sd=0.8, ol=0.8)
@@ -155,15 +156,15 @@ def draw(cv, p):
     ear = p.get('ear', 0.0) + math.sin(ph - 1.2) * 0.12
     for (ox, m, zz, ln) in ((-2.6, FURK_B, 7.6, 6.4), (-0.6, FURK, 15.0, 6.8)):
         e0 = (hx_ + ox, hy_ - 2.8)
-        a = -math.pi * 0.5 - 0.75 - ear
+        a = -math.pi * 0.5 - 0.45 - ear
         tip = (e0[0] + math.cos(a) * ln, e0[1] + math.sin(a) * ln)
         det = []
         if m is FURK:
             det = [('col', cv.blob([(e0[0] - 0.8, e0[1] + 0.4), (e0[0] + 0.9, e0[1]), (lerp2(e0, tip, 0.65)[0], lerp2(e0, tip, 0.65)[1], 0.0)]), (0.55, 0.16, 0.08))]
         cv.shape(cv.blob([(e0[0] - 2.0, e0[1] + 1.0), (tip[0], tip[1], 0.0), (e0[0] + 2.0, e0[1] + 0.2)]), m, z=zz, sd=1.4, details=det)
-    sn = (hx_ + 10.6, hy_ + 1.7)
+    sn = (hx_ + 9.0, hy_ + 1.9)       # v1'den kısa ve kalın burun (timsah değil kurt)
     jd = jaw * 3.6
-    j1 = (hx_ + 9.4, hy_ + 3.8 + jd)
+    j1 = (hx_ + 8.0, hy_ + 4.0 + jd)
     # ağız içi (kor gibi yanar) ve dişler
     mouth = cv.blob([(hx_ + 2.5, hy_ + 2.0), (sn[0] - 0.5, sn[1] + 0.9), (j1[0], j1[1] - 0.6), (hx_ + 2.5, hy_ + 3.4 + jd * 0.4)])
     cv.fill(mouth, (0.85, 0.32, 0.08), z=7.0, glow=(0.42, 0.13, 0.02))
@@ -177,15 +178,14 @@ def draw(cv, p):
     cv.shape(cv.limb([(hx_ + 1.6, hy_ + 3.0), j1], [1.9, 1.0]), FURK_B, z=7.5, sd=0.8)
     neck = cv.capsule(nb, head, 5.0, 3.9)
     ruff = [cv.blob(t) for t in _tufts([(hx_ - 2.5, hy_ + 2.8), (hx_ - 4.2, hy_ + 1.2), (hx_ - 0.8, hy_ + 3.6)], math.pi * 0.72, 3.0, 2.2)]
-    skull = cv.ellipse((hx_ - 0.3, hy_), 5.2, 4.5, -0.1)
-    snout = cv.capsule((hx_ + 1.8, hy_ + 0.4), sn, 3.4, 1.7)
+    skull = cv.ellipse((hx_ - 0.3, hy_), 5.5, 4.8, -0.1)
+    snout = cv.capsule((hx_ + 1.8, hy_ + 0.4), sn, 3.6, 2.2)
     headp = ik.union(neck, skull, snout, *ruff)
     hdet = [('ink', [(hx_ + 3.0, hy_ + 2.0), (hx_ + 7.0, hy_ + 2.3), (sn[0] - 0.4, sn[1] + 0.8)], 1.4, (0.1, 0.5))]
     cv.shape(headp, FURK, z=8, sd=2.6, hi=0.45, details=hdet, cast=0.8)
     # kemik kafa zırhı: alın plakası + burun sırtı
     cv.shape(cv.blob([(hx_ - 2.8, hy_ - 4.0), (hx_ + 2.8, hy_ - 4.6), (hx_ + 5.0, hy_ - 2.2, 0.0), (hx_ + 0.4, hy_ - 1.5), (hx_ - 2.2, hy_ - 1.8)]),
              BONE, z=14, sd=1.2, hi=0.35, details=[('ink', [(hx_ - 1.0, hy_ - 3.6), (hx_ + 0.4, hy_ - 2.2)], 1.0)])
-    cv.shape(cv.blob([(hx_ + 3.4, hy_ - 3.0), (hx_ + 11.0, hy_ + 0.1, 0.0), (hx_ + 10.6, hy_ + 1.1), (hx_ + 3.6, hy_ - 1.2)]), BONE, z=14, sd=0.6, hi=0.3)
     cv.shape(cv.ellipse((sn[0] + 0.4, sn[1] - 0.2), 1.2, 1.0), Ink('#1a1820', '#0c0b10', '#5a5866'), z=24, sd=0.4, hi=0.2, ol=0.7)
     # göz: kara çukur içinde kor
     cv.fill(cv.ellipse((hx_ + 2.2, hy_ - 1.1), 2.2, 1.45), INK, z=24)
@@ -210,7 +210,7 @@ def draw(cv, p):
     legs(True)
     if sq:
         cv.pop()
-    return {'mouth': ((hx_ + 10) * sqx, (hy_ + 2.6 + jd * 0.5) * sqy)}
+    return {'mouth': ((hx_ + 9.4) * sqx, (hy_ + 2.6 + jd * 0.5) * sqy)}
 
 
 SHADE = dict(outer=0.5, rim=0.9, rim_col=(0.62, 0.7, 1.0), rim_dir=(0.55, -0.85), rim_w=1.6, form=(6.0, (0.72, 0.7, 0.86)))
