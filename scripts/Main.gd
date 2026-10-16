@@ -50,6 +50,14 @@ func _ready() -> void:
 		ft.set("main", self)
 		add_child(ft)
 	for arg in OS.get_cmdline_user_args():
+		# yaratık çekim sahnesi (tools/tests/yaratik_testi.gd): düşmanlar sırayla canlı yapay zekâyla, Bozkurt biçimi
+		if String(arg).begins_with("--yaratik"):
+			var yt: Node = load("res://tools/tests/yaratik_testi.gd").new()
+			yt.set("main", self)
+			add_child(yt)
+			firca = true  # oyun kipinde başla
+			break
+	for arg in OS.get_cmdline_user_args():
 		if String(arg) == "--boss":
 			_build_boss("kara_boru_han")
 		elif String(arg).begins_with("--boss="):
