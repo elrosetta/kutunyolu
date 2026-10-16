@@ -1554,7 +1554,7 @@ func _build_particles() -> void:
 	var lt := GradientTexture2D.new()
 	lt.width = 3
 	lt.height = 2
-	leaves.texture = lt
+	leaves.texture = lt if not ink() else InkDraw.particle("yaprak")  # v2: 3x2 piksel yerine fırça yaprak
 	leaves.emission_shape = CPUParticles2D.EMISSION_SHAPE_RECTANGLE
 	leaves.emission_rect_extents = Vector2(380, 10)
 	leaves.position = Vector2(0, -220)

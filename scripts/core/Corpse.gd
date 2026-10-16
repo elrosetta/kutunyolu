@@ -25,7 +25,36 @@ void fragment() {
 	COLOR = c;
 }
 """
+## Stil v2 (ink): piksel bloklu (2 doku pikseli) sert kesimli çözülme yerine yumuşak fbm ile kâğıt yanığı gibi
+## çözülme: kenarda koyu mürekkep halkası + ince kor çizgisi, alfa yumuşak geçişli.
+const DISSOLVE_INK := """
+shader_type canvas_item;
+uniform float prog = 0.0;
+uniform vec4 edge : source_color = vec4(0.6, 0.95, 1.0, 1.0);
+uniform vec4 dark : source_color = vec4(0.2, 0.1, 0.2, 1.0);
+uniform float darkk = 0.0;
+float h(vec2 p) { return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453); }
+float n(vec2 p) {
+	vec2 i = floor(p); vec2 f = fract(p); f = f * f * (3.0 - 2.0 * f);
+	return mix(mix(h(i), h(i + vec2(1.0, 0.0)), f.x), mix(h(i + vec2(0.0, 1.0)), h(i + vec2(1.0, 1.0)), f.x), f.y);
+}
+float fbm(vec2 p) { return n(p) * 0.55 + n(p * 2.1 + 7.3) * 0.3 + n(p * 4.3 + 1.7) * 0.15; }
+void fragment() {
+	vec4 c = COLOR;
+	float v = fbm(UV / TEXTURE_PIXEL_SIZE * 0.045);
+	c.rgb = mix(c.rgb, dark.rgb, darkk);
+	if (prog > 0.002) {
+		float burn = 1.0 - smoothstep(prog, prog + 0.12, v);
+		c.rgb = mix(c.rgb, dark.rgb * 0.25, clamp(burn * 1.4, 0.0, 1.0));
+		float rim = smoothstep(prog - 0.015, prog + 0.01, v) * (1.0 - smoothstep(prog + 0.01, prog + 0.045, v));
+		c.rgb = mix(c.rgb, edge.rgb * 1.7, rim);
+		c.a *= smoothstep(prog - 0.03, prog + 0.01, v);
+	}
+	COLOR = c;
+}
+"""
 static var _shader: Shader
+static var _shader_ink: Shader
 
 var velocity := Vector2.ZERO
 var ang_v := 0.0
@@ -38,6 +67,7 @@ var _grounded := false
 var _half := Vector2(16, 16)
 var _side := 1.0
 var _ash_col := Color(0.6, 0.95, 1.0)
+var ink := FX.ink()
 
 
 func setup(src: Sprite2D, vel: Vector2, col: Color) -> void:
@@ -66,8 +96,11 @@ func setup(src: Sprite2D, vel: Vector2, col: Color) -> void:
 	if _shader == null:
 		_shader = Shader.new()
 		_shader.code = DISSOLVE
+	if ink and _shader_ink == null:
+		_shader_ink = Shader.new()
+		_shader_ink.code = DISSOLVE_INK
 	_mat = ShaderMaterial.new()
-	_mat.shader = _shader
+	_mat.shader = _shader_ink if ink else _shader
 	_mat.set_shader_parameter("edge", _ash_col)
 	_mat.set_shader_parameter("dark", Color(col).darkened(0.6))
 	spr.material = _mat

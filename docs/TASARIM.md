@@ -1319,3 +1319,67 @@ Animasyon adları, kare sayıları, fps, döngü bayrakları ve çapa adları v1
 ## Varsayılan görsel stil: v2 (mürekkep)
 
 Oyun artık varsayılan olarak v2 mürekkep + cel tarzında açılır (`Data.stil = "v2"`). Eski piksel görünüm: `-- --stil=v1`.
+
+### v2'de piksel kalıntılarının temizlenmesi (piksel denetimi)
+
+Şikâyet: "oyunda hâlâ piksel gibi görünen efektler var". v2'de piksel görünen her şey bir denetim aracıyla listelendi ve
+mürekkep karşılığına çevrildi; v1 (`--stil=v1`) çizimleri ve dokuları olduğu gibi duruyor.
+
+**Denetim aracı** `tools/tests/piksel_tara.gd` (`-- --piksel_tara[=C:/abs/rapor.txt]`, başka test bayraklarıyla birleşir:
+`--otomatik --derinlik=N`, `--boss=...`, `--yurt --yurt-tur`, `--sahne`, `--ekran=...`). Sahne ağacını 0,2 sn'de bir tarar:
+- `suzgec`: doku çizen düğümün etkin süzgeci en yakın komşu (üst düğümlere, sonra görüntü alanı varsayılanına çıkılarak bulunur)
+- `v1_doku`: doku yolu v1 piksel / Kenney varlığı (`_v2`, `/ink/`, `/fonts/`, `assets/fx/ink_p/` dışındaki her şey), 16 px'ten
+  küçük çalışma zamanı dokusu, `toon_light` (piksel bantlı ışık) malzemesi
+- `kare`: dokusuz `CPUParticles2D`; `yazi`: piksel yazı tipi; `cizim`: v1'de piksel bloklarıyla çizen sınıfların (`ExplosionFX`,
+  `LightningFX`, `ThunderFX`, `StreakFX`, `GroundShadow`, `StatusOverlay`, `Corpse`, `KutGate`, `Totem`, `FirePool`...) v2'de
+  `ink` kipi kapalı örneği
+- `iz`: `PikselIz.iz()` kaydı. v2'de v1 yoluna girilince yazılır: `Data.stil_id` geri dönüşü (kimlik zaten `_v2` ise sayılmaz),
+  `PixUI.icon` piksel simge, `PixUI.weapon` v1 silah simgesi. Denetim kapalıyken tek bool sınaması.
+
+İlk tarama (15 senaryo): 49 ayrı gerçek bulgu (22 `cizim`, 11 `suzgec`, 16 `v1_doku`); ayrıca 66 `iz` kaydı vardı ama hepsi
+yanlış alarmdı (zaten `_v2` olan paralaks adlarının yeniden yoklanması, kendi çizimi olmayan düşman çeşitlemesinin v2 taban
+sprite'ına düşmesi) ve yoklama düzeltildi.
+Son tarama (24 senaryo, boss ve arayüz ekranları dahil): **0**.
+
+**Süzgeç:** proje varsayılanı en yakın komşu (v1 için). v2'de `Data._ready` kök görüntü alanının
+`canvas_item_default_texture_filter` değerini doğrusal + mipmap yapar; süzgeci açıkça verilmemiş her düğüm (parçacık, etiket,
+CanvasLayer altı) yumuşak çizilir. `Data.canvas_tex` v2'de doğrusal + mipmap. v1 değişmez.
+
+**Mürekkep parçacık dokuları** `assets/fx/ink_p/` (`tools/artgen/ink_parcacik.py`, 21 doku, beyaz tonlu RGB = ıslak kenarda
+koyulaşan mürekkep tonu, A = biçim; doğrusal + mipmap): `nokta` (soft_dot), `kivilcim` (k_spark, y ekseni hız yönünde),
+`yildiz`/`yildiz2` (k_star/k_star2), `duman_0/1` (k_smoke), `alev` (k_flame), `halka` (k_ring), `kul` (kül pulu), `damla`,
+`leke_0..2`, `cizgi` (incelen fırça darbesi), `serit` (şerit fırça), `kan_0..2` / `catlak_0..1` (yer çıkartmaları), `yaprak`.
+`InkDraw.particle(v1_ad)` doku boyunu `set_size_override` ile v1 dokusunun görünen boyuna eşitler: parçacıkların
+`scale_amount` değerleri aynı kalır. `FX.tex()` / `FX.dot_tex()` v2'de bunları döndürür.
+
+**`InkDraw`** (`scripts/core/InkDraw.gd`): draw_rect / tarama satırı disklerinin dünya karşılıkları: `blot` (dolu leke), `soft`
+(hale), `cloud` (yıkama), `ellipse`, `ring` (fırça halka), `stroke` (a -> b incelen darbe), `line` (çoklu nokta şerit fırça),
+`flake`, `drop`, `star`, `flame`. Hepsi döndürülmüş dokulu dörtgen (`draw_primitive`), kenar yumuşatmalı.
+
+**Çevrilenler (v2):**
+- `ExplosionFX`: aynı evreler; ateş topu dış bantları yıkama bulutu, sıcak bant leke, çekirdek hale; duman koyu yıkama (erime
+  yerine dağılıp solar); yer dalgası fırça halkası; parçalar kül pulu, korlar parlayan damla; flaş hale + fırça ışınları.
+- `LightningFX`: kanal ve dallar piksel kümesine dökülmez, üç katman şerit fırça (yıkama, renkli fırça, beyaz kılcal çekirdek).
+- `ThunderFX`: ön kıvılcım ve ışınlar fırça, çarpma flaşı hale, kavrulma izi yanık leke + kül pulları.
+- `StreakFX`: kuru fırça darbesi. `GroundShadow`: iki tonlu yumuşak mürekkep elipsi (kesirli boy ve konum).
+- `StatusOverlay`: buz kutusu yerine ayaz yıkaması + kristal kırıkları + damla sarkıtlar; simgeler fırça alev, mürekkep
+  yıldız, zehir / kan damlası. `Enemy.EliteStar`: hale + fırça yıldız.
+- `Corpse`: 2 doku pikselli bloklu sert çözülme yerine fbm ile kâğıt yanığı çözülmesi (koyu halka + ince kor, yumuşak alfa).
+- `FX.decal`: piksel çıkartma yerine `kan_*` / `catlak_*` mürekkep çıkartması. `FX.blood` parçacıkları hız yönünde damla.
+  `FX.shock_line` taşları kül pulu. `FX.anim`: mürekkep karesi olmayan piksel animasyonu oynatılmaz (yerine büyü sıçrantısı).
+- `FirePool` (fırça alev dilleri + kor yıkaması), `GroundMarker` (ortası kalın kızıl fırça darbesi), `RootSpikes` (taban
+  lekesi), `Projectile` (atlas sprite'ı olmayan mermi gövdeleri ve fırlatılan silahların izi mürekkep), `ImpactFrame`
+  (siluet `ink_char` ile; `toon_light` piksel-AA'sı yok), `Level` yaprak yedeği (3x2 piksel yerine fırça yaprak).
+- Arayüz: `PixUI.rect` v2'de `InkUI.rect`e düşer (ince şerit fırça darbesi, küçük kare mürekkep noktası, geniş alan yıkama);
+  HUD'daki bekleme örtüsü, kart başlık bandı, tılsım madde işaretleri, Demirci / yuva arka planları buna geçti; lütuf noktası
+  kenar yumuşatmalı.
+- Bölüm başlık kartı (`InkHUD.banner`): solarken `draw_str`'in kaydırılmış gölge kopyası yarı saydam ana yazının içinden
+  görünüp alt satırı iki kat (üst üste binmiş) gösteriyordu. Yeni `_fade_str`: gölge yalnızca tam görünürken, dış çizgi a² ile
+  söner; alt satır başlığın fırça kuyruklarından ayrıldı (y + 42) ve kendi yıkamasını aldı.
+
+**Önce / sonra çekimi:** `tools/tests/fx_vitrin.gd` (`-- --pencere=1920x1080 --fx_vitrin=C:/abs/klasor`): her efekt türünü
+kameranın ortasına sabit düzende yerleştirir (kıvılcım, kan, ruh, alev, duman, toz, halka, hız çizgisi, şimşek, yazılar, patlama,
+yer çarpması, çıkartmalar, alev gölü, uyarı, gök gürlemesi, kökler, totem, ceset) ve `vitrin_<panel>_<n>.png` kaydeder.
+
+**Bilinen kalanlar:** yaydaki kiriş/ok (`Player.BowString`, 1 px `draw_rect`) yay çalışmasının kapsamında, burada
+dokunulmadı. Ayarlar'daki "keskin piksel" tam sayı ölçekleme seçeneği HD/kamera çalışmasının kapsamında.

@@ -8,6 +8,7 @@ var life := 4.0
 var dps := 3.0
 var _tick := 0.0
 var _t := 0.0
+var ink := FX.ink()   # v2: fırça alev dilleri (InkDraw.flame), tabanda kor yıkaması
 
 
 func _ready() -> void:
@@ -16,6 +17,8 @@ func _ready() -> void:
 	m.blend_mode = CanvasItemMaterial.BLEND_MODE_ADD
 	m.light_mode = CanvasItemMaterial.LIGHT_MODE_UNSHADED
 	material = m
+	if ink:
+		InkDraw.prep(self)
 
 
 func _process(delta: float) -> void:
@@ -40,14 +43,15 @@ func _process(delta: float) -> void:
 
 func _draw() -> void:
 	var a := clampf(life, 0.0, 1.0)
-	if Data.stil == "v2":
-		# mürekkep alev dilleri: kenar yumuşatmalı sivri alevler (toplamalı), içte sarı çekirdek
+	if ink:
+		# mürekkep alev dilleri: fırça alev dokusu (toplamalı), içte sarı çekirdek; tabanda kor yıkaması
+		InkDraw.ellipse(self, Vector2(0, -1), radius * 1.05, 4.0, Color(1.0, 0.35, 0.08, 0.35 * a), "duman_0")
 		for k in 7:
 			var x := -radius + k * radius / 3.0
-			var h := 7.0 + absf(sin(_t * 9.0 + k * 1.7)) * 9.0
-			var sw := sin(_t * 7.0 + k) * 2.0
-			draw_colored_polygon(PackedVector2Array([Vector2(x - 4, 0), Vector2(x - 2.5, -h * 0.5), Vector2(x + sw, -h), Vector2(x + 2.5, -h * 0.45), Vector2(x + 4, 0)]), Color(1.3, 0.5, 0.14, 0.55 * a))
-			draw_colored_polygon(PackedVector2Array([Vector2(x - 2, 0), Vector2(x - 1, -h * 0.35), Vector2(x + sw * 0.6, -h * 0.62), Vector2(x + 1, -h * 0.3), Vector2(x + 2, 0)]), Color(1.6, 1.1, 0.45, 0.75 * a))
+			var h := 8.0 + absf(sin(_t * 9.0 + k * 1.7)) * 10.0
+			var sw := sin(_t * 7.0 + k) * 0.6
+			InkDraw.flame(self, Vector2(x, 1), 8.0, h, Color(1.3, 0.5, 0.14, 0.6 * a), sw)
+			InkDraw.flame(self, Vector2(x, 1), 4.0, h * 0.6, Color(1.6, 1.1, 0.45, 0.8 * a), sw * 0.6)
 		return
 	for k in 7:
 		var x := -radius + k * radius / 3.0

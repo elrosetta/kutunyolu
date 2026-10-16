@@ -58,7 +58,10 @@ static func _ink_slash_sprite(n: String, pos: Vector2, rot: float, scale_v: Vect
 
 
 static func tex(n: String) -> Texture2D:
-	## Kenney Particle Pack (CC0) dokuları: assets/fx/k_<ad>.png (64x64)
+	## Kenney Particle Pack (CC0) dokuları: assets/fx/k_<ad>.png (64x64). v2: aynı boyda raporlanan mürekkep
+	## karşılıkları (InkDraw.particle: fırça fiskesi kıvılcım, yıkama duman, fırça alev ...)
+	if ink():
+		return InkDraw.particle(n)
 	if not _tex_cache.has(n):
 		_tex_cache[n] = load("res://assets/fx/%s.png" % n)
 	return _tex_cache[n]
@@ -74,6 +77,10 @@ static func anim(n: String, pos: Vector2, rot := 0.0, scale_v := 1.0, col := Col
 		# v2: piksel darbe animasyonları yerine mürekkep. Oyuncunun taze savuruşunda kesik/sıçrantı zaten var.
 		if not InkFX._near_player_swing(pos) and n != "crescent_slash":
 			InkFX.hit(INK_ANIM[n], pos, Vector2.from_angle(rot) * (-1.0 if flip_h else 1.0), InkFX.pal_from_color(col), 1, clampf(scale_v * 1.4, 0.6, 2.0))
+		return null
+	if ink() and not AnimFX.meta_v2().has(n):
+		# v2: mürekkep karesi çizilmemiş piksel animasyonu oynatılmaz; yerine büyü türü mürekkep sıçrantısı
+		InkFX.hit("magic", pos, Vector2.from_angle(rot), InkFX.pal_from_color(col), 1, clampf(scale_v * 1.2, 0.6, 1.8))
 		return null
 	var a := AnimFX.new()
 	a.setup(n, additive)
@@ -231,6 +238,8 @@ static func _ink_number(pos: Vector2, value: float, crit: bool, col: Color) -> v
 
 
 static func dot_tex() -> Texture2D:
+	if ink():
+		return InkDraw.particle("soft_dot")  # v2: 16x16 piksel nokta yerine yumuşak fırça dokunuşu
 	if _dot_tex == null:
 		_dot_tex = load("res://assets/fx/soft_dot.png")
 	return _dot_tex
@@ -251,7 +260,7 @@ static func _particles(pos: Vector2, col: Color, amount: int, life: float, addit
 	p.color_ramp = g
 	p.z_index = z
 	if ink():
-		p.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR  # v2 yakın kamera: piksel parçacık dokusu bloklaşmasın
+		p.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS  # v2: mürekkep dokusu, küçültmede mipmap
 	var m := CanvasItemMaterial.new()
 	m.light_mode = CanvasItemMaterial.LIGHT_MODE_UNSHADED
 	if additive:
@@ -318,6 +327,10 @@ static func blood(pos: Vector2, dir: Vector2, col: Color, amount := 10) -> void:
 	p.gravity = Vector2(0, 700)
 	p.scale_amount_min = 0.14
 	p.scale_amount_max = 0.34
+	if ink():
+		# v2: hız yönünde uzayan mürekkep damlaları
+		p.texture = InkDraw.particle("damla")
+		p.particle_flag_align_y = true
 
 
 static func dust(pos: Vector2, dir: Vector2, amount := 5, size := 0.32, col := Color(0.62, 0.58, 0.6, 0.55)) -> void:
@@ -504,15 +517,32 @@ static func decal(n: String, pos: Vector2, rot := 0.0, life := 9.0, scale_v := 1
 	## Yere yapışan kalıcı iz (kan sıçrantısı, çatlak): süre sonunda solar.
 	if level == null or not SlashFX.has(n) or level.get("decal_root") == null:
 		return
-	var s := SlashFX.new()
-	s.setup(n, false)
-	s.fps = 0.0
+	var s: Sprite2D
+	if ink():
+		# v2: piksel çıkartma yerine yere yatık mürekkep sıçrantısı / dallanan fırça çatlağı (assets/fx/ink_p)
+		var crack := n.begins_with("decal_crack")
+		var i := int(n.right(1))
+		s = Sprite2D.new()
+		s.texture = InkDraw.tex(("catlak_%d" % (i % 2)) if crack else ("kan_%d" % (i % 3)))
+		InkDraw.prep(s)
+		var m := CanvasItemMaterial.new()
+		m.light_mode = CanvasItemMaterial.LIGHT_MODE_UNSHADED
+		s.material = m
+		var ks := Vector2(64.0 / 256.0, 20.0 / 64.0) * 1.1 if crack else Vector2(40.0 / 128.0, 16.0 / 128.0) * 1.35
+		s.scale = Vector2(ks.x * scale_v * (1.0 if randf() < 0.5 else -1.0), ks.y * scale_v)
+		s.modulate = Color(0.07, 0.05, 0.07, 0.8) if crack and col == Color(1, 1, 1) else col
+		s.rotation = rot
+	else:
+		var sf := SlashFX.new()
+		sf.setup(n, false)
+		sf.fps = 0.0
+		sf.set_process(false)
+		sf.rotation = rot
+		sf.scale = Vector2(scale_v * (1.0 if randf() < 0.5 else -1.0), scale_v)
+		sf.modulate = col
+		s = sf
 	s.position = pos
-	s.rotation = rot
-	s.scale = Vector2(scale_v * (1.0 if randf() < 0.5 else -1.0), scale_v)
-	s.modulate = col
 	s.z_index = 1
-	s.set_process(false)
 	level.decal_root.add_child(s)
 	var tw := s.create_tween()
 	tw.tween_interval(life * 0.75)
@@ -606,7 +636,7 @@ static func shock_line(pos: Vector2, half_w: float, col := Color(0.6, 0.55, 0.5,
 		p.gravity = Vector2(0, 160)
 		p.scale_amount_min = 0.2
 		p.scale_amount_max = 0.4
-		var q := _particles(pos, Color(0.5, 0.48, 0.52), 6, 0.5, false, 46)
+		var q := _particles(pos, Color(0.5, 0.48, 0.52), 6, 0.5, false, 46, "k_dirt" if ink() else "")  # v2: kül pulu
 		q.direction = Vector2(side, -1.0)
 		q.spread = 30.0
 		q.initial_velocity_min = 90.0

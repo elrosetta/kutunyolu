@@ -13,6 +13,9 @@ extends Node2D
 ## Tüm koordinatlar ve yarıçaplar 1 px dünya ızgarasına oturur; gradyan ve kenar yumuşatma yok.
 ## big (R >= 50): 80 ms sonra ikinci iç patlama + ekran uzayı kırılma halkası (ShockwaveFX).
 ## juice: kamera (shake_dir / kick / hitstop / slowmo), kol titreşimi, ses, nokta ışığı.
+## Stil v2 (ink): aynı evreler ve zamanlama, piksel diskleri yerine mürekkep: ateş topu tutamları dolu fırça
+## lekeleri (bantlar aynı lekenin iç içe küçülen kopyaları), duman yıkama bulutu (erime yerine dağılıp solar),
+## yer dalgası fırça halkası, parçalar kül pulu, korlar parlayan damla, flaş yumuşak hale + fırça ışınları.
 
 var radius := 40.0
 var col_hot := Color(1.0, 0.85, 0.3)   # sarı bandın rengi (zehir / buz patlamaları için değiştirilebilir)
@@ -58,6 +61,10 @@ var _smoke: Array = []
 var _debris: Array = []
 var _rays: Array = []
 var _glow: Node2D
+var ink := FX.ink()
+var _seed := 0   # v2: mürekkep lekesinin dönüş tohumu (aynı tutamın bantları aynı biçimde)
+var _band := 1   # v2: ateş bandı (0 kenar, 1 dış, 2 sıcak, 3 çekirdek): dış bantlar yıkama, çekirdek hale
+var _frag := false
 
 
 class Glow extends Node2D:
@@ -69,7 +76,8 @@ class Glow extends Node2D:
 
 
 func _ready() -> void:
-	position = position.round()
+	if not ink:
+		position = position.round()
 	z_index = 60
 	var m := CanvasItemMaterial.new()
 	m.light_mode = CanvasItemMaterial.LIGHT_MODE_UNSHADED
@@ -82,6 +90,8 @@ func _ready() -> void:
 	gm.blend_mode = CanvasItemMaterial.BLEND_MODE_ADD
 	_glow.material = gm
 	add_child(_glow)
+	if ink:
+		InkDraw.prep(self)
 	_build()
 	if juice:
 		_juice()
@@ -198,6 +208,19 @@ static func _ph(t0: float, t1: float, t: float) -> float:
 	return clampf((t - t0) / (t1 - t0), 0.0, 1.0)
 
 
+func _blob(c: Vector2, pr: float, col: Color) -> void:
+	## v1: piksel diski (tam sayı yarıçap); v2: mürekkep lekesi (kesirli yarıçap, titremeden büyür)
+	if ink:
+		if _band == 3:
+			InkDraw.soft(self, c, maxf(pr, 0.8) * 1.25, col, _seed)
+		elif _band <= 1 or _frag:
+			InkDraw.cloud(self, c, maxf(pr, 0.8) * 1.12, col, _seed)
+		else:
+			InkDraw.blot(self, c, maxf(pr, 0.8), col, _seed)
+	else:
+		_disc(c, int(round(pr)), col)
+
+
 func _disc(c: Vector2, r: int, col: Color) -> void:
 	## Piksel diski: tarama satırları, tam sayı ızgara, kenar yumuşatma yok
 	var cx := floorf(c.x)
@@ -214,6 +237,9 @@ func _disc(c: Vector2, r: int, col: Color) -> void:
 func _ring_px(c: Vector2, rx: float, ry: float, col: Color, drop := 0.0, seed_v := 7) -> void:
 	## Piksel elips halkası: parametrik adım, tekrarlanan piksel atlanır; drop 0..1 oranında piksel silinir (erime)
 	if rx < 1.0:
+		return
+	if ink:
+		InkDraw.ring(self, c, rx, ry, Color(col, col.a * (1.0 - drop)), float(seed_v))
 		return
 	var n := maxi(12, int(TAU * rx))
 	var last := Vector2(INF, INF)
@@ -243,6 +269,9 @@ func _draw_glow(g: Node2D) -> void:
 	var t := _t
 	var r := radius
 	# flaş: 2 kare sert beyaz disk + ince ışınlar
+	if ink:
+		_ink_glow(g, t, r)
+		return
 	if t < T_FLASH:
 		var fr := int(round(r * 0.5))
 		_glow_disc(g, Vector2.ZERO, fr, Color(1.0, 1.0, 1.0))
@@ -304,6 +333,9 @@ func _draw_fire(puffs: Array, t: float, scale_v: float, rim_on := true) -> void:
 			if pr < 0.5:
 				continue
 			var frag := age > 0.7
+			_seed = pi * 3 + 1
+			_band = band
+			_frag = frag
 			match band:
 				0:
 					# iç patlamanın kenar çizgisi yok: ana topun üstünde hedef halkası gibi görünmesin
@@ -327,13 +359,13 @@ func _draw_fire(puffs: Array, t: float, scale_v: float, rim_on := true) -> void:
 
 func _fire_blob(c: Vector2, pr: float, col: Color, frag: bool, p: Dictionary) -> void:
 	if not frag:
-		_disc(c, int(round(pr)), col)
+		_blob(c, pr, col)
 		return
 	# yaşlı tutam: üç küçük parçaya bölünür (erime)
 	var ph: float = p["ph"]
 	for j in 3:
 		var a := ph * TAU + TAU * float(j) / 3.0
-		_disc(c + Vector2.from_angle(a) * pr * 0.5, int(round(pr * 0.5)), col)
+		_blob(c + Vector2.from_angle(a) * pr * 0.5, pr * 0.5, col)
 
 
 func _draw_smoke(t: float) -> void:
@@ -347,6 +379,9 @@ func _draw_smoke(t: float) -> void:
 		lit = C_SMOKE_WARM
 	elif k < 0.4:
 		lit = C_SMOKE_WARM2
+	if ink:
+		_ink_smoke(t, r, k, ds, lit)
+		return
 	for p in _smoke:
 		var dir := Vector2.from_angle(float(p["ang"]))
 		var c: Vector2 = dir * (float(p["d"]) * r * (0.55 + 0.45 * k)) + Vector2(float(p["drift"]) * r * k, -float(p["rise"]) * r * 0.85 * _eo(k))
@@ -392,6 +427,10 @@ func _draw_ground(t: float) -> void:
 		var x1 := floorf(rr)
 		var y := floorf(c.y - 1.0)
 		var dcol := C_DUST if k < 0.6 else Color(C_DUST, 0.6)
+		if ink:
+			InkDraw.stroke(self, Vector2(x0, y + 1.0), Vector2(x1, y + 1.0), 3.0, dcol)
+			InkDraw.stroke(self, Vector2(-x0, y + 1.0), Vector2(-x1, y + 1.0), 3.0, dcol)
+			return
 		draw_rect(Rect2(x0, y, x1 - x0, 2), dcol)
 		draw_rect(Rect2(-x1, y, x1 - x0, 2), dcol)
 
@@ -414,4 +453,44 @@ func _draw_debris(t: float) -> void:
 				col = C_EMBER_DIM
 		elif age > 0.8:
 			continue
+		if ink:
+			if d["ember"]:
+				InkDraw.soft(self, p, 1.6 + sz, Color(col, 0.45))
+				InkDraw.drop(self, p, 1.0 + sz * 0.7, (d["v"] as Vector2).angle(), col)
+			else:
+				InkDraw.flake(self, p, 1.6 + sz * 1.3, float(d["ph"]) * 2.1 + age * 6.0, col)
+			continue
 		draw_rect(Rect2(p.floor(), Vector2(sz, sz)), col)
+
+
+# ------------------------------------------------------------------ v2 mürekkep
+func _ink_glow(g: Node2D, t: float, r: float) -> void:
+	if t < T_FLASH:
+		var fr := r * 0.5
+		InkDraw.soft(g, Vector2.ZERO, fr * 1.5, Color(1.0, 1.0, 1.0, 0.9))
+		InkDraw.blot(g, Vector2.ZERO, fr * 0.8, Color(1.0, 1.0, 1.0), 7)
+		for a in _rays:
+			var d := Vector2.from_angle(a)
+			InkDraw.stroke(g, d * fr * 0.7, d * (r * 1.35 + 4.0), 3.2, Color(1.0, 1.0, 1.0))
+	var hk := _ph(T_FIRE0, 0.2, t)
+	if t >= T_FIRE0 and hk < 1.0:
+		InkDraw.soft(g, Vector2.ZERO, r * (0.9 - 0.5 * hk) * 1.2, Color(0.6, 0.25, 0.08, 0.45 * (1.0 - hk)))
+	if big and t >= T_BURST2 and t < T_BURST2 + T_FLASH:
+		InkDraw.soft(g, Vector2(0, -r * 0.15), r * 0.45, Color(1.0, 1.0, 1.0))
+
+
+func _ink_smoke(t: float, r: float, k: float, ds: float, lit: Color) -> void:
+	## Duman: koyu yıkama bulutu + ateşe bakan açık yüz; erime evresinde büyüyüp solar (piksel kırılması yok)
+	var i := 0
+	for p in _smoke:
+		i += 1
+		var dir := Vector2.from_angle(float(p["ang"]))
+		var c: Vector2 = dir * (float(p["d"]) * r * (0.55 + 0.45 * k)) + Vector2(float(p["drift"]) * r * k, -float(p["rise"]) * r * 0.85 * _eo(k))
+		var pr: float = float(p["s"]) * r * (0.35 + 0.65 * _eo(k)) * (1.0 + 0.35 * ds)
+		if pr < 1.0:
+			continue
+		var a := 1.0 - ds
+		InkDraw.cloud(self, c, pr, Color(C_SMOKE_D, 0.92 * a), i)
+		var lo: Vector2 = (-dir * pr * 0.25) if k < 0.4 else Vector2(-pr * 0.2, -pr * 0.28)
+		InkDraw.cloud(self, c + lo, pr * 0.62, Color(C_SMOKE_M, 0.85 * a), i + 1)
+		InkDraw.cloud(self, c + lo * 1.5, pr * 0.32, Color(lit, 0.8 * a), i + 2)

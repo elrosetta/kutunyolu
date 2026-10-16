@@ -84,6 +84,9 @@ static func wrap(s: String, maxw: float, sc := 1) -> Array:
 
 
 static func rect(ci: CanvasItem, r: Rect2, col: Color) -> void:
+	if InkUI.on():
+		InkUI.rect(ci, r, col)
+		return
 	ci.draw_rect(Rect2(r.position.round(), r.size.round()), col)
 
 
@@ -157,6 +160,7 @@ static func icon(ci: CanvasItem, name: String, pos: Vector2, col: Color, sc := 1
 	if InkUI.on() and InkUI.has_icon(name):
 		InkUI.icon(ci, name, pos, col, sc, shadow, icon_size(name) * sc)
 		return
+	PikselIz.iz("PixUI.icon piksel simge: " + name)
 	var rows: Array = ICONS.get(name, [])
 	var p := pos.round()
 	for pass_i in (2 if shadow else 1):
@@ -237,6 +241,7 @@ static func weapon(ci: CanvasItem, it: Dictionary, center: Vector2, max_size: Ve
 		return
 	if it.is_empty() or not Data.has_weapon_sprite(it["id"]):
 		return
+	PikselIz.iz("PixUI.weapon v1 piksel silah simgesi: " + String(it["id"]))
 	var reg := Data.weapon_icon_rect(it["id"], it["material"])
 	var s := sc / Data.weapon_texel
 	if reg.size.x * s > max_size.x or reg.size.y * s > max_size.y:

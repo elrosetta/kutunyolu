@@ -42,6 +42,13 @@ func _ready() -> void:
 		var dt: Node = load("res://tools/tests/dovus_testi.gd").new()
 		dt.set("main", self)
 		add_child(dt)
+	for arg in OS.get_cmdline_user_args():
+		if String(arg).begins_with("--piksel_tara"):
+			# stil v2 piksel denetimi (tools/tests/piksel_tara.gd): başka test bayraklarıyla birlikte çalışır
+			var pt: Node = load("res://tools/tests/piksel_tara.gd").new()
+			pt.set("main", self)
+			add_child(pt)
+			break
 	var sus := false
 	for arg in OS.get_cmdline_user_args():
 		sus = sus or String(arg).begins_with("--sus=")
@@ -56,6 +63,13 @@ func _ready() -> void:
 		var ft: Node = load("res://tools/tests/firca_testi.gd").new()
 		ft.set("main", self)
 		add_child(ft)
+	for arg in OS.get_cmdline_user_args():
+		if String(arg).begins_with("--fx_vitrin="):
+			# efekt vitrini (tools/tests/fx_vitrin.gd): her efekt türü sabit düzende, önce/sonra çekimleri
+			var fv: Node = load("res://tools/tests/fx_vitrin.gd").new()
+			fv.set("main", self)
+			add_child(fv)
+			firca = true
 	# yaratık testleri: --yaratik_cikti=... verilirse poz galerisi (yaratik_galeri.gd), yoksa canlı yapay zekâlı
 	# çekim sahnesi ve Bozkurt biçimi (yaratik_testi.gd)
 	var galeri := false

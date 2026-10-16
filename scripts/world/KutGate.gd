@@ -5,6 +5,7 @@ extends Node2D
 var _t := 0.0
 ## stil v2: mürekkep kemer (sus_v2 "kut_kapi"), arkasında karanlık eşik, içinde ters dönen iki kut girdabı
 var _ink := false
+var ink := false   # piksel denetimi: v2 mürekkep kemer çiziliyor
 var _swirls: Array = []
 var _front: Sprite2D
 ## v2: false ise yalnızca eşik ve girdap (yurtta taç kapı kemeri zaten çerçeve); portal_scale girdap boyu
@@ -16,6 +17,7 @@ func _ready() -> void:
 	z_index = -1
 	if SusV2.on() and not SusV2.decor("kut_kapi").is_empty():
 		_ink = true
+		ink = true
 		var back := SusV2.decor_sprite("kut_kapi_arka", false)
 		if back:
 			back.scale *= portal_scale

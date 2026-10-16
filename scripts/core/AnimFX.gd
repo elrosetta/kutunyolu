@@ -10,6 +10,7 @@ static var _tex: Dictionary = {}
 ## stil v2: mürekkep kare animasyonu (assets/fx/anim/<ad>_v2.png, anim_v2.json; tools/artgen/sus_fx.py) varsa o
 ## kullanılır; hücre 4 kat yoğun, FX.anim ölçeği tex_k ile çarpar (dünya boyu v1 ile aynı).
 var tex_k := 1.0
+var ink := false   # v2 mürekkep karesi oynuyor (piksel denetimi için; v2'de v1 karesi FX.anim'de engellenir)
 
 var anim_name := ""
 var fps := 20.0
@@ -47,6 +48,7 @@ func setup(n: String, additive := true) -> void:
 		m = meta_v2()[n]
 		key = n + "_v2"
 		tex_k = 1.0 / float(m.get("texel", 4.0))
+		ink = true
 	if not _tex.has(key):
 		_tex[key] = load("res://assets/fx/anim/%s.png" % key)
 	texture = _tex[key]

@@ -549,7 +549,7 @@ func _draw_hud(vp: Vector2) -> void:
 			var lc := Color(l[2][0], l[2][1], l[2][2])
 			var w2 := PixUI.width(String(l[0])) + 10.0
 			PixUI.panel(self, Rect2(lx, ly, w2, 12), lc.darkened(0.2), PixUI.INK)
-			draw_circle(Vector2(lx + 5, ly + 6), 2.0, lc)
+			draw_circle(Vector2(lx + 5, ly + 6), 2.0, lc, true, -1.0, InkUI.on())
 			PixUI.text(self, Vector2(lx + 9, ly + 1), String(l[0]), lc.lightened(0.2), 1, HORIZONTAL_ALIGNMENT_LEFT, -1.0, 0)
 			lx += w2 + 3.0
 	# ---- sağ üst: biyom, derinlik, süre
@@ -643,7 +643,7 @@ func _draw_slot_box(r: Rect2, key: String, pl: Node) -> void:
 	if pl.cd.has(key) and pl.cd[key] > 0.0:
 		var k := clampf(pl.cd[key] / maxf(0.01, pl.cd_max[key]), 0.0, 1.0)
 		var hh := roundf((r.size.y - 2) * k)
-		draw_rect(Rect2(r.position.x + 1, r.position.y + r.size.y - 1 - hh, r.size.x - 2, hh), Color(0.02, 0.01, 0.05, 0.7))
+		PixUI.rect(self, Rect2(r.position.x + 1, r.position.y + r.size.y - 1 - hh, r.size.x - 2, hh), Color(0.02, 0.01, 0.05, 0.7))
 		if key in ["g1", "g2"] and pl.cd[key] >= 1.0:
 			PixUI.text(self, r.position + Vector2(0, 9), str(int(ceil(pl.cd[key]))), PixUI.TEXT, 1, HORIZONTAL_ALIGNMENT_CENTER, r.size.x, 2)
 	PixUI.key_cap(self, r.position + Vector2(-2, -5), SLOT_KEYS[key], PixUI.GOLD, not it.is_empty())
@@ -690,7 +690,7 @@ func _draw_card(it: Dictionary, pos: Vector2, title: String, cmp: Dictionary = {
 	var y0 := roundf(pos.y)
 	PixUI.panel(self, Rect2(x, y0, w, h), col.darkened(0.15))
 	# başlık bandı: nadirlik renginde
-	draw_rect(Rect2(x + 2, y0 + 2, w - 4, 2), col)
+	PixUI.rect(self, Rect2(x + 2, y0 + 2, w - 4, 2), col)
 	PixUI.text(self, Vector2(x + 4, y0 - (19.0 if InkUI.on() else 9.0)), title, PixUI.DIM, 1, HORIZONTAL_ALIGNMENT_LEFT, -1.0, 2)
 	var y := y0 + 5.0
 	PixUI.text(self, Vector2(x + 6, y), it["name"], col, 1, HORIZONTAL_ALIGNMENT_LEFT, -1.0, 1)
@@ -778,7 +778,7 @@ func _draw_slot(vp: Vector2) -> void:
 			PixUI.text(self, r.position + Vector2(0, 40), "boş", PixUI.DIM, 1, HORIZONTAL_ALIGNMENT_CENTER, r.size.x)
 		else:
 			var rc := Color.from_string(Data.items["rarities"][int(cur["rarity"])]["color"], PixUI.TEXT)
-			draw_rect(Rect2(r.position.x + 6, r.position.y + 20, 56, 34), Color(0, 0, 0, 0.25))
+			PixUI.rect(self, Rect2(r.position.x + 6, r.position.y + 20, 56, 34), Color(0, 0, 0, 0.25))
 			PixUI.weapon(self, cur, r.position + Vector2(34, 37), Vector2(54, 32))
 			PixUI.ongun_stripe(self, Rect2(r.position.x + 6, r.position.y + 55, 56, 2), Game.item_onguns(cur), Game.item_best_ongun(cur))
 			var nl := PixUI.wrap(String(cur["name"]), 124)
@@ -859,7 +859,7 @@ func _draw_tilsim(vp: Vector2) -> void:
 			if gain <= 0.001:
 				continue
 			any = true
-			draw_rect(Rect2(x + 9, yy + 4, 3, 3), col)
+			PixUI.rect(self, Rect2(x + 9, yy + 4, 3, 3), col)
 			var nm := String(it["name_base"])
 			PixUI.text(self, Vector2(x + 15, yy), nm, PixUI.TEXT, 1, HORIZONTAL_ALIGNMENT_LEFT, -1.0, 0)
 			PixUI.text(self, Vector2(x + 8, yy), "+%%%d" % int(round(gain / now * 100.0)), PixUI.GOOD, 1, HORIZONTAL_ALIGNMENT_RIGHT, cw - 16, 0)
@@ -1161,7 +1161,7 @@ func _draw_demirci(vp: Vector2) -> void:
 			var col := PixUI.KUT if can else Color(0.6, 0.55, 0.65)
 			PixUI.fancy_panel(self, Rect2(x, y, w, 150), col if i == sel else col.darkened(0.5), PixUI.INK2 if i == sel else PixUI.INK)
 			if Data.has_weapon_sprite(id):
-				draw_rect(Rect2(x + 8, y + 10, w - 16, 40), Color(0, 0, 0, 0.25))
+				PixUI.rect(self, Rect2(x + 8, y + 10, w - 16, 40), Color(0, 0, 0, 0.25))
 				PixUI.weapon(self, {"id": id, "material": "demir"}, Vector2(x + w / 2.0, y + 30), Vector2(w - 20, 36))
 			PixUI.text(self, Vector2(x, y + 56), base.get("name", id), PixUI.TEXT, 1, HORIZONTAL_ALIGNMENT_CENTER, w)
 			PixUI.text(self, Vector2(x, y + 67), CAT_TXT.get(base.get("cat", ""), ""), PixUI.DIM, 1, HORIZONTAL_ALIGNMENT_CENTER, w, 0)

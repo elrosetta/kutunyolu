@@ -165,7 +165,8 @@ func _ready() -> void:
 	add_child(anim)
 	# stil v2: düşmanın kendi kimliğiyle çizilmiş çeşitlemesi varsa (ör. kan_yarasasi_v2) onu kullan; renkleri
 	# çizimde olduğundan biyom tonu uygulanmaz. v1'de stil_id kimliği aynen döndürür: değişiklik yok.
-	var own_v2 := kind != sprite_kind and Data.stil_id(kind, "res://assets/sprites/%s.json") != kind
+	# (yoklama: kendi çeşitlemesi yoksa taban türün v2 sprite'ı kullanılır; piksel geri dönüşü sayılmaz)
+	var own_v2 := kind != sprite_kind and Data.stil != "v1" and FileAccess.file_exists("res://assets/sprites/%s_%s.json" % [kind, Data.stil])
 	anim.setup(kind if own_v2 else sprite_kind)
 	if def.has("tint") and not own_v2:
 		var tt: Array = def["tint"]
@@ -1223,6 +1224,13 @@ class EliteStar extends Node2D:
 
 	func _draw() -> void:
 		var r1 := 7.0 + sin(_t * 5.0) * 0.8
+		if FX.ink():
+			# v2: mor mürekkep halesi + altın fırça yıldızı (kenar yumuşatmasız çokgen yerine)
+			InkDraw.soft(self, Vector2.ZERO, r1 * 1.5, Color(0.85, 0.45, 1.0, 0.4 + 0.15 * sin(_t * 6.0)))
+			InkDraw.star(self, Vector2.ZERO, r1 * 1.25, _t * 0.8, Color(0.45, 0.15, 0.55))
+			InkDraw.star(self, Vector2.ZERO, r1 * 1.05, _t * 0.8, Color(1.0, 0.86, 0.35))
+			InkDraw.star(self, Vector2.ZERO, r1 * 0.5, _t * 0.8 + 0.4, Color(1.0, 0.98, 0.8))
+			return
 		var r2 := r1 * 0.42
 		var pts := PackedVector2Array()
 		for i in 10:

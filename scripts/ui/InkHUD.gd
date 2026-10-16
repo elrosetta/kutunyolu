@@ -195,14 +195,28 @@ static func banner(h: Control, vp: Vector2, title: String, sub: String, col: Col
 	var t := InkUI.tr_title(title)
 	var tw := str_w(fb, t, 34)
 	var x0 := (vp.x - tw) / 2.0
-	InkUI.draw_str(h, Vector2(x0, y + 26), t, fb, 34, Color(col, a), 2, 3)
+	_fade_str(h, Vector2(x0, y + 26), t, fb, 34, col, a, 7)
 	var lw := 70.0 * a
 	var st := InkUI.tex("stroke")
 	h.draw_texture_rect(st, Rect2(x0 - 16 - lw, y + 15, lw, 2.5), false, Color(col, a * 0.8))
 	h.draw_texture_rect(st, Rect2(x0 + tw + 16, y + 15, lw, 2.5), false, Color(col, a * 0.8))
 	InkUI.quad(h, InkUI.tex("horn"), Vector2(x0 - 10, y + 16), Vector2(12, 10), -PI * 0.5, Color(col, a))
 	InkUI.quad(h, InkUI.tex("horn"), Vector2(x0 + tw + 10, y + 16), Vector2(12, 10), PI * 0.5, Color(col, a))
-	PixUI.text(h, Vector2(0, y + 34), sub, Color(BONE, a), 1, HORIZONTAL_ALIGNMENT_CENTER, vp.x, 2)
+	# alt satır: başlığın fırça kuyruklarından ayrık (y + 42), arkasında kendi koyu yıkaması; tek katman yazı
+	var fs := InkUI.font("body")
+	var sw := str_w(fs, sub, 11)
+	InkUI.wash(h, Rect2(vp.x * 0.5 - sw * 0.5 - 24, y + 33, sw + 48, 20), 0.6 * a)
+	_fade_str(h, Vector2((vp.x - sw) * 0.5, y + 47), sub, fs, 11, BONE, a, 3)
+
+
+static func _fade_str(h: Control, p: Vector2, t: String, f: Font, size: int, col: Color, a: float, outline: int) -> void:
+	## Solan başlık yazısı: InkUI.draw_str'in kaydırılmış gölge kopyası yarı saydamken ana yazının içinden
+	## görünüp metni iki kat (üst üste binmiş) gösteriyordu. Burada gölge yalnızca tam görünürken çizilir,
+	## dış çizgi a² ile ana yazıdan hızlı söner: geçiş boyunca tek, okunur bir yazı kalır.
+	if a >= 0.99:
+		h.draw_string(f, p + Vector2(0.8, 1.1), t, HORIZONTAL_ALIGNMENT_LEFT, -1, size, Color(InkUI.INK, 0.5))
+	h.draw_string_outline(f, p, t, HORIZONTAL_ALIGNMENT_LEFT, -1, size, outline, Color(InkUI.INK, 0.85 * a * a))
+	h.draw_string(f, p, t, HORIZONTAL_ALIGNMENT_LEFT, -1, size, Color(col, a))
 
 
 static func title_wash(h: Control, vp: Vector2, y: float, has_sub: bool, a: float) -> void:

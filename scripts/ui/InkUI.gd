@@ -420,6 +420,20 @@ static func tamga(ci: CanvasItem, i: int, c: Vector2, s: float, col: Color) -> v
 	ci.draw_texture_rect_region(tex("tamga"), Rect2(c - Vector2(s, s) * 0.5, Vector2(s, s)), Rect2((i % 4) * 128, 0, 128, 128), col)
 
 
+static func rect(ci: CanvasItem, r: Rect2, col: Color) -> void:
+	## PixUI.rect karşılığı: ince şerit -> fırça darbesi, küçük kare -> mürekkep noktası, geniş alan -> yıkama dolgusu
+	if r.size.x <= 0.0 or r.size.y <= 0.0:
+		return
+	if r.size.x <= 5.0 and r.size.y <= 5.0:
+		splat(ci, r.get_center(), maxf(r.size.x, r.size.y) * 1.6, col, r.position.x * 0.7)
+	elif r.size.y <= 4.0:
+		ci.draw_texture_rect(tex("stroke"), r.grow_individual(1.5, 1.0, 1.5, 1.0), false, col)
+	elif r.size.x <= 4.0:
+		quad(ci, tex("stroke"), r.get_center(), Vector2(r.size.y + 3.0, r.size.x + 2.0), PI * 0.5, col)
+	else:
+		nine(ci, r.grow(1.0), tex("fill"), 32.0, Color(col.r * 1.2, col.g * 1.2, col.b * 1.2, col.a))
+
+
 static func splat(ci: CanvasItem, c: Vector2, s: float, col: Color, ang := 0.0) -> void:
 	quad(ci, tex("splat"), c, Vector2(s, s), ang, col)
 
