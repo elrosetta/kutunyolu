@@ -490,7 +490,7 @@ def fg_bottom_strip(seed=710, W=3840, Hs=260):
         h = rng.uniform(8, 40)
         sk.path(blade(x, base + rng.uniform(16, 40), h, rng.uniform(-0.5, 0.5), rng.uniform(2.5, 5)), FG_COL)
     L = Layer(W, Hs)
-    L.a = Y.wrap_core(sk.snap(), pad, W)
+    L.a = Y.wrap_core(sk.snap(), ik.P(pad), ik.P(W))
     return L
 
 
@@ -519,7 +519,7 @@ def fg_top_strip(seed=730, W=3840, Hs=300):
             q = bezier((sx, 0), (sx + rng.uniform(-8, 8), ln * 0.5), (sx + rng.uniform(-14, 14), ln), 10)
             sk.path(ribbon(q, np.linspace(4, 0.8, 10)), FG_COL)
     L = Layer(W, Hs)
-    L.a = Y.wrap_core(sk.snap(), pad, W)
+    L.a = Y.wrap_core(sk.snap(), ik.P(pad), ik.P(W))
     return L
 
 

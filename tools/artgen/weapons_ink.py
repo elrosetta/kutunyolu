@@ -31,9 +31,11 @@ from PIL import Image
 from scipy import ndimage
 
 import raster
+from hdpack import HD   # HD doku paketi (KY_HD=2): fiziksel ızgara HD kat; atlas yerleşimi temel json'dan x HD
 
 TEXEL_V2 = 4
 OVERS = 2                       # süper örnekleme
+PO = OVERS * HD                 # temel çıktı pikseli başına fiziksel piksel (HD paketinde piksel eşikleri bununla)
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 OUT = os.path.join(ROOT, 'assets', 'weapons')
 INK = np.array([0x15, 0x16, 0x1d], float) / 255.0
@@ -44,7 +46,7 @@ SHADOW2D = np.array([0.6, 0.8])  # gölge yanı (sağ alt)
 
 def _setup():
     import weapons_myth as wm
-    raster.SS = wm.TEX and (TEXEL_V2 // wm.TEX) * OVERS  # mantıksal (v1 doku pikseli) başına fiziksel piksel
+    raster.SS = wm.TEX and (TEXEL_V2 // wm.TEX) * OVERS * HD  # mantıksal (v1 doku pikseli) başına fiziksel piksel
     return wm
 
 
@@ -103,18 +105,18 @@ def ink_shade(c, mid):
     for i, m in enumerate(c.mats):
         if (m is mm['b'] or m is mm['bd'] or m is mm['bl']) and m.spec >= 0.45 and m.emissive < 0.5:
             bm |= c.mat == i
-    if bm.sum() > 40 * OVERS * OVERS:
+    if bm.sum() > 40 * PO * PO:
         ys, xs = np.nonzero(bm)
         bx0, bx1 = xs.min(), xs.max()
         ym = ys.mean()
         yy, xx = np.mgrid[0:H, 0:W]
         u = (xx - (bx0 + 0.62 * (bx1 - bx0))) + 0.85 * (yy - ym)
-        g1 = np.abs(u) < 0.9 * OVERS
-        g2 = np.abs(u - 3.4 * OVERS) < 0.45 * OVERS
+        g1 = np.abs(u) < 0.9 * PO
+        g2 = np.abs(u - 3.4 * PO) < 0.45 * PO
         gl = bm & (g1 | g2) & (ndl > 0.2)
         col[gl] = col[gl] * 0.15 + 0.85
     # Türk süsü: bıçak kökünde kazınmış koçboynuzu (iki karşılıklı sarmal) — koyu oyuk + altında ışık çizgisi
-    if bm.sum() > 40 * OVERS * OVERS:
+    if bm.sum() > 40 * PO * PO:
         _kocboynuzu(col, bm, c, mm, ndl)
     # ruh: bıçak yarı saydam (v1 ile aynı)
     alpha = A.astype(float)
@@ -124,7 +126,7 @@ def ink_shade(c, mid):
     pid = c.pid
     zr = zz
     for dy, dx in ((0, 1), (1, 0), (0, -1), (-1, 0), (1, 1), (-1, -1), (1, -1), (-1, 1)):
-        for step in (1, 2):
+        for step in range(1, 2 * HD + 1):   # temelde 1, 2 fiziksel piksel (HD'de aynı kalınlık)
             zn = _shift(zr, dy * step, dx * step, -1e9)
             pn = _shift(pid, dy * step, dx * step, -1)
             ink |= A & (pn != pid) & (zn > zr + 0.9) & (pn >= 0) & (zn > -1e8)
@@ -135,7 +137,7 @@ def ink_shade(c, mid):
     gx = (np.arange(W)[None, :] - inds[1])
     gl = np.hypot(gx, gy) + 1e-6
     facing = np.clip((gx * SHADOW2D[0] + gy * SHADOW2D[1]) / gl, -1, 1)
-    thin, thick = 1.15 * OVERS, 2.9 * OVERS
+    thin, thick = 1.15 * PO, 2.9 * PO
     wpx = thin + (thick - thin) * np.clip(facing * 0.5 + 0.5, 0, 1) ** 1.5
     outer = (~A) & (dist <= wpx)
     col[ink] = INK
@@ -169,11 +171,11 @@ def _kocboynuzu(col, bm, c, mm, ndl):
     L = bx1 - bx0
     # kök kesitinde bıçak yüksekliği
     sel = xs < bx0 + 0.18 * L
-    if sel.sum() < 10:
+    if sel.sum() < 10 * HD * HD:
         return
     yk0, yk1 = ys[sel].min(), ys[sel].max()
     hgt = yk1 - yk0
-    if hgt < 5.5 * OVERS or L < 40 * OVERS:
+    if hgt < 5.5 * PO or L < 40 * PO:
         return
     cx = bx0 + 0.13 * L
     cy = (yk0 + yk1) * 0.5
@@ -197,10 +199,10 @@ def _kocboynuzu(col, bm, c, mm, ndl):
         return
     yy, xx = np.mgrid[y0:y1, x0:x1] + 0.5
     d = np.minimum(_seg_dist(xx, yy, curves[0]), _seg_dist(xx, yy, curves[1]))
-    dl = np.minimum(_seg_dist(xx, yy - 0.9 * OVERS, curves[0]), _seg_dist(xx, yy - 0.9 * OVERS, curves[1]))
+    dl = np.minimum(_seg_dist(xx, yy - 0.9 * PO, curves[0]), _seg_dist(xx, yy - 0.9 * PO, curves[1]))
     sub = bm[y0:y1, x0:x1]
-    groove = sub & (d < 0.55 * OVERS)
-    lit = sub & (dl < 0.45 * OVERS) & ~groove
+    groove = sub & (d < 0.55 * PO)
+    lit = sub & (dl < 0.45 * PO) & ~groove
     r = np.array(mm['b'].ramp)
     blk = col[y0:y1, x0:x1]
     blk[lit] = r[4] * 0.6 + 0.4 * blk[lit]
@@ -250,6 +252,8 @@ def build(only=None, workers=8, preview=None):
             iid, mid, img = _job(j)
             res[(iid, mid)] = img
     print('çizim: %d hücre, %.1f sn' % (len(jobs), time.time() - t0))
+    if HD > 1:
+        return _build_hd(res, ids, mids, wm, only)
     # ---- eşya başına ortak kırpma, raf paketleme
     F = TEXEL_V2 // wm.TEX               # v1 doku pikseli -> v2 pikseli
     items = {}
@@ -314,6 +318,42 @@ def build(only=None, workers=8, preview=None):
         print('sayfalar:', [im.shape[:2] for im in imgs])
     if preview:
         _preview(res, ids, mids, preview)
+    return res
+
+
+def _build_hd(res, ids, mids, wm, only):
+    """HD paketi: kırpma, sayfa ve konumlar temel weapons_v2.json'dan (HD çiziminin alfa sınırı temelden bir piksel
+    oynayabilir; yerleşim birebir aynı kalsın diye yeniden paketlenmez). Bölgeler temel koordinat x HD."""
+    base = json.load(open(os.path.join(OUT, 'weapons_v2.json'), encoding='utf-8'))
+    F = TEXEL_V2 // wm.TEX
+    pages = [0] * len(base['pages'])
+    for iid in ids:
+        d = base['items'][iid]
+        w, h = d['size']
+        for mid in mids:
+            p, x, y = d['m'][mid]
+            pages[p] = max(pages[p], y + h)
+    # temel sayfa yüksekliği: en alttaki bölge + 4'e yuvarlama (build ile aynı; dosyadan da okunabilir)
+    imgs = [np.zeros((int(math.ceil(hh / 4.0) * 4) * HD, 4096 * HD, 4)) for hh in pages]
+    for iid in ids:
+        d = base['items'][iid]
+        pv = wm.pivot_of(iid)
+        x0 = int(round(pv[0] * F - d['pivot'][0]))
+        y0 = int(round(pv[1] * F - d['pivot'][1]))
+        w, h = d['size']
+        for mid in mids:
+            p, x, y = d['m'][mid]
+            cell = res[(iid, mid)][y0 * HD:(y0 + h) * HD, x0 * HD:(x0 + w) * HD]
+            imgs[p][y * HD:y * HD + cell.shape[0], x * HD:x * HD + cell.shape[1]] = cell
+    if only:
+        print('--yalniz: atlas yazılmadı (yalnız önizleme)')
+        return res
+    for p, im in enumerate(imgs):
+        _save(im, os.path.join(OUT, base['pages'][p]))
+    # meta temel json'un aynısı (karşılaştırma için .godot/hd_meta'ya)
+    with open(os.path.join(OUT, 'weapons_v2.json'), 'w', encoding='utf-8') as f:
+        json.dump(base, f, separators=(',', ':'))
+    print('HD sayfalar:', [im.shape[:2] for im in imgs])
     return res
 
 

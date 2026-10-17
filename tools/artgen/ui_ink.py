@@ -28,6 +28,8 @@ import skia
 from PIL import Image
 from scipy import ndimage
 
+from hdpack import HD   # HD doku paketi (KY_HD=2): aynı doku HD kat çözünürlükte (iç ızgaralar HD kat, gürültü ızgaraları aynı)
+
 OUT = os.path.join(os.path.dirname(__file__), '..', '..', 'assets', 'ui', 'ink')
 ICONS = ['can', 'sise', 'altin', 'kut', 'kurt', 'kartal', 'ayi', 'kafatasi', 'zaman', 'kilic', 'tilsim', 'davul', 'ruh', 'kalkan']
 
@@ -51,6 +53,8 @@ def noise1(n, scale, rng, octaves=4):
 
 
 def fbm2(h, w, scale, rng, octaves=4, aniso=(1.0, 1.0)):
+    """scale: temel piksel. HD paketinde h, w HD kat verilir; ölçek de HD kat -> aynı ızgara, aynı gürültü (2 kat örnek)."""
+    scale = scale * HD
     out = np.zeros((h, w), np.float32)
     amp = 1.0
     tot = 0.0
@@ -88,8 +92,8 @@ def brush(L, H, width, seed, dry=0.35, taper=(0.06, 0.12), wobble=0.04, rough=0.
         prof *= press(u)
     prof *= 1.0 + 0.08 * noise1(L, L / 4, rng, 2)
     hw = width / 2 * prof
-    top = yc - hw + noise1(L, 18, rng, 4) * width * rough
-    bot = yc + hw + noise1(L, 18, rng, 4) * width * rough
+    top = yc - hw + noise1(L, 18 * HD, rng, 4) * width * rough
+    bot = yc + hw + noise1(L, 18 * HD, rng, 4) * width * rough
     y = np.arange(H, dtype=np.float32)[:, None]
     m = np.clip(np.minimum(y - top[None, :], bot[None, :] - y) + 0.5, 0, 1)
     # kıl izleri: x yönünde çok uzun gürültü (her satır bir kıl)
@@ -102,11 +106,26 @@ def brush(L, H, width, seed, dry=0.35, taper=(0.06, 0.12), wobble=0.04, rough=0.
     m = m * (1.0 - gap * 0.92)
     if ends:
         # dağınık kuyruk: satır başına rastgele kıl boyu
-        cut = 1.0 - rng.random((H, 1)).astype(np.float32) ** 2 * taper[1] * 1.2
+        cut = 1.0 - _rows(rng, H) ** 2 * taper[1] * 1.2
         m *= sstep(cut + 0.02, cut - 0.01, u[None, :])
-        cut0 = rng.random((H, 1)).astype(np.float32) ** 3 * taper[0] * 0.6
+        cut0 = _rows(rng, H) ** 3 * taper[0] * 0.6
         m *= sstep(cut0 - 0.01, cut0 + 0.02, u[None, :])
     return np.clip(m, 0, 1)
+
+
+def _rows(rng, H):
+    """Satır (kıl) başına rastgele (H, 1): HD paketinde temel satır sayısı kadar çekilip HD kat tekrarlanır (aynı kıllar)."""
+    if HD == 1:
+        return rng.random((H, 1)).astype(np.float32)
+    r = rng.random((-(-H // HD), 1)).astype(np.float32)
+    return np.repeat(r, HD, axis=0)[:H]
+
+
+def _ax(n):
+    """np.arange(n) (float32) temel piksel ekseni; HD paketinde n*HD örnek (HD piksel merkezleri, birim temel piksel)."""
+    if HD == 1:
+        return np.arange(n, dtype=np.float32)
+    return (np.arange(n * HD, dtype=np.float32) + 0.5) / HD - 0.5
 
 
 def paste_max(dst, src, x, y):
@@ -145,29 +164,30 @@ def save_mask(m, name, rgb=None):
 # ------------------------------------------------------------------ çerçeve
 def frame(W=1024, H=512, seed=3):
     S = 2
-    w, h = W * S, H * S
+    Q = S * HD       # HD paketi: iç ızgara pikseli (temel çıktı pikseli başına)
+    w, h = W * Q, H * Q
     ink = np.zeros((h, w), np.float32)
     line = np.zeros((h, w), np.float32)
-    th = 15 * S          # kalın darbe
-    off = 20 * S         # kenardan içeri
+    th = 15 * Q          # kalın darbe
+    off = 20 * Q         # kenardan içeri
     # yatay: üst / alt (köşelerden taşar)
     for i, (yy, sd) in enumerate([(off, seed), (h - off, seed + 1)]):
-        L = w - 6 * S
+        L = w - 6 * Q
         b = brush(L, th * 3, th * (1.0 if i == 0 else 0.9), sd, dry=0.42, taper=(0.03, 0.05), wobble=0.006, rough=0.07)
-        paste_max(ink, b, 3 * S, int(yy - th * 1.5))
+        paste_max(ink, b, 3 * Q, int(yy - th * 1.5))
     for i, (xx, sd) in enumerate([(off, seed + 2), (w - off, seed + 3)]):
-        L = h - 6 * S
+        L = h - 6 * Q
         b = brush(L, th * 3, th * (0.95 if i == 0 else 0.85), sd, dry=0.42, taper=(0.06, 0.1), wobble=0.006, rough=0.07).T
-        paste_max(ink, b, int(xx - th * 1.5), 3 * S)
+        paste_max(ink, b, int(xx - th * 1.5), 3 * Q)
     # ince iç çizgi (renkli)
-    tl = 3.6 * S
-    ins = 32 * S
+    tl = 3.6 * Q
+    ins = 32 * Q
     for i, (yy, sd) in enumerate([(ins, seed + 7), (h - ins, seed + 8)]):
-        b = brush(w - 2 * ins + 8 * S, int(tl * 5), tl, sd, dry=0.5, taper=(0.04, 0.08), wobble=0.004, rough=0.12)
-        paste_max(line, b, ins - 4 * S, int(yy - tl * 2.5))
+        b = brush(w - 2 * ins + 8 * Q, int(tl * 5), tl, sd, dry=0.5, taper=(0.04, 0.08), wobble=0.004, rough=0.12)
+        paste_max(line, b, ins - 4 * Q, int(yy - tl * 2.5))
     for i, (xx, sd) in enumerate([(ins, seed + 9), (w - ins, seed + 10)]):
-        b = brush(h - 2 * ins + 8 * S, int(tl * 5), tl, sd, dry=0.5, taper=(0.06, 0.1), wobble=0.004, rough=0.12).T
-        paste_max(line, b, int(xx - tl * 2.5), ins - 4 * S)
+        b = brush(h - 2 * ins + 8 * Q, int(tl * 5), tl, sd, dry=0.5, taper=(0.06, 0.1), wobble=0.004, rough=0.12).T
+        paste_max(line, b, int(xx - tl * 2.5), ins - 4 * Q)
     save_mask(down(ink, S), 'frame_ink.png')
     save_mask(down(line, S), 'frame_line.png')
 
@@ -175,20 +195,21 @@ def frame(W=1024, H=512, seed=3):
 def fill(W=512, H=256, seed=5):
     rng = np.random.default_rng(seed)
     S = 2
-    w, h = W * S, H * S
+    Q = S * HD       # HD paketi: iç ızgara pikseli (temel çıktı pikseli başına)
+    w, h = W * Q, H * Q
     y = np.arange(h, dtype=np.float32)[:, None]
     x = np.arange(w, dtype=np.float32)[None, :]
-    mrg = 22 * S
+    mrg = 22 * Q
     d = np.minimum(np.minimum(x, w - 1 - x), np.minimum(y, h - 1 - y))
     nz = fbm2(h, w, 30, rng, 5)
-    edge = d - mrg * 0.55 + nz * 9 * S
-    a = sstep(0, 4 * S, edge)
+    edge = d - mrg * 0.55 + nz * 9 * Q
+    a = sstep(0, 4 * Q, edge)
     # kenarda havuzlanan mürekkep (daha koyu), içte fırça izleri
-    pool = 1.0 - sstep(0, 14 * S, edge)
+    pool = 1.0 - sstep(0, 14 * Q, edge)
     streak = fbm2(h, w, 10, rng, 3, aniso=(0.3, 12.0))
     lum = 0.76 + 0.06 * streak + 0.12 * fbm2(h, w, 50, rng, 4) - 0.3 * pool
     grain = rng.standard_normal((h, w)).astype(np.float32)
-    lum += 0.05 * ndimage.gaussian_filter(grain, 0.8)
+    lum += 0.05 * HD * ndimage.gaussian_filter(grain, 0.8 * HD)   # tane: aynı fiziksel boy ve genlik
     lum = down(np.clip(lum, 0.3, 1.0), S)
     out = down(a, S)
     save_mask(out, 'fill.png', rgb=lum[..., None])
@@ -196,13 +217,15 @@ def fill(W=512, H=256, seed=5):
 
 def swash(W=512, H=96, seed=21):
     S = 2
-    b = brush(W * S, H * S, H * S * 0.62, seed, dry=0.3, taper=(0.05, 0.16), wobble=0.01, rough=0.07)
+    Q = S * HD       # HD paketi: iç ızgara pikseli (temel çıktı pikseli başına)
+    b = brush(W * Q, H * Q, H * Q * 0.62, seed, dry=0.3, taper=(0.05, 0.16), wobble=0.01, rough=0.07)
     save_mask(down(b, S), 'swash.png')
 
 
 def stroke(W=1024, H=96, seed=31):
     S = 2
-    b = brush(W * S, H * S, H * S * 0.7, seed, dry=0.38, taper=(0.02, 0.05), wobble=0.006, rough=0.06,
+    Q = S * HD       # HD paketi: iç ızgara pikseli (temel çıktı pikseli başına)
+    b = brush(W * Q, H * Q, H * Q * 0.7, seed, dry=0.38, taper=(0.02, 0.05), wobble=0.006, rough=0.06,
               press=lambda u: 0.9 + 0.1 * np.sin(u * 3.0 + 0.4))
     save_mask(down(b, S), 'stroke.png')
 
@@ -210,7 +233,8 @@ def stroke(W=1024, H=96, seed=31):
 def seal(N=160, seed=41):
     rng = np.random.default_rng(seed)
     S = 2
-    n = N * S
+    Q = S * HD       # HD paketi: iç ızgara pikseli (temel çıktı pikseli başına)
+    n = N * Q
     y = np.arange(n, dtype=np.float32)[:, None]
     x = np.arange(n, dtype=np.float32)[None, :]
     c = n / 2
@@ -220,10 +244,10 @@ def seal(N=160, seed=41):
     rr = np.hypot(np.maximum(np.abs(x - c) - r * 0.8, 0), np.maximum(np.abs(y - c) - r * 0.8, 0))
     d = r * 0.2 - rr
     nz = fbm2(n, n, 14, rng, 5)
-    m = sstep(-1.5, 1.5, d + nz * 7 * S)
+    m = sstep(-1.5, 1.5, d + nz * 7 * Q)
     # iç çerçeve (boşluk)
     inner = np.hypot(np.maximum(np.abs(x - c) - r * 0.62, 0), np.maximum(np.abs(y - c) - r * 0.62, 0))
-    ring = sstep(2.0 * S, 0.8 * S, np.abs(inner - r * 0.1 - 2 * S) + nz * 2 * S)
+    ring = sstep(2.0 * Q, 0.8 * Q, np.abs(inner - r * 0.1 - 2 * Q) + nz * 2 * Q)
     m *= 1.0 - ring * 0.9
     # damga dokusu: mürekkebin tutmadığı benekler
     sp = fbm2(n, n, 4, rng, 3)
@@ -234,17 +258,18 @@ def seal(N=160, seed=41):
 def enso(N=256, seed=51):
     rng = np.random.default_rng(seed)
     S = 2
-    L = int(math.pi * 2 * N * 0.38 * S)
-    b = brush(L, 60 * S, 34 * S, seed, dry=0.4, taper=(0.03, 0.2), wobble=0.01, rough=0.05)
+    Q = S * HD       # HD paketi: iç ızgara pikseli (temel çıktı pikseli başına)
+    L = int(math.pi * 2 * N * 0.38 * Q)
+    b = brush(L, 60 * Q, 34 * Q, seed, dry=0.4, taper=(0.03, 0.2), wobble=0.01, rough=0.05)
     # yatay darbeyi daireye sar
-    n = N * S
+    n = N * Q
     y = np.arange(n, dtype=np.float32)[:, None] - n / 2
     x = np.arange(n, dtype=np.float32)[None, :] - n / 2
     ang = (np.arctan2(y, x) + math.pi * 0.5) % (2 * math.pi)  # tepeden başla
     rad = np.hypot(x, y)
-    R = N * 0.38 * S
+    R = N * 0.38 * Q
     u = ang / (2 * math.pi) * (L - 1)
-    v = (rad - R) + 30 * S
+    v = (rad - R) + 30 * Q
     m = ndimage.map_coordinates(b, [v.ravel(), u.ravel()], order=1, mode='constant').reshape(n, n)
     # kuyruğun başı örtsün: ikinci küçük geçiş
     save_mask(down(m, S), 'enso.png')
@@ -253,7 +278,8 @@ def enso(N=256, seed=51):
 def splat(N=512, seed=61):
     rng = np.random.default_rng(seed)
     S = 2
-    n = N * S
+    Q = S * HD       # HD paketi: iç ızgara pikseli (temel çıktı pikseli başına)
+    n = N * Q
     y = np.arange(n, dtype=np.float32)[:, None] - n / 2
     x = np.arange(n, dtype=np.float32)[None, :] - n / 2
     ang = np.arctan2(y, x)
@@ -281,9 +307,10 @@ def splat(N=512, seed=61):
 def band(W=1024, H=192, seed=71):
     rng = np.random.default_rng(seed)
     S = 2
-    w, h = W * S, H * S
+    Q = S * HD       # HD paketi: iç ızgara pikseli (temel çıktı pikseli başına)
+    w, h = W * Q, H * Q
     b = brush(w, h, h * 0.55, seed, dry=0.22, taper=(0.12, 0.14), wobble=0.01, rough=0.09)
-    b = ndimage.gaussian_filter(b, 2.0 * S)
+    b = ndimage.gaussian_filter(b, 2.0 * Q)
     b2 = brush(w, h, h * 0.18, seed + 1, dry=0.5, taper=(0.2, 0.25), wobble=0.02, rough=0.1)
     m = np.clip(b * 0.85 + b2 * 0.3, 0, 1)
     u = np.linspace(0, 1, w)[None, :]
@@ -293,6 +320,7 @@ def band(W=1024, H=192, seed=71):
 
 def vignette(W=512, H=288, seed=81):
     rng = np.random.default_rng(seed)
+    W, H = W * HD, H * HD
     y = np.arange(H, dtype=np.float32)[:, None] / H
     x = np.arange(W, dtype=np.float32)[None, :] / W
     d = np.minimum(np.minimum(x, 1 - x) * W / H, np.minimum(y, 1 - y))
@@ -356,7 +384,7 @@ def tapered(c, pts, w0, w1, n=48):
 def horn(N=256):
     """Koçboynuzu (kilim motifi): ortada gövde, iki yana dışa-aşağı kıvrılıp içe sarılan boynuz."""
     S = 4
-    n = N * S
+    n = N * S * HD
     surf, c = sk_canvas(n, n)
     cx = n / 2
     for f in (1, -1):
@@ -381,7 +409,7 @@ def horn(N=256):
 
 def tamga(N=128):
     S = 4
-    n = N * S
+    n = N * S * HD
     W = n * 4
     surf, c = sk_canvas(W, n)
     lw = n * 0.085
@@ -430,9 +458,10 @@ def tamga(N=128):
 
 def paper(W=1024, H=768, seed=101):
     rng = np.random.default_rng(seed)
-    y = np.arange(H, dtype=np.float32)[:, None]
-    x = np.arange(W, dtype=np.float32)[None, :]
+    y = _ax(H)[:, None]
+    x = _ax(W)[None, :]
     d = np.minimum(np.minimum(x, W - 1 - x), np.minimum(y, H - 1 - y))
+    W, H = W * HD, H * HD    # HD paketi: dizi boyu; uzaklık ve eşikler temel piksel
     nz = fbm2(H, W, 26, rng, 6)
     edge = d - 26 + nz * 22
     a = sstep(0, 3, edge)
@@ -446,7 +475,7 @@ def paper(W=1024, H=768, seed=101):
     sienna = np.array([0.36, 0.22, 0.12], np.float32)
     rgb = rgb * (1 - burn[..., None] * 0.75) + sienna * burn[..., None] * 0.55
     rgb = rgb * (1 - (burn ** 3)[..., None] * 0.7)
-    grain = ndimage.gaussian_filter(rng.standard_normal((H, W)).astype(np.float32), 0.7)
+    grain = ndimage.gaussian_filter(rng.standard_normal((H, W)).astype(np.float32), 0.7 * HD) * HD
     rgb += 0.025 * grain[..., None]
     out = np.zeros((H, W, 4), np.float32)
     out[..., :3] = np.clip(rgb, 0, 1)
@@ -598,8 +627,9 @@ def icon_shape(name, c, n):
 
 def icons(N=128):
     S = 4
-    n = N * S
+    n = N * S * HD
     cols = len(ICONS)
+    N = N * HD               # HD paketi: hücre HD kat (çizim n'ye göreli)
     out = np.zeros((N, N * cols, 4), np.float32)
     for i, nm in enumerate(ICONS):
         surf, c = sk_canvas(n, n)

@@ -23,6 +23,8 @@ import sys
 import numpy as np
 from PIL import Image
 
+from hdpack import HD   # KY_HD=2: sayfalar assets_hd/x2'ye 2 kat çözünürlükte (json temel kalır)
+
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 A = os.path.join(ROOT, 'assets')
 SPR = os.path.join(A, 'sprites')
@@ -89,7 +91,7 @@ def _import(path, vram):
 
 
 def _png(arr, path, vram=None):
-    a = np.clip(arr * 255.0 + 0.5, 0, 255).astype(np.uint8)
+    a = np.clip(np.asarray(arr, np.float32) * 255.0 + 0.5, 0, 255).astype(np.uint8)
     Image.fromarray(a, 'RGBA').save(path, optimize=True)
     _import(path, (a.shape[0] * a.shape[1] > 2_000_000) if vram is None else vram)
 
@@ -117,11 +119,12 @@ def export_sheet(name, layout_json, render, cell, origin, texel, only=(), extra_
     lay = json.load(open(os.path.join(SPR, layout_json), encoding='utf-8'))
     names = sorted(lay['anims'].keys(), key=lambda a: lay['anims'][a]['row'])
     cols = max(lay['anims'][a]['frames'] for a in names)
-    cw, ch = cell
+    # HD paketi: hücreler HD kat; sayfa düzeni (sayfa başına satır) temel sayfayla aynı kalır ki json ortak olsun
+    rpp = max(1, PAGE_MAX // cell[1])
+    cw, ch = cell[0] * HD, cell[1] * HD
     out_json = os.path.join(SPR, name + '.json')
-    rpp = max(1, PAGE_MAX // ch)
     old = None
-    if only and os.path.exists(out_json):
+    if only and os.path.exists(out_json) and HD == 1:
         o = json.load(open(out_json, encoding='utf-8'))
         if o.get('filter') == 'linear' and o['cell'] == list(cell):
             old = o
@@ -142,11 +145,13 @@ def export_sheet(name, layout_json, render, cell, origin, texel, only=(), extra_
             y += a_.shape[0]
         meta = old
     else:
-        alb = np.zeros((len(names) * ch, cols * cw, 4), np.float32)
-        glo = np.zeros_like(alb)
+        # HD paketi: sayfa float16 (bellek yarısı), ışıma sayfası tutulmaz (HD'ye girmez; yalnızca json "glow" bayrağı)
+        alb = np.zeros((len(names) * ch, cols * cw, 4), np.float16 if HD > 1 else np.float32)
+        glo = np.zeros_like(alb) if HD == 1 else None
         meta = {'cell': list(cell), 'origin': list(origin), 'texel': texel, 'filter': 'linear', 'anims': {}}
         if extra_meta:
             meta.update(extra_meta)
+    hd_glow = False
     for r, an in enumerate(names):
         if old and an not in only:
             continue
@@ -158,18 +163,21 @@ def export_sheet(name, layout_json, render, cell, origin, texel, only=(), extra_
             ys, xs = slice(r * ch, (r + 1) * ch), slice(i * cw, (i + 1) * cw)
             alb[ys, xs] = rgba
             ga = em[..., 3]
-            glo[ys, xs, :3] = np.where(ga[..., None] > 1e-4, em[..., :3] / np.maximum(ga[..., None], 1e-4), 0)
-            glo[ys, xs, 3] = ga
+            if glo is None:
+                hd_glow = hd_glow or bool(ga.max() > 0)
+            else:
+                glo[ys, xs, :3] = np.where(ga[..., None] > 1e-4, em[..., :3] / np.maximum(ga[..., None], 1e-4), 0)
+                glo[ys, xs, 3] = ga
             frames.append(_frame_meta(info))
         meta['anims'][an] = {'row': r, 'frames': n, 'fps': la['fps'], 'loop': la['loop'], 'data': frames, 'arm': la.get('arm', True)}
         print(' ', name, an, n)
     n_pages = (len(names) + rpp - 1) // rpp
-    has_glow = glo[..., 3].max() > 0
+    has_glow = hd_glow if glo is None else glo[..., 3].max() > 0
     for k in range(n_pages):
         pn = os.path.join(SPR, _page_name(name, k))
         ys = slice(k * rpp * ch, min(len(names), (k + 1) * rpp) * ch)
         _png(alb[ys], pn + '.png')
-        if has_glow:
+        if has_glow and glo is not None:
             _png(glo[ys], pn + '_e.png')
         print('  sayfa', _page_name(name, k), alb[ys].shape[1], alb[ys].shape[0])
     # artık kullanılmayan eski sayfa dosyaları
@@ -193,7 +201,7 @@ def export_bengu(only=()):
     export_sheet('bengu_v2', 'bengu.json',
                  lambda an, i: b.render_frame(an, i), b.CELL, b.FEET, b.TEX, only)
     # kol parçaları: 0. satır sol üst ışık, 1. satır ışık parça ekseninde aynalanmış ("alt_row"; ink_char karıştırır)
-    cw, ch = b.ARM_CELL
+    cw, ch = b.ARM_CELL[0] * HD, b.ARM_CELL[1] * HD
     rows = [b.render_arm_parts(), b.render_arm_parts(mirror=True)]
     alb = np.zeros((ch * len(rows), cw * len(rows[0]), 4), np.float32)
     for r, parts in enumerate(rows):

@@ -15,6 +15,8 @@ import time
 
 import numpy as np
 
+from hdpack import HD   # KY_HD=2: PNG'ler assets_hd/x2'ye 2 kat çözünürlükte (json / .import temel kalır)
+
 HERE = os.path.dirname(os.path.abspath(__file__))
 A = os.path.normpath(os.path.join(HERE, '..', '..', 'assets'))
 
@@ -91,7 +93,7 @@ BG = [('0_sky', 'layer_sky'), ('1_far', 'layer_far'), ('2_farmid', 'layer_farmid
 def export_bg(only=None):
     import inkkit_ortam as inkkit
     import otuken_ink as O
-    inkkit.K = 1.0
+    inkkit.K = 1.0 * HD
     for key, fn in BG:
         if only and key not in only:
             continue
@@ -107,7 +109,7 @@ WORLD_K = 2.0   # dünya uzayı dokuları: mantıksal 2 -> 4 doku pikseli / dün
 def export_ground():
     import inkkit_ortam as inkkit
     import otuken_ink_ground as G
-    inkkit.K = WORLD_K
+    inkkit.K = WORLD_K * HD
     art, mask = G.build_atlas()
     save(to8(art), 'tiles', 'otuken_v2.png')
     m8 = (np.clip(mask, 0, 1) * 255 + 0.5).astype(np.uint8)
@@ -116,9 +118,9 @@ def export_ground():
     save(soil.rgba8(), 'tiles', 'otuken_v2_soil.png')
     save(G.meadow_texture().rgba8(), 'tiles', 'otuken_v2_meadow.png')
     meta = {
-        "tile": inkkit.P(G.C), "world_tile": 24, "density": inkkit.P(G.C) / 24.0, "cols": G.COLS, "ground_rows": 3,
+        "tile": inkkit.P(G.C) // HD, "world_tile": 24, "density": inkkit.P(G.C) // HD / 24.0, "cols": G.COLS, "ground_rows": 3,
         "overlay_row": G.OROW, "grass_cols": G.GRASS_COLS, "ceiling_cols": G.CEIL_COLS, "platform_row": G.PROW,
-        "ink": True, "filter": "linear_mipmap", "mask": "otuken_v2_mask.png", "soil_size": soil.w,
+        "ink": True, "filter": "linear_mipmap", "mask": "otuken_v2_mask.png", "soil_size": soil.w // HD,
         "soil_density": 2.0 * WORLD_K, "meadow": "otuken_v2_meadow.png", "glow": None,
         "not": "v2 mürekkep zemini: sanat RGBA + R=toprak kaplaması, G=kenar gölgesi (CanvasTexture normal yuvasında)",
     }
@@ -133,7 +135,7 @@ def export_ground():
 def export_fg():
     import inkkit_ortam as inkkit
     import otuken_ink_ground as G
-    inkkit.K = 1.0
+    inkkit.K = 1.0 * HD
     save(G.fg_grass_strip().rgba8(), 'bg', 'otuken_v2_fg_grass.png')
     save(G.fg_top_strip().rgba8(), 'bg', 'otuken_v2_fg_top.png')
     save(to8(G.leaf_particle()), 'bg', 'otuken_v2_leaf.png')
@@ -142,7 +144,7 @@ def export_fg():
 def export_decor():
     import inkkit_ortam as inkkit
     import otuken_ink_decor as D
-    inkkit.K = WORLD_K
+    inkkit.K = WORLD_K * HD
     D.export(save, to8, A)
 
 

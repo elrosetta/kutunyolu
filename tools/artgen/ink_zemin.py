@@ -242,7 +242,7 @@ def rock_small(seed, rx, ry, base=(108, 112, 104), light=(-0.6, -0.8), cap=None)
     v = (ys - cy) / ry
     ndl, fedge, _ = facet_shade(u, v, seed + 9, n=max(4, int(rx / 3)), tilt=0.45, sphere=0.25, light=light)
     tone = np.where(ndl > 0.72, 1.22, np.where(ndl > 0.4, 0.95, np.where(ndl > 0.12, 0.72, 0.55))).astype(np.float32)
-    tone = ndimage.gaussian_filter(tone, 0.5)
+    tone = ndimage.gaussian_filter(tone, ik.hd_sigma(0.5))
     rgb = c01(base)[None, None, :] * tone[..., None]
     ew = np.clip(1.0 - fedge * rx * ik.K / (1.1 * ik.K), 0, 1)
     rgb = mix(rgb, c01(INK)[None, None, :], (ew * np.clip((0.45 - ndl) * 3.0, 0, 1) * 0.8)[..., None])

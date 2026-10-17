@@ -356,7 +356,7 @@ def soil_texture(seed=620, S=1024):
     tone = rng.uniform(0.75, 1.2, n)[idx]
     rgb = c01(BAS_A)[None, None, :] * tone[..., None]
     # hücre içinde sol kenar açık (eğik yüz), sağ koyu: yönlü kaba gölge
-    gx = ndimage.sobel(best, axis=1)
+    gx = ndimage.sobel(best, axis=1) * ik.HD      # piksel başına türev: HD'de temel piksel başına
     rgb *= (1 + 0.18 * np.tanh(-gx * 0.6))[..., None]
     nz = fbm(S, S, [30, 8, 2], seed + 1)
     rgb *= (1 + 0.1 * nz[..., None])
@@ -449,7 +449,7 @@ def fg_bottom_strip(seed=712, W=3840, Hs=260):
         sk.path(ribbon(q, np.linspace(14, 2, 12)), FG_RIM, 0.45, 0, 2.5)
         sk.path(ribbon(q, np.linspace(14, 2, 12)), FG_COL)
     L = Layer(W, Hs)
-    L.a = Y.wrap_core(sk.snap(), pad, W)
+    L.a = Y.wrap_core(sk.snap(), ik.P(pad), ik.P(W))
     return L
 
 
@@ -476,7 +476,7 @@ def fg_top_strip(seed=732, W=3840, Hs=320):
         x = rng.uniform(0, W) + pad
         Y.chain(sk, (x, 20), (x + rng.uniform(200, 420), 30), rng.uniform(60, 130), link=16, col=FG_COL, hi=(80, 30, 20), ink_a=0.0, thick=3.6)
     L = Layer(W, Hs)
-    L.a = Y.wrap_core(sk.snap(), pad, W)
+    L.a = Y.wrap_core(sk.snap(), ik.P(pad), ik.P(W))
     return L
 
 

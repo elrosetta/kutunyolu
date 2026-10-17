@@ -185,7 +185,7 @@ def rock_small(seed, rx, ry, base=(108, 112, 104)):
     # yontulmuş taş: 4-6 düz yüz, gölgeye bakan yüz kenarında mürekkep
     ndl, fedge, _ = facet_shade(u, v, seed + 9, n=max(4, int(rx / 3)), tilt=0.45, sphere=0.25)
     tone = np.where(ndl > 0.72, 1.22, np.where(ndl > 0.4, 0.95, np.where(ndl > 0.12, 0.72, 0.55))).astype(np.float32)
-    tone = ndimage.gaussian_filter(tone, 0.5)
+    tone = ndimage.gaussian_filter(tone, ik.hd_sigma(0.5))
     rgb = c01(base)[None, None, :] * tone[..., None]
     ew = np.clip(1.0 - fedge * rx * ik.K / (1.1 * ik.K), 0, 1)
     rgb = mix(rgb, c01(INK)[None, None, :], (ew * np.clip((0.45 - ndl) * 3.0, 0, 1) * 0.8)[..., None])
@@ -463,10 +463,11 @@ def fg_grass_strip(seed=700, W=3840, Hs=260):
                 ln = rng.uniform(16, 34) * (1 - j / 22)
                 sk.path(leaf_shape(q[0], q[1], ln, ln * 0.36, -math.pi / 2 + sgn * rng.uniform(0.6, 1.2) + lean), FG_COL)
     arr = sk.snap()
-    core = arr[:, pad:pad + W].copy()
-    l, r = arr[:, :pad], arr[:, pad + W:]
-    core[:, W - pad:] = l + core[:, W - pad:] * (1 - l[..., 3:4])
-    core[:, :pad] = r + core[:, :pad] * (1 - r[..., 3:4])
+    pp, WP = ik.P(pad), ik.P(W)
+    core = arr[:, pp:pp + WP].copy()
+    l, r = arr[:, :pp], arr[:, pp + WP:]
+    core[:, WP - pp:] = l + core[:, WP - pp:] * (1 - l[..., 3:4])
+    core[:, :pp] = r + core[:, :pp] * (1 - r[..., 3:4])
     L = Layer(W, Hs)
     L.a = core
     return L
@@ -497,10 +498,11 @@ def fg_top_strip(seed=720, W=3840, Hs=300):
         pts = bezier((x0 - 200, -6), (x0, 18), (x0 + 180, -4), 14)
         sk.path(ribbon(pts, np.linspace(14, 6, 14)), FG_COL)
     arr = sk.snap()
-    core = arr[:, pad:pad + W].copy()
-    l, r = arr[:, :pad], arr[:, pad + W:]
-    core[:, W - pad:] = l + core[:, W - pad:] * (1 - l[..., 3:4])
-    core[:, :pad] = r + core[:, :pad] * (1 - r[..., 3:4])
+    pp, WP = ik.P(pad), ik.P(W)
+    core = arr[:, pp:pp + WP].copy()
+    l, r = arr[:, :pp], arr[:, pp + WP:]
+    core[:, WP - pp:] = l + core[:, WP - pp:] * (1 - l[..., 3:4])
+    core[:, :pp] = r + core[:, :pp] * (1 - r[..., 3:4])
     L = Layer(W, Hs)
     L.a = core
     return L

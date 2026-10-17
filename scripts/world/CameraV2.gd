@@ -1,7 +1,9 @@
 class_name CameraV2
 extends Camera2D
-## Stil v2 (mürekkep) kamerası: yakın çekim (stil_v2.json "camera_zoom", ~2,0: Bengü 1080p'de ~230 px, ekranın ~%21'i,
-## Shinobi: Art of Vengeance referansındaki oran). v1 kamerası (oyuncunun çocuğu, Player._look_ahead) hiç değişmez.
+## Stil v2 (mürekkep) kamerası: yakın çekim (stil_v2.json "camera_zoom", biyoma göre 1,65-1,75; v19'a dek 2,0: Bengü
+## 1080p'de ~195 px, ekranın ~%18'i). v1 kamerası (oyuncunun çocuğu, Player._look_ahead) hiç değişmez.
+## Çerçeve sabitleri 2,0 yakınlık için yazıldı (REF_ZOOM); taban yakınlık farklıysa öncü kayma, ayak yüksekliği,
+## zıplama penceresi ve düşüş bakışı aynı EKRAN oranında kalsın diye REF_ZOOM / taban ile ölçeklenir.
 ##
 ## Oyuncunun çocuğu DEĞİL (Level'ın çocuğu): hedefi her kare kendisi kurar, Camera2D'nin konum yumuşatması sönümler.
 ##  * İleri bakış: baktığın / koştuğun yöne yumuşak öncü kayma (saldırı sırasında donar ki vuruş anında ekran kaymasın).
@@ -19,6 +21,7 @@ const WIN_UP := 64.0          # zıplarken kamera bu yükseklikten sonra izler
 const WIN_DOWN := 18.0
 const FALL_LOOK := 54.0       # hızlı düşüşte aşağı bakış
 const MIN_FIT := 0.62
+const REF_ZOOM := 2.0         # yukarıdaki dünya birimi sabitlerinin yazıldığı taban yakınlık
 
 var level: Node
 var player: Node2D
@@ -45,16 +48,21 @@ func snap() -> void:
 	if player == null:
 		return
 	_anchor_y = player.global_position.y
-	_lead = float(player.get("facing")) * LEAD
+	_lead = float(player.get("facing")) * LEAD * _zk()
 	_look_y = 0.0
 	global_position = _target()
 	reset_smoothing()
 	_ready_done = true
 
 
+func _zk() -> float:
+	## çerçeve ölçeği: daha uzak kamerada (küçük yakınlık) dünya birimi sabitleri aynı ekran oranına büyür
+	return REF_ZOOM / maxf(0.5, Game.base_zoom)
+
+
 func _target() -> Vector2:
 	var p := player.global_position
-	return Vector2(p.x + _lead, _anchor_y - FEET_UP + _look_y)
+	return Vector2(p.x + _lead, _anchor_y - FEET_UP * _zk() + _look_y)
 
 
 func _process(delta: float) -> void:
@@ -73,7 +81,8 @@ func _process(delta: float) -> void:
 	if atk is Dictionary and not (atk as Dictionary).is_empty():
 		attacking = true
 	# --- yatay öncü
-	var tl := facing * LEAD + clampf(vel.x, -260.0, 260.0) * LEAD_VEL
+	var zk := _zk()
+	var tl := (facing * LEAD + clampf(vel.x, -260.0, 260.0) * LEAD_VEL) * zk
 	tl += _attention(p)
 	if attacking:
 		tl = _lead
@@ -82,13 +91,13 @@ func _process(delta: float) -> void:
 	if on_floor:
 		_anchor_y = lerpf(_anchor_y, p.y, 1.0 - exp(-9.0 * rd))
 	else:
-		if p.y < _anchor_y - WIN_UP:
-			_anchor_y = p.y + WIN_UP
-		elif p.y > _anchor_y + WIN_DOWN:
-			_anchor_y = p.y - WIN_DOWN
+		if p.y < _anchor_y - WIN_UP * zk:
+			_anchor_y = p.y + WIN_UP * zk
+		elif p.y > _anchor_y + WIN_DOWN * zk:
+			_anchor_y = p.y - WIN_DOWN * zk
 	var ly := 0.0
 	if not on_floor and vel.y > 240.0:
-		ly = clampf((vel.y - 240.0) / 260.0, 0.0, 1.0) * FALL_LOOK
+		ly = clampf((vel.y - 240.0) / 260.0, 0.0, 1.0) * FALL_LOOK * zk
 	_look_y = lerpf(_look_y, ly, 1.0 - exp(-(3.0 if ly > _look_y else 5.0) * rd))
 	var t := _target()
 	# --- boss: ikisi de karede kalsın

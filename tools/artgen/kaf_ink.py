@@ -51,9 +51,9 @@ EMERALD = (80, 230, 170)
 def layer_sky(seed=1):
     W = 1920
     L = Layer(W, H)
-    rgb = np.repeat(SKY[:, None, :], W, 1).copy()
-    ys = np.arange(H, dtype=np.float32)[:, None]
-    xs = np.arange(W, dtype=np.float32)[None, :]
+    rgb = np.repeat(ik.hd_lin(SKY)[:, None, :], L.w, 1).copy()
+    ys = ik.axis(H)[:, None]
+    xs = ik.axis(W)[None, :]
     # ufukta şafak sızısı (sağda, sıcak pembe) + solda ay hâlesi
     d = np.hypot((xs - 1500) / 900.0, (ys - 640) / 220.0)
     rgb = mix(rgb, c01((236, 170, 186))[None, None, :], (np.exp(-d * d * 2.2) * 0.5)[..., None])
@@ -62,7 +62,7 @@ def layer_sky(seed=1):
     n1 = fbm(W, H, [110, 40, 14], seed)
     n2 = noise(W, H, 0, seed + 7, sx=90, sy=2.5)
     rgb *= (1 + 0.04 * n1[..., None] + 0.025 * n2[..., None])
-    L.a = premul(rgb.astype(np.float32), np.ones((H, W), np.float32))
+    L.a = premul(rgb.astype(np.float32), np.ones((L.h, L.w), np.float32))
     s = Sk(W, H)
     rng = np.random.default_rng(seed + 3)
     for _ in range(700):
@@ -90,9 +90,9 @@ def layer_aurora(seed=5):
     """Kutup ışığı perdeleri (toplamalı, yavaş nefes alır): dalgalı alt kenarı parlak yeşil-turkuaz, yukarı doğru
     sönen dikey ışınlar, üst saçakta mor."""
     W = WL
-    ys = np.arange(H, dtype=np.float32)[:, None]
-    xs = np.arange(W, dtype=np.float32)
-    out = np.zeros((H, W, 3), np.float32)
+    ys = ik.axis(H)[:, None]
+    xs = ik.axis(W)
+    out = np.zeros((ik.P(H), ik.P(W), 3), np.float32)
     rng = np.random.default_rng(seed)
     for k in range(3):
         f1 = round(rng.uniform(1.5, 3.5)) * 2 * math.pi / W
@@ -454,7 +454,7 @@ def layer_farmid(seed=30):
         h = rng.uniform(30, 70)
         spruce(sk, x + pad, ty(x) + 6, h, int(rng.integers(1 << 20)), needle=(52, 66, 104), needle_d=(36, 44, 82),
                snow=(220, 228, 252), snow_sh=(134, 142, 200), ink_a=0.0, snow_amt=0.8, trunk_col=(52, 54, 92))
-    arr = fold(sk.snap(), pad, WL)
+    arr = fold(sk.snap(), ik.P(pad), ik.P(WL))
     apply_fog(arr, 0, SKY, fog_amount(0.34, 0.25, 690, 40))
     L.over(arr)
     return L
@@ -484,7 +484,7 @@ def layer_mid(seed=40):
             continue
         spruce(sk, x + pad, ty(x) + 8, rng.uniform(80, 170), int(rng.integers(1 << 20)), needle=(52, 72, 112),
                needle_d=(34, 46, 84), ink_a=0.75, ink_w=1.3, snow_amt=1.4)
-    arr = fold(sk.snap(), pad, WL)
+    arr = fold(sk.snap(), ik.P(pad), ik.P(WL))
     apply_fog(arr, 0, SKY, fog_amount(0.12, 0.22, 700, 40))
     L.over(arr)
     return L
@@ -505,7 +505,7 @@ def layer_near(seed=50):
         spruce(sk, cx + pad + rng.uniform(-40, 40), ty(cx) + 14, rng.uniform(420, 620), seed + 40 + k,
                needle=(22, 34, 52), needle_d=(12, 18, 32), snow=(206, 218, 248), snow_sh=(96, 108, 170), ink_a=1.0,
                ink_w=2.2, trunk_col=(36, 26, 34))
-    arr = fold(sk.snap(), pad, WL)
+    arr = fold(sk.snap(), ik.P(pad), ik.P(WL))
     apply_fog(arr, 0, SKY, fog_amount(0.03, 0.1, 740, 40, top=0.06))
     L.over(arr)
     from otuken_ink import rock as _rock

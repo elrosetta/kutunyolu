@@ -13,14 +13,21 @@ var _sprites: Dictionary = {}
 var _decor: Dictionary = {}
 
 
-## Doku paketi (2K / 4K): assets_hd/x2 ya da x4 altında aynı göreli yolla, temel dokunun 2 / 4 katı
-## çözünürlükte yeniden çizilmiş renk dokuları. manifest.json temel boyutları tutar; yüklenen büyük doku
-## ImageTexture.set_size_override ile temel boyutta raporlanır: bölgeler, kareler ve çizim boyu değişmez,
-## yalnızca ayrıntı artar. Normal ve parlama haritaları temel çözünürlükte kalır.
-var pack := 1
-var _pack_dir := ""
-var _pack_manifest: Dictionary = {}
+## Doku paketi (2K / 4K): assets_hd/x2 ya da x4 altında aynı göreli yolla, temel dokunun 2 / 4 katı çözünürlükte
+## yeniden çizilmiş renk dokuları. manifest.json temel boyutları tutar; yüklenen büyük doku ImageTexture.set_size_override
+## ile temel boyutta raporlanır: bölgeler, kareler, köken ve dünya boyu değişmez, yalnızca ayrıntı artar. Normal, maske ve
+## ışıma (_e) haritaları temel çözünürlükte kalır.
+## Stil v2 (mürekkep) HD paketi: assets_hd/x2 altında "_v2" dokuları 2 kat (doku yoğunluğu 8 piksel / dünya birimi),
+## tools/artgen/hdpack.py ile prosedürel çizimden yeniden üretilir; dosya WebP (manifest girişi [g, y, "<dosya>", "<md5>"]).
+## 4K seçiliyken önce x4, yoksa x2 aranır (v2 için 4K = x2 paketi: 1,7 yakınlıkta 4K'da ~6,8 ekran pikseli / birim).
+## md5: temel PNG'nin özeti; kaynak dosyalar varken (proje klasöründen çalışma) temel doku sonradan değiştiyse eski HD
+## sürüm kullanılmaz (temel doku yüklenir, uyarı).
+var pack := 1                 # istenen paket düzeyi (1 / 2 / 4)
+var pack_level := 0           # etkin paket (0 yok, 1 = 2K, 2 = 4K; en az bir manifest yüklendiyse)
+var _packs: Array = []        # [{"dir", "scale", "man"}], öncelik sırasıyla
 var _tex_cache: Dictionary = {}
+var _pack_hits := 0
+var _pack_usec := 0          # paket dokularının yükleme süresi (ölçüm: Ayarlar --olcum)
 
 
 func _init_pack() -> void:
@@ -28,11 +35,58 @@ func _init_pack() -> void:
 	Ayarlar.lock_pack()
 	if pack <= 1:
 		return
-	_pack_dir = "res://assets_hd/x%d/" % pack
-	_pack_manifest = load_json(_pack_dir + "manifest.json") if FileAccess.file_exists(_pack_dir + "manifest.json") else {}
-	if _pack_manifest.is_empty():
+	var sc := pack
+	while sc >= 2:
+		var dir := "res://assets_hd/x%d/" % sc
+		if FileAccess.file_exists(dir + "manifest.json"):
+			var man := load_json(dir + "manifest.json")
+			if not man.is_empty():
+				_packs.append({"dir": dir, "scale": sc, "man": man})
+		sc /= 2
+	if _packs.is_empty():
 		push_warning("Doku paketi x%d bulunamadı; standart dokular kullanılıyor" % pack)
 		pack = 1
+		Ayarlar.pack_missing = true
+		Ayarlar.hd_active = 0
+		return
+	pack_level = 2 if pack >= 4 else 1
+
+
+func _pack_entry(path: String) -> Dictionary:
+	## Bu doku için paket girdisi: {"file": res yolu, "scale": çarpan, "size": temel boyut} ya da boş
+	if _packs.is_empty():
+		return {}
+	var rel := path.trim_prefix("res://assets/")
+	for pk in _packs:
+		var man: Dictionary = pk["man"]
+		if not man.has(rel):
+			continue
+		var e: Array = man[rel]
+		var f: String = String(pk["dir"]) + (String(e[2]) if e.size() > 2 else rel)
+		if not ResourceLoader.exists(f):
+			continue
+		if e.size() > 3 and not _base_matches(path, String(e[3])):
+			continue
+		return {"file": f, "scale": int(pk["scale"]), "size": Vector2i(int(e[0]), int(e[1]))}
+	return {}
+
+
+var _md5_ok: Dictionary = {}
+
+
+func _base_matches(path: String, md5: String) -> bool:
+	## Temel PNG kaynağı erişilebilirse (proje klasörü) özeti manifesttekiyle aynı mı; dışa aktarılmış oyunda kaynak
+	## PNG paketlenmez: özet okunamaz, HD dosya geçerli sayılır.
+	if _md5_ok.has(path):
+		return _md5_ok[path]
+	var ok := true
+	if FileAccess.file_exists(path):
+		var h := FileAccess.get_md5(path)
+		if h != "" and h != md5:
+			ok = false
+			push_warning("HD doku eski (temel doku değişmiş, hd_paket.py ile yeniden üretin): %s" % path)
+	_md5_ok[path] = ok
+	return ok
 
 
 func tex(path: String) -> Texture2D:
@@ -40,14 +94,18 @@ func tex(path: String) -> Texture2D:
 	if _tex_cache.has(path):
 		return _tex_cache[path]
 	var t: Texture2D = null
-	if pack > 1:
-		var rel := path.trim_prefix("res://assets/")
-		if _pack_manifest.has(rel) and ResourceLoader.exists(_pack_dir + rel):
-			var big: Texture2D = load(_pack_dir + rel)
-			var it := ImageTexture.create_from_image(big.get_image())
-			var bs: Array = _pack_manifest[rel]
-			it.set_size_override(Vector2i(int(bs[0]), int(bs[1])))
+	var e := _pack_entry(path)
+	if not e.is_empty():
+		var t0 := Time.get_ticks_usec()
+		var big: Texture2D = load(e["file"])
+		var img: Image = big.get_image() if big else null
+		if img != null and not img.is_empty():
+			var it := ImageTexture.create_from_image(img)
+			it.set_size_override(e["size"])
+			it.resource_name = path.get_file()
 			t = it
+			_pack_hits += 1
+		_pack_usec += Time.get_ticks_usec() - t0
 	if t == null:
 		t = load(path)
 	_tex_cache[path] = t
@@ -56,14 +114,22 @@ func tex(path: String) -> Texture2D:
 
 func tex_full(path: String) -> Texture2D:
 	## Paket dokusunu GERÇEK boyutunda döndürür (boyut geçersiz kılma yok). TileSet geçersiz kılmayı yok
-	## saydığı için karo atlasları bununla yüklenir ve karo boyu paket çarpanıyla büyütülür.
-	if pack_has(path):
-		return load(_pack_dir + path.trim_prefix("res://assets/"))
+	## saydığı için karo atlasları bununla yüklenir ve karo boyu pack_scale(path) ile büyütülür; gölgelendiricide
+	## textureSize ile ölçeklenen dünya uzayı dokuları (toprak, çayır) da.
+	var e := _pack_entry(path)
+	if not e.is_empty():
+		return load(e["file"])
 	return load(path)
 
 
 func pack_has(path: String) -> bool:
-	return pack > 1 and _pack_manifest.has(path.trim_prefix("res://assets/"))
+	return not _pack_entry(path).is_empty()
+
+
+func pack_scale(path: String) -> int:
+	## Bu dokunun paketteki gerçek çarpanı (1 = paket yok / temel doku)
+	var e := _pack_entry(path)
+	return 1 if e.is_empty() else int(e["scale"])
 
 
 var _weapon_img: Image
@@ -285,7 +351,7 @@ func _load_weapon_stil() -> void:
 	weapon_stil = load_json(jp)
 	for pg in weapon_stil.get("pages", []):
 		var ct := CanvasTexture.new()
-		ct.diffuse_texture = load("res://assets/weapons/%s" % pg)
+		ct.diffuse_texture = tex("res://assets/weapons/%s" % pg)
 		ct.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
 		_wst_pages.append(ct)
 
@@ -319,7 +385,9 @@ func weapon_sprite_image(d: Dictionary) -> Image:
 	if p < 0:
 		return weapon_image()
 	if not _wst_imgs.has(p):
-		var img: Image = (_wst_pages[p] as CanvasTexture).diffuse_texture.get_image()
+		# temel sayfa (HD paketi etkin olsa da): bölge koordinatları temel doku pikselinde
+		var bt: Texture2D = load("res://assets/weapons/%s" % String(weapon_stil["pages"][p]))
+		var img: Image = bt.get_image()
 		if img.is_compressed():
 			img.decompress()
 		_wst_imgs[p] = img

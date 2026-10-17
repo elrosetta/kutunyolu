@@ -48,7 +48,7 @@ func setup(n: String, additive := true) -> void:
 		key = n + "_v2"
 		tex_k = 1.0 / float(m.get("texel", 4.0))
 	if not _tex.has(key):
-		_tex[key] = load("res://assets/fx/anim/%s.png" % key)
+		_tex[key] = Data.tex("res://assets/fx/anim/%s.png" % key)
 	texture = _tex[key]
 	hframes = int(m["cols"])
 	vframes = int(ceil(float(m["frames"]) / float(m["cols"])))

@@ -84,7 +84,7 @@ static func _mat(p: int) -> ShaderMaterial:
 	if not _mats.has(p):
 		var m := ShaderMaterial.new()
 		m.shader = SHADER
-		m.set_shader_parameter("atlas", ATLAS)
+		m.set_shader_parameter("atlas", Data.tex_full(ATLAS.resource_path))   # HD paketi varsa 2 kat (UV ile örneklenir)
 		var pc: Array = palette(p)
 		m.set_shader_parameter("c_ink", pc[0])
 		m.set_shader_parameter("c_core", pc[1])

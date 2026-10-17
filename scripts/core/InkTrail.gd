@@ -194,7 +194,7 @@ func _apply_mat() -> void:
 	if not _mats.has(key):
 		var m := ShaderMaterial.new()
 		m.shader = SHADER
-		m.set_shader_parameter("bristle", BRISTLE)
+		m.set_shader_parameter("bristle", Data.tex_full(BRISTLE.resource_path))   # HD paketi varsa 2 kat (UV ile örneklenir)
 		var p: Array = InkFX.palette(pal)
 		m.set_shader_parameter("c_ink", p[0])
 		m.set_shader_parameter("c_core", p[1])

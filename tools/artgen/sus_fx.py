@@ -19,16 +19,19 @@ import numpy as np
 import skia
 from scipy import ndimage
 
+from hdpack import HD   # HD doku paketi (KY_HD=2): hücre ve çizim ölçeği HD kat; anim_v2.json temel hücreyi yazar
+
 K = 4.0
 CELL = 384
+CP = CELL * HD     # hücrenin çıktı pikseli
 INKC = (0.08, 0.085, 0.11)
 
 
 def _surf():
-    s = skia.Surface(CELL, CELL)
+    s = skia.Surface(CP, CP)
     c = s.getCanvas()
     c.clear(skia.Color4f(0, 0, 0, 0))
-    c.scale(K, K)
+    c.scale(K * HD, K * HD)   # bulanıklık (MaskFilter) da dönüşümle ölçeklenir
     return s, c
 
 
@@ -99,7 +102,10 @@ def _erode(arr, t, seed, soft=0.12):
     if key not in _NZ:
         rng = np.random.default_rng(seed)
         nz = ndimage.gaussian_filter(rng.standard_normal((CELL, CELL)).astype(np.float32), 9)
-        _NZ[key] = (nz - nz.min()) / (nz.max() - nz.min() + 1e-6)
+        nz = (nz - nz.min()) / (nz.max() - nz.min() + 1e-6)
+        if HD > 1:   # yumuşak alan (sigma 9 px): temelde üretilip HD ızgarasına örneklenir, erime sınırı aynı yerde kalır
+            nz = ndimage.zoom(nz, HD, order=3, mode='nearest', grid_mode=True)
+        _NZ[key] = nz
     nz = _NZ[key]
     m = np.clip((nz - t * 1.1 + 0.05) / soft, 0, 1)
     return arr * m[..., None]
@@ -259,13 +265,13 @@ def export(save, to8, A, only=None):
         n = int(m['frames'])
         cols = int(m['cols'])
         rows = (n + cols - 1) // cols
-        sheet = np.zeros((rows * CELL, cols * CELL, 4), np.float32)
+        sheet = np.zeros((rows * CP, cols * CP, 4), np.float32)
         for i in range(n):
             a = fn(i, n)
             al = a[..., 3:4]
             straight = np.concatenate([np.where(al > 1e-4, a[..., :3] / np.maximum(al, 1e-4), 0), al], -1)
             r, cc = divmod(i, cols)
-            sheet[r * CELL:(r + 1) * CELL, cc * CELL:(cc + 1) * CELL] = straight
+            sheet[r * CP:(r + 1) * CP, cc * CP:(cc + 1) * CP] = straight
         save(to8(sheet), 'fx/anim', name + '_v2.png', vram=False)
         meta[name] = {'frames': n, 'cols': cols, 'cell': CELL, 'fps': m.get('fps', 20), 'pivot': [p * K for p in m.get('pivot', [48, 64])],
                       'loop': m.get('loop', False), 'texel': K}

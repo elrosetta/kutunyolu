@@ -28,6 +28,8 @@ import numpy as np
 import skia
 from scipy import ndimage
 
+from hdpack import HD   # HD doku paketi (KY_HD=2): tuval, yoğunluk ve çizgi kalınlığı HD kat
+
 SD_K = 1.45        # gölge kayması çarpanı (hepsi için)
 GRAD = 0.10        # parça içi değer geçişi (0 = düz)
 INK = (0x15 / 255, 0x16 / 255, 0x1d / 255)
@@ -251,9 +253,16 @@ class InkCanvas:
     Çizim çağrıları (z, sıra) ile kuyruğa alınır; finish() sıralayıp çizer, küçültür ve son işlemleri yapar."""
 
     def __init__(self, w, h, ox, oy, k=3.0, ss=3, light=LIGHT, lw=None):
-        self.w, self.h, self.ox, self.oy, self.k, self.ss = w, h, ox, oy, k, ss
         # çizgi kalınlığı ölçeği: genişlikler k=3 (1,5 yakınlık) için yazıldı; daha yoğun dokuda biraz daha ince göreli çizgi
-        self.lw = lw if lw is not None else (k / 3.0) ** 0.85
+        lw = lw if lw is not None else (k / 3.0) ** 0.85
+        # HD paketi (hdpack.HD): aynı çizim HD kat çözünürlükte; boyut/köken doku pikseli, yoğunluk ve çizgi HD ile çarpılır.
+        # Süper örnekleme 3 -> 2 (2 kat çözünürlükte 2x2 örnek, temel 3x3'ten daha sık; süre makul kalır).
+        self.hd = HD
+        if HD > 1:
+            w, h, ox, oy, k, lw = w * HD, h * HD, ox * HD, oy * HD, k * HD, lw * HD
+            ss = min(ss, 2)
+        self.w, self.h, self.ox, self.oy, self.k, self.ss = w, h, ox, oy, k, ss
+        self.lw = lw
         self.surf = skia.Surface(int(w * ss), int(h * ss))
         self.c = self.surf.getCanvas()
         self.c.clear(skia.Color4f(0, 0, 0, 0))
@@ -441,7 +450,7 @@ class InkCanvas:
                 lf = np.clip(N[:, 0] * L[0] + N[:, 1] * L[1], 0, 1)
                 w = w0 * (0.8 + 0.4 * nz) * (1.0 - 0.3 * lf) + ex * sh
                 # kırık çizgi: ışığa bakan yanda seyrek boşluklar (uçlar yumuşakça incelir)
-                if Ln / self.ss > 40:
+                if Ln / (self.ss * self.hd) > 40:
                     brk = np.sin(sarc * (6.283 / 83.0) + seed * 7.0) + 0.55 * np.sin(sarc * (6.283 / 31.0) + seed * 3.1)
                     gap = np.clip((brk - 0.95) / 0.35, 0, 1) * np.clip((lf - 0.35) / 0.35, 0, 1)
                     gap = gap * gap * (3 - 2 * gap)
@@ -655,7 +664,7 @@ class InkCanvas:
         a = img[..., 3:4]
         rgb = np.where(a > 1e-4, img[..., :3] / np.maximum(a, 1e-4), 0)
         if grain > 0:   # dolgu içi fırça/kâğıt dokusu: karede sabit (kâğıt), koyularda (mürekkep) kendiliğinden kaybolur
-            rgb = rgb * (1.0 + grain * paper_grain(h, w)[..., None])
+            rgb = rgb * (1.0 + grain * paper_grain(h, w, sc=self.hd)[..., None])
         rgba = np.concatenate([np.clip(rgb, 0, 1), np.clip(a, 0, 1)], -1)
         em = self.esurf.makeImageSnapshot().toarray(colorType=skia.ColorType.kRGBA_8888_ColorType,
                                                    alphaType=skia.AlphaType.kPremul_AlphaType).astype(np.float32) / 255.0
@@ -667,19 +676,20 @@ class InkCanvas:
 _GRAIN = {}
 
 
-def paper_grain(h, w, seed=11):
-    """Yaklaşık [-1, 1] doku: çapraz yönlü fırça izleri (uzun, yumuşak) + ince kâğıt tanesi. Boyuta göre önbellekli."""
-    key = (h, w, seed)
+def paper_grain(h, w, seed=11, sc=1):
+    """Yaklaşık [-1, 1] doku: çapraz yönlü fırça izleri (uzun, yumuşak) + ince kâğıt tanesi. Boyuta göre önbellekli.
+    sc: doku ölçeği (HD paketinde 2: tane yarıçapları da 2 kat, görünüm aynı kalır)."""
+    key = (h, w, seed, sc)
     if key in _GRAIN:
         return _GRAIN[key]
     rng = np.random.default_rng(seed)
     m = int(math.hypot(h, w)) + 8
-    f = ndimage.gaussian_filter(rng.standard_normal((m, m)).astype(np.float32), (0.9, 7.0), mode='wrap')
+    f = ndimage.gaussian_filter(rng.standard_normal((m, m)).astype(np.float32), (0.9 * sc, 7.0 * sc), mode='wrap')
     f = ndimage.rotate(f, 32.0, reshape=False, order=1, mode='wrap')
     y0, x0 = (m - h) // 2, (m - w) // 2
     f = f[y0:y0 + h, x0:x0 + w]
     f = f / (f.std() + 1e-6)
-    g = ndimage.gaussian_filter(rng.standard_normal((h, w)).astype(np.float32), 0.7)
+    g = ndimage.gaussian_filter(rng.standard_normal((h, w)).astype(np.float32), 0.7 * sc)
     g = g / (g.std() + 1e-6)
     out = np.clip(0.75 * f + 0.35 * g, -2.5, 2.5) / 2.5
     _GRAIN[key] = out.astype(np.float32)

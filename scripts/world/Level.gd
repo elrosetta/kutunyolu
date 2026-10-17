@@ -212,7 +212,7 @@ func open_boss_gate() -> void:
 func _build_hazards() -> void:
 	## Tehlike karoları (grid 3): biyoma göre diken / zehir / lav / buz; iki kare animasyon
 	haz_kind = {"otuken": "diken", "bozkir": "diken", "sahmeran": "zehir", "kaf": "buz", "tamu": "lav"}.get(biome.get("id", "otuken"), "diken")
-	var hp := Data.pack if Data.pack_has("res://assets/tiles/hazards.png") else 1
+	var hp := Data.pack_scale("res://assets/tiles/hazards.png")
 	# stil v2 mürekkep: biyoma özgü tehlike dokusu (hazards_<biyom>_v2.png; tools/artgen/ink_tehlike.py) varsa o,
 	# yoksa biyomdan bağımsız mürekkep karoları (hazards_v2.png; tools/artgen/sus_ink.py); 4 doku pikseli / dünya birimi
 	var hz2 := "res://assets/tiles/hazards_%s_v2.png" % String(biome.get("id", ""))
@@ -220,14 +220,15 @@ func _build_hazards() -> void:
 	var liquid := ink() and art.has("hazard_v2") and ResourceLoader.exists("res://assets/tiles/hazard_%s_v2.png" % haz_kind)
 	var v2h := ink() and ResourceLoader.exists(hz2)
 	var hv2 := not v2h and Data.stil == "v2" and ResourceLoader.exists("res://assets/tiles/hazards_v2.png")
+	var hv2_path := hz2 if v2h else "res://assets/tiles/hazards_v2.png"
 	if v2h or hv2:
-		hp = 4
+		hp = 4 * Data.pack_scale(hv2_path)   # 4 doku pikseli / dünya birimi; HD paketinde 8 (TileSet gerçek boyutu kullanır)
 	var ts := TileSet.new()
 	ts.tile_size = Vector2i(TS * hp, TS * hp)
 	var src := TileSetAtlasSource.new()
 	if v2h or hv2:
 		var hct := CanvasTexture.new()
-		hct.diffuse_texture = load(hz2 if v2h else "res://assets/tiles/hazards_v2.png")
+		hct.diffuse_texture = Data.tex_full(hv2_path)
 		hct.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
 		src.texture = hct
 	else:
@@ -276,7 +277,7 @@ func _build_hazards() -> void:
 			for c in 2:
 				src2.create_tile(Vector2i(c, r))
 		glow.tile_set = ts2
-		glow.scale = Vector2.ONE * (1.0 if hv2 else float(hp))  # ebeveyn (HD) katmanın küçültmesini dengele: parlama temel boyutlu
+		glow.scale = Vector2.ONE * (float(hp) / 4.0 if hv2 else float(hp))  # ebeveyn (HD) katmanın küçültmesini dengele: parlama temel boyutlu
 		if hv2:
 			glow.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
 		var gm := CanvasItemMaterial.new()
@@ -329,7 +330,7 @@ func _build_hazards_ink() -> void:
 			poly.position = Vector2(r.position.x * TS, r.position.y * TS)
 			var m := ShaderMaterial.new()
 			m.shader = load("res://shaders/liquid_ink.gdshader")
-			m.set_shader_parameter("noise_tex", load(tp))
+			m.set_shader_parameter("noise_tex", Data.tex_full(tp))
 			m.set_shader_parameter("surface_y", float(r.position.y * TS))
 			for k in ["deep", "mid", "hot"]:
 				if spec.has(k):
@@ -1009,14 +1010,31 @@ func _atlas_tex(path: String, normal: String) -> CanvasTexture:
 	var ct := CanvasTexture.new()
 	ct.diffuse_texture = Data.tex_full(path)
 	if ink():
-		# v2 mürekkep: normal yuvasında toprak kaplama maskesi (ground_ink.gdshader), doğrusal süzgeç + mipmap
-		ct.normal_texture = load("res://assets/tiles/%s" % String(_tmeta().get("mask", "")))
+		# v2 mürekkep: normal yuvasında toprak kaplama maskesi (ground_ink.gdshader), doğrusal süzgeç + mipmap.
+		# HD paketinde maske de 2 kat (CanvasTexture normal yuvası atlasla aynı boyda olmalı, yoksa karolar kayar)
+		ct.normal_texture = _same_size(Data.tex_full("res://assets/tiles/%s" % String(_tmeta().get("mask", ""))), ct.diffuse_texture)
 		ct.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
 		return ct
 	if ResourceLoader.exists(normal):
-		ct.normal_texture = load(normal)
+		ct.normal_texture = _same_size(load(normal), ct.diffuse_texture)
 	ct.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	return ct
+
+
+func _same_size(t: Texture2D, ref: Texture2D) -> Texture2D:
+	## Karo atlasıyla aynı TileSet'te kullanılan yardımcı doku (maske, normal, ışıma) atlasla aynı boyda olmalı. Pakette
+	## HD karşılığı yoksa (eski v1 paketi, temel doku sonradan değişti) çalışma anında atlas boyuna büyütülür (yumuşak
+	## veri dokuları; çizim ayrıntısı yok).
+	if t == null or ref == null or t.get_size() == ref.get_size():
+		return t
+	var img: Image = t.get_image()
+	if img == null or img.is_empty():
+		return t
+	if img.is_compressed():
+		img.decompress()
+	img.resize(int(ref.get_width()), int(ref.get_height()), Image.INTERPOLATE_BILINEAR)
+	img.generate_mipmaps()
+	return ImageTexture.create_from_image(img)
 
 
 func _tile_id() -> String:
@@ -1026,7 +1044,7 @@ func _tile_id() -> String:
 
 func _make_tileset() -> TileSet:
 	var tpath := "res://assets/tiles/%s.png" % _tile_id()
-	_tile_pack = Data.pack if Data.pack_has(tpath) else 1
+	_tile_pack = Data.pack_scale(tpath)
 	var ac := _tile_px()
 	var ts := TileSet.new()
 	ts.tile_size = Vector2i(ac, ac)
@@ -1179,14 +1197,14 @@ func _build_tiles() -> void:
 	var bid2: String = _tile_id()
 	# toprak dokusu: paket varsa yüksek çözünürlüklü (shader dünya ızgarasından gerçek doku boyutuyla okur)
 	var soil_path := "res://assets/tiles/%s_soil.png" % bid2
-	var soil_hd := Data.pack_has(soil_path)
-	gmat.set_shader_parameter("soil_tex", load(soil_path.replace("res://assets/", "res://assets_hd/x%d/" % Data.pack)) if soil_hd else load(soil_path))
+	var soil_k := Data.pack_scale(soil_path)
+	gmat.set_shader_parameter("soil_tex", Data.tex_full(soil_path))
 	gmat.set_shader_parameter("soil_n", load("res://assets/tiles/%s_soil_n.png" % bid2))
 	var dc: Array = art.get("deep_color", [0.04, 0.03, 0.06])
 	gmat.set_shader_parameter("deep_color", Color(dc[0], dc[1], dc[2]))
 	gmat.set_shader_parameter("depth_tex", _depth_texture())
 	gmat.set_shader_parameter("map_size_px", Vector2(W * TS, H * TS))
-	gmat.set_shader_parameter("soil_density", float(_art_cell()) / TS * (float(Data.pack) if soil_hd else 1.0))
+	gmat.set_shader_parameter("soil_density", float(_art_cell()) / TS * float(soil_k))
 	var emis_path := "res://assets/tiles/%s_soil_e.png" % bid2
 	if ResourceLoader.exists(emis_path):
 		gmat.set_shader_parameter("soil_e", load(emis_path))
@@ -1206,17 +1224,24 @@ func _build_tiles_ink() -> void:
 	var bid2: String = _tile_id()
 	var gmat := ShaderMaterial.new()
 	gmat.shader = load("res://shaders/ground_ink.gdshader")
-	gmat.set_shader_parameter("soil_tex", load("res://assets/tiles/%s_soil.png" % bid2))
-	gmat.set_shader_parameter("soil_density", float(_tmeta().get("soil_density", 2.0)))
+	# HD paketi: toprak ve çayır dokuları gerçek (2 kat) boyutlarıyla; gölgelendirici dünya konumunu textureSize ile
+	# böldüğü için yoğunluk aynı çarpanla büyür (aynı dünya alanı, 2 kat ayrıntı). İkisi aynı ölçekte olmalı (ortak yoğunluk).
+	var soil_path := "res://assets/tiles/%s_soil.png" % bid2
+	var mp := "res://assets/tiles/%s" % String(_tmeta().get("meadow", ""))
+	var has_meadow := _tmeta().has("meadow") and ResourceLoader.exists(mp)
+	var gk := Data.pack_scale(soil_path)
+	if has_meadow and Data.pack_scale(mp) != gk:
+		gk = 1
+	gmat.set_shader_parameter("soil_tex", Data.tex_full(soil_path) if gk > 1 else load(soil_path))
+	gmat.set_shader_parameter("soil_density", float(_tmeta().get("soil_density", 2.0)) * float(gk))
 	var dc: Array = art.get("deep_color", [0.06, 0.06, 0.08])
 	gmat.set_shader_parameter("deep_color", Color(dc[0], dc[1], dc[2]))
 	gmat.set_shader_parameter("deep_amount", float(art.get("deep_amount", 0.8)))
 	gmat.set_shader_parameter("depth_tex", _depth_texture())
 	gmat.set_shader_parameter("map_size_px", Vector2(W * TS, H * TS))
 	gmat.set_shader_parameter("moon_gain", float(art.get("ground_moon_gain", 0.6)))
-	var mp := "res://assets/tiles/%s" % String(_tmeta().get("meadow", ""))
-	if _tmeta().has("meadow") and ResourceLoader.exists(mp):
-		gmat.set_shader_parameter("meadow_tex", load(mp))
+	if has_meadow:
+		gmat.set_shader_parameter("meadow_tex", Data.tex_full(mp) if gk > 1 else load(mp))
 		gmat.set_shader_parameter("top_tex", _top_depth_texture())
 	else:
 		gmat.set_shader_parameter("meadow_on", 0.0)
@@ -1256,7 +1281,8 @@ func _lay_emit_tiles(ts: TileSet) -> void:
 		cells[Vector2i(int(c[0]), int(c[1]))] = true
 	var ets := ts.duplicate(true) as TileSet
 	var src := ets.get_source(0) as TileSetAtlasSource
-	src.texture = load(ep)
+	var art_tex: Texture2D = (ts.get_source(0) as TileSetAtlasSource).texture
+	src.texture = _same_size(Data.tex_full(ep), art_tex)   # karo boyu atlasınkiyle aynı (HD paketinde 2 kat)
 	var layer := TileMapLayer.new()
 	layer.tile_set = ets
 	layer.scale = ground.scale
@@ -1741,7 +1767,7 @@ func _decor_v2(dname: String) -> Dictionary:
 		return {}
 	if not _decor_v2_tex.has(key):
 		var d: Dictionary = (_decor_v2_meta[key] as Dictionary).duplicate()
-		d["tex"] = load("res://assets/decor/%s.png" % key)
+		d["tex"] = Data.tex("res://assets/decor/%s.png" % key)
 		var gp := "res://assets/decor/%s_e.png" % key
 		d["glow_tex"] = load(gp) if ResourceLoader.exists(gp) else null
 		_decor_v2_tex[key] = d

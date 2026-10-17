@@ -19,6 +19,7 @@ import numpy as np
 
 import export_ink_ortam as E
 from export_ink_ortam import A, save, to8, WORLD_K
+from hdpack import HD   # KY_HD=2: çıktı ölçeği K x HD (json temel değerlerle)
 
 BG = [('0_sky', 'layer_sky'), ('1_far', 'layer_far'), ('2_farmid', 'layer_farmid'), ('2b_haze', 'layer_haze'),
       ('3_mid', 'layer_mid'), ('4_fog', 'layer_fogband'), ('5_shafts', 'layer_shafts'), ('6_near', 'layer_near')]
@@ -39,7 +40,7 @@ def export_bg(b, only=None):
     import importlib
     import inkkit_ortam as ik
     O = importlib.import_module(MODS[b][0])
-    ik.K = 1.0
+    ik.K = 1.0 * HD
     for key, fn in getattr(O, 'EXPORT_BG', BG):
         if only and key not in only:
             continue
@@ -54,7 +55,7 @@ def export_ground(b):
     import inkkit_ortam as ik
     import inkkit_zemin as Z
     G = importlib.import_module(MODS[b][1])
-    ik.K = WORLD_K
+    ik.K = WORLD_K * HD
     art, mask, emit, cells = Z.build_atlas(G.SPEC)
     save(to8(art), 'tiles', '%s_v2.png' % b)
     save((np.clip(mask, 0, 1) * 255 + 0.5).astype(np.uint8), 'tiles', '%s_v2_mask.png' % b)
@@ -65,9 +66,9 @@ def export_ground(b):
     top = G.moss_texture() if hasattr(G, 'moss_texture') else G.top_texture()
     save(top.rgba8(), 'tiles', '%s_v2_meadow.png' % b)
     meta = {
-        "tile": ik.P(Z.C), "world_tile": 24, "density": ik.P(Z.C) / 24.0, "cols": Z.COLS, "ground_rows": 3,
+        "tile": ik.P(Z.C) // HD, "world_tile": 24, "density": ik.P(Z.C) // HD / 24.0, "cols": Z.COLS, "ground_rows": 3,
         "overlay_row": Z.OROW, "grass_cols": Z.GRASS_COLS, "ceiling_cols": Z.CEIL_COLS, "platform_row": Z.PROW,
-        "ink": True, "filter": "linear_mipmap", "mask": "%s_v2_mask.png" % b, "soil_size": soil.w,
+        "ink": True, "filter": "linear_mipmap", "mask": "%s_v2_mask.png" % b, "soil_size": soil.w // HD,
         "soil_density": 2.0 * WORLD_K, "meadow": "%s_v2_meadow.png" % b, "glow": None,
         "emit": "%s_v2_e.png" % b, "emit_cells": cells, "soil_e": "%s_v2_soil_e.png" % b,
         "meadow_depth": getattr(G, 'MEADOW_DEPTH', 0.55),
@@ -81,7 +82,7 @@ def export_fg(b):
     import importlib
     import inkkit_ortam as ik
     G = importlib.import_module(MODS[b][1])
-    ik.K = 1.0
+    ik.K = 1.0 * HD
     save(G.fg_bottom_strip().rgba8(), 'bg', '%s_v2_fg_bottom.png' % b)
     save(G.fg_top_strip().rgba8(), 'bg', '%s_v2_fg_top.png' % b)
     for nm, fn in getattr(G, 'PARTICLES', {}).items():
@@ -92,14 +93,14 @@ def export_decor(b):
     import importlib
     import inkkit_ortam as ik
     D = importlib.import_module(MODS[b][2])
-    ik.K = WORLD_K
+    ik.K = WORLD_K * HD
     D.export(save, to8, A, b)
 
 
 def export_hazard(b):
     import inkkit_ortam as ik
     import hazard_ink as HZ
-    ik.K = 1.0
+    ik.K = 1.0 * HD
     for kind, fn in HZ.KINDS.get(b, {}).items():
         save(getattr(HZ, fn)(), 'tiles', 'hazard_%s_v2.png' % kind)
 

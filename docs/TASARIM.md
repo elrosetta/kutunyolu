@@ -485,8 +485,69 @@ Otomatik test: `godot --path . -- --otomatik` komutu oyunu kendi kendine oynatı
   (`assets_hd/x4`). Yalnızca renk dokuları; normal/parlama haritaları ve JSON meta temelden. `manifest.json` temel boyutları tutar;
   `Data.tex()` büyük dokuyu `ImageTexture.set_size_override` ile temel boyutta raporlar, oyun kodu değişmez.
   Otomatik: 1080p ve üstü 2K, 2160p 4K (960x540 görüntüde 2K paketi 1080p'de, 4K paketi 4K'da ekran pikseline 1:1 oturur).
+  (v19: bu paketler yalnızca v1 piksel sanatını kapsar; stil v2 için aşağıdaki "Stil v2 HD doku paketi" bölümüne bkz.)
 * **Test:** `-- --doku=0..3 --pencere=2560x1440 --goruntu=cikti.png` (6 sn sonra ekranı kaydeder ve çıkar).
+  Başarım: `-- --otomatik --derinlik=7 --doku=2 --pencere=2560x1440 --bekle=8 --olcum=20` (kare süresi ort / %95 / en kötü,
+  FPS, doku ve toplam video belleği, paket dokularının yükleme süresi; sonra çıkar).
 * **Başlatıcı:** `Oyunu_Baslat.bat` her açılışta içe aktarır; GitHub'dan çekilen yeni dosyalar içe aktarılmazsa oyun boş ekranda kalıyordu.
+
+### Stil v2 HD doku paketi (2K / 4K) ve uzaklaşan kamera (v19)
+
+Şikâyet: 2K ekranda dokular düşük çözünürlüklü görünüyordu, 2K / 4K seçeneği v2'de hiçbir şey yapmıyordu (paketler yalnızca
+v1 piksel sanatını içeriyordu), kamera fazla yakındı.
+* **Kamera:** v2 biyom taban yakınlığı 2,0 -> Ötüken / Kaf / Tamu 1,7, Bozkır 1,65 (açık ova, geniş ufuk), Şahmeran 1,75
+  (dar mağara); yurt 1,6 -> 1,4 (`data/stil_v2.json`, `data/yurt_v2.json` "camera_zoom"). Ekranda ~565x318 dünya birimi
+  (önce 480x270). `CameraV2` çerçeve sabitleri (öncü kayma 58, ayak yüksekliği 50, zıplama penceresi 64/18, düşüş bakışı 54)
+  2,0 için yazıldı (`REF_ZOOM`); taban yakınlık farklıysa `REF_ZOOM / taban` ile ölçeklenir: ayaklar yine ekranın ~%69'unda,
+  öncü kayma yine yarım genişliğin ~%24'ü. Boss sığdırma `MIN_FIT` 0,62 göreli kaldı (en geniş 1,05); paralaks ve ön plan
+  ekran uzayında olduğu için değişmez, kayma hızı yakınlığı izler.
+* **Neden 2 kat:** v2 dokuları 4 doku pikseli / dünya birimi. 1,7 yakınlıkta 1440p'de 1 birim = 2560/960 x 1,7 = 4,5 ekran
+  pikseli (temel doku 1,13 kat büyütülür), 4K'da 6,8 (1,7 kat). HD paketi 8 piksel / birim: 1440p'de de 4K'da da doku ekrandan
+  yoğun (mipmap ile küçültülür, bulanıklık yok). Bu yüzden v2'de **2K ve 4K aynı x2 paketini** kullanır (4K seçiliyken önce
+  `assets_hd/x4` aranır, yoksa x2: v1'in eski 4K paketi aynen çalışır).
+* **Üretim = yeniden çizim, büyütme değil:** `tools/artgen/hdpack.py`; dışa aktarım betikleri `KY_HD=2` ile çalışınca çizim
+  takımları (inkkit `InkCanvas`: tuval, köken, yoğunluk `k`, çizgi `lw` x2; inkkit_ortam `K` x2; piksel cinsinden bulanıklık,
+  genişletme, gürültü ızgarası, kâğıt tanesi yarıçapları x2; gürültü alanları temel çözünürlükte üretilip pürüzsüz büyütülür ki
+  desen aynı kalsın) aynı çizimi 2 kat çözünürlükte baştan yapar. PNG yazımları `assets_hd/x2/<aynı yol>`'a yönlenir; json ve
+  ışıma/normal dokuları temel dosyaları ezmesin diye `.godot/hd_meta`'ya gider (HD kipinde yazılan json temelle bayt bayt aynı
+  olmalı: sayfa düzeni, hücre, köken, bölgeler temel piksel cinsinden). Hepsi: `cd tools/artgen && python hd_v2.py`
+  (~1 saat, 12 çekirdek; gruplar: karakter, yaratik, boss, ortam, sus, silah, efekt, arayuz).
+* **Denetim:** `python hd_paket.py --kontrol`: her HD doku tam 2 kat mı, 2x2 küçültülmüş hâli temel dokuya ne kadar yakın
+  (önçarpılmış RGBA ortalama farkı). 257 doku: 252 TAMAM (ort. fark ~0,001), 5 UYARI (ink_fx, bristle, arayüz fırça darbeleri
+  stroke/swash/enso: kuru fırça / çözülme gürültüsünün ince frekansları yeni; büyük yapı aynı, gözle denetlendi).
+* **Kapsam:** Bengü (3 sayfa + kol), Kara Börü, bozkurt biçimi, yurt sakinleri, set B yaratıkları, A takımı yaratıklar ve biyom
+  çeşitlemeleri (17), 5 v2 boss (2-3 sayfa), mürekkep silah atlası, 5 biyom + yurt paralaks / ön plan katmanları, karo atlası,
+  zemin maskesi, karo ışıma atlası, toprak / çayır dokuları, tehlike dokuları, bütün v2 süsler ve yurt yapıları, ortak süs atlası,
+  v2 animasyonlu efektler, mürekkep vuruş atlası ve fırça dokusu, mürekkep arayüz dokuları. Temel çözünürlükte kalanlar: ışıma
+  (`_e`, toplamalı yumuşak) ve normal dokuları, v1 piksel efektleri.
+* **Paketleme ve boyut:** `python hd_paket.py --paketle`: PNG -> WebP (kayıplı q90 + kayıpsız alfa; kayıpsız daha küçükse o;
+  maskeler hep kayıpsız), `.import` (BPTC yüksek kalite + mipmap), `manifest.json` girişi
+  `[temel_g, temel_y, "<HD dosya>", "<temel PNG md5>"]`. 2 kat PNG'ler ~330 MB tutuyordu; WebP ile **~72 MB** (temel v2 PNG'lerin
+  ~0,6'sı). Renk 4:2:0 alt örneklemesi HD'nin yarısı = temel çözünürlükte renk; kayıp oyunun zaten yaptığı BPTC sıkıştırmasının
+  altında kalır. Eski v1 x4 paketi (60 MB) silinmedi: git geçmişinde kaldığı için depo boyutunu küçültmez, v1 4K'yı da kırardı.
+  Bozkurt biçimi sayfası HD'de 10240 px geniş (temel 5120 geniş, satırlar sayfalanıyor, sütunlar değil): 16384 sınırının altında.
+* **Yükleyici:** `Data.tex()` (sprite sayfaları, süsler, paralaks, ön plan şeritleri, silah sayfaları, AnimFX, SusV2 atlası,
+  arayüz dokuları) HD dokuyu `ImageTexture.set_size_override` ile temel boyutta raporlar: bölge, kare, köken, `texel` ve dünya
+  boyu aynı. Gölgelendiricide UV / `textureSize` ile örneklenen dokular (InkFX atlası, fırça dokusu, sıvı gürültüsü, toprak,
+  çayır) `Data.tex_full()` ile gerçek boyutta yüklenir; toprak / çayırda `soil_density` paket çarpanıyla büyür (ikisi aynı
+  ölçekte değilse ikisi de temel). TileSet boyut geçersiz kılmayı yok saydığı için karo atlası gerçek boyutta, karo hücresi
+  `Data.pack_scale()` ile 192 px; **CanvasTexture'ın normal yuvasındaki zemin maskesi ve karo ışıma atlası atlasla aynı boyda
+  olmalı** (yoksa karolar yanlış bölgeden örneklenir; `Level._same_size`, pakette karşılığı olmayan maske/normal çalışma anında
+  büyütülür). Tehlike karoları `4 x pack_scale` hücre, parlama katmanı buna göre ölçeklenir. Silah piksel taramaları (yay uçları)
+  temel sayfadan yapılır. md5 koruması: proje klasöründen çalışırken temel PNG sonradan yeniden üretildiyse eski HD sürüm
+  kullanılmaz (uyarı + temel doku).
+* **Ayarlar:** Otomatik artık 1440p ve üstünde HD (`AUTO_HD_H` 1400; 2160p'de 4K düzeyi), değer "Otomatik: 2K" biçiminde;
+  `*` = yeniden başlatınca değişecek; açıklama satırı (`Ayarlar.quality_tip`) şu an etkin olanı ve yeniden başlatınca geçerli
+  olacağı söyler; paket bulunamazsa bunu yazar. Ayar `user://ayarlar.cfg` "doku" anahtarında saklanır ve açılışta paket
+  seçiminden önce okunur (doğrulandı: doku=2 kaydıyla 720p pencerede hd=1; Otomatik 720p'de 0, 1440p'de 1).
+* **Arayüz:** mürekkep arayüzü TTF yazı tipleri kullanır; canvas_items germe kipi pencere çözünürlüğünde çizdiği ve yazı tipi
+  aşırı örneklemesi açık olduğu için 1440p / 4K'da keskin (960x540 görüntünün büyütülmesi değil). Arayüz dokuları da HD pakette.
+* **Başarım** (Intel UHD 750, 2560x1440 pencere, vsync kapalı, Kaf 7. derinlik, `--olcum=20`): standart 34,2 ms (29,2 FPS),
+  doku VRAM 735 MB, toplam 990 MB; HD 36,2 ms (27,6 FPS), doku VRAM 1313 MB, toplam 1937 MB. Yelbegen arenası: standart doku
+  894 MB / 36,2 ms, HD 1740 MB / 37,5 ms. HD dokuların yüklenmesi bölüm başına +1,3-1,8 sn (GPU'dan geri okuma + boyut
+  geçersiz kılmalı yeniden yükleme). 4K pencerede (Şahmeran, HD) 90 ms: tümleşik GPU için 4K zaten ağır (piksel doldurma).
+* **İçe aktarma:** HD paketin içe aktarılmış BPTC önbelleği `.godot/imported` altında ~2,7 GB tutar ve ilk açılışta ~7 dk sürer
+  (12 çekirdek); önbellek depoya girmez, her makinede bir kez üretilir.
 
 ## Dövüş hissi v14: hiyerarşi, hazırlık, kırbaç, darbe karesi
 

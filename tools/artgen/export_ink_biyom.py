@@ -17,6 +17,7 @@ import time
 import numpy as np
 
 import export_ink_ortam as E
+from hdpack import HD   # KY_HD=2: çıktı ölçeği K x HD (json temel değerlerle)
 
 A = E.A
 
@@ -49,7 +50,7 @@ def _vram(b):
 def export_bg(b, only=None):
     import importlib
     import inkkit_ortam as ik
-    ik.K = 1.0
+    ik.K = 1.0 * HD
     m = importlib.import_module(BIOMES[b]['par'])
     for key, fn in BIOMES[b]['bg']:
         if only and key not in only:
@@ -64,7 +65,7 @@ def export_ground(b):
     import importlib
     import inkkit_ortam as ik
     import ink_zemin as Z
-    ik.K = E.WORLD_K
+    ik.K = E.WORLD_K * HD
     G = importlib.import_module(BIOMES[b]['ground'])
     art, mask = Z.build_atlas(G.ST, G.grass_tuft, G.ceiling_roots, G.platform_cell)
     E.save(E.to8(art), 'tiles', '%s_v2.png' % b)
@@ -73,9 +74,9 @@ def export_ground(b):
     E.save(soil.rgba8(), 'tiles', '%s_v2_soil.png' % b)
     E.save(G.meadow_texture().rgba8(), 'tiles', '%s_v2_meadow.png' % b)
     meta = {
-        "tile": ik.P(Z.C), "world_tile": 24, "density": ik.P(Z.C) / 24.0, "cols": Z.COLS, "ground_rows": 3,
+        "tile": ik.P(Z.C) // HD, "world_tile": 24, "density": ik.P(Z.C) // HD / 24.0, "cols": Z.COLS, "ground_rows": 3,
         "overlay_row": Z.OROW, "grass_cols": Z.GRASS_COLS, "ceiling_cols": Z.CEIL_COLS, "platform_row": Z.PROW,
-        "ink": True, "filter": "linear_mipmap", "mask": "%s_v2_mask.png" % b, "soil_size": soil.w,
+        "ink": True, "filter": "linear_mipmap", "mask": "%s_v2_mask.png" % b, "soil_size": soil.w // HD,
         "soil_density": 2.0 * E.WORLD_K, "meadow": "%s_v2_meadow.png" % b, "glow": None,
         "not": "v2 mürekkep zemini (%s): sanat RGBA + R=toprak kaplaması, G=kenar gölgesi (CanvasTexture normal yuvasında)" % b,
     }
@@ -85,7 +86,7 @@ def export_ground(b):
 def export_fg(b):
     import importlib
     import inkkit_ortam as ik
-    ik.K = 1.0
+    ik.K = 1.0 * HD
     G = importlib.import_module(BIOMES[b]['ground'])
     for key, fn in BIOMES[b]['fg']:
         r = getattr(G, fn)()
@@ -96,7 +97,7 @@ def export_fg(b):
 def export_decor(b):
     import importlib
     import inkkit_ortam as ik
-    ik.K = E.WORLD_K
+    ik.K = E.WORLD_K * HD
     D = importlib.import_module(BIOMES[b]['decor'])
     D.export(E.save, E.to8, A, b)
 
@@ -104,7 +105,7 @@ def export_decor(b):
 def export_hazard(b):
     import inkkit_ortam as ik
     import ink_tehlike as T
-    ik.K = E.WORLD_K
+    ik.K = E.WORLD_K * HD
     E.save(E.to8(T.build(b)), 'tiles', 'hazards_%s_v2.png' % b)
 
 

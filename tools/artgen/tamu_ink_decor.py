@@ -16,6 +16,7 @@ import os
 import numpy as np
 
 import inkkit_ortam as ik
+from hdpack import HD   # HD paketi: json'a temel (HD'siz) boyut / köken / doku yoğunluğu yazılır
 from inkkit_ortam import INK, Sk, Layer, blade, bezier, blob, c01, leaf_shape, poly_path, premul, ribbon, smooth_path, fbm, mix, smoothstep, noise, trunk
 import inkkit_yeralti as Y
 import inkkit_zemin as Z
@@ -374,14 +375,14 @@ def kule_bag():
 
 def export(save, to8, A, biome='tamu'):
     meta = {}
-    tex = 2.0 * ik.K
+    tex = 2.0 * ik.KB()
 
     def put(name, res):
         L, origin = res[0], res[2]
         nm = '%s_%s_v2' % (name, biome)
         save(to8(L.a), 'decor', nm + '.png')
         h, w = L.a.shape[:2]
-        meta[nm] = {"size": [int(w), int(h)], "origin": [int(round(origin[0] * ik.K)), int(round(origin[1] * ik.K))], "texel": tex}
+        meta[nm] = {"size": [int(w) // HD, int(h) // HD], "origin": [int(round(origin[0] * ik.KB())), int(round(origin[1] * ik.KB()))], "texel": tex}
         if len(res) > 3 and res[3] is not None:
             save(to8(Z.edge_fade(res[3].a, int(min(res[3].a.shape[:2]) * 0.28))), 'decor', nm + '_e.png')
             meta[nm]["glow"] = True
@@ -401,5 +402,5 @@ def export(save, to8, A, biome='tamu'):
         L = fn()
         full = '%s_%s_v2' % (nm, biome)
         save(to8(L.a), 'decor', full + '.png')
-        meta[full] = {"size": [L.w, L.h], "origin": [0, 0], "texel": tex}
+        meta[full] = {"size": [L.w // HD, L.h // HD], "origin": [0, 0], "texel": tex}
     json.dump(meta, open(os.path.join(A, 'decor', 'decor_v2_%s.json' % biome), 'w', encoding='utf-8'), indent=1)

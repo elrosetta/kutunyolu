@@ -29,13 +29,16 @@ import skia
 from PIL import Image
 from scipy import ndimage
 
+from hdpack import HD   # HD doku paketi (KY_HD=2): aynı veri dokusu HD kat çözünürlükte; json temel boyutları yazar
+
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 OUT = os.path.join(ROOT, 'assets', 'fx', 'ink')
 
 
 # ------------------------------------------------------------------ gürültü
-def fft_noise(h, w, beta=2.0, seed=0, fx=1.0, fy=1.0):
-    """Her iki eksende sarmalı (periyodik) 1/f^beta gürültüsü, [0,1]. fx/fy > 1: o eksende daha ince yapı."""
+def fft_noise(h, w, beta=2.0, seed=0, fx=1.0, fy=1.0, up=1):
+    """Her iki eksende sarmalı (periyodik) 1/f^beta gürültüsü, [0,1]. fx/fy > 1: o eksende daha ince yapı.
+    up > 1 (HD paketi): aynı gürültü up kat sık örneklenir (h*up x w*up), bkz. _spec_up."""
     rng = np.random.default_rng(seed)
     wn = rng.standard_normal((h, w))
     F = np.fft.fft2(wn)
@@ -46,19 +49,60 @@ def fft_noise(h, w, beta=2.0, seed=0, fx=1.0, fy=1.0):
     F *= 1.0 / (k ** (beta * 0.5))
     F[0, 0] = 0
     n = np.real(np.fft.ifft2(F))
-    n = (n - n.min()) / (n.max() - n.min() + 1e-9)
+    lo, hi = n.min(), n.max()
+    if up > 1:
+        n = np.clip(_spec_up(F, up, beta, fx, fy, seed), lo, hi)
+    n = (n - lo) / (hi - lo + 1e-9)
     return n
 
 
-def periodic_1d(n, seed, kmax=7, amp_pow=1.2):
-    """Periyodik 1B gürültü (tam sayı frekanslı sinüsler), [-1, 1]."""
+def _spec_up(F, up, beta, fx, fy, seed):
+    """Temel gürültüden up kat sık örnek (HD paketi): temel spektrum (aynı rastgele bileşenler) HD piksel merkezlerine
+    faz kaydırılarak yerleştirilir, temelin Nyquist'inin üstü aynı 1/f^beta eğimiyle yeni beyaz gürültüden doldurulur
+    (yalnızca bant sınırlı ara değer "dokuma" gibi halkalanıyor; böylece tane doğal kalır, iri yapı temelle aynı)."""
+    h, w = F.shape
+    H, W = h * up, w * up
+    vy = np.fft.fftfreq(H)[:, None] * up         # temel piksel başına devir
+    vx = np.fft.fftfreq(W)[None, :] * up
+    k = np.sqrt((vx * fx) ** 2 + (vy * fy) ** 2)
+    k[0, 0] = 1.0
+    rng = np.random.default_rng([seed, 2])
+    G = np.fft.fft2(rng.standard_normal((H, W))) * up / (k ** (beta * 0.5))
+    iy, by = np.r_[0:h - h // 2, H - h // 2:H], np.r_[0:h - h // 2, h - h // 2:h]
+    ix, bx = np.r_[0:w - w // 2, W - w // 2:W], np.r_[0:w - w // 2, w - w // 2:w]
+    G[np.ix_(iy, ix)] = F[np.ix_(by, bx)] * (up * up)
+    G[0, 0] = 0
+    s = (1 - up) / (2 * up)                      # HD pikseli j merkezi = temel j / up + s
+    return np.real(np.fft.ifft2(G * np.exp(2j * np.pi * (vy + vx) * s)))
+
+
+def periodic_1d(n, seed, kmax=7, amp_pow=1.2, up=1):
+    """Periyodik 1B gürültü (tam sayı frekanslı sinüsler), [-1, 1]. up > 1 (HD paketi): aynı eğri n*up örnek
+    (HD piksel merkezleri), ölçek temel örneklerden."""
     rng = np.random.default_rng(seed)
     x = np.arange(n) / n
     out = np.zeros(n)
+    xu = (np.arange(n * up) + 0.5 - 0.5 * up) / (n * up)
+    ou = np.zeros(n * up)
     for k in range(1, kmax + 1):
-        out += rng.standard_normal() / k ** amp_pow * np.sin(2 * math.pi * k * x + rng.uniform(0, 2 * math.pi))
-    out /= np.abs(out).max() + 1e-9
-    return out
+        a = rng.standard_normal() / k ** amp_pow
+        p = rng.uniform(0, 2 * math.pi)
+        out += a * np.sin(2 * math.pi * k * x + p)
+        if up > 1:
+            ou += a * np.sin(2 * math.pi * k * xu + p)
+    m = np.abs(out).max() + 1e-9
+    return ou / m if up > 1 else out / m
+
+
+def _ax(n):
+    """n temel piksellik eksenin piksel merkezleri (temel piksel biriminde); HD paketinde n*HD örnek."""
+    c = np.arange(n * HD) + 0.5
+    return c / HD if HD > 1 else c
+
+
+def grid(h, w):
+    """`np.mgrid[0:h, 0:w] + 0.5` karşılığı (ys, xs): HD paketinde h*HD x w*HD örnek, birim yine temel piksel."""
+    return np.meshgrid(_ax(h), _ax(w), indexing='ij')
 
 
 def smoothstep(a, b, x):
@@ -69,27 +113,28 @@ def smoothstep(a, b, x):
 # ------------------------------------------------------------------ kıl dokusu
 def bristle(W=512, H=128, seed=11):
     rng = np.random.default_rng(seed)
-    y = np.arange(H)[:, None] + 0.5
-    R = np.zeros((H, W))
+    y = _ax(H)[:, None]                 # HD paketinde HD kat örnek; uzunluklar temel piksel cinsinden kalır
+    R = np.zeros((H * HD, W * HD))
     # kıllar: enine dar Gauss şeritleri, boyuna yük değişimi ve kuru boşluklar
     nb = 120
     for j in range(nb):
         v0 = rng.uniform(-2, H + 2)
         wid = rng.uniform(0.7, 3.2) * (1.6 if rng.random() < 0.15 else 1.0)
         load = rng.uniform(0.35, 1.0)
-        m = periodic_1d(W, seed * 1000 + j, kmax=9)
-        g = periodic_1d(W, seed * 1000 + j + 500, kmax=5)
+        m = periodic_1d(W, seed * 1000 + j, kmax=9, up=HD)
+        g = periodic_1d(W, seed * 1000 + j + 500, kmax=5, up=HD)
         a = np.clip(0.62 + 0.5 * m, 0, 1) * load
         gap = smoothstep(-0.55, -0.25, g)          # kuru boşluk: yük sıfıra iner
         a = a * (0.15 + 0.85 * gap)
         prof = np.exp(-((y - v0) / wid) ** 2)
         R = np.maximum(R, prof * a[None, :])
-    base = fft_noise(H, W, beta=2.4, seed=seed + 1, fx=0.35, fy=2.0)  # boyuna uzamış yumuşak taban
+    base = fft_noise(H, W, beta=2.4, seed=seed + 1, fx=0.35, fy=2.0, up=HD)  # boyuna uzamış yumuşak taban
     R = np.clip(0.30 * base + 0.85 * R, 0, 1)
     # koyu mürekkep darbeleri (G): kalın sivri baş (u büyük = fırçanın taze ucu yönü), uzun incelen kuyruk;
     # az sayıda ve kalın (referanstaki koyu kızıl fırça izleri), boyuna sarar
-    G = np.zeros((H, W))
-    xs = np.arange(W)[None, :] + 0.5
+    G = np.zeros((H * HD, W * HD))
+    xs = _ax(W)[None, :]
+    aa0, aa1 = (0.9, -0.5) if HD == 1 else (0.2 + 0.7 / HD, 0.2 - 0.7 / HD)   # kenar yumuşatma çıktı pikselinde
     for j in range(9):
         u0 = rng.uniform(0, W)
         v0 = rng.uniform(0.22, 0.78) * H
@@ -103,31 +148,34 @@ def bristle(W=512, H=128, seed=11):
             prof = np.where(t < 0, np.clip(1 + t / 0.08, 0, 1) ** 0.5, (1 - tc) ** 1.3 * np.clip(tc * 6 + 0.35, 0, 1)) * th
             yc = v0 + bend * tc * tc
             d = np.abs(y - yc)
-            G = np.maximum(G, np.where(inside_t, smoothstep(prof + 0.9, prof - 0.5, d), 0))
+            G = np.maximum(G, np.where(inside_t, smoothstep(prof + aa0, prof + aa1, d), 0))
     # ince koyu kıl çizgileri (seyrek)
     for j in range(12):
         v0 = rng.uniform(0.15, 0.85) * H
-        m = periodic_1d(W, seed * 77 + j, kmax=6)
+        m = periodic_1d(W, seed * 77 + j, kmax=6, up=HD)
         G = np.maximum(G, 0.45 * np.exp(-((y - v0) / 0.9) ** 2) * smoothstep(0.45, 0.8, m)[None, :])
     G = np.clip(G, 0, 1)
     # kıl kimliği (B): satır başına rastgele, hafif boyuna kayma
     row = rng.random(H)
     row = ndimage.uniform_filter1d(row, 2, mode='wrap')
-    drift = periodic_1d(W, seed + 9, kmax=3)[None, :] * 0.08
+    if HD > 1:
+        row = np.repeat(row, HD)        # kıl kimliği satır başına: HD'de her kıl HD satır
+    drift = periodic_1d(W, seed + 9, kmax=3, up=HD)[None, :] * 0.08
     B = np.clip(row[:, None] + drift, 0, 1)
-    A = fft_noise(H, W, beta=1.3, seed=seed + 3, fx=0.6, fy=1.0)
+    A = fft_noise(H, W, beta=1.3, seed=seed + 3, fx=0.6, fy=1.0, up=HD)
     return np.dstack([R, G, B, A])
 
 
 # ------------------------------------------------------------------ şekil araçları (skia, 2x süper örnekleme)
+# Şekiller temel piksel biriminde çizilir; HD paketinde tuval HD kat (SS x HD), çıktı HD kat, uzaklık alanı temel piksel.
 SS = 2
 
 
 def _surface(w, h):
-    s = skia.Surface(w * SS, h * SS)
+    s = skia.Surface(w * SS * HD, h * SS * HD)
     c = s.getCanvas()
     c.clear(skia.ColorTRANSPARENT)
-    c.scale(SS, SS)
+    c.scale(SS * HD, SS * HD)
     return s, c
 
 
@@ -210,7 +258,7 @@ def field(cov_hi, noise_amp=0.0, noise=None, spread=9.0):
     inside = cov_hi > 0.5
     d_in = ndimage.distance_transform_edt(inside)
     d_out = ndimage.distance_transform_edt(~inside)
-    sd = (d_in - d_out) / SS
+    sd = (d_in - d_out) / (SS * HD)
     if noise is not None:
         sd = sd + noise_amp * (noise - 0.5)
     sd = sd.reshape(sd.shape[0] // SS, SS, sd.shape[1] // SS, SS).mean(axis=(1, 3))
@@ -222,7 +270,7 @@ def down(a):
 
 
 def polar(w, h, cx, cy):
-    ys, xs = np.mgrid[0:h, 0:w] + 0.5
+    ys, xs = grid(h, w)
     dx, dy = xs - cx, ys - cy
     return np.hypot(dx, dy), np.arctan2(dy, dx)
 
@@ -276,7 +324,7 @@ def shape_burst(size, seed, n_spk=9, len_r=(0.26, 0.47), wid=(0.05, 0.11), core=
     G = np.clip(G * (0.55 + 0.6 * down(nz)), 0, 1)
     r, _ = polar(S, S, cx, cy)
     B = np.clip(r / (S * 0.48) * 0.85 + 0.15 * down(nz), 0, 1)
-    A = fft_noise(S, S, beta=1.6, seed=seed + 9)
+    A = fft_noise(S, S, beta=1.6, seed=seed + 9, up=HD)
     return np.dstack([R, G, B, A])
 
 
@@ -302,7 +350,7 @@ def shape_stamp(size, seed):
     r, _ = polar(S, S, cx, cy)
     G = np.clip(1.0 - smoothstep(S * 0.3, S * 0.45, r) * 0.6, 0, 1)   # hemen hepsi siyah, uçlar renkli
     B = np.clip(r / (S * 0.48) * 0.9 + 0.1 * down(nz), 0, 1)
-    A = fft_noise(S, S, beta=1.5, seed=seed + 4)
+    A = fft_noise(S, S, beta=1.5, seed=seed + 4, up=HD)
     return np.dstack([R, G, B, A])
 
 
@@ -319,12 +367,12 @@ def shape_dab(size, seed):
     taper(c, pts, S * 0.26, S * 0.01, wmid=S * 0.2)
     cov = _arr(s)
     # boyuna kıl çizgileri: yaklaşık x yönünde uzamış gürültü
-    nz = fft_noise(S * SS, S * SS, beta=1.6, seed=seed + 1, fx=0.12, fy=1.6)
+    nz = fft_noise(S * SS, S * SS, beta=1.6, seed=seed + 1, fx=0.12, fy=1.6, up=HD)
     R = field(cov, 9.0, nz)
     G = np.clip(smoothstep(0.62, 0.8, down(nz)) * smoothstep(0.55, 0.75, R), 0, 1)
-    ys, xs = np.mgrid[0:S, 0:S] + 0.5
+    ys, xs = grid(S, S)
     B = np.clip((xs - S * 0.1) / (S * 0.8), 0, 1)
-    A = fft_noise(S, S, beta=1.5, seed=seed + 2)
+    A = fft_noise(S, S, beta=1.5, seed=seed + 2, up=HD)
     return np.dstack([R, G, B, A])
 
 
@@ -341,7 +389,7 @@ def shape_drops(size, seed):
     R = field(cov, 0.0, None, spread=6.0)
     r, _ = polar(S, S, S * 0.5, S * 0.5)
     B = np.clip(r / (S * 0.45), 0, 1)
-    A = fft_noise(S, S, beta=1.5, seed=seed + 2)
+    A = fft_noise(S, S, beta=1.5, seed=seed + 2, up=HD)
     G = np.zeros_like(R)
     return np.dstack([R, G, B, A])
 
@@ -374,7 +422,7 @@ def shape_enso(size, seed):
     r1, a1 = polar(S, S, cx, cy)
     B = ((a1 - a0) % (2 * math.pi)) / span
     B = np.clip(B, 0, 1)
-    A = fft_noise(S, S, beta=1.5, seed=seed + 5)
+    A = fft_noise(S, S, beta=1.5, seed=seed + 5, up=HD)
     return np.dstack([R, G, B, A])
 
 
@@ -395,12 +443,12 @@ def shape_cut(w, h, seed, split=True):
         x = w * rng.uniform(0.3, 0.95)
         drop(c, x, y0 + h * rng.uniform(-0.32, 0.32), h * rng.uniform(0.012, 0.03), rng.uniform(-0.4, 0.4), 2.2)
     cov = _arr(s)
-    nz = fft_noise(h * SS, w * SS, beta=1.6, seed=seed + 1, fx=0.1, fy=1.5)
+    nz = fft_noise(h * SS, w * SS, beta=1.6, seed=seed + 1, fx=0.1, fy=1.5, up=HD)
     R = field(cov, 3.0, nz, spread=6.0)
     G = down(_arr(core[0]))          # burada G = sıcak çekirdek (oyunda beyaz-sıcak)
-    ys, xs = np.mgrid[0:h, 0:w] + 0.5
+    ys, xs = grid(h, w)
     B = np.clip(xs / w, 0, 1)
-    A = fft_noise(h, w, beta=1.5, seed=seed + 2)
+    A = fft_noise(h, w, beta=1.5, seed=seed + 2, up=HD)
     return np.dstack([R, G, B, A])
 
 
@@ -416,13 +464,13 @@ def shape_claw(size, seed):
         taper(c, p, 0.5, 0.5, wmid=S * (0.075 if k == 1 else 0.055), cap=False)
         taper(core[1], p, 0.3, 0.3, wmid=S * 0.02, cap=False)
     cov = _arr(s)
-    nz = fft_noise(S * SS, S * SS, beta=1.6, seed=seed + 1)
+    nz = fft_noise(S * SS, S * SS, beta=1.6, seed=seed + 1, up=HD)
     R = field(cov, 3.0, nz, spread=6.0)
     G = down(_arr(core[0]))
-    ys, xs = np.mgrid[0:S, 0:S] + 0.5
+    ys, xs = grid(S, S)
     B = np.clip(((xs - ys) / S + 1) * 0.5, 0, 1)
     B = (B - B.min()) / (B.max() - B.min())
-    A = fft_noise(S, S, beta=1.5, seed=seed + 2)
+    A = fft_noise(S, S, beta=1.5, seed=seed + 2, up=HD)
     return np.dstack([R, G, B, A])
 
 
@@ -460,12 +508,12 @@ def shape_ground(w, h, seed):
         x = cx + w * rng.uniform(-0.46, 0.46)
         drop(c, x, gy - h * rng.uniform(0.02, 0.4) * (1 - abs(x - cx) / w), h * rng.uniform(0.006, 0.018), -math.pi / 2, 1.3)
     cov = _arr(s)
-    nz = fft_noise(h * SS, w * SS, beta=1.6, seed=seed + 1, fx=0.15, fy=1.4)
+    nz = fft_noise(h * SS, w * SS, beta=1.6, seed=seed + 1, fx=0.15, fy=1.4, up=HD)
     R = field(cov, 6.0, nz)
     G = np.clip(down(_arr(dark[0])) * 0.9 + smoothstep(0.7, 0.85, down(nz)) * smoothstep(0.6, 0.75, R) * 0.6, 0, 1)
-    ys, xs = np.mgrid[0:h, 0:w] + 0.5
+    ys, xs = grid(h, w)
     B = np.clip(np.hypot((xs - cx) / (w * 0.5), (ys - gy) / (h * 0.8)), 0, 1)
-    A = fft_noise(h, w, beta=1.5, seed=seed + 2)
+    A = fft_noise(h, w, beta=1.5, seed=seed + 2, up=HD)
     return np.dstack([R, G, B, A])
 
 
@@ -487,12 +535,12 @@ def shape_spray(size, seed):
                 drop(c, x0 + math.cos(a + bend) * rr, y0 + math.sin(a + bend) * rr, S * rng.uniform(0.006, 0.016), a, 1.8)
     blob(c, x0 + S * 0.06, y0, S * 0.07, rng)
     cov = _arr(s)
-    nz = fft_noise(S * SS, S * SS, beta=1.6, seed=seed + 1, fx=0.15, fy=1.3)
+    nz = fft_noise(S * SS, S * SS, beta=1.6, seed=seed + 1, fx=0.15, fy=1.3, up=HD)
     R = field(cov, 3.0, nz, spread=6.0)
-    ys, xs = np.mgrid[0:S, 0:S] + 0.5
+    ys, xs = grid(S, S)
     B = np.clip((xs - x0) / (S * 0.9), 0, 1)
     G = np.clip(smoothstep(0.55, 0.0, B) * smoothstep(0.55, 0.7, R), 0, 1)
-    A = fft_noise(S, S, beta=1.5, seed=seed + 2)
+    A = fft_noise(S, S, beta=1.5, seed=seed + 2, up=HD)
     return np.dstack([R, G, B, A])
 
 
@@ -513,7 +561,7 @@ def shape_shard(size, seed):
     r, _ = polar(S, S, cx, cy)
     G = np.clip(1 - r / (S * 0.12), 0, 1)
     B = np.clip(r / (S * 0.47), 0, 1)
-    A = fft_noise(S, S, beta=1.5, seed=seed + 2)
+    A = fft_noise(S, S, beta=1.5, seed=seed + 2, up=HD)
     return np.dstack([R, G, B, A])
 
 
@@ -537,20 +585,20 @@ def shape_ring(size, seed):
     r1, a1 = polar(S, S, cx, cy)
     B = ((a1 - a0) % (2 * math.pi)) / (2 * math.pi)
     G = np.zeros_like(R)
-    A = fft_noise(S, S, beta=1.5, seed=seed + 5)
+    A = fft_noise(S, S, beta=1.5, seed=seed + 5, up=HD)
     return np.dstack([R, G, B, A])
 
 
 # ------------------------------------------------------------------ atlas
 def build_atlas():
     C = 256
-    atlas = np.zeros((1024, 1024, 4))
+    atlas = np.zeros((1024 * HD, 1024 * HD, 4))
     meta = {}
 
     def put(name, arr, x, y):
         h, w = arr.shape[:2]
-        atlas[y:y + h, x:x + w] = arr
-        meta[name] = [x, y, w, h]
+        atlas[y * HD:y * HD + h, x * HD:x * HD + w] = arr
+        meta[name] = [x, y, w // HD, h // HD]   # json temel piksel (HD paketi aynı bölgeleri x HD kullanır)
 
     put('burst_a', shape_burst(C, 3, n_spk=8, len_r=(0.28, 0.47), wid=(0.07, 0.12)), 0, 0)
     put('burst_b', shape_burst(C, 7, n_spk=13, len_r=(0.22, 0.48), wid=(0.035, 0.07), core=0.12), C, 0)

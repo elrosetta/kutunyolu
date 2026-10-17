@@ -1,8 +1,9 @@
 extends Node
 ## Görüntü ayarları: pencere modu, çözünürlük, ölçekleme, doku kalitesi (HD paketleri), dikey eşitleme.
-## Oyun 640x360 mantıksal çözünürlükte tasarlanır ve her pencere boyutuna ölçeklenir. Doku kalitesi
-## 2K / 4K seçilince (ya da Otomatik'te 1440p / 2160p ve üstünde) gölgelendiriciler piksel sanatını
-## Scale2x / Scale4x kurallarıyla büyütür (shaders/hdpix.gdshaderinc). Ayarlar user://ayarlar.cfg'de saklanır.
+## Oyun 960x540 mantıksal görüntüde tasarlanır ve her pencere boyutuna ölçeklenir (canvas_items: çizim pencere
+## çözünürlüğünde). Doku kalitesi 2K / 4K (ya da Otomatik'te 1440p ve üstü) gerçek yüksek çözünürlüklü doku paketini
+## yükler (assets_hd/x2, x4; Data.tex): stil v2'de 2K ve 4K aynı 2 kat HD paketini kullanır. Paket dokular yüklenirken
+## seçilir: değişiklik oyun yeniden başlatılınca uygulanır. Ayarlar user://ayarlar.cfg'de saklanır.
 
 const PATH := "user://ayarlar.cfg"
 const MODES := ["Pencereli", "Tam ekran", "Özel tam ekran"]
@@ -24,6 +25,10 @@ var hd_active := 0     # şu an etkin HD düzeyi (0 / 1 / 2)
 var _test_size := Vector2i.ZERO
 var hd_wanted := 0          # ayarda seçili paket; hd_active ile farklıysa yeniden başlatma gerekir
 var _pack_locked := false   # ilk dokular yüklendikten sonra paket değişmez
+var pack_missing := false   # HD istendi ama paket dosyaları bulunamadı (Data._init_pack)
+## Otomatik: bu yükseklik ve üstünde HD paketi (1440p: 1,7 yakınlıkta ~4,5 ekran pikseli / dünya birimi > temel 4)
+const AUTO_HD_H := 1400
+const AUTO_4K_H := 2000
 
 
 func pack_scale() -> int:
@@ -51,6 +56,37 @@ func _ready() -> void:
 	for arg in OS.get_cmdline_user_args():
 		if String(arg).begins_with("--goruntu="):
 			_snap(String(arg).trim_prefix("--goruntu="))
+		elif String(arg).begins_with("--olcum="):
+			_measure(float(String(arg).trim_prefix("--olcum=")))
+
+
+func _measure(dur: float) -> void:
+	## Test: --bekle=<sn> ısınmadan sonra <dur> sn boyunca kare süreleri (ort / %95 / en kötü ms), FPS ve video
+	## belleği (doku / toplam) yazılır, oyun kapanır. Ör. -- --otomatik --derinlik=7 --doku=2 --pencere=2560x1440 --bekle=8 --olcum=20
+	var wait := 8.0
+	for arg in OS.get_cmdline_user_args():
+		if String(arg).begins_with("--bekle="):
+			wait = maxf(0.1, float(String(arg).trim_prefix("--bekle=")))
+	await get_tree().create_timer(wait, true, false, true).timeout
+	var times: Array = []
+	var t0 := Time.get_ticks_usec()
+	var last := t0
+	while float(Time.get_ticks_usec() - t0) / 1e6 < dur:
+		await RenderingServer.frame_post_draw
+		var now := Time.get_ticks_usec()
+		times.append(float(now - last) / 1000.0)
+		last = now
+	times.sort()
+	var avg := 0.0
+	for x in times:
+		avg += x
+	avg /= maxf(1.0, times.size())
+	var p95: float = times[int(times.size() * 0.95)] if times.size() > 0 else 0.0
+	var worst: float = times[-1] if times.size() > 0 else 0.0
+	var tex_mb := RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TEXTURE_MEM_USED) / 1048576.0
+	var vid_mb := RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_VIDEO_MEM_USED) / 1048576.0
+	print("olcum: pencere=%s hd=%d paket_doku=%d (%.2f sn) kare=%d ort=%.2fms p95=%.2fms en_kotu=%.2fms fps=%.1f doku_vram=%.0fMB toplam_vram=%.0fMB" % [str(get_tree().root.size), hd_active, int(Data.get("_pack_hits")), float(Data.get("_pack_usec")) / 1e6, times.size(), avg, p95, worst, 1000.0 / maxf(0.01, avg), tex_mb, vid_mb])
+	get_tree().quit()
 
 
 func _snap(path: String) -> void:
@@ -111,9 +147,26 @@ func res_text() -> String:
 
 
 func quality_text() -> String:
-	var t: String = ("Otomatik (%s)" % ["Standart", "2K", "4K"][hd_wanted]) if quality == 0 else QUALITIES[quality]
-	if hd_wanted != hd_active:
+	var t: String = ("Otomatik: %s" % ["Standart", "2K", "4K"][hd_wanted]) if quality == 0 else QUALITIES[quality]
+	if restart_needed():
 		t += " *"
+	return t
+
+
+func restart_needed() -> bool:
+	return hd_wanted != hd_active and not (pack_missing and hd_wanted > 0)
+
+
+func quality_tip() -> String:
+	## Ayarlar ekranı açıklaması: şu an etkin olan, seçilen ve yeniden başlatma gereği
+	var names := ["Standart", "2K (HD)", "4K (HD)"]
+	var t := "Otomatik: 1440p ve üstünde HD doku paketi. 2K / 4K: karakterler, yaratıklar, silahlar ve dünya 2 kat çözünürlükte yeniden çizilmiş dokularla (dünya boyu aynı, ayrıntı artar)."
+	if pack_missing:
+		t += " HD paketi bulunamadı: standart dokular kullanılıyor."
+	else:
+		t += " Şu an: %s." % names[hd_active]
+	if restart_needed():
+		t += " * Oyunu yeniden başlatınca: %s." % names[hd_wanted]
 	return t
 
 
@@ -159,15 +212,16 @@ func _on_resized() -> void:
 
 
 func _update_hd() -> void:
-	## Doku paketi (assets_hd/x2 = 2K, x4 = 4K): gerçek yüksek çözünürlüklü çizimler. Dokular yüklenirken
-	## seçildiği için değişiklik oyun yeniden başlatılınca uygulanır. Otomatik: 1080p+ → 2K, 2160p → 4K.
+	## Doku paketi (assets_hd/x2 = 2K, x4 = 4K; stil v2'de ikisi de x2): gerçek yüksek çözünürlüklü çizimler.
+	## Dokular yüklenirken seçildiği için değişiklik oyun yeniden başlatılınca uygulanır.
+	## Otomatik: 1440p ve üstü → 2K, 2160p → 4K (pencereli modda pencere, tam ekranda ekran yüksekliği).
 	var lv := 0
 	match quality:
 		0:
 			var h := get_tree().root.size.y if is_inside_tree() else 1080
 			if mode != 0:
 				h = DisplayServer.screen_get_size().y
-			lv = 2 if h >= 1800 else (1 if h >= 1000 else 0)
+			lv = 2 if h >= AUTO_4K_H else (1 if h >= AUTO_HD_H else 0)
 		1:
 			lv = 0
 		2:
