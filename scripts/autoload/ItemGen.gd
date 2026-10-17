@@ -152,6 +152,12 @@ func roll(id: String, tier: int = 0, material: String = "", rarity: int = -1, fl
 		it["mech_id"] = base["mech"]["id"]
 		it["mech_v"] = mr[0]
 		qs.append(mr[1])
+	if base.has("kizisma"):
+		# v20 Kızışma pasifi: yük başına saldırı hızı yuvarlanır (kalite yüzdesine katılır), en çok yük sabit
+		var kr := _roll_range(base["kizisma"]["range"], false)
+		it["kz_v"] = roundf(float(kr[0]) * 2.0) / 2.0
+		it["kz_max"] = int(base["kizisma"].get("max", 5))
+		qs.append(kr[1])
 	var n_aff := int(R["affixes"]) + (1 if mat["id"] == "gok_demiri" else 0)
 	var target := "weapon" if cat == "weapons" else ("shield" if cat == "shields" else "gadget")
 	var pool: Array = []
@@ -218,17 +224,45 @@ func describe(it: Dictionary) -> Array:
 		lines.append(String(base["mech"]["desc"]).replace("{v}", fmt(it.get("mech_v", 0.0))))
 	elif base.has("desc"):
 		lines.append(base["desc"])
+	if it.has("kz_v"):
+		var kd: String = Data.items.get("pasifler", {}).get("kizisma", {}).get("desc", "Kızışma: her isabet +%{v} saldırı hızı (en çok {n} yük).")
+		lines.append(kd.replace("{v}", fmt(float(it["kz_v"]))).replace("{n}", str(int(it.get("kz_max", 5)))).replace("{t}", fmt(float(it["kz_v"]) * int(it.get("kz_max", 5)))))
 	for a in it["affixes"]:
 		lines.append("• " + String(affix_def(a["id"]).get("desc", "")).replace("{v}", fmt(a["v"])))
 	return lines
 
 
+const MELEE_KINDS := ["slash", "dual", "heavy", "thrust", "whip"]
+
+
+func hiz_pct(it: Dictionary) -> float:
+	## v20: bu silahın kalıcı saldırı hızı (yüzde; silah niteliği + kuşanılan teçhizat + Kurt / lütuf / Umay, üst sınırlı)
+	return Player.hiz_kalici(it)
+
+
+func aps_eff(it: Dictionary) -> float:
+	## v20: kartta görünen "Hız": yakın silahta gerçek tempodan (zincir boyunca vuruş / sn, Player.tempo_aps), uzak
+	## silahta 1 / bekleme (yayda gerilme + kilit) — ikisi de saldırı hızı statıyla
+	if it.get("cat", "") != "weapons":
+		return 0.0
+	var pct := hiz_pct(it)
+	if String(it.get("kind", "")) in MELEE_KINDS:
+		return float(Player.tempo_aps(it, pct)[0])
+	var k := float(Player.HIZ["yay"] if it.get("kind", "") == "bow" else Player.HIZ["atis"])
+	return float(it["aps"]) * (1.0 + Player.hiz_oran(it, pct) * k)
+
+
 func dps(it: Dictionary) -> float:
+	## v20: yakın silahta saniyedeki hasar gerçek tempodan: zincirin adım çarpanları / zincir süresi (TEMPO + v20
+	## yavaşlaması + saldırı hızı; "Ağır" kusuru ve ikiz bıçak / Ay Dansı hızlanması dahil). Kızışma yükleri sayılmaz.
 	if it.get("cat", "") != "weapons":
 		return 0.0
 	var hd := 1.0 + aff(it, "hasar") / 100.0
-	var hs := 1.0 + aff(it, "hiz") / 100.0
 	var cc := clampf((float(it["crit"]) + aff(it, "krit_sans")) / 100.0, 0.0, 1.0)
 	var cm := float(it["crit_mult"]) + aff(it, "krit_hasar") / 100.0
-	var slow := 0.88 if it["flaw"] == "agir" else 1.0
-	return float(it["dmg"]) * hd * float(it["aps"]) * hs * slow * (1.0 + cc * (cm - 1.0))
+	var rate := 0.0
+	if String(it.get("kind", "")) in MELEE_KINDS:
+		rate = float(Player.tempo_aps(it, hiz_pct(it))[1])
+	else:
+		rate = aps_eff(it) * (0.88 if it["flaw"] == "agir" else 1.0)
+	return float(it["dmg"]) * hd * rate * (1.0 + cc * (cm - 1.0))

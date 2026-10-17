@@ -501,6 +501,7 @@ func _draw_hud(vp: Vector2) -> void:
 			sx += 6.0
 		_draw_slot_box(Rect2(sx, y0, 46, 30), key, pl)
 		sx += 50.0
+	_draw_hiz_yuk(pl, y0)   # v20 Kızışma / ivme yükleri (yakın silah yuvasının üstünde)
 	# ---- Kut göstergesi
 	var kx := sx + 16.0
 	var ky := y0 + 15.0
@@ -663,6 +664,43 @@ func _draw_slot_box(r: Rect2, key: String, pl: Node) -> void:
 	PixUI.key_cap(self, r.position + Vector2(-2, -5), SLOT_KEYS[key], PixUI.GOLD, not it.is_empty())
 
 
+func _draw_hiz_yuk(pl: Node, y0: float) -> void:
+	## v20: yakın silahın Kızışma (ya da yatağan ivmesi) yükleri yuvanın üstünde taneler; dolu taneler kızıldan altına,
+	## tam yükte nabız; üstte "+%N hız". Pasifi olmayan silahta çizilmez.
+	var y: Array = pl.hiz_yuk()
+	if y.is_empty():
+		return
+	var n := int(y[0])
+	var mx := maxi(1, int(y[1]))
+	var full := n >= mx
+	var i_slot := 0 if pl.mel_slot == "melee" else 1
+	var bx := 8.0 + 50.0 * i_slot
+	var step := minf(6.0, 32.0 / float(mx))
+	var x0 := bx + 46.0 - 4.0 - step * float(mx - 1)
+	var py := y0 - (11.0 if InkUI.on() else 6.0)   # mürekkep çerçevesi yuvadan 4,5 px taşar
+	var hot := Color(0.92, 0.34, 0.2) if String(y[3]) == "kizisma" else Color(0.75, 0.85, 1.0)
+	var aa := InkUI.on()
+	for i in mx:
+		var c := Vector2(x0 + step * i, py)
+		var on := i < n
+		var col := hot.lerp(PixUI.GOLD, float(i) / float(maxi(1, mx - 1)) * 0.7) if on else Color(0.3, 0.27, 0.34, 0.8)
+		var r := 2.2 if on else 1.6
+		if full:
+			r += 0.5 + 0.4 * sin(_t * 14.0 + i)
+		var pts := PackedVector2Array([c + Vector2(0, -r * 1.3), c + Vector2(r, 0), c + Vector2(0, r * 1.3), c + Vector2(-r, 0)])
+		draw_colored_polygon(pts, Color(0.04, 0.02, 0.03, 0.85))
+		var pts2 := PackedVector2Array()
+		for q in pts:
+			pts2.append(c + (q - c) * 0.72)
+		draw_colored_polygon(pts2, col)
+		if aa:
+			pts.append(pts[0])
+			draw_polyline(pts, Color(0.04, 0.02, 0.03, 0.6), 0.6, true)
+	if n > 0:
+		var txt := "+%%%d hız" % int(round(float(y[2])))
+		PixUI.text(self, Vector2(bx, py - 14.0), txt, PixUI.GOLD if full else hot.lightened(0.25), 1, HORIZONTAL_ALIGNMENT_RIGHT, 46.0, 2)
+
+
 # ------------------------------------------------------------------ eşya kartı
 func _card_lines(it: Dictionary) -> Array:
 	## [[metin, renk], ...] — açıklama, ek özellikler, kusur (sarılmış)
@@ -736,7 +774,7 @@ func _draw_card(it: Dictionary, pos: Vector2, title: String, cmp: Dictionary = {
 	y += 13.0
 	# değerler
 	if it["cat"] == "weapons":
-		PixUI.text(self, Vector2(x + 6, y), "Hasar %s  Hız %s/sn  Krit %%%s ×%s" % [ItemGen.fmt(it["dmg"]), ItemGen.fmt(it["aps"]), ItemGen.fmt(it["crit"]), ItemGen.fmt(it["crit_mult"])], PixUI.TEXT, 1, HORIZONTAL_ALIGNMENT_LEFT, -1.0, 0)
+		PixUI.text(self, Vector2(x + 6, y), "Hasar %s  Hız %s/sn  Krit %%%s ×%s" % [ItemGen.fmt(it["dmg"]), ItemGen.fmt(ItemGen.aps_eff(it)), ItemGen.fmt(it["crit"]), ItemGen.fmt(it["crit_mult"])], PixUI.TEXT, 1, HORIZONTAL_ALIGNMENT_LEFT, -1.0, 0)
 		y += 11.0
 		var d := _eff_dps(it)
 		PixUI.text(self, Vector2(x + 6, y), "Saniyede hasar: %s" % ItemGen.fmt(d), PixUI.GOLD)
@@ -836,7 +874,7 @@ func _draw_tilsim(vp: Vector2) -> void:
 		var is_sel := i == sel
 		var x := x0 + i * (cw + gap)
 		var y := 104.0 + (1.0 - e) * (20.0 + i * 10.0) - (5.0 if is_sel else 0.0)
-		var ch := 186.0
+		var ch := 196.0   # v20: Kurt kartında saldırı hızı satırı
 		var r := Rect2(x, y, cw, ch)
 		PixUI.fancy_panel(self, r, col if is_sel else col.darkened(0.5), Color(col.darkened(0.82), 0.97) if is_sel else PixUI.INK)
 		# simge (3x)
@@ -855,6 +893,9 @@ func _draw_tilsim(vp: Vector2) -> void:
 		PixUI.text(self, Vector2(x + 8, yy), descs[k], PixUI.TEXT, 1, HORIZONTAL_ALIGNMENT_LEFT, -1.0, 0)
 		yy += 10.0
 		PixUI.text(self, Vector2(x + 8, yy), hp_txt[k], PixUI.GOOD, 1, HORIZONTAL_ALIGNMENT_LEFT, -1.0, 0)
+		if k == "kurt":   # v20: Kurt ongunu seviye başına saldırı hızı
+			yy += 10.0
+			PixUI.text(self, Vector2(x + 8, yy), "+%%%s saldırı hızı" % ItemGen.fmt(float(Player.HIZ["kurt"])), PixUI.GOOD, 1, HORIZONTAL_ALIGNMENT_LEFT, -1.0, 0)
 		yy += 14.0
 		# bu seçimden güçlenecek eşyalar
 		PixUI.text(self, Vector2(x + 8, yy), "Güçlenen eşyaların:", PixUI.DIM, 1, HORIZONTAL_ALIGNMENT_LEFT, -1.0, 0)
@@ -997,7 +1038,7 @@ func _draw_pause(vp: Vector2) -> void:
 	var R: Dictionary = Game.run
 	var pw := 340.0
 	var x := (vp.x - pw) / 2.0
-	PixUI.fancy_panel(self, Rect2(x, 104, pw, 120), PixUI.EDGE, PixUI.INK2)
+	PixUI.fancy_panel(self, Rect2(x, 104, pw, 134), PixUI.EDGE, PixUI.INK2)
 	PixUI.text(self, Vector2(x, 110), "ONGUNLAR", PixUI.DIM, 1, HORIZONTAL_ALIGNMENT_CENTER, pw)
 	var ox := x + 16.0
 	for k in ONGUN_KEYS:
@@ -1018,6 +1059,18 @@ func _draw_pause(vp: Vector2) -> void:
 			PixUI.text(self, Vector2(x + 28, yy), String(it["name"]), rc)
 			PixUI.ongun_stripe(self, Rect2(x + pw - 40, yy + 4, 26, 3), Game.item_onguns(it), Game.item_best_ongun(it))
 		yy += 14.0
+	# v20 saldırı hızı: yakın silah için toplam ve kaynakları
+	var mel: Dictionary = R["slots"].get("melee", {})
+	var hk := Player.hiz_kaynak(mel)
+	var parts: Array = []
+	for pk in [["silah", "silah"], ["techizat", "teçhizat"], ["kurt", "Kurt"], ["lutuf", "lütuf"], ["umay", "Umay"]]:
+		if float(hk[pk[0]]) > 0.0:
+			parts.append("%s %%%s" % [pk[1], ItemGen.fmt(float(hk[pk[0]]))])
+	var htxt := "Saldırı hızı +%%%s" % ItemGen.fmt(Player.hiz_kalici(mel))
+	if not parts.is_empty():
+		htxt += "  (" + ", ".join(parts) + ")"
+	PixUI.text(self, Vector2(x + 14, yy + 2), htxt, PixUI.GOLD, 1, HORIZONTAL_ALIGNMENT_LEFT, -1.0, 0)
+	PixUI.text(self, Vector2(x, yy + 2), "en çok %%%d" % int(Player.HIZ["cap"]), PixUI.DIM, 1, HORIZONTAL_ALIGNMENT_RIGHT, pw - 14, 0)
 	_hint(vp, [["Esc", "devam et"], ["Tab", "ayarlar"]])
 
 
@@ -1087,7 +1140,7 @@ func _draw_umay(vp: Vector2) -> void:
 		var mx: int = (u[2] as Array).size()
 		var cost := Game.umay_cost(id)
 		var is_sel := i == sel
-		var r := Rect2(x, y, pw, 30)
+		var r := Rect2(x, y, pw, 30 if keys.size() <= 6 else 28)
 		PixUI.panel(self, r, PixUI.KUT if is_sel else PixUI.EDGE.darkened(0.4), Color(0.06, 0.12, 0.14, 0.95) if is_sel else PixUI.INK, false)
 		if is_sel:
 			PixUI.text(self, Vector2(x - 10 + sin(_t * 8.0) * 2.0, y + 9), "→", PixUI.KUT, 1, HORIZONTAL_ALIGNMENT_LEFT, -1.0, 2)
@@ -1106,7 +1159,7 @@ func _draw_umay(vp: Vector2) -> void:
 		if cost >= 0:
 			PixUI.icon(self, "kut", Vector2(x + pw - 14 - PixUI.width(ct) - 8, y + 11), cc, 1, false)
 		PixUI.text(self, Vector2(x + 8, y + 9), ct, cc, 1, HORIZONTAL_ALIGNMENT_RIGHT, pw - 18)
-		y += 34.0
+		y += 34.0 if keys.size() <= 6 else 31.0
 	if flash_t > 0.0:
 		PixUI.text(self, Vector2(0, vp.y - 40), flash_msg, PixUI.GOLD, 1, HORIZONTAL_ALIGNMENT_CENTER, vp.x, 2)
 	_hint(vp, [["W/S", "seç"], ["E", "al"], ["Esc", "ayrıl"]])

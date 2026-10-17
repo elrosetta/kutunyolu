@@ -23,6 +23,7 @@ const LUTUF := {
 	"yer_sub": ["Yer-Sub Zırhı", "Alınan hasar -%25.", [0.55, 0.85, 0.45]],
 	"ay_ata": ["Ay Ata'nın Gözü", "Kritik şansı +%10.", [0.85, 0.9, 1.0]],
 	"gun_ana": ["Gün Ana'nın Közü", "Darbeler %25 şansla tutuşturur.", [1.0, 0.6, 0.3]],
+	"yel_ana": ["Yel Ana'nın Soluğu", "Saldırı hızı +%15.", [0.72, 0.95, 0.82]],   # v20 (Player.HIZ.lutuf)
 }
 ## Boss arenaları: bu derinlik bitince (Kut Kapısı) önce boss, sonra yurt
 const BOSS_AFTER := {2: "kara_boru_han", 4: "tepegoz", 6: "sahmeran", 8: "yelbegen", 10: "erlik_han"}
@@ -36,6 +37,7 @@ const UMAY := {
 	"altin": ["Ata Kesesi", "Koşuya +60 altınla başla.", [20, 40]],
 	"kut_hizi": ["Bozkurt Çağrısı", "Kut gücü %20 daha hızlı dolar.", [35, 70]],
 	"silah": ["Demirci Dostu", "Başlangıç silahı bir kademe üstün döner.", [60]],
+	"hiz": ["Kam Davulu", "Saldırı hızı +%4 (her seviye).", [40, 85]],   # v20 (Player.HIZ.umay)
 }
 
 var toon_shader: Shader = preload("res://shaders/toon_light.gdshader")

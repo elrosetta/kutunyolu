@@ -491,7 +491,14 @@
     ],
     "int": true
    },
-   "crit_desc": "Arkadan vuruşlar kritik."
+   "crit_desc": "Arkadan vuruşlar kritik.",
+   "kizisma": {
+    "range": [
+     3,
+     5
+    ],
+    "max": 6
+   }
   },
   {
    "id": "savas_baltasi",
@@ -540,7 +547,14 @@
     ],
     "int": true
    },
-   "crit_desc": "Çekilen düşmana kritik."
+   "crit_desc": "Çekilen düşmana kritik.",
+   "kizisma": {
+    "range": [
+     5,
+     8
+    ],
+    "max": 4
+   }
   },
   {
    "id": "civili_topuz",
@@ -612,7 +626,14 @@
    },
    "crit_desc": "Havadaki düşmana kritik.",
    "min_tier": 1,
-   "upgrade_of": "ikiz_bicak"
+   "upgrade_of": "ikiz_bicak",
+   "kizisma": {
+    "range": [
+     4,
+     6
+    ],
+    "max": 5
+   }
   },
   {
    "id": "od_kamcisi",
@@ -638,7 +659,14 @@
    },
    "crit_desc": "Yanan düşmana kritik.",
    "min_tier": 1,
-   "upgrade_of": "kement"
+   "upgrade_of": "kement",
+   "kizisma": {
+    "range": [
+     5,
+     8
+    ],
+    "max": 4
+   }
   },
   {
    "id": "ayaz_kilici",
@@ -1109,7 +1137,14 @@
     ],
     "int": true
    },
-   "crit_desc": "Havadaki düşmana kritik."
+   "crit_desc": "Havadaki düşmana kritik.",
+   "kizisma": {
+    "range": [
+     4,
+     6
+    ],
+    "max": 5
+   }
   },
   {
    "id": "tulpar_mizragi",
@@ -1153,7 +1188,14 @@
     ],
     "int": true
    },
-   "crit_desc": "Arkadan vuruşta kritik."
+   "crit_desc": "Arkadan vuruşta kritik.",
+   "kizisma": {
+    "range": [
+     3,
+     5
+    ],
+    "max": 5
+   }
   },
   {
    "id": "ikiz_balta",
@@ -1540,6 +1582,19 @@
    ]
   },
   {
+   "id": "saldiri_hizi",
+   "adj": "Tez Elli",
+   "desc": "+%{v} saldırı hızı (tüm silahlar)",
+   "range": [
+    4,
+    10
+   ],
+   "for": [
+    "shield",
+    "gadget"
+   ]
+  },
+  {
    "id": "krit_sans",
    "adj": "İsabetli",
    "desc": "+%{v} kritik şansı",
@@ -1867,5 +1922,11 @@
   "Ayaz Ata'nın Nefesi",
   "Şahmeran'ın Sırrı",
   "Kaf'ın Ötesinden"
- ]
+ ],
+ "pasifler": {
+  "kizisma": {
+   "name": "Kızışma",
+   "desc": "Kızışma: her isabet +%{v} saldırı hızı (en çok {n} yük, +%{t}). 1,8 sn vuruşsuz kalınca ya da hasar alınca söner."
+  }
+ }
 }
