@@ -8,6 +8,8 @@
 //         katman 0 ana darbe, 1 arka (ağır / bitiriş: geniş, koyu, kuru), 2 yankı (saplama izi), 3 zerre
 //   COLOR.a yaş 0 (taze) .. 1 (ölü). (COLOR.rgb kullanılmaz: HDR 2D'de doğrusala çevrilir.)
 // Zerre katmanında UV.x = 0..1 (kuyruk -> baş) + 2 x tür (0 mürekkep, 1 gövde rengi, 2 sıcak kıvılcım).
+// v20 unsur zerreleri (aynı katman): 3 alev dili, 4 buz kıymığı, 5 şimşek arkı, 6 ruh dumanı / ayaz sisi, 7 yaprak;
+// hepsi fwidth ile kenar yumuşatmalı, mürekkep konturlu (renk silahın unsur paletinden).
 // Karıştırma önçarpılmış alfa: mürekkep normal örter, ışıma (alfa 0) toplamalı eklenir — tek çizim çağrısı.
 shader_type canvas_item;
 render_mode blend_premul_alpha, unshaded;
@@ -24,6 +26,7 @@ uniform float glow_gain = 0.55;    // dış ışıma (toplamalı)
 uniform float rough = 1.0;         // kenar pürüzü ve kuruluk (ağır silah > 1)
 uniform float streaks = 1.0;       // siyah fırça izi miktarı
 uniform float dry_in = 0.55;       // iç kenarın kuruluğu
+uniform float u_scale = 1.0;       // v20: kıl dokusunun boyuna ölçeği (ağır silah < 1: uzun sürüklenen kıl izleri)
 
 const float INK_W = 0.83;
 
@@ -43,6 +46,78 @@ vec3 fleck(float u, float v, float typ, float age, out float a) {
 	return mix(c_hot * hot_gain, c_rim, smoothstep(0.0, 0.6, age));
 }
 
+float flame_w(float x) {
+	// alev dilinin yarı genişliği (x: dip 0 .. uç 1): karınlı dip, uca doğru incelen boyun
+	x = clamp(x, 0.0, 1.0);
+	return sqrt(max(0.0, x * (1.0 - x))) * 1.9 * pow(1.0 - x, 0.35);
+}
+
+vec4 elem(float u, float v, float typ, float age, vec2 uv) {
+	// v20 unsur zerresi: u kuyruk(0) -> baş(1), v enine 0..1. Dönen: önçarpılmış renk + alfa (alfa 0 = toplamalı ışıma)
+	vec2 p = vec2(u * 2.0 - 1.0, v * 2.0 - 1.0);
+	if (typ < 3.5) {
+		// alev dili: yuvarlak karınlı dip, kıvrılarak sivrilen uç (S kıvrımı yaşla dalgalanır); kenarda koyu kızıl,
+		// gövde turuncu, ortada sarı, dipte beyaz-sıcak çekirdek; çevresinde kısa toplamalı ışıma
+		// çizgi roman alevi, üç katman: dışta koyu kızıl kenarlı turuncu dil, içte aşağıda sarı dil, dipte beyaz-sıcak
+		// çekirdek. Her dil karınlı dipten kıvrılarak sivrilir (S kıvrımı yaşla dalgalanır); küçük boyda da ateş okunur.
+		float uu = clamp(u, 0.0, 1.0);
+		float py = p.y + sin(uu * 4.0 + age * 15.0) * 0.32 * uu * uu;
+		float flick = 0.92 + 0.08 * sin(age * 47.0);
+		float w0 = flame_w(uu) * flick;
+		float m0 = w0 - abs(py);
+		float x1 = uu / 0.64;
+		float m1 = flame_w(x1) * 0.62 * flick - abs(py + 0.04);
+		float x2 = uu / 0.36;
+		float m2 = flame_w(x2) * 0.36 - abs(py + 0.02);
+		float aa = fwidth(m0) + 0.015;
+		float a = smoothstep(-aa, aa, m0) * (1.0 - age * age);
+		float t0 = clamp(m0 / max(w0, 0.05), 0.0, 1.0);
+		vec3 c = mix(c_core, c_body, smoothstep(0.0, 0.3, t0));
+		c = mix(c, c_core * 0.8, smoothstep(0.6, 1.0, uu) * 0.6);
+		c = mix(c, c_rim, smoothstep(-aa, aa, m1) * (1.0 - age * 0.5));
+		c = mix(c, c_hot * 1.5, smoothstep(-aa, aa, m2) * (1.0 - age));
+		c = mix(c, c_ink * 0.5, (1.0 - smoothstep(0.0, 0.06, m0)) * 0.5);
+		c = mix(c, c_core, age * 0.45);
+		return vec4(c * a, a);
+	} else if (typ < 4.5) {
+		// buz kıymığı: sivri eşkenar dörtgen, iki yüzey (ışıklı / gölgeli), beyaz kılcal sırt, mürekkep kontur
+		float m = 1.0 - (abs(p.x) * 1.0 + abs(p.y) * 1.9);
+		float aa = fwidth(m) * 1.2 + 0.02;
+		float a = smoothstep(-aa, aa, m) * (1.0 - smoothstep(0.6, 1.0, age));
+		vec3 c = p.y < 0.0 ? mix(c_rim, c_hot, 0.5) : c_body;
+		c = mix(c, c_hot * 1.6, (1.0 - smoothstep(0.0, 0.09, abs(p.y))) * smoothstep(0.1, 0.5, m));
+		c = mix(c, c_ink, 1.0 - smoothstep(0.0, 0.16, m));
+		return vec4(c * a, a);
+	} else if (typ < 5.5) {
+		// şimşek arkı: beyaz-sıcak kılcal çekirdek, renkli ışıma (toplamalı), uçlarda yuvarlak
+		float r = length(vec2(max(abs(p.x) - 0.85, 0.0) * 6.0, p.y));
+		float core = 1.0 - smoothstep(0.1, 0.24, r);
+		float glow = pow(1.0 - smoothstep(0.15, 1.0, r), 2.0);
+		float k = 1.0 - age * 0.6;
+		vec3 c = mix(c_rim * 1.4, c_hot * hot_gain * 1.4, core);
+		float a = clamp(core + glow * 0.6, 0.0, 1.0) * k;
+		return vec4(c * a, core * 0.35 * k);
+	} else if (typ < 6.5) {
+		// ruh dumanı / ayaz sisi: kıl dokusu gürültüsüyle yenen yumuşak yıkama, ıslak koyu kenar
+		vec4 n = texture(bristle, uv * vec2(0.37, 0.5) + vec2(age * 0.2, 0.0));
+		float m = 1.0 - length(p) + (n.a - 0.5) * 0.7 + (n.r - 0.5) * 0.3 - age * 0.45;
+		float aa = fwidth(m) + 0.03;
+		float a = smoothstep(-aa, aa * 6.0, m) * 0.72 * (1.0 - age);
+		vec3 c = mix(c_rim, c_body, 0.45 + 0.3 * n.g);
+		c = mix(c, c_core, (1.0 - smoothstep(0.0, 0.18, m)) * 0.6);
+		return vec4(c * a, a * 0.65);
+	}
+	// yaprak: badem biçimi, orta damar, ışıklı yarı, mürekkep kontur
+	float w = (1.0 - p.x * p.x) * 0.62 * (1.0 - 0.25 * p.x);
+	float m = w - abs(p.y);
+	float aa = fwidth(m) * 1.2 + 0.02;
+	float a = smoothstep(-aa, aa, m) * (1.0 - smoothstep(0.7, 1.0, age));
+	vec3 c = p.y < 0.0 ? mix(c_body, c_rim, 0.45) : c_body * 0.8;
+	c = mix(c, c_core, (1.0 - smoothstep(0.0, 0.07, abs(p.y))) * step(-0.85, p.x));
+	c = mix(c, c_ink, 1.0 - smoothstep(0.0, 0.12, m));
+	return vec4(c * a, a);
+}
+
 void fragment() {
 	float layer = floor(UV.y * 0.5);
 	float v = UV.y - layer * 2.0;
@@ -50,13 +125,17 @@ void fragment() {
 	if (layer > 2.5) {
 		float typ = floor(UV.x * 0.5);
 		float a;
-		vec3 c = fleck(UV.x - typ * 2.0, v, typ, age, a);
-		COLOR = vec4(c * a, typ > 1.5 ? a * 0.4 : a);
+		if (typ > 2.5) {
+			COLOR = elem(UV.x - typ * 2.0, v, typ, age, UV);
+		} else {
+			vec3 c = fleck(UV.x - typ * 2.0, v, typ, age, a);
+			COLOR = vec4(c * a, typ > 1.5 ? a * 0.4 : a);
+		}
 	} else {
 		float vi = v / INK_W;                         // 0 iç kenar, 1 mürekkep dış kenarı (bıçak ucu), >1 ışıma
 		// kıllar boyuna uzandığından mip düzeyi yalnızca enine türevden: hızlı süpürmede boyuna sıkışma
 		// (u türevi büyük) dokuyu enine de bulanıklaştırıp bloklu kesikler üretmesin
-		vec2 buv = vec2(UV.x, clamp(vi, 0.004, 0.996));
+		vec2 buv = vec2(UV.x * u_scale, clamp(vi, 0.004, 0.996));
 		vec2 gx = dFdx(buv) * vec2(0.12, 1.0);
 		vec2 gy = dFdy(buv) * vec2(0.12, 1.0);
 		vec4 b = textureGrad(bristle, buv, gx, gy);

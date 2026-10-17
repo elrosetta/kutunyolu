@@ -179,6 +179,8 @@ func roll(id: String, tier: int = 0, material: String = "", rarity: int = -1, fl
 	for q in qs:
 		qsum += float(q)
 	it["quality"] = int(round(100.0 * qsum / maxf(1.0, qs.size())))
+	if material == "":
+		Unsur.roll_into(it, base, rng)   # v20: yerden alınan (rastgele malzemeli) silaha unsur (Unsur.gd)
 	it["name"] = item_name(it)
 	return it
 
@@ -202,7 +204,7 @@ func item_name(it: Dictionary) -> String:
 	var pre := ""
 	if it["affixes"].size() > 0:
 		pre = affix_def(it["affixes"][0]["id"]).get("adj", "") + " "
-	return pre + Data.material_def(it["material"])["adj"] + " " + it["name_base"]
+	return pre + Unsur.name_adj(it) + Data.material_def(it["material"])["adj"] + " " + it["name_base"]
 
 
 func fmt(v: float) -> String:
@@ -220,6 +222,7 @@ func describe(it: Dictionary) -> Array:
 		lines.append(base["desc"])
 	for a in it["affixes"]:
 		lines.append("• " + String(affix_def(a["id"]).get("desc", "")).replace("{v}", fmt(a["v"])))
+	lines.append_array(Unsur.describe(it))   # v20 unsur satırları
 	return lines
 
 

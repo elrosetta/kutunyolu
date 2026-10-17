@@ -787,7 +787,8 @@ static func ground_slam(pos: Vector2, facing := 1, power := 1.0, col := Color(1.
 	if root == null:
 		return null
 	if ink():
-		InkFX.slam(pos, facing, power, InkFX.pal_from_color(col) if col.s >= 0.45 else InkFX.player_pal)
+		# v20: silah mürekkebi sıçrantısı küçültüldü; yer çarpmasının asıl görseli toz (GroundSlamFX -> InkDust)
+		InkFX.slam(pos, facing, power * 0.5, InkFX.pal_from_color(col) if col.s >= 0.45 else InkFX.player_pal)
 	var g := GroundSlamFX.new()
 	g.position = pos
 	g.facing = 1 if facing >= 0 else -1

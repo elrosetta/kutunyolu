@@ -653,6 +653,7 @@ func _draw_slot_box(r: Rect2, key: String, pl: Node) -> void:
 	else:
 		PixUI.weapon(self, it, r.position + Vector2(r.size.x / 2.0, r.size.y / 2.0 - 1), Vector2(r.size.x - 4, r.size.y - 7))
 		PixUI.ongun_stripe(self, Rect2(r.position.x + 2, r.position.y + r.size.y - 4, r.size.x - 4, 2), Game.item_onguns(it), Game.item_best_ongun(it))
+		Unsur.slot_badge(self, r, it, Time.get_ticks_msec() / 1000.0)   # v20 unsur simgesi
 	# bekleme süresi
 	if pl.cd.has(key) and pl.cd[key] > 0.0:
 		var k := clampf(pl.cd[key] / maxf(0.01, pl.cd_max[key]), 0.0, 1.0)
@@ -669,8 +670,11 @@ func _card_lines(it: Dictionary) -> Array:
 	var out: Array = []
 	for l in ItemGen.describe(it):
 		var is_aff := String(l).begins_with("•")
+		var lc: Color = Color(0.55, 0.82, 1.0) if is_aff else PixUI.TEXT
+		if String(l).begins_with(Unsur.MARK) or (String(l).begins_with("  ") and Unsur.of(it) != ""):
+			lc = Unsur.color(Unsur.of(it)).lightened(0.15)   # v20 unsur satırları unsur renginde
 		for w in PixUI.wrap(String(l), 176):
-			out.append([w, Color(0.55, 0.82, 1.0) if is_aff else PixUI.TEXT])
+			out.append([w, lc])
 	if it.get("flaw", "") != "":
 		for f in Data.items["flaws"]:
 			if f["id"] == it["flaw"]:

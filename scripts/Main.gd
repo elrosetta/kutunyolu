@@ -61,6 +61,11 @@ func _ready() -> void:
 		var st: Node = load("res://tools/tests/sus_testi.gd").new()
 		st.set("main", self)
 		add_child(st)
+	if OS.get_cmdline_user_args().has("--unsur"):
+		# v20 unsur testi (tools/tests/unsur_testi.gd): tetiklenme sayıları, ek hasar, iz / toz çekimleri
+		var ut: Node = load("res://tools/tests/unsur_testi.gd").new()
+		ut.set("main", self)
+		add_child(ut)
 	var firca := false
 	for arg in OS.get_cmdline_user_args():
 		firca = firca or String(arg).begins_with("--firca")
@@ -92,7 +97,7 @@ func _ready() -> void:
 			_build_boss("kara_boru_han")
 		elif String(arg).begins_with("--boss="):
 			_build_boss(String(arg).trim_prefix("--boss="))
-	if auto_test or showcase or _ekran != "" or firca or sus or OS.get_cmdline_user_args().has("--mekanik") or OS.get_cmdline_user_args().has("--dovus") or OS.get_cmdline_user_args().has("--yay"):
+	if auto_test or showcase or _ekran != "" or firca or sus or OS.get_cmdline_user_args().has("--mekanik") or OS.get_cmdline_user_args().has("--dovus") or OS.get_cmdline_user_args().has("--yay") or OS.get_cmdline_user_args().has("--unsur"):
 		hud.mode = "play"
 		get_tree().paused = false
 	else:

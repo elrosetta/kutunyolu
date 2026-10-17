@@ -85,6 +85,7 @@ static func slot_box(h: Control, r: Rect2, key: String, pl: Node) -> void:
 	else:
 		PixUI.weapon(h, it, r.get_center() + Vector2(0, -1), r.size - Vector2(8, 9))
 		PixUI.ongun_stripe(h, Rect2(r.position.x + 4, r.end.y - 3.5, r.size.x - 8, 2.2), Game.item_onguns(it), Game.item_best_ongun(it))
+		Unsur.slot_badge(h, r, it, Time.get_ticks_msec() / 1000.0)   # v20 unsur simgesi
 	if pl.cd.has(key) and pl.cd[key] > 0.0:
 		var k := clampf(pl.cd[key] / maxf(0.01, pl.cd_max[key]), 0.0, 1.0)
 		var hh := r.size.y * k

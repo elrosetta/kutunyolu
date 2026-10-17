@@ -812,6 +812,8 @@ func _physics_process(delta: float) -> void:
 
 
 func _tick_status(delta: float) -> void:
+	if has_meta("unsur"):
+		Unsur.tick(self, delta)   # v20: unsur durumu (ayaz yükü, töz damgası)
 	stun_t = maxf(0.0, stun_t - delta)
 	broken_t = maxf(0.0, broken_t - delta)
 	poise_pts = maxf(0.0, poise_pts - float(POISE["heavy_decay"]) * delta)
