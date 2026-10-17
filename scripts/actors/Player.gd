@@ -656,6 +656,7 @@ var _trail: WeaponTrail
 var _trail_prev: Array = []
 # kol iskeleti
 var arm_root: Node2D
+var sac: BenguSac  # v20: Bengü'nün uzun saçı (scripts/core/BenguSac.gd)
 var arm_upper: Sprite2D
 var arm_fore: Sprite2D
 var arm_fist: Sprite2D
@@ -896,6 +897,8 @@ func _ready() -> void:
 		arm_upper_b = _arm_piece_in(arm_root_b, arm_tex, Rect2(cw * 3, 0, cw, ch), pv, am)
 		arm_fore_b = _arm_piece_in(arm_root_b, arm_tex, Rect2(cw * 4, 0, cw, ch), pv, am)
 		arm_fist_b = _arm_piece_in(arm_root_b, arm_tex, Rect2(cw * 5, 0, cw, ch), fpv, am)
+	# v20: uzun saç (verlet zinciri, çalışma zamanında mürekkep şeridi; yalnızca stil v2): gövdenin arkası + önü
+	sac = BenguSac.ekle(anim, self)
 	anim.finished.connect(_on_anim_finished)
 
 
