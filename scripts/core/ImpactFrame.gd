@@ -66,6 +66,15 @@ func _build(targets: Array, strength: float) -> void:
 		m.set_shader_parameter("flash_color", Color(1.0, 0.98, 0.94, 1.0))
 		s.material = m
 		s.transform = ct * src.get_global_transform()
+		# Bengü'nün fizikli saçı (sprite'ta yok): bu karenin saç çizimi aynı beyaz siluetle, gövdenin arkasında
+		var sac := BenguSac.bul(t.anim)
+		if sac and sac.is_visible_in_tree():
+			var sm := ShaderMaterial.new()
+			sm.shader = BenguSac.SHADER
+			sm.set_shader_parameter("flash", 1.0)
+			sm.set_shader_parameter("flash_color", Color(1.0, 0.98, 0.94, 1.0))
+			sm.set_shader_parameter("vcol_linear", vp.use_hdr_2d)
+			add_child(sac.kopya(ct * t.anim.get_global_transform(), sm))
 		add_child(s)
 		# silahlı kol iskeleti de siluete dahil (oyuncu)
 		if "arm_root" in t and t.arm_root and t.arm_root.visible:

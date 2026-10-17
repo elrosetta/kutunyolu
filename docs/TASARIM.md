@@ -1764,6 +1764,7 @@ yaşar; gerçek kurt biçimi (Kut gücü "Bozkurt" dönüşümü, `bengu_kurt_v2
   dönüşümü uygulanmış hâlleri yazılır (saç topla döner).
 
 ### Uzun saç (`scripts/core/BenguSac.gd`, `shaders/bengu_sac.gdshader`)
+(v21'de görünüş ve hareket yeniden yazıldı, uzak örgü kaldırıldı: aşağıdaki "Bengü v21" bölümü. Bu bölüm v20 kaydıdır.)
 Sprite'a çizilmez: her kare çalışma zamanında benzetilir ve mürekkep-cel fırça şeridi olarak çizilir.
 - **Zincirler:** gür at kuyruğu (12 nokta x 2,2 = ~26 birim, beline iner), uzak örgü (9 x 2,0, gövdenin arkasında), yakın örgü
   (8 x 1,9, kulağın arkasından omuz üstüne düşer). Kök = `sac` çapası + baş çerçevesinde ofset; ikinci nokta `sac_d`
@@ -1809,6 +1810,84 @@ Sprite'a çizilmez: her kare çalışma zamanında benzetilir ve mürekkep-cel f
   koşu, sıçrayış, saldırı, yay germe, yuvarlanma, dönüş, kurt ve kurt sonrası çekimleri (+ `k_*` yakın kırpım) ve
   koşu -> duruş -> sıçrayış kare dizisi (`dizi/sNNN.png`). `--sac_yakin` kamerayı ~2,2 kat yaklaştırır, `--sac_renk` şeritleri
   hata ayıklama renkleriyle çizer, `--sac_govdesiz` sırt çarpışmasını kapatır.
+
+## Bengü v21: daha doğal saç
+
+İstek: "Bengü'nün saçını daha iyi, daha doğal yapalım."
+v20 saçının sorunları: kalın, düz koyu kurdeleler gibi okunuyordu (tek eğri üstünde aynı uca toplanan tutamlar); dönüşten
+hemen sonra saç başın üstünden öne kamçılanıyordu; hayalet izinde ve darbe karesinde gövde saçsız kalıyordu; sürekli sola
+esen esinti sola bakarken durgun saçı öne (yüze) sürüklüyordu.
+
+### Görünüş (`scripts/core/BenguSac.gd`, `shaders/bengu_sac.gdshaderinc`)
+- **Sadeleşme:** uzak örgü kaldırıldı (gövdenin arkasında neredeyse görünmüyor, yalnızca kalabalık ediyordu). Kalan: altın
+  bağla toplanmış gür, dökümlü yele + kulağın arkasından omza düşen tek ince örgü (en 1,5; sık V lobları, ucunda altın halka,
+  üç küçük sivri püskül, turkuaz boncuk).
+- **Yele katmanları** (hepsi aynı benzetilen omurgayı paylaşır, Catmull-Rom x2):
+  1. *Kütle:* en koyu ton, silüeti verir. Kökte bağda toplu (0,34 W), ortada en gür (W = 8 birim), omurganın %88'inde sivri
+     biter.
+  2. *Yedi tutam:* enine yer -0,8..+0,86, boy 0,62..1,0, en 0,24..0,56 W, ton 0,15 (arka, koyu) .. 0,92 (ön, açık); arka
+     tutamlar önce çizilir. Uca doğru birbirinden ayrılır ve her biri kendi uç kıvrımıyla (kimi içe, kimi dışa) ayrı sivri
+     uçla biter: "çok uçlu" yele ucu. Tutam başına evreli hafif dalga (durgunken çok az, uç hızıyla büyür).
+  3. *Üç uçuşan tel:* kütlenin kenarından kopan 0,4 birim ince, kontursuz teller; gecikmeli kıvrılır, ışık yanında parlar.
+  4. Altın saç bağı küçüldü (oyun yakınlığında parlak bir leke gibi duruyordu).
+  Sıkı kıvrımda (eğrilik yarıçapı yarı eni aşınca) kütle ve tutamların eni ve ayrılması daralır: düşüşte yukarı savrulan
+  saç kendi üstüne katlanıp kalın bir boru gibi görünmez.
+- **Renk:** mavi-mor parıltılı neredeyse siyah (derin `14121e`, orta `2a283e`, gölge `0b0a12`, parlama `99abe3`, kenar
+  parıltısı `5c69a1`). Ötüken ormanı, Kaf karı (Yelbegen arenası) ve Tamu kızılında (Erlik Han arenası) denendi: ak kurt
+  postunun üstünde güçlü, sıcak arka planda serin parıltı saçı ayırıyor (sıcak parıltılı koyu kahve kızıl kaftanla
+  karışırdı).
+- **Gölgelendirici:** yumuşak iki tonlu cel; omurganın ~%25'inde tel tel kırık uçlu parlama halkası (anime "melek halkası",
+  ön tutamlarda daha parlak; omurga oranına bağlı olduğundan tutamlar arasında akışı izler); ışık yanında uzun kesik tel
+  parlamaları; ışık yanı kenarda konturun hemen içinde ince serin kenar parıltısı; gölge ve orta tonda ekran pikseli
+  inceliğinde kesik tel çizgileri (tel aralığı ekranda 5 pikselden dar olunca söner: 1080p oyun yakınlığında gürültü
+  yapmaz, 1440p / yakın çekimde ayrıntı verir). Kontur gölge yanında kalın (x1,6), ışık yanında ince (x0,55), ince uçlarda
+  incelir; kütlenin dış konturu tam mürekkep ve kalın (x1,35), tutamların iç konturu yarı gölge rengi: silüet güçlü, tutam
+  ayrımı yumuşak.
+
+### Hareket
+- **Kök:** kök ve ikinci nokta sabit (saç bağı), ilk üç eklemde açı sınırı (0,2 -> 0,55 rad): saç kökte katlanmaz. Kök
+  doğrultusu yine de saçın kendi doğrultusuna yarı yarıya döner (en çok ~105°; yele yalnızca sırt yanındayken): düşüşte saç
+  bağdan itibaren kalkar, koşuda kökten arkaya akar (tam sabit kökte saç bağın altında U çizip çengel gibi kıvrılıyordu).
+- **Sertlik:** zincirin geri kalanında ebeveyne göre bükülme yayı (alt adım başına kökte 0,05, uçta 0; profil (1-t)²):
+  kök dolgun ve yönlü, uç gevşek; ip gibi sarkmaz, jöle gibi titremez.
+- **Hava:** doğrusal 1,5/sn + hızın karesiyle 0,018/birim sürtünme (yavaş salınım uzun sürer; koşuda saç ~45-55° arkaya
+  akar; uzun düşüşte kalkar), köke göre bağıl hıza 2,5/sn iç sürtünme (salınım bir kez olur), yerçekimi 650 (oyuncu 1180:
+  sıçrayış tepesinde saç hafifçe havalanır). Koşuda omurga boyunca ilerleyen yumuşak dalga (8,5 rad/sn, uca doğru t²).
+- **Esinti:** bakış yönüne göre arkaya doğru hafif (5 + 14 x sağanak) + iki yana eşit, seyrek salınım; sola bakarken
+  durgun saç öne sürüklenmez.
+- **Yön değişimi:** kök doğrultusu küresel açıyla yumuşar; 1,2 rad'dan büyük dönüşte her zaman aşağıdan dolaşır, açısal hız
+  en çok 15 rad/sn. Tutam yayılım yönü ~1/6 sn'de aynalanır (tutamlar çaprazlanarak geçer). Hızlı çıkışta saç arkaya
+  savrulur ama başlık tepesinin altında kalır.
+- **Çarpışma:** sırt kapsülü kökün 4 birim altından (omuz hizası) başlar, üst kapağı yok, yalnızca sırt yarısında iter;
+  öne hızla (> ~36 birim/sn) savrulan uç yarısı geçebilir: duruşta saç omzun yanından öne salınır (uç kökün önüne gelir),
+  sonra arkaya yerleşir. Gövde çizgisinin önüne geçen saç 650 birim/sn² ile sırta döner. Baş çemberi (r 7,2) yalnızca yüz
+  yanını ve tepeyi iter. Bırakılan v20 kuralları ve neden: göğüs yanındaki noktayı kapsülün öbür yanına zorlamak + kapsülün
+  kökü içine alması saçı boyna atkı gibi doluyordu; zincir boyunca açı sınırı kıvrık saçı kilitli bir mekanizma gibi
+  donduruyordu; "i ile i+2 en kısa uzaklık" kısıtı noktayı dışarı iterek saçı başın üstüne katlıyor, örgüyü düğümlüyordu.
+- **Eylem itkileri** (animasyon başlangıcı): saldırı (saç geride kalıp savrulur), darbe (yukarı sıçrar), iniş (çöker).
+  Geri tepme, yuvarlanma, sıçrayış kökün hareketinden kendiliğinden gelir.
+
+### Hayalet izi ve darbe karesi
+- Çizim verisi her karede bir kez SpriteAnim yerelinde kurulur (`_ag_kur`); arka / ön katman ve kopyalar aynı diziyi
+  kullanır. `BenguSac.kopya` o anki çizimi donmuş bir `Kopya` düğümüne koyar.
+- `FX.ghost` gövde sprite'ı Bengü'nünse (`BenguSac.bul`) aynı renkte, toplamalı, solan bir saç kopyası ekler
+  (`bengu_sac_hayalet.gdshader`: `blend_add`, ışıksız, koyu saç biraz aydınlatılır). Yalnızca kütle + örgü gövdesi kopyalanır:
+  üst üste binen tutamlar toplamalı karışımda parlaklığı katlayıp saçı bembeyaz yapıyordu.
+- `ImpactFrame` (darbe karesi) beyaz siluete saçı da ekler (flash = 1).
+
+### Başarım
+Benzetim + çizim verisi (headless, hata ayıklama derlemesi, `--bengu --boss` boyunca ortalama): ~0,45-0,75 ms/kare (makine
+yüküne göre; v20 aynı ölçümde ~1,2 ms). Yele profilleri (kütle eni, tutam ofset / en / dalga genliği, teller) omurga nokta sayısına göre bir kez
+hesaplanır, şerit üçgen indeksleri önbellekte, normal hesabı şerit döngüsünde. GPU tarafı birkaç yüz üçgen, tek malzeme.
+
+### Test (`tools/tests/bengu_testi.gd`)
+`--bengu [--boss]` denetimleri: zincir sağlığı (NaN yok, uzama < %6), durgunken saç gövdenin önünde değil, koşuda arkaya
+akıyor, **duruşta öne salınıyor** (uç durgun yerinden en az 2 birim öne gelmeli; ölçülen ~+9..+10), dönüşte ve yerinde sağ-sol
+dönüşlerde **saç başlık tepesinin üstüne / yüz önüne çıkmıyor**, **sola bakarken durgun saç öne sürüklenmiyor**, **hayalet
+izi ve darbe karesi saçlı**, kurt dönüşümünde gizli / sonra yeniden görünür; sonda saç süresi (ms/kare) ve `OZET hata=n`. Çekimlere düşüş
+(`3b_dusus`) ve dönüş kare dizisi (`dizi/dNNN.png`) eklendi. Hata ayıklama bayrakları: `--sac_iz` (dönüş / koşu /
+yuvarlanma boyunca zincir dökümü), `--sac_renk`,
+`--sac_govdesiz`, `--sac_yakin`.
 
 ## v20: Unsur (silah ruhu), iz çeşitliliği, ağır silah yer tozu
 

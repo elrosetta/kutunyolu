@@ -1,7 +1,9 @@
 extends Node
-## v20 Bengü testi (saç fiziği + yeni görünüm). Betikli girdiyle (Input.action_press) oyuncuyu sürer:
+## v20/v21 Bengü testi (saç fiziği + görünüm). Betikli girdiyle (Input.action_press) oyuncuyu sürer:
 ##   godot --headless --path . --quit-after 99999 -- --bengu            denetim: saç zinciri uzunluğu / NaN / gövde
-##                                                                      çarpışması / kurt dönüşümü sonrası sıfırlama
+##                                                                      çarpışması / dönüşte baş üstü kamçısı / sola
+##                                                                      bakarken durgun saç / hayalet saçı / kurt
+##                                                                      dönüşümü sonrası sıfırlama / süre ölçümü
 ##   godot --path . --fixed-fps 60 -- --bengu=C:/mutlak/klasor --pencere=1920x1080 [--doku=2]
 ##        durgun, koşu, sıçrayış, saldırı, yay germe, yuvarlanma, dönüş çekimleri + koşu→duruş→sıçrayış kare dizisi
 ##        (<klasor>/dizi/sNNN.png, oyuncu çevresinden kırpılmış)
@@ -15,6 +17,11 @@ var out_dir := ""
 var hata := 0
 var _seq_i := 0
 var yakin := false
+var _olcum := 0.0
+var _olcum_n := 0
+var _olcum_max := 0.0
+var _dseq := 0
+var _dusus_cekildi := false
 
 const ACTS := ["saldiri1", "saldiri2", "zipla", "yuvarlan", "sag", "sol", "yukari", "asagi", "techizat1", "techizat2", "sise", "kut"]
 
@@ -39,6 +46,10 @@ func _f(n := 1) -> void:
 			Game.base_zoom = 3.7
 		if pl:
 			Game.run["hp"] = float(Game.run["max_hp"])
+			if pl.sac and pl.sac.is_visible_in_tree():
+				_olcum += pl.sac.olcum_us
+				_olcum_n += 1
+				_olcum_max = maxf(_olcum_max, pl.sac.olcum_us)
 
 
 func _release_all() -> void:
@@ -100,8 +111,8 @@ func _shot(name: String) -> void:
 	_p("görüntü %s" % name)
 
 
-func _seq_frame() -> void:
-	## kare dizisi: oyuncunun ekran konumu çevresinden kırpılmış (koşu→duruş→sıçrayış saç hareketi)
+func _seq_frame(pre := "s") -> void:
+	## kare dizisi: oyuncunun ekran konumu çevresinden kırpılmış (koşu→duruş→sıçrayış saç hareketi; "d": dönüş dizisi)
 	if out_dir == "":
 		return
 	var img: Image = await _img()
@@ -111,8 +122,12 @@ func _seq_frame() -> void:
 	var w := int(h * 1.25)
 	var r := Rect2i(int(sp.x - w * 0.5), int(sp.y - h * 0.8), w, h)
 	r = r.intersection(Rect2i(Vector2i.ZERO, img.get_size()))
-	img.get_region(r).save_png(out_dir.path_join("dizi/s%03d.png" % _seq_i))
-	_seq_i += 1
+	if pre == "s":
+		img.get_region(r).save_png(out_dir.path_join("dizi/s%03d.png" % _seq_i))
+		_seq_i += 1
+	else:
+		img.get_region(r).save_png(out_dir.path_join("dizi/%s%03d.png" % [pre, _dseq]))
+		_dseq += 1
 
 
 # ------------------------------------------------------------------ denetim
@@ -125,6 +140,12 @@ func _check(tag: String) -> void:
 		return
 	if not s.is_visible_in_tree():
 		return
+	if OS.get_cmdline_user_args().has("--sac_iz"):
+		var oz = _zincir("yakin_orgu")
+		var ps := []
+		for i in oz.n:
+			ps.append(str((oz.p[i] - oz.r1).round()))
+		_p("  örgü %s a=%.2f f=%d anim=%s: %s" % [tag, oz.a1, pl.facing, pl.anim.anim, " ".join(ps)])
 	for z in s.zincirler:
 		var worst := 0.0
 		for i in range(1, z.n):
@@ -142,8 +163,7 @@ func _check(tag: String) -> void:
 
 func _front_ratio() -> float:
 	## at kuyruğunun gövdenin önüne geçen nokta oranı (durgunken ~0 olmalı)
-	var s: BenguSac = pl.sac
-	var z = s.zincirler[1]
+	var z = _zincir("kuyruk")
 	var n := 0
 	for i in range(3, z.n):
 		if (z.p[i].x - pl.global_position.x) * float(pl.facing) > 3.0:
@@ -156,7 +176,27 @@ func _dump() -> void:
 		var ps := []
 		for i in z.n:
 			ps.append(str((z.p[i] - z.r1).round()))
-		_p("  %s kök=%s v=%s: %s" % [z.ad, str((z.r1 - pl.global_position).round()), str(pl.velocity.round()), " ".join(ps)])
+		_p("  %s kök=%s a=%.2f v=%s: %s" % [z.ad, str((z.r1 - pl.global_position).round()), z.a1, str(pl.velocity.round()), " ".join(ps)])
+
+
+func _zincir(ad: String):
+	for z in pl.sac.zincirler:
+		if z.ad == ad:
+			return z
+	return null
+
+
+func _bas_ustu() -> float:
+	## yelenin baş üstüne / yüz önüne geçen en kötü noktası: başlık tepesinin ne kadar üstünde (birim; > 0 kamçı)
+	var z = _zincir("kuyruk")
+	var hd: Variant = pl.anim.anchor("head")
+	var top: Vector2 = pl.anim.to_global(hd if hd != null else Vector2(0, -47)) + Vector2(0, -6)
+	var worst := -99.0
+	for i in range(3, z.n):
+		var q: Vector2 = z.p[i]
+		if (q.x - top.x) * float(pl.facing) > -2.0:  # başın önü / tam üstü
+			worst = maxf(worst, top.y - q.y)
+	return worst
 
 
 func _tip(ad: String) -> Vector2:
@@ -187,6 +227,7 @@ func _run() -> void:
 			z.govde = false
 	if OS.get_cmdline_user_args().has("--sac_renk"):  # hata ayıklama: saç şeritlerini parlak renkle göster
 		pl.sac.mat.set_shader_parameter("base_col", Color(1, 1, 0))
+		pl.sac.mat.set_shader_parameter("deep_col", Color(0.8, 0.8, 0))
 		pl.sac.mat.set_shader_parameter("shade_col", Color(1, 0.5, 0))
 		pl.sac.mat.set_shader_parameter("ink_col", Color(1, 0, 0))
 		pl.sac.mat.set_shader_parameter("hi_col", Color(0, 1, 0))
@@ -195,6 +236,7 @@ func _run() -> void:
 	await _f(90)
 	_check("durgun")
 	var fr := _front_ratio()
+	var dinlen_x := _tip("kuyruk").x
 	_p("durgun: uç(kuyruk)=%s önde=%.2f" % [str(_tip("kuyruk").round()), fr])
 	_dump()
 	if fr > 0.25:
@@ -208,6 +250,8 @@ func _run() -> void:
 		if i % 2 == 0:
 			await _seq_frame()
 		_check("koşu")
+		if OS.get_cmdline_user_args().has("--sac_iz") and i % 5 == 0:
+			_dump()
 	_dump()
 	var tr := _tip("kuyruk")
 	_p("koşu: uç(kuyruk)=%s (arkaya akmalı: x<0)" % str(tr.round()))
@@ -216,10 +260,17 @@ func _run() -> void:
 		_p("HATA koşu: saç arkaya akmıyor")
 	await _shot("2_kosu")
 	Input.action_release("sag")
+	var salin := -99.0
 	for i in 40:
 		await _f()
+		salin = maxf(salin, _tip("kuyruk").x)
 		if i % 2 == 0:
 			await _seq_frame()
+	var dur_son := _tip("kuyruk")
+	_p("duruş: en öne salınım uç.x=%.1f (durgun %.1f), sonra=%s (öne salınıp arkaya yerleşmeli)" % [salin, dinlen_x, str(dur_son.round())])
+	if salin < dinlen_x + 2.0:
+		hata += 1
+		_p("HATA duruş: saç öne salınmıyor (ip gibi)")
 	Input.action_press("zipla")
 	for i in 56:
 		await _f()
@@ -231,6 +282,10 @@ func _run() -> void:
 			var tj := _tip("kuyruk")
 			_p("sıçrayış (yükseliş): uç=%s (aşağı sarkmalı)" % str(tj.round()))
 			await _shot("3_sicrayis")
+		if pl.velocity.y > 320.0 and not _dusus_cekildi:
+			_dusus_cekildi = true
+			_p("düşüş: uç=%s v=%s (saç yukarı kalkmalı: uç.y küçülür)" % [str(_tip("kuyruk").round()), str(pl.velocity.round())])
+			await _shot("3b_dusus")
 		_check("sıçrayış")
 	await _f(20)
 	# ---- saldırı
@@ -249,27 +304,93 @@ func _run() -> void:
 	Input.action_press("sag")
 	await _f(10)
 	await _tap("yuvarlan", 2)
-	await _f(6)
+	for i in 6:
+		await _f()
+		if OS.get_cmdline_user_args().has("--sac_iz"):
+			_dump()
 	await _shot("6_yuvarlanma")
-	await _f(10)
+	for i in 10:
+		await _f()
+		if OS.get_cmdline_user_args().has("--sac_iz"):
+			_dump()
 	_check("yuvarlanma")
 	Input.action_release("sag")
 	await _f(30)
 	# ---- dönüş: sola koş (saç kesmeden öbür yana geçmeli)
 	var before := _tip("kuyruk")
+	_p("dönüş öncesi f=%d anim=%s v=%s" % [pl.facing, pl.anim.anim, str(pl.velocity.round())])
 	Input.action_press("sol")
-	await _f(4)
-	await _shot("7_donus")
-	await _f(30)
+	var kamci := -99.0
+	for i in 34:
+		await _f()
+		kamci = maxf(kamci, _bas_ustu())
+		if OS.get_cmdline_user_args().has("--sac_iz"):
+			var zz = _zincir("kuyruk")
+			_p("  iz %d f=%d v=%s a=%.2f uç=%s orta=%s anim=%s" % [i, pl.facing, str(pl.velocity.round()), zz.a1, str(_tip("kuyruk").round()), str((zz.p[6] - zz.r1).round()), pl.anim.anim])
+		if i % 2 == 0:
+			await _seq_frame("d")
+		if i == 3:
+			await _shot("7_donus")
+		_check("dönüş")
 	var after := _tip("kuyruk")
 	Input.action_release("sol")
+	_p("dönüş: baş üstü en kötü=%.1f (<= 0 olmalı: saç başın üstünden öne kamçılanmaz)" % kamci)
+	if kamci > 0.0:
+		hata += 1
+		_p("HATA dönüş: saç başın üstünden öne kamçılandı")
 	_p("dönüş: uç önce=%s sonra=%s" % [str(before.round()), str(after.round())])
 	if after.x < 4.0:
 		hata += 1
 		_p("HATA dönüş: saç sola dönünce sağa (arkaya) geçmedi")
-	await _f(60)
+	# yerinde dönüş dizisi: sağa, sonra sola kısa dokunuş
+	for yon in ["sag", "sol"]:
+		await _f(24)
+		await _tap(yon, 3)
+		for i in 24:
+			await _f()
+			kamci = maxf(kamci, _bas_ustu())
+			if i % 3 == 0:
+				await _seq_frame("d")
+	_p("yerinde dönüş: baş üstü en kötü=%.1f" % kamci)
+	if kamci > 0.0:
+		hata += 1
+		_p("HATA yerinde dönüş: saç başın üstünden öne kamçılandı")
+	for k in 6:
+		await _f(25)
+		if OS.get_cmdline_user_args().has("--sac_iz"):
+			_dump()
 	_check("dönüş")
+	# sola bakarken durgun saç öne (yüz yanına) sürüklenmemeli (eski sürümde sürekli sol esinti vardı)
+	var fl := _front_ratio()
+	_p("sola durgun: uç=%s önde=%.2f" % [str(_tip("kuyruk").round()), fl])
+	_dump()
+	if pl.facing < 0 and fl > 0.25:
+		hata += 1
+		_p("HATA sola durgun: saç öne sürükleniyor")
 	await _shot("8_sol_durgun")
+	# hayalet izi: saçlı kopya da çıkmalı
+	var nk := FX.root.get_child_count()
+	FX.ghost(pl.anim.base, Color(0.55, 0.85, 1.0, 0.5), 0.3)
+	var kopya := 0
+	for i in range(nk, FX.root.get_child_count()):
+		if FX.root.get_child(i) is BenguSac.Kopya:
+			kopya += 1
+	_p("hayalet: saç kopyası=%d (1 olmalı)" % kopya)
+	if kopya != 1:
+		hata += 1
+		_p("HATA hayalet: saç kopyası yok")
+	# darbe karesi: beyaz siluette saç da olmalı
+	ImpactFrame.play([pl], 1.0, 2, true)
+	var dk := 0
+	if ImpactFrame._active:
+		for ch in ImpactFrame._active.get_children():
+			if ch is BenguSac.Kopya:
+				dk += 1
+	_p("darbe karesi: saç kopyası=%d (1 olmalı)" % dk)
+	if dk != 1:
+		hata += 1
+		_p("HATA darbe karesi: saç yok")
+	await _f(6)
 	# ---- kurt dönüşümü: saç gizlenir, dönünce dinlenme duruşundan başlar
 	if pl.has_method("_begin_wolf"):
 		pl.call("_begin_wolf")
@@ -286,5 +407,6 @@ func _run() -> void:
 		_p("kurt sonrası: saç görünür=%s uç=%s" % [str(pl.sac.is_visible_in_tree()), str(_tip("kuyruk").round())])
 		await _shot("10_kurt_sonrasi")
 	_release_all()
+	_p("saç süresi: ortalama %.3f ms, en çok %.3f ms / kare (benzetim + çizim verisi, %d kare)" % [_olcum / maxf(1.0, _olcum_n) / 1000.0, _olcum_max / 1000.0, _olcum_n])
 	_p("OZET hata=%d" % hata)
 	get_tree().quit()
