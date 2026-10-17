@@ -589,6 +589,10 @@ static func ghost(src: Sprite2D, col: Color, life := 0.25, z := 1) -> void:
 	var tw := g.create_tween()
 	tw.tween_property(g, "modulate:a", 0.0, life)
 	tw.tween_callback(g.queue_free)
+	# Bengü'nün fizikli saçı sprite'ta yok: hayaletin saçı aynı anın donmuş saç çizimiyle eklenir
+	var sac := BenguSac.bul(src)
+	if sac:
+		sac.hayalet(col, life, z)
 
 
 static func trail(col: Color, width := 1.0) -> WeaponTrail:
