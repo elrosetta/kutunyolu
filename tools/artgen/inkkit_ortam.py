@@ -11,17 +11,74 @@ import numpy as np
 import skia
 from scipy import ndimage
 
+from hdpack import HD   # HD doku paketi (KY_HD=2): dışa aktarıcılar K'yı HD ile çarpar; aşağıdaki yardımcılar temel çizimi korur
+
 INK = (21, 22, 29)          # mavi-siyah mürekkep #15161d
 
 # Çizim ölçeği: çizim kodu "mantıksal" piksellerle yazılır, çıktı K kat çözünürlükte üretilir (skia tuvali ölçeklenir,
 # numpy ızgaraları mantıksal koordinatı K sıklıkta örnekler). Paralaks/ön plan (ekran uzayı) K = 1; dünya uzayı
 # dokuları (zemin, süsler) K = 2,0: mantıksal 2 doku pikseli / dünya birimi -> 4 (v2 kamerası 2,0 yakın, 1080p'de 1:1).
+# HD paketinde (hdpack.HD = 2) dışa aktarıcılar K = temel K x HD verir: aynı mantıksal çizim 2 kat piksel. Temel
+# piksele bağlı veriler (gürültü alanları, satır başına sis/gök dizileri, piksel cinsinden bulanıklık) aşağıdaki
+# yardımcılarla temel çözünürlükte üretilip HD ızgarasına örneklenir (temel çıktı HD=1'de birebir aynı kalır).
 K = 1.0
 
 
 def P(v):
     """mantıksal uzunluk -> çıktı pikseli"""
     return int(round(v * K))
+
+
+def KB():
+    """temel (HD'siz) çıktı ölçeği"""
+    return K / HD
+
+
+def axis(n):
+    """K = 1 için `np.arange(n)` ile yazılmış mantıksal koordinat ızgarasının çıktı pikseli karşılığı (P(n) örnek):
+    HD pikseli j -> temel piksel (j + 0,5) / HD - 0,5 -> mantıksal / KB. HD = 1'de np.arange(P(n)) / K."""
+    return axis_px(P(n))
+
+
+def axis_px(npx):
+    """axis() ama çıktı piksel sayısıyla (npx örnek)"""
+    j = np.arange(npx, dtype=np.float32)
+    if HD == 1:
+        return j / np.float32(K)
+    return ((j + 0.5) / HD - 0.5) / np.float32(KB())
+
+
+def hd_lin(a, axis_=0):
+    """Temel piksel başına dizi (ör. satır başına gök rengi / sis payı) -> HD piksel başına (doğrusal ara değer).
+    HD = 1'de aynen döner."""
+    a = np.asarray(a)
+    if HD == 1:
+        return a
+    n = a.shape[axis_]
+    x = (np.arange(n * HD, dtype=np.float64) + 0.5) / HD - 0.5
+    f = np.floor(x)
+    i0 = np.clip(f.astype(int), 0, n - 1)
+    i1 = np.clip(f.astype(int) + 1, 0, n - 1)
+    shp = [1] * a.ndim
+    shp[axis_] = -1
+    t = (x - f).astype(np.float32).reshape(shp)
+    return (np.take(a, i0, axis_) * (1 - t) + np.take(a, i1, axis_) * t).astype(np.float32)
+
+
+def hd_up(a, shape, wrap=True):
+    """Temel çözünürlükte üretilmiş yumuşak alanı (gürültü vb.) çıktı boyuna kübik örnekle (HD)."""
+    if a.shape == tuple(shape):
+        return a
+    z = (shape[0] / a.shape[0], shape[1] / a.shape[1])
+    out = ndimage.zoom(a, z, order=3, mode='grid-wrap' if wrap else 'nearest', grid_mode=True)
+    if out.shape != tuple(shape):
+        out = out[:shape[0], :shape[1]]
+    return out.astype(a.dtype)
+
+
+def hd_sigma(s):
+    """piksel cinsinden yazılmış bulanıklık / yarıçap -> HD karşılığı"""
+    return s * HD
 
 
 # ------------------------------------------------------------------ renk yardımcıları
@@ -48,15 +105,29 @@ def smoothstep(e0, e1, x):
 
 
 # ------------------------------------------------------------------ gürültü
-def noise(w, h, sigma, seed, wrap=True, sx=None, sy=None):
-    """Döşenebilir yumuşak gürültü, yaklaşık [-1, 1]. sx/sy ile yönlü (yatay sis şeritleri vb.)."""
+def _noise_k(w, h, sigma, seed, wrap, sx, sy, k):
     rng = np.random.default_rng(seed)
-    w, h = max(1, P(w)), max(1, P(h))
+    w, h = max(1, int(round(w * k))), max(1, int(round(h * k)))
     f = rng.standard_normal((h, w)).astype(np.float32)
-    sg = ((sy if sy is not None else sigma) * K, (sx if sx is not None else sigma) * K)
+    sg = ((sy if sy is not None else sigma) * k, (sx if sx is not None else sigma) * k)
     f = ndimage.gaussian_filter(f, sg, mode='wrap' if wrap else 'reflect')
     f /= (f.std() * 2.2 + 1e-6)
     return np.clip(f, -1, 1)
+
+
+def noise(w, h, sigma, seed, wrap=True, sx=None, sy=None):
+    """Döşenebilir yumuşak gürültü, yaklaşık [-1, 1]. sx/sy ile yönlü (yatay sis şeritleri vb.).
+    HD paketinde aynı rastgele alan temel çözünürlükte üretilip çıktı boyuna örneklenir (desen aynı kalır)."""
+    if HD == 1:
+        return _noise_k(w, h, sigma, seed, wrap, sx, sy, K)
+    base = _noise_k(w, h, sigma, seed, wrap, sx, sy, KB())
+    return np.clip(hd_up(base, (max(1, P(h)), max(1, P(w))), wrap), -1, 1)
+
+
+def noise_base(w, h, sigma, seed, wrap=True, sx=None, sy=None):
+    """noise() ama her zaman temel çözünürlükte (piksel ızgarası değil, arama tablosu / nokta başına değer olarak
+    kullanılan diziler için: HD'de de temel ile birebir aynı)."""
+    return _noise_k(w, h, sigma, seed, wrap, sx, sy, KB())
 
 
 def fbm(w, h, sigmas, seed, wrap=True, weights=None):
@@ -447,12 +518,18 @@ def trunk(H, W, base_y, x0, width, seed, kind='pine', lean=0.0, bend=0.0, top_y=
 
 
 def apply_fog(arr, y0, fog_rgb_y, amount_y):
-    """Önçarpılmış parçaya (arr, üst kenarı y0) satıra göre sis karıştır: fog_rgb_y (H,3), amount_y (H,)."""
+    """Önçarpılmış parçaya (arr, üst kenarı y0 çıktı pikseli) satıra göre sis karıştır: fog_rgb_y (H,3), amount_y (H,)
+    temel piksel satırı başına (HD paketinde satırlar arası doğrusal ara değer)."""
     h = arr.shape[0]
     H = fog_rgb_y.shape[0]
-    rows = np.clip(np.arange(y0, y0 + h), 0, H - 1)
-    f = amount_y[rows][:, None, None]
-    fc = fog_rgb_y[rows][:, None, :]
+    if HD == 1:
+        rows = np.clip(np.arange(y0, y0 + h), 0, H - 1)
+        f = amount_y[rows][:, None, None]
+        fc = fog_rgb_y[rows][:, None, :]
+    else:
+        yb = (np.arange(y0, y0 + h, dtype=np.float64) + 0.5) / HD - 0.5
+        f = np.interp(yb, np.arange(H), amount_y).astype(np.float32)[:, None, None]
+        fc = np.stack([np.interp(yb, np.arange(H), fog_rgb_y[:, c]) for c in range(3)], 1).astype(np.float32)[:, None, :]
     a = arr[..., 3:4]
     arr[..., :3] = arr[..., :3] * (1 - f) + fc * a * f
     return arr

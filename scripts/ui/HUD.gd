@@ -1052,7 +1052,7 @@ func _draw_settings(vp: Vector2) -> void:
 		"Pencereli, tam ekran (kenarsız) ya da özel tam ekran.",
 		"Pencereli modda pencere boyutu. Tam ekranda ekranın kendi çözünürlüğü kullanılır.",
 		"Ekranı doldur: görüş alanı sabit, kesirli ölçek. Keskin piksel: tam sayı ölçek (1440p'de 3x), görüş alanı ekrana göre biraz değişir; siyah boşluk kalmaz.",
-		"2K / 4K: karakterler, düşmanlar, silahlar ve dünya 2 / 4 kat çözünürlükte yeniden çizilmiş dokularla gösterilir. * : oyunu yeniden başlatınca uygulanır.",
+		Ayarlar.quality_tip(),
 		"Kare hızını ekran yenilemesine kilitler (yırtılmayı önler).",
 		"Oyun içi göstergelerin boyutu. Normal: daha çok oyun alanı görünür.",
 		"Kamera sarsıntısı, darbe kareleri ve ekran flaşları. Rahatsız ediyorsa Azaltılmış ya da Kapalı seç.",

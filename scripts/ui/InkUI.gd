@@ -169,7 +169,7 @@ static var _tex: Dictionary = {}
 
 static func tex(n: String) -> Texture2D:
 	if not _tex.has(n):
-		_tex[n] = load(TEX_DIR + n + ".png")
+		_tex[n] = Data.tex(TEX_DIR + n + ".png")   # HD paketi varsa 2 kat ayrıntı (temel boyutta raporlanır)
 	return _tex[n]
 
 

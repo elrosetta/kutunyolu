@@ -158,7 +158,7 @@ def peak(W, sky, fog_y, ax, ay, by, wl, wr, seed, rock_lit, rock_sh, snow_lit, s
         lp = left - [x0, y0]
         rp = right - [x0, y0]
         for line_pts in (lp, rp):
-            wd = ink_w * (0.6 + 0.8 * np.abs(noise(1, len(line_pts), 3, seed + 20, wrap=False)[:, 0]))
+            wd = ink_w * (0.6 + 0.8 * np.abs(ik.noise_base(1, len(line_pts), 3, seed + 20, wrap=False)[:, 0]))
             sk.path(ribbon(line_pts, wd), INK, ink_a)
         for (xr, valid), i in zip(ridges, range(len(ridges))):
             idx = np.nonzero(valid)[0]
@@ -189,7 +189,7 @@ def peak(W, sky, fog_y, ax, ay, by, wl, wr, seed, rock_lit, rock_sh, snow_lit, s
     if sil_rim is not None:
         # güneşe bakan siluet kenarında parlak ışık çizgisi (ters ışıkta dağı gökten koparır)
         rl = (right if light > 0 else left) - [x0, y0]
-        wd = sil_rim_w * (0.4 + 0.9 * np.abs(noise(1, len(rl), 4, seed + 31, wrap=False)[:, 0]))
+        wd = sil_rim_w * (0.4 + 0.9 * np.abs(ik.noise_base(1, len(rl), 4, seed + 31, wrap=False)[:, 0]))
         sk.path(ribbon(rl + [-light * sil_rim_w * 0.4, sil_rim_w * 0.5], wd), sil_rim, sil_rim_a)
     marks = sk.snap() * cov[..., None]
     arr = over(arr, marks)
@@ -249,7 +249,7 @@ def hills(L, sky, seed, base_y, amp, n_waves, col_lit, col_sh, fog, light=-1.0, 
     if ink_a > 0:
         sk = Sk(W, H)
         tpts = np.array(list(zip(xs, top)))
-        wd = ink_w * (0.5 + 0.9 * np.abs(noise(1, len(tpts), 6, seed + 9, wrap=False)[:, 0]))
+        wd = ink_w * (0.5 + 0.9 * np.abs(ik.noise_base(1, len(tpts), 6, seed + 9, wrap=False)[:, 0]))
         i = 0
         while i < len(tpts) - 3:
             ln = int(rng.integers(12, 60))
@@ -460,7 +460,7 @@ def grass_field(L, sky, seed, y0, y1, density, col_top, col_bot, hmin, hmax, wmi
 # ------------------------------------------------------------------ hava katmanları
 def veil(W, sky, seed, bands, col_mix, tint, alpha, sx=(140, 50), sy=(16, 8), streaks=0.0, streak_sx=260):
     """Sis / toz / kar tülü: yatayda uzun gürültü şeritleri. bands: [(merkez, genişlik, ağırlık)]."""
-    ys = np.arange(H, dtype=np.float32)[:, None]
+    ys = ik.axis(H)[:, None]
     n1 = noise(W, H, 0, seed, sx=sx[0], sy=sy[0])
     n2 = noise(W, H, 0, seed + 1, sx=sx[1], sy=sy[1])
     band = sum(wt * np.exp(-((ys - c) / wd) ** 2) for c, wd, wt in bands)
@@ -469,7 +469,7 @@ def veil(W, sky, seed, bands, col_mix, tint, alpha, sx=(140, 50), sy=(16, 8), st
         n3 = noise(W, H, 0, seed + 2, sx=streak_sx, sy=1.2)
         a = a * (1 - streaks) + band * np.clip(n3 * 2.2 - 0.6, 0, 1) * streaks
     a = np.clip(a * alpha, 0, 0.92).astype(np.float32)
-    rgb = np.repeat(sky[:, None, :], W, 1) * (1 - col_mix) + c01(tint)[None, None, :] * col_mix
+    rgb = np.repeat(ik.hd_lin(sky)[:, None, :], ik.P(W), 1) * (1 - col_mix) + c01(tint)[None, None, :] * col_mix
     L = Layer(W, H)
     L.a = premul(rgb, a)
     return L
@@ -478,18 +478,20 @@ def veil(W, sky, seed, bands, col_mix, tint, alpha, sx=(140, 50), sy=(16, 8), st
 def rays(W, seed, ang_deg, col, n=7, wid=(50, 170), inten=(0.25, 0.6), fade=(0.0, 0.1, 0.5, 0.74), origin=None,
          blend=200):
     """Toplamalı ışık hüzmeleri. origin=(x, y) verilirse hüzmeler o noktadan yelpaze açılır (alçak güneş)."""
-    out = np.zeros((H, W), np.float32)
+    out = np.zeros((ik.P(H), ik.P(W)), np.float32)
     rng = np.random.default_rng(seed)
-    ys = np.arange(H, dtype=np.float32)[:, None]
-    xs = np.arange(W, dtype=np.float32)[None, :]
+    ys = ik.axis(H)[:, None]
+    xs = ik.axis(W)[None, :]
     if origin is None:
         ang = math.radians(ang_deg)
         u_all = xs * math.cos(ang) + ys * math.sin(ang)
-        umin, umax = float(u_all.min()), float(u_all.max())
+        # aralık temel piksel ızgarasından (HD'de aynı hüzme konumları)
+        ub = np.arange(W, dtype=np.float32)[None, :] * math.cos(ang) + np.arange(H, dtype=np.float32)[:, None] * math.sin(ang)
+        umin, umax = float(ub.min()), float(ub.max())
         for _ in range(n):
             u0 = rng.uniform(umin + 200, umax - 100)
             out += np.exp(-((u_all - u0) / rng.uniform(*wid)) ** 2) * rng.uniform(*inten)
-        streak = np.interp(u_all, np.linspace(umin, umax, 4096), noise(4096, 1, 0, seed + 3, sx=3.0, sy=0.01)[0])
+        streak = np.interp(u_all, np.linspace(umin, umax, 4096), ik.noise_base(4096, 1, 0, seed + 3, sx=3.0, sy=0.01)[0])
         v = ys / H
         f = smoothstep(fade[0], fade[1], v) * (1 - smoothstep(fade[2], fade[3], v))
     else:
@@ -500,17 +502,18 @@ def rays(W, seed, ang_deg, col, n=7, wid=(50, 170), inten=(0.25, 0.6), fade=(0.0
             t0 = rng.uniform(-math.pi * 0.95, math.pi * 0.95)
             dt = np.angle(np.exp(1j * (th - t0)))
             out += np.exp(-(dt / rng.uniform(*wid)) ** 2) * rng.uniform(*inten)
-        streak = np.interp(th, np.linspace(-math.pi, math.pi, 4096), noise(4096, 1, 0, seed + 3, sx=4.0, sy=0.01)[0])
+        streak = np.interp(th, np.linspace(-math.pi, math.pi, 4096), ik.noise_base(4096, 1, 0, seed + 3, sx=4.0, sy=0.01)[0])
         f = smoothstep(fade[0], fade[1], rr) * (1 - smoothstep(fade[2], fade[3], rr))
     brk = np.clip(0.75 + 0.5 * noise(W, H, 0, seed + 5, sx=60, sy=90), 0.3, 1.0)
     out *= f * (0.85 + 0.25 * streak) * brk
     out = np.clip(out, 0, 1)
     if blend:
-        t = np.linspace(0, 1, blend)[None, :]
-        out[:, :blend] = out[:, :blend] * t + out[:, -blend:] * (1 - t)
-        out = out[:, :W - blend]
+        bp = ik.P(blend)
+        t = np.clip(ik.axis(blend) / (blend - 1), 0, 1)[None, :]
+        out[:, :bp] = out[:, :bp] * t + out[:, -bp:] * (1 - t)
+        out = out[:, :out.shape[1] - bp]
     rgb = c01(col)[None, None, :] * out[..., None]
-    L = Layer(out.shape[1], H)
+    L = Layer(W - (blend or 0), H)
     L.a = np.concatenate([rgb, out[..., None]], -1).astype(np.float32)
     return L
 

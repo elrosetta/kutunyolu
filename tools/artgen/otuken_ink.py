@@ -12,6 +12,7 @@ import os
 import numpy as np
 from PIL import Image
 
+import inkkit_ortam as ik
 from inkkit_ortam import (INK, Layer, Sk, apply_fog, blade, blade_tip, blade_spine, facet_shade, blob, c01, fbm, leaf_shape, mix, noise, poly_path, premul,
                     ribbon, save_png, smooth_path, smoothstep, trunk, bezier)
 
@@ -64,9 +65,9 @@ def wrap_x(arr, W=WL):
 def layer_sky(seed=1):
     W = 1920
     L = Layer(W, H)
-    rgb = np.repeat(SKY[:, None, :], W, 1).copy()
-    ys = np.arange(H, dtype=np.float32)[:, None]
-    xs = np.arange(W, dtype=np.float32)[None, :]
+    rgb = np.repeat(ik.hd_lin(SKY)[:, None, :], L.w, 1).copy()
+    ys = ik.axis(H)[:, None]
+    xs = ik.axis(W)[None, :]
     # ay ışığının sise süzüldüğü kaynak: üst-orta solda yumuşak parıltı
     d = np.hypot((xs - 760) / 900.0, (ys + 140) / 620.0)
     glow = np.exp(-d * d * 2.2)
@@ -78,7 +79,7 @@ def layer_sky(seed=1):
     # tepe: koyu yaprak örtüsü lekeleri
     can = smoothstep(0.1, 0.7, fbm(W, H, [60, 25, 10], seed + 11) * 0.8 + 0.25) * (1 - smoothstep(60, 330, ys))
     rgb = mix(rgb, c01(CANOPY)[None, None, :], (can * 0.55)[..., None])
-    L.a = premul(rgb, np.ones((H, W), np.float32))
+    L.a = premul(rgb, np.ones((L.h, L.w), np.float32))
     return L
 
 
@@ -89,7 +90,7 @@ def trunk_row(L, seed, n, wmin, wmax, base_y, fog, kinds=('pine', 'pine', 'birch
               branches=0.0, leaf_col=(46, 58, 48), leaf_hi=(120, 150, 118), ws=None):
     rng = np.random.default_rng(seed)
     if xs is None:
-        xs = np.sort(rng.uniform(0, L.w, n))
+        xs = np.sort(rng.uniform(0, L.w / ik.K, n))
         # aralık düzenle: kümelenme olsun ama üst üste binmesin
     if branches > 0:
         _branches_for(L, seed + 77, xs, (wmin + wmax) / 2, base_y, fog, branches, bark_pine, leaf_col, leaf_hi,
@@ -108,10 +109,10 @@ def trunk_row(L, seed, n, wmin, wmax, base_y, fog, kinds=('pine', 'pine', 'birch
                             ink=ink, ink_w=max(1.2, w * 0.06) * ink_k, light_side=-1.0, detail=detail,
                             taper=rng.uniform(0.15, 0.35))
         if dark_top > 0:
-            ys = np.arange(yt, yt + arr.shape[0], dtype=np.float32)
+            ys = yt + ik.axis_px(arr.shape[0])
             k = 1 - dark_top * (1 - smoothstep(0, 520, ys))
             arr[..., :3] *= k[:, None, None]
-        apply_fog(arr, yt, SKY, fog)
+        apply_fog(arr, ik.P(yt), SKY, fog)
         L.over_wrap(arr, xl, yt)
 
 
@@ -143,7 +144,8 @@ def _branches_for(L, seed, xs, w_avg, base_y, fog, amount, bark, leaf_col, leaf_
     """Gövdelerden çıkan eğik dallar ve uçlarında yaprak öbekleri (gövdelerin arkasında)."""
     rng = np.random.default_rng(seed)
     pad = 400
-    sk = Sk(L.w + 2 * pad, H)
+    LW = L.w / ik.K
+    sk = Sk(LW + 2 * pad, H)
     for x in xs:
         nb = int(rng.poisson(amount * 2.2))
         for _ in range(nb):
@@ -166,7 +168,7 @@ def _branches_for(L, seed, xs, w_avg, base_y, fog, amount, bark, leaf_col, leaf_
                 tl = rng.uniform(16, 40)
                 te = (tq[0] + math.cos(ta) * tl, tq[1] + math.sin(ta) * tl)
                 twigs.append((bezier(tq, ((tq[0] + te[0]) / 2, (tq[1] + te[1]) / 2 - 4), te, 6), wd[j] * 0.45))
-            for dx in (0, L.w, -L.w):
+            for dx in (0, LW, -LW):
                 q = pts + np.array([dx, 0])
                 sk.path(ribbon(q, wd), bc, 1.0)
                 if ink_k > 0.3:
@@ -177,10 +179,10 @@ def _branches_for(L, seed, xs, w_avg, base_y, fog, amount, bark, leaf_col, leaf_
             for t in (0.6, 1.0):
                 q = pts[int(t * 11)]
                 lc = tuple(np.array(leaf_col) * k)
-                for dx in (0, L.w, -L.w):
+                for dx in (0, LW, -LW):
                     foliage(sk, q[0] + dx, q[1] + 6, rng.uniform(18, 34), int(rng.integers(1 << 30)), lc,
                             tuple(np.array(leaf_hi) * k), n=int(rng.uniform(26, 46)), ink_a=0.5 * ink_k)
-    arr = sk.snap()[:, pad:pad + L.w].copy()
+    arr = sk.snap()[:, ik.P(pad):ik.P(pad) + L.w].copy()
     apply_fog(arr, 0, SKY, fog)
     L.over(arr)
 
@@ -189,9 +191,10 @@ def canopy(L, seed, y_max, col, hi, fog, n=14, size=(60, 140)):
     """Tepeden sarkan koyu yapraklı dal kümeleri (sahnenin üst kenarı loş, referanstaki gibi)."""
     rng = np.random.default_rng(seed)
     pad = 300
-    sk = Sk(L.w + 2 * pad, H)
+    LW = L.w / ik.K
+    sk = Sk(LW + 2 * pad, H)
     for _ in range(n):
-        x = rng.uniform(0, L.w) + pad
+        x = rng.uniform(0, LW) + pad
         y = rng.uniform(-30, y_max)
         r = rng.uniform(*size)
         # sarkan ince saplar
@@ -199,16 +202,16 @@ def canopy(L, seed, y_max, col, hi, fog, n=14, size=(60, 140)):
             sx = x + rng.uniform(-r, r)
             ln = rng.uniform(40, 140)
             pts = bezier((sx, -10), (sx + rng.uniform(-20, 20), y * 0.5), (sx + rng.uniform(-30, 30), y + ln * 0.4), 10)
-            for dx in (0, L.w, -L.w):
+            for dx in (0, LW, -LW):
                 sk.path(ribbon(pts + np.array([dx, 0]), np.linspace(3, 1, 10)), col, 1.0)
             for j in range(3, 10, 2):
                 q = pts[j]
-                for dx in (0, L.w, -L.w):
+                for dx in (0, LW, -LW):
                     foliage(sk, q[0] + dx, q[1], rng.uniform(10, 22), int(rng.integers(1 << 30)), col, hi,
                             n=int(rng.uniform(10, 22)), leaf=(10, 20), droop=0.8)
-        for dx in (0, L.w, -L.w):
+        for dx in (0, LW, -LW):
             foliage(sk, x + dx, y, r, int(rng.integers(1 << 30)), col, hi, n=int(r * 1.3), leaf=(12, 24), droop=0.6)
-    arr = sk.snap()[:, pad:pad + L.w].copy()
+    arr = sk.snap()[:, ik.P(pad):ik.P(pad) + L.w].copy()
     apply_fog(arr, 0, SKY, fog)
     L.over(arr)
 
@@ -285,19 +288,20 @@ def balbal(sk, x, base_y, h, col, hi, seed, ink_a=1.0):
 def mounds(L, seed, base_y, n, rx, ry, col, fog, blur=6.0, jit=20):
     """Gövde diplerinde çalılık / toprak tümsekleri (yumuşak kenarlı siluet)."""
     rng = np.random.default_rng(seed)
-    sk = Sk(L.w + 2 * 300, H)
+    sk = Sk(L.w / ik.K + 2 * 300, H)
     for _ in range(n):
-        x = rng.uniform(0, L.w) + 300
+        x = rng.uniform(0, L.w / ik.K) + 300
         y = base_y + rng.uniform(-jit, jit)
         p = blob(x, y, rx * rng.uniform(0.6, 1.4), ry * rng.uniform(0.6, 1.3), int(rng.integers(1 << 30)), n=16, jitter=0.18)
         sk.path(p, col, 1.0, blur)
     arr = sk.snap()
     # sarma: taşan kenarlar öbür uca
-    core = arr[:, 300:300 + L.w].copy()
-    left = arr[:, :300]
-    right = arr[:, 300 + L.w:]
-    core[:, L.w - 300:] = left + core[:, L.w - 300:] * (1 - left[..., 3:4])
-    core[:, :300] = right + core[:, :300] * (1 - right[..., 3:4])
+    p3 = ik.P(300)
+    core = arr[:, p3:p3 + L.w].copy()
+    left = arr[:, :p3]
+    right = arr[:, p3 + L.w:]
+    core[:, L.w - p3:] = left + core[:, L.w - p3:] * (1 - left[..., 3:4])
+    core[:, :p3] = right + core[:, :p3] * (1 - right[..., 3:4])
     apply_fog(core, 0, SKY, fog)
     L.over(core)
 
@@ -306,7 +310,7 @@ def grass_field(L, seed, y0, y1, density, col_top, col_bot, hmin, hmax, wmin=2.0
                 dark_strokes=0.25, light_strokes=0.2, fill=True, fill_blur=3, ink_tips=0.0):
     """Otluk: dolgu gradyanı + binlerce kavisli yaprak darbesi (koyu ve açık)."""
     rng = np.random.default_rng(seed)
-    W = L.w
+    W = L.w / ik.K
     pad = 80
     sk = Sk(W + 2 * pad, H)
     if fill:
@@ -317,12 +321,10 @@ def grass_field(L, seed, y0, y1, density, col_top, col_bot, hmin, hmax, wmin=2.0
         pts = top + [(W + 2 * pad, H + 10), (0, H + 10)]
         # dikey gradyan dolgu: skia gradyan gölgelendiricisi yerine iki aşamalı numpy boyama yapılır (aşağıda)
         sk.path(smooth_path(pts, True, 0.3), (255, 255, 255), 1.0, fill_blur)
-    fillm = sk.mask()[:, pad:pad + W] if fill else None
-    if fill:
-        tmp = Sk(W, H)
-    ys = np.arange(H, dtype=np.float32)
+    fillm = sk.mask()[:, ik.P(pad):ik.P(pad) + L.w] if fill else None
+    ys = ik.axis(H)
     grad = mix(c01(col_top)[None, :], c01(col_bot)[None, :], smoothstep(y0, y1, ys)[:, None])
-    layer_rgb = np.repeat(grad[:, None, :], W, 1)
+    layer_rgb = np.repeat(grad[:, None, :], L.w, 1)
     nz = fbm(W, H, [30, 10], seed + 1)
     layer_rgb *= (1 + 0.07 * nz[..., None])
     out = Layer(W, H)
@@ -351,7 +353,7 @@ def grass_field(L, seed, y0, y1, density, col_top, col_bot, hmin, hmax, wmin=2.0
             sk2.path(blade_tip(x, y, h, ln_, wd_, rng.uniform(0.18, 0.4)), INK, rng.uniform(0.5, 0.85))
         elif ink_tips > 0 and rng.random() < ink_tips * 0.6:
             sk2.path(blade_spine(x, y, h, ln_, wd_, side=1.0 if ln_ < 0 else -1.0), INK, rng.uniform(0.4, 0.7))
-    bl = sk2.snap()[:, pad:pad + W]
+    bl = sk2.snap()[:, ik.P(pad):ik.P(pad) + L.w]
     # kenar sarması (blade'ler pad içinde tekrar çizilmedi; yatay döşemede kenar farkı ince ot çizgisi kadardır)
     out.a = bl + out.a * (1 - bl[..., 3:4])
     if fog is not None:
@@ -363,9 +365,9 @@ def ferns(L, seed, base_y, n, size, col, fog, jit=10, dark=False):
     """Eğrelti / genç fidan kümeleri: merkezden kavisli saplar, iki yana yaprakçıklar."""
     rng = np.random.default_rng(seed)
     pad = 200
-    sk = Sk(L.w + 2 * pad, H)
+    sk = Sk(L.w / ik.K + 2 * pad, H)
     for _ in range(n):
-        x0 = rng.uniform(0, L.w) + pad
+        x0 = rng.uniform(0, L.w / ik.K) + pad
         y0 = base_y + rng.uniform(-jit, jit)
         s = size * rng.uniform(0.6, 1.3)
         for k in range(rng.integers(3, 7)):
@@ -386,10 +388,11 @@ def ferns(L, seed, base_y, n, size, col, fog, jit=10, dark=False):
                 for sgn in (-1, 1):
                     sk.path(leaf_shape(q[0], q[1], ll, ll * 0.32, ta + sgn * 1.0), tuple(cc * 255 * rng.uniform(0.85, 1.1)), 1.0)
     arr = sk.snap()
-    core = arr[:, pad:pad + L.w].copy()
-    l, r = arr[:, :pad], arr[:, pad + L.w:]
-    core[:, L.w - pad:] = l + core[:, L.w - pad:] * (1 - l[..., 3:4])
-    core[:, :pad] = r + core[:, :pad] * (1 - r[..., 3:4])
+    pp = ik.P(pad)
+    core = arr[:, pp:pp + L.w].copy()
+    l, r = arr[:, :pp], arr[:, pp + L.w:]
+    core[:, L.w - pp:] = l + core[:, L.w - pp:] * (1 - l[..., 3:4])
+    core[:, :pp] = r + core[:, :pp] * (1 - r[..., 3:4])
     apply_fog(core, 0, SKY, fog)
     L.over(core)
 
@@ -423,7 +426,7 @@ def rock(seed, rx, ry, base=(92, 98, 90), moss=(84, 120, 82), ink_w=3.0, light_d
     ndl = ndl + 0.08 * nzf
     tone = np.where(ndl > 0.8, 1.24, np.where(ndl > 0.5, 1.0, np.where(ndl > 0.18, 0.74, 0.5))).astype(np.float32)
     from scipy import ndimage
-    tone = ndimage.gaussian_filter(tone, 0.6)
+    tone = ndimage.gaussian_filter(tone, ik.hd_sigma(0.6))
     # yüz kenarları: gölgeye bakan yüzlerin kenarında mürekkep, ışıktakilerde açık yontu çizgisi
     ew = np.clip(1.0 - fedge * rx * ik.K / (1.3 * ik.K), 0, 1) * cov
     tone = np.where(ndl > 0.55, tone * (1 + 0.22 * ew), tone)
@@ -456,10 +459,10 @@ def place(L, arr, x, y_base, fog=None):
     """Kökeni alt orta olan parçayı yerleştir (sisle)."""
     h, w = arr.shape[:2]
     a = arr.copy()
-    yt = int(y_base - h + 8)
+    yt = int(y_base - h / ik.K + 8)
     if fog is not None:
-        apply_fog(a, yt, SKY, fog)
-    L.over_wrap(a, int(x - w / 2), yt)
+        apply_fog(a, ik.P(yt), SKY, fog)
+    L.over_wrap(a, int(x - w / ik.K / 2), yt)
 
 
 # ------------------------------------------------------------------ paralaks katmanları
@@ -495,7 +498,7 @@ def layer_mid(seed=40):
     rng = np.random.default_rng(seed + 8)
     for k, xb in enumerate((900, 960, 3300)):
         balbal(sk, xb + pad, 660 + rng.uniform(-3, 3), rng.uniform(70, 92), (104, 110, 100), (140, 150, 134), seed + k, ink_a=0.7)
-    arr = sk.snap()[:, pad:pad + WL].copy()
+    arr = sk.snap()[:, ik.P(pad):ik.P(pad + WL)].copy()
     apply_fog(arr, 0, SKY, fog_amount(0.28, 0.34, 640, 60, top=0.08))
     L.over(arr)
     trunk_row(L, seed, 34, 20, 44, 650, fog, ink_k=0.8, detail=0.8, ink_mix=0.25, bark_pine=(50, 42, 48),
@@ -528,7 +531,7 @@ def layer_near(seed=50):
     rng = np.random.default_rng(seed + 8)
     for k, xb in enumerate((1460, 3060)):
         balbal(sk, xb + pad, 712, rng.uniform(100, 120), (98, 104, 94), (138, 148, 130), seed + 30 + k)
-    arr = sk.snap()[:, pad:pad + WL].copy()
+    arr = sk.snap()[:, ik.P(pad):ik.P(pad + WL)].copy()
     apply_fog(arr, 0, SKY, fog_amount(0.04, 0.3, 700, 40))
     L.over(arr)
     rng = np.random.default_rng(seed + 9)
@@ -545,14 +548,14 @@ def layer_haze(seed=65):
     """Orta derinlik pusu (v15): uzak-orta ile orta katman arasında yükselen, kopuk sis tülleri. Gövdelerin alt yarısını
     yer yer yutar, derinlik katmanları arasında hava boşluğu hissi verir (yavaş sürüklenir, nefes alır)."""
     W = WL
-    ys = np.arange(H, dtype=np.float32)[:, None]
+    ys = ik.axis(H)[:, None]
     n1 = noise(W, H, 0, seed, sx=220, sy=40)
     n2 = noise(W, H, 0, seed + 1, sx=70, sy=24)
     n3 = noise(W, H, 0, seed + 2, sx=18, sy=60)      # dikey tüller
     band = np.exp(-((ys - 560) / 120.0) ** 2) * 0.8 + np.exp(-((ys - 430) / 90.0) ** 2) * 0.3
     a = band * np.clip(0.35 + 0.7 * n1 + 0.3 * n2 + 0.2 * n3, 0, 1)
     a = np.clip(a * 0.42, 0, 0.5).astype(np.float32)
-    rgb = np.repeat(SKY[:, None, :], W, 1) * 0.75 + c01(MINT)[None, None, :] * 0.25
+    rgb = np.repeat(ik.hd_lin(SKY)[:, None, :], ik.P(W), 1) * 0.75 + c01(MINT)[None, None, :] * 0.25
     L = Layer(W, H)
     L.a = premul(rgb, a)
     return L
@@ -561,13 +564,13 @@ def layer_haze(seed=65):
 def layer_fogband(seed=60):
     """Sürüklenen yer sisi (ayrı katman, saydam): yatayda uzun, düşeyde ince şeritler."""
     W = WL
-    ys = np.arange(H, dtype=np.float32)[:, None]
+    ys = ik.axis(H)[:, None]
     n1 = noise(W, H, 0, seed, sx=140, sy=16)
     n2 = noise(W, H, 0, seed + 1, sx=50, sy=8)
     band = np.exp(-((ys - 640) / 70.0) ** 2) * 0.9 + np.exp(-((ys - 560) / 40.0) ** 2) * 0.35 + np.exp(-((ys - 730) / 40.0) ** 2) * 0.4
     a = band * np.clip(0.55 + 0.6 * n1 + 0.25 * n2, 0, 1)
     a = np.clip(a * 0.75, 0, 0.85).astype(np.float32)
-    rgb = np.repeat(SKY[:, None, :], W, 1) * 0.6 + c01(MINT)[None, None, :] * 0.4
+    rgb = np.repeat(ik.hd_lin(SKY)[:, None, :], ik.P(W), 1) * 0.6 + c01(MINT)[None, None, :] * 0.4
     L = Layer(W, H)
     L.a = premul(rgb, a)
     return L
@@ -576,16 +579,18 @@ def layer_fogband(seed=60):
 def layer_shafts(seed=70):
     """Işık hüzmeleri (toplamalı): üstten çapraz, geniş ve yumuşak; içleri hüzme boyunca ince çizgili."""
     W = 2880
-    out = np.zeros((H, W), np.float32)
+    out = np.zeros((ik.P(H), ik.P(W)), np.float32)
     rng = np.random.default_rng(seed)
-    ys = np.arange(H, dtype=np.float32)[:, None]
-    xs = np.arange(W, dtype=np.float32)[None, :]
+    ys = ik.axis(H)[:, None]
+    xs = ik.axis(W)[None, :]
     ang = math.radians(24)     # düşeyden sapma
     s_, c_ = math.sin(ang), math.cos(ang)
     u_all = xs * c_ + ys * s_  # hüzme kesitine dik eksen (sağ üstten sol alta)
-    umin, umax = float(u_all.min()), float(u_all.max())
+    # aralık temel piksel ızgarasından (HD'de aynı hüzme konumları)
+    ub = np.arange(W, dtype=np.float32)[None, :] * c_ + np.arange(H, dtype=np.float32)[:, None] * s_
+    umin, umax = float(ub.min()), float(ub.max())
     ugrid = np.linspace(umin, umax, 4096)
-    streak1 = noise(4096, 1, 0, seed + 3, sx=3.0, sy=0.01)[0]
+    streak1 = ik.noise_base(4096, 1, 0, seed + 3, sx=3.0, sy=0.01)[0]
     streak = np.interp(u_all, ugrid, streak1)
     for k in range(7):
         u0 = rng.uniform(umin + 200, umax - 100)
@@ -599,11 +604,12 @@ def layer_shafts(seed=70):
     out *= fade * (0.85 + 0.25 * streak) * brk
     out = np.clip(out, 0, 1)
     bl = 200
-    t = np.linspace(0, 1, bl)[None, :]
-    out[:, :bl] = out[:, :bl] * t + out[:, -bl:] * (1 - t)
-    out = out[:, :W - bl]
+    blp = ik.P(bl)
+    t = np.clip(ik.axis(bl) / (bl - 1), 0, 1)[None, :]
+    out[:, :blp] = out[:, :blp] * t + out[:, -blp:] * (1 - t)
+    out = out[:, :out.shape[1] - blp]
     col = c01((176, 226, 192))
     rgb = col[None, None, :] * out[..., None]
-    L = Layer(out.shape[1], H)
+    L = Layer(W - bl, H)
     L.a = np.concatenate([rgb, out[..., None]], -1).astype(np.float32)
     return L

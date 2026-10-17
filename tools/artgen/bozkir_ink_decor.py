@@ -18,6 +18,7 @@ import os
 import numpy as np
 
 import inkkit_ortam as ik
+from hdpack import HD   # HD paketi: json'a temel (HD'siz) boyut / köken / doku yoğunluğu yazılır
 from inkkit_ortam import INK, Sk, Layer, blade, bezier, blob, c01, fbm, mix, poly_path, premul, ribbon, smooth_path
 from otuken_ink import balbal, rock
 from bozkir_ink import LIGHT, mirrored, obo, tug, bitig_tasi
@@ -216,14 +217,14 @@ def kule_bag():
 
 def export(save, to8, A, biome='bozkir'):
     meta = {}
-    tex = 2.0 * ik.K
+    tex = 2.0 * ik.KB()
 
     def put(name, res):
         L, origin = res[0], res[2]
         key = '%s_%s_v2' % (name, biome)
         save(to8(L.a), 'decor', key + '.png')
         h, w = L.a.shape[:2]
-        meta[key] = {"size": [int(w), int(h)], "origin": [int(round(origin[0] * ik.K)), int(round(origin[1] * ik.K))], "texel": tex,
+        meta[key] = {"size": [int(w) // HD, int(h) // HD], "origin": [int(round(origin[0] * ik.KB())), int(round(origin[1] * ik.KB()))], "texel": tex,
                      "noflip": True}
         if len(res) > 3:
             save(to8(res[3].a), 'decor', key + '_e.png')
@@ -243,5 +244,5 @@ def export(save, to8, A, biome='bozkir'):
         L = fn()
         key = '%s_%s_v2' % (nm, biome)
         save(to8(L.a), 'decor', key + '.png')
-        meta[key] = {"size": [L.w, L.h], "origin": [0, 0], "texel": tex}
+        meta[key] = {"size": [L.w // HD, L.h // HD], "origin": [0, 0], "texel": tex}
     json.dump(meta, open(os.path.join(A, 'decor', 'decor_v2_%s.json' % biome), 'w', encoding='utf-8'), indent=1)

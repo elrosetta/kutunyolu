@@ -22,6 +22,8 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 A = os.path.normpath(os.path.join(HERE, '..', '..', 'assets'))
 sys.path.insert(0, HERE)
 
+import hdpack  # noqa: E402,F401  (KY_HD=2: PNG yazımları assets_hd/x2'ye, json'lar .godot/hd_meta'ya)
+from hdpack import HD  # noqa: E402
 from export_ink_ortam import save as _save_raw, VRAM  # noqa: E402
 
 TEXEL = 4.0
@@ -53,6 +55,7 @@ def write_meta(meta):
 def put_decor(meta, name, res):
     rgba, glow, origin = res
     h, w = rgba.shape[:2]
+    h, w = h // HD, w // HD   # HD paketi: doku HD kat; meta (boyut, köken) temel doku pikseli kalır
     big = w * h > 600_000
     save(to8(rgba), 'decor', name + '_v2.png', vram=big)
     entry = {"size": [int(w), int(h)], "origin": [int(round(origin[0])), int(round(origin[1]))], "texel": TEXEL}
@@ -82,7 +85,7 @@ def export_yurt(only=None):
 def export_yurt_bg(only=None):
     import inkkit_ortam as ko
     import yurt_ink_bg as B
-    ko.K = 1.0
+    ko.K = 1.0 * HD
     for key, fn in B.LAYERS:
         if only and key not in only:
             continue

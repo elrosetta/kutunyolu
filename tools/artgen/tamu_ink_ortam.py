@@ -57,15 +57,15 @@ def _fog(arr, y0, amt):
 def layer_sky(seed=1):
     W = 1920
     L = Layer(W, H)
-    rgb = np.repeat(SKY[:, None, :], W, 1).copy()
-    ys = np.arange(H, dtype=np.float32)[:, None]
-    xs = np.arange(W, dtype=np.float32)[None, :]
+    rgb = np.repeat(ik.hd_lin(SKY)[:, None, :], L.w, 1).copy()
+    ys = ik.axis(H)[:, None]
+    xs = ik.axis(W)[None, :]
     sx, sy, R = 1240.0, 250.0, 74.0
     d = np.hypot(xs - sx, ys - sy)
     ang = np.arctan2(ys - sy, xs - sx)
     # taç: açısal gürültülü ışınlar + yumuşak hale
-    a_n = np.interp((ang + math.pi) / (2 * math.pi) * 720, np.arange(721), np.r_[noise(720, 1, 0, seed, sx=4, sy=0.01)[0], 0])
-    a_n2 = np.interp((ang + math.pi) / (2 * math.pi) * 720, np.arange(721), np.r_[noise(720, 1, 0, seed + 1, sx=14, sy=0.01)[0], 0])
+    a_n = np.interp((ang + math.pi) / (2 * math.pi) * 720, np.arange(721), np.r_[ik.noise_base(720, 1, 0, seed, sx=4, sy=0.01)[0], 0])
+    a_n2 = np.interp((ang + math.pi) / (2 * math.pi) * 720, np.arange(721), np.r_[ik.noise_base(720, 1, 0, seed + 1, sx=14, sy=0.01)[0], 0])
     rays = np.clip(0.5 + 0.8 * a_n + 0.4 * a_n2, 0, 1.4)
     corona = np.exp(-np.maximum(d - R, 0) / (36 + 70 * rays)) * (d > R - 1)
     halo = np.exp(-((d - R) / 300.0) ** 2) * 0.5
@@ -73,11 +73,11 @@ def layer_sky(seed=1):
     rgb = mix(rgb, c01((255, 170, 90))[None, None, :], np.clip(corona * 0.85, 0, 1)[..., None])
     ring = np.exp(-((d - R) / 2.6) ** 2)
     rgb = mix(rgb, c01((255, 236, 190))[None, None, :], np.clip(ring, 0, 1)[..., None])
-    disc = np.clip(R - d + 0.5, 0, 1)
+    disc = np.clip((R - d) * ik.HD + 0.5, 0, 1)
     rgb = mix(rgb, c01((6, 2, 4))[None, None, :], disc[..., None])
     n1 = fbm(W, H, [110, 40, 14], seed + 3)
     rgb *= (1 + 0.06 * n1[..., None])
-    L.a = premul(rgb, np.ones((H, W), np.float32))
+    L.a = premul(rgb, np.ones((L.h, L.w), np.float32))
     # duman bulut kuşakları (alt yüzleri lavla aydınlanmış), güneşin önünden geçen ince şerit
     sm = Y.smoke_layer(W, H, seed + 5, [(120, 70, 0.9), (330, 60, 0.7), (470, 40, 0.6)], (26, 10, 12), (70, 24, 18),
                        under=(220, 90, 40), alpha=0.85, sx=200, sy=36)
@@ -150,15 +150,16 @@ def fortress(sk, x, base_y, s, col, win, seed, ink_a=0.6):
 def lava_sea(L, y0, y1, seed, bright=1.0, fog_k=0.0, scale=1.0):
     """Ufka uzanan kabuklu lav denizi: ufukta sıkışan (perspektif) kabuk plakaları, aralarında ışıyan çatlaklar;
     ufuk çizgisi en parlak, öne doğru kabuk kalınlaşır ve kararır."""
-    W = L.w
+    W = L.w / ik.K
     S = 512
     n1 = noise(W, S, 0, seed, sx=34 * scale, sy=10)
     n2 = noise(W, S, 0, seed + 1, sx=12 * scale, sy=5)
     ridge = (1 - np.abs(n1)) ** 7 + 0.5 * (1 - np.abs(n2)) ** 9
     blobs = smoothstep(0.35, 0.9, noise(W, S, 0, seed + 2, sx=60 * scale, sy=16) * 0.5 + 0.5)
     rows = np.arange(ik.P(y1 - y0), dtype=np.float32)
-    t = rows / max(1, len(rows) - 1)
-    src = np.clip((t ** 1.7) * (S - 1), 0, S - 1).astype(int)
+    n_b = len(rows) // ik.HD           # temel satır sayısı (HD paketinde aynı perspektif eşlemesi)
+    t = np.clip(ik.axis_px(len(rows)) * np.float32(ik.KB()) / max(1, n_b - 1), 0, 1)
+    src = np.clip((t ** 1.7) * (S - 1) * ik.HD + (ik.HD - 1) / 2, 0, ik.P(S) - 1).astype(int)
     R = ridge[src]
     B = blobs[src]
     heat = np.clip(R * 1.2 + B * 0.5, 0, 1.4)
@@ -170,9 +171,9 @@ def lava_sea(L, y0, y1, seed, bright=1.0, fog_k=0.0, scale=1.0):
     col = mix(col, c01(LAVA_CORE)[None, None, :], smoothstep(0.85, 1.3, heat)[..., None])
     col *= (1 - 0.45 * t)[:, None, None]
     if fog_k > 0:
-        col = mix(col, SKY[ik.P(y0):ik.P(y0) + len(rows)][:, None, :], fog_k)
+        col = mix(col, ik.hd_lin(SKY)[ik.P(y0):ik.P(y0) + len(rows)][:, None, :], fog_k)
     a = np.ones(col.shape[:2], np.float32)
-    a[0] = 0.5
+    a[:ik.HD] = 0.5
     arr = premul(col.astype(np.float32), a)
     L.over(arr, 0, y0)
 
@@ -292,7 +293,7 @@ def chains_between(L, seed, posts, y_top, fog_amt, dark_k=1.0, link=11, sag=(60,
             hk = bezier((x + dx, y_top + ln + 4), (x + dx + 14, y_top + ln + 24), (x + dx - 2, y_top + ln + 30), 10)
             sk.path(ribbon(hk, np.linspace(4, 1.5, 10)), c)
             sk.path(ribbon(hk, np.linspace(4, 1.5, 10)), INK, 1.0, 0, 1.0)
-    arr = Y.wrap_core(sk.snap(), pad, L.w)
+    arr = Y.wrap_core(sk.snap(), ik.P(pad), L.w)
     _fog(arr, 0, fog_amt)
     L.over(arr)
 
@@ -323,7 +324,7 @@ def ash_ground(L, seed, y0, fog_amt, col=(34, 26, 30), top=(92, 80, 80), cracks=
     for _ in range(ember_n):
         x, y = rng.uniform(0, W) + pad, y0 + rng.uniform(4, 60)
         sk.c.drawCircle(x, y, rng.uniform(0.8, 1.8), sk.paint((255, 160, 70), rng.uniform(0.5, 1)))
-    arr = Y.wrap_core(sk.snap(), pad, L.w)
+    arr = Y.wrap_core(sk.snap(), ik.P(pad), L.w)
     _fog(arr, 0, fog_amt)
     L.over(arr)
 
@@ -339,12 +340,12 @@ def layer_far(seed=20):
         x0 = rng.uniform(0, WL) + pad - 400
         p, pts = ridge_shape(x0, x0 + rng.uniform(600, 1100), 640, rng.uniform(140, 320), int(x0), jag=0.3)
         sk.path(p, (44, 16, 16))
-    arr = Y.wrap_core(sk.snap(), pad, WL)
+    arr = Y.wrap_core(sk.snap(), ik.P(pad), ik.P(WL))
     _fog(arr, 0, fog_amount(0.5, 0.3, 620, 80, top=0.1))
     L.over(arr)
     sk = Sk(WL + 2 * pad, H)
     fortress(sk, 1300 + pad, 640, 1.0, (30, 12, 14), (255, 90, 40), seed + 4, ink_a=0.5)
-    arr = Y.wrap_core(sk.snap(), pad, WL)
+    arr = Y.wrap_core(sk.snap(), ik.P(pad), ik.P(WL))
     _fog(arr, 0, fog_amount(0.32, 0.2, 620, 60))
     L.over(arr)
     for (x, top, w) in ((1300, 500, 10), (1180, 520, 6), (2650, 420, 12), (3350, 470, 8), (480, 450, 9)):
@@ -390,7 +391,7 @@ def layer_mid(seed=40):
                    fog_amount(0.15, 0.1, 600, 60, top=0.05), dark_k=0.85, extra_hang=5)
     sk = Sk(WL + 600, H)
     ox_skull(sk, 2200 + 300, 714, 0.9, ink_k=0.85)
-    arr = Y.wrap_core(sk.snap(), 300, WL)
+    arr = Y.wrap_core(sk.snap(), ik.P(300), ik.P(WL))
     _fog(arr, 0, fog_amount(0.14, 0.25, 680, 40))
     L.over(arr)
     ash_ground(L, seed + 7, 712, fog_amount(0.12, 0.25, 700, 30), col=(30, 20, 24), top=(84, 66, 66), bumps=12, ember_n=40)
@@ -414,7 +415,7 @@ def layer_near(seed=50):
         p2 = (x + rng.uniform(-60, 60), 800 - rng.uniform(60, 150))
         Y.rib(sk, p0, ((p0[0] + p2[0]) / 2 + rng.uniform(-30, 30), (p0[1] + p2[1]) / 2), p2, rng.uniform(10, 18),
               col=tuple(np.array(BONE) * 0.7), shade=tuple(np.array(BONE_SH) * 0.7), hi=tuple(np.array(BONE_HI) * 0.7))
-    L.over(Y.wrap_core(sk.snap(), 200, WL))
+    L.over(Y.wrap_core(sk.snap(), ik.P(200), ik.P(WL)))
     return L
 
 
@@ -439,8 +440,8 @@ def layer_shafts(seed=70):
     """Toplamalı lav ışıması: ufuktan yükselen sıcak parıltı, ısı dalgası kıvrımları ve yükselen korlar."""
     W = 2880
     rng = np.random.default_rng(seed)
-    ys = np.arange(H, dtype=np.float32)[:, None]
-    xs = np.arange(W, dtype=np.float32)[None, :]
+    ys = ik.axis(H)[:, None]
+    xs = ik.axis(W)[None, :]
     glow = np.exp(-((ys - 660) / 160.0) ** 2) * (0.5 + 0.35 * noise(W, H, 0, seed, sx=200, sy=400))
     # yukarı kıvrılan ısı tülleri
     warp = noise(W, H, 0, seed + 1, sx=40, sy=60) * 30
@@ -448,10 +449,11 @@ def layer_shafts(seed=70):
     heat = np.clip(streak, 0, 1) ** 3 * smoothstep(300, 600, ys + warp) * (1 - smoothstep(620, 720, ys)) * 0.12
     out = np.clip(glow * 0.55 + heat, 0, 1)
     bl = 200
-    t = np.linspace(0, 1, bl)[None, :]
-    out[:, :bl] = out[:, :bl] * t + out[:, -bl:] * (1 - t)
-    out = out[:, :W - bl]
-    W2 = out.shape[1]
+    blp = ik.P(bl)
+    t = np.clip(ik.axis(bl) / (bl - 1), 0, 1)[None, :]
+    out[:, :blp] = out[:, :blp] * t + out[:, -blp:] * (1 - t)
+    out = out[:, :out.shape[1] - blp]
+    W2 = W - bl
     col = c01((255, 110, 40))
     rgb = col[None, None, :] * out[..., None]
     a = out.copy()

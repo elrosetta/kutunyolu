@@ -25,7 +25,7 @@ static func on() -> bool:
 static func meta() -> Dictionary:
 	if _meta.is_empty():
 		_meta = Data.load_json(ATLAS_JSON) if FileAccess.file_exists(ATLAS_JSON) else {"sprites": {}}
-		_tex = load(ATLAS_JSON.replace(".json", ".png"))
+		_tex = Data.tex(ATLAS_JSON.replace(".json", ".png"))   # HD paketi varsa 2 kat ayrıntı (temel boyutta raporlanır)
 		var gp := ATLAS_JSON.replace(".json", "_e.png")
 		_glow = load(gp) if ResourceLoader.exists(gp) else null
 	return _meta
@@ -113,7 +113,7 @@ static func decor(n: String) -> Dictionary:
 		return {}
 	if not _decor_tex.has(key):
 		var d: Dictionary = (_decor_meta[key] as Dictionary).duplicate()
-		d["tex"] = load("res://assets/decor/%s.png" % key)
+		d["tex"] = Data.tex("res://assets/decor/%s.png" % key)
 		var gp := "res://assets/decor/%s_e.png" % key
 		d["glow_tex"] = load(gp) if ResourceLoader.exists(gp) else null
 		_decor_tex[key] = d

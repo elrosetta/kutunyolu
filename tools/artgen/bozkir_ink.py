@@ -49,9 +49,9 @@ FG_DARK = (34, 16, 30)
 def layer_sky(seed=1):
     W = 1920
     L = Layer(W, H)
-    rgb = np.repeat(SKY[:, None, :], W, 1).copy()
-    ys = np.arange(H, dtype=np.float32)[:, None]
-    xs = np.arange(W, dtype=np.float32)[None, :]
+    rgb = np.repeat(ik.hd_lin(SKY)[:, None, :], L.w, 1).copy()
+    ys = ik.axis(H)[:, None]
+    xs = ik.axis(W)[None, :]
     sx, sy = SUN
     # güneş parıltısı: geniş sıcak hale + ufuk boyunca yayılan şerit
     d = np.hypot((xs - sx) / 760.0, (ys - sy) / 300.0)
@@ -62,7 +62,7 @@ def layer_sky(seed=1):
     n1 = fbm(W, H, [110, 40, 14], seed)
     n2 = noise(W, H, 0, seed + 7, sx=90, sy=2.5)
     rgb *= (1 + 0.04 * n1[..., None] + 0.03 * n2[..., None])
-    L.a = premul(rgb.astype(np.float32), np.ones((H, W), np.float32))
+    L.a = premul(rgb.astype(np.float32), np.ones((L.h, L.w), np.float32))
     # güneş kursu (yarısı uzak dağların ardında kalır) + ince kızıl hale
     s = Sk(W, H)
     s.c.drawCircle(sx, sy, 92, s.paint((255, 214, 150), 0.35, 30))
@@ -484,7 +484,7 @@ def layer_farmid(seed=30):
         mirrored(sk, bx + pad, balbal, ty(bx) + 4, rng.uniform(18, 24), (104, 74, 88), (190, 140, 120), seed + k, ink_a=0.4)
     horses(sk, 640 + pad, ty(640) + 2, 7, 5.5, col=(98, 62, 76), seed=seed)
     horses(sk, 2500 + pad, ty(2500) + 2, 5, 5.0, col=(98, 62, 76), seed=seed + 1)
-    arr = fold(sk.snap(), pad, WL)
+    arr = fold(sk.snap(), ik.P(pad), ik.P(WL))
     apply_fog(arr, 0, SKY, fog_amount(0.32, 0.2, 650, 40))
     L.over(arr)
     grass_field(L, SKY, seed + 3, 650, 720, 0.25, (226, 168, 100), (150, 96, 90), 4, 10, 1.0, 2.0,
@@ -512,7 +512,7 @@ def layer_mid(seed=40):
     tug(sk, 2470 + pad, ty(2470) + 6, 190, wind=1.0, flag=(48, 86, 150), ink_a=0.75, seed=seed + 4)
     obo(sk, 3150 + pad, ty(3150) + 6, 56, ink_a=0.75, seed=seed + 5)
     yurt(sk, 3560 + pad, ty(3560) + 6, 48, ink_a=0.7, ink_w=1.6, door_side=-0.25)
-    arr = fold(sk.snap(), pad, WL)
+    arr = fold(sk.snap(), ik.P(pad), ik.P(WL))
     apply_fog(arr, 0, SKY, fog_amount(0.1, 0.14, 690, 30))
     L.over(arr)
     for _ in range(8):
@@ -562,7 +562,7 @@ def layer_near(seed=50):
     for k in range(3):
         q = bezier((sx, hy + 4), (sx + 14, hy + 30), (sx + 20 + k * 8, hy + 58 + k * 6), 8)
         sk.path(ribbon(q, np.linspace(4, 2, 8)), [(170, 40, 40), (230, 226, 210), (60, 100, 170)][k])
-    arr = fold(sk.snap(), pad, WL)
+    arr = fold(sk.snap(), ik.P(pad), ik.P(WL))
     apply_fog(arr, 0, SKY, fog_amount(0.04, 0.12, 720, 30))
     L.over(arr)
     for _ in range(7):
@@ -573,7 +573,7 @@ def layer_near(seed=50):
     sk2 = Sk(WL + 2 * pad, H)
     ys_ = [ty(x) for x in np.linspace(0, WL, 30)]
     stipa_clumps(sk2, float(np.mean(ys_)) + 18, 26, WL, 1.1, (96, 56, 58), rim=(255, 206, 136), seed=seed + 4, pad=pad)
-    arr = fold(sk2.snap(), pad, WL)
+    arr = fold(sk2.snap(), ik.P(pad), ik.P(WL))
     apply_fog(arr, 0, SKY, fog_amount(0.04, 0.1, 730, 30))
     L.over(arr)
     grass_field(L, SKY, seed + 3, 742, 960, 1.0, (150, 92, 70), (70, 40, 54), 8, 26, 2.0, 4.0,

@@ -55,9 +55,9 @@ fog_amount = Y.fog_amount
 def layer_sky(seed=1):
     W = 1920
     L = Layer(W, H)
-    rgb = np.repeat(SKY[:, None, :], W, 1).copy()
-    ys = np.arange(H, dtype=np.float32)[:, None]
-    xs = np.arange(W, dtype=np.float32)[None, :]
+    rgb = np.repeat(ik.hd_lin(SKY)[:, None, :], L.w, 1).copy()
+    ys = ik.axis(H)[:, None]
+    xs = ik.axis(W)[None, :]
     # göl ufkundaki parıltı kaynağı (uzak kristal ormanı)
     d = np.hypot((xs - 820) / 980.0, (ys - 610) / 300.0)
     rgb = mix(rgb, c01((110, 220, 190))[None, None, :], (np.exp(-d * d * 2.4) * 0.35)[..., None])
@@ -66,7 +66,7 @@ def layer_sky(seed=1):
     # kubbe: üstte kayalık tavan dokusu (koyu lekeler + açık damar)
     vault = smoothstep(0.0, 0.6, fbm(W, H, [70, 22, 8], seed + 3) * 0.9 + 0.3) * (1 - smoothstep(80, 420, ys))
     rgb = mix(rgb, c01((4, 7, 10))[None, None, :], (vault * 0.8)[..., None])
-    L.a = premul(rgb, np.ones((H, W), np.float32))
+    L.a = premul(rgb, np.ones((L.h, L.w), np.float32))
     # uzak dev sarkıt kütleleri (çok sisli siluet) ve tavandan inen sütunlar
     sk = Sk(W, H)
     rng = np.random.default_rng(seed + 5)
@@ -181,8 +181,8 @@ def crystals_row(L, seed, n, y_base, size, fog_amt, glow_a=0.5, xs=None, jit=8, 
         for dx in (0, L.w / ik.K, -L.w / ik.K):
             Y.crystal_cluster(csk, x + pad + dx, y, sz, int(x * 13) % 100000, body, hi, dk, ink_a=ink_a, ink_w=ink_w,
                               glow=gsk, glow_a=glow_a * halo)
-    g = Y.wrap_core(gsk.snap(), pad, L.w)
-    c = Y.wrap_core(csk.snap(), pad, L.w)
+    g = Y.wrap_core(gsk.snap(), ik.P(pad), L.w)
+    c = Y.wrap_core(csk.snap(), ik.P(pad), L.w)
     _fog(c, 0, fog_amt)
     L.over(g)
     L.over(c)
@@ -255,7 +255,7 @@ def mounds(L, seed, base_y, n, rx, ry, col, fog_amt, blur=4.0, jit=14, top_col=N
         if top_col is not None:
             sk.path(blob(x - rxx * 0.15, y - ryy * 0.55, rxx * 0.7, ryy * 0.3, int(rng.integers(1 << 30)), n=12, jitter=0.25),
                     top_col, 0.7, blur * 1.5)
-    arr = Y.wrap_core(sk.snap(), pad, L.w)
+    arr = Y.wrap_core(sk.snap(), ik.P(pad), L.w)
     _fog(arr, 0, fog_amt)
     L.over(arr)
 
@@ -372,7 +372,7 @@ def moss_drape(L, seed, n, fog_amt, y_max=140, col=(40, 90, 64), hi=(110, 190, 1
                     sk.path(ribbon(q[5:], np.linspace(1.2, 0.3, 5)), INK, ink_a)
                 if rng.random() < 0.3:
                     sk.c.drawCircle(q[-1][0], q[-1][1] + 3, 1.6, sk.paint(MINT, 0.8))
-    arr = Y.wrap_core(sk.snap(), pad, L.w)
+    arr = Y.wrap_core(sk.snap(), ik.P(pad), L.w)
     _fog(arr, 0, fog_amt)
     L.over(arr)
 
@@ -383,14 +383,14 @@ def rocks(L, seed, n, y_base, rx, ry, fog_amt, base=(64, 80, 82), moss=(58, 112,
         r = rock(int(rng.integers(1 << 30)), rx * rng.uniform(0.6, 1.3), ry * rng.uniform(0.6, 1.2), base=base, moss=moss)
         h, w = r.shape[:2]
         x = rng.uniform(0, L.w / ik.K)
-        yt = y_base + rng.uniform(-jit, jit) - h + 8
+        yt = y_base + rng.uniform(-jit, jit) - h / ik.K + 8
         _fog(r, ik.P(yt), fog_amt)
-        Y.place_arr(L, r, ik.P(x - w / 2), ik.P(yt))
+        Y.place_arr(L, r, ik.P(x - w / ik.K / 2), ik.P(yt))
 
 
 def water_band(L, y0, y1, col_top, col_bot, alpha=1.0):
     """Göl yüzeyi: düz koyu su bandı (yansıma bunun üstüne düşer)."""
-    ys = np.arange(H, dtype=np.float32)
+    ys = ik.axis(H)
     t = smoothstep(y0, y1, ys)
     rgb = mix(c01(col_top)[None, :], c01(col_bot)[None, :], t[:, None])
     a = (smoothstep(y0 - 1, y0 + 1.5, ys) * alpha).astype(np.float32)
@@ -420,13 +420,13 @@ def layer_far(seed=20):
         w = rng.uniform(40, 130)
         sk.path(smooth_path([(x - w / 2, -10), (x - w * 0.2, ln * 0.6), (x, ln), (x + w * 0.2, ln * 0.6), (x + w / 2, -10)], True, 0.4),
                 (16, 34, 38), 1.0, 2)
-    arr = Y.wrap_core(sk.snap(), pad, WL)
+    arr = Y.wrap_core(sk.snap(), ik.P(pad), ik.P(WL))
     _fog(arr, 0, fog_amount(0.55, 0.3, 610, 90, top=0.1))
     L.over(arr)
     sk = Sk(WL + 2 * pad, H)
     for x in (1050, 2900):
         palace(sk, x + pad, 640, 0.95, (40, 70, 70), (110, 170, 150), AMBER, int(x), ink_a=0.55)
-    arr = Y.wrap_core(sk.snap(), pad, WL)
+    arr = Y.wrap_core(sk.snap(), ik.P(pad), ik.P(WL))
     _fog(arr, 0, fog_amount(0.38, 0.2, 620, 60))
     L.over(arr)
     crystals_row(L, seed + 3, 22, 640, 26, fog_amount(0.4, 0.2, 630, 40), glow_a=0.55, ink_a=0.0, halo=1.2)
@@ -471,7 +471,7 @@ def shore(L, seed, y0, col, top_col, fog_amt, n=7, wmin=200, wmax=520, hmin=14, 
             sk.path(ribbon(top, [h * 0.22] * len(top)), top_col, 0.9)
             if ink_a > 0:
                 sk.path(q, INK, ink_a, 0, 1.4)
-    arr = Y.wrap_core(sk.snap(), pad, L.w)
+    arr = Y.wrap_core(sk.snap(), ik.P(pad), L.w)
     _fog(arr, 0, fog_amt)
     L.over(arr)
 
@@ -517,7 +517,7 @@ def layer_near(seed=50):
         ln = rng.uniform(40, 160)
         sk.path(ribbon([(x, y), (x + ln * 0.5, y + rng.uniform(-3, 3)), (x + ln, y + rng.uniform(-2, 2))], [0.4, 1.6, 0.4]),
                 INK, 0.6)
-    arr = Y.wrap_core(sk.snap(), pad, WL)
+    arr = Y.wrap_core(sk.snap(), ik.P(pad), ik.P(WL))
     L.over(arr)
     stalagmite_row(L, seed + 2, 8, 784, 300, 104, fog_amount(0.02, 0.2, 760, 40), ink_w=2.4, detail=0.95,
                    rock_c=(30, 38, 44), light=(84, 112, 114), rim=(120, 240, 200), dark_k=0.88,
@@ -533,14 +533,14 @@ def layer_near(seed=50):
 # ------------------------------------------------------------------ sis / pus / ışık
 def layer_haze(seed=65):
     W = WL
-    ys = np.arange(H, dtype=np.float32)[:, None]
+    ys = ik.axis(H)[:, None]
     n1 = noise(W, H, 0, seed, sx=220, sy=40)
     n2 = noise(W, H, 0, seed + 1, sx=70, sy=24)
     n3 = noise(W, H, 0, seed + 2, sx=18, sy=60)
     band = np.exp(-((ys - 600) / 110.0) ** 2) * 0.8 + np.exp(-((ys - 430) / 90.0) ** 2) * 0.25
     a = band * np.clip(0.35 + 0.7 * n1 + 0.3 * n2 + 0.2 * n3, 0, 1)
     a = np.clip(a * 0.4, 0, 0.5).astype(np.float32)
-    rgb = np.repeat(SKY[:, None, :], W, 1) * 0.7 + c01(MINT)[None, None, :] * 0.3
+    rgb = np.repeat(ik.hd_lin(SKY)[:, None, :], ik.P(W), 1) * 0.7 + c01(MINT)[None, None, :] * 0.3
     L = Layer(W, H)
     L.a = premul(rgb, a)
     return L
@@ -548,13 +548,13 @@ def layer_haze(seed=65):
 
 def layer_fogband(seed=60):
     W = WL
-    ys = np.arange(H, dtype=np.float32)[:, None]
+    ys = ik.axis(H)[:, None]
     n1 = noise(W, H, 0, seed, sx=140, sy=14)
     n2 = noise(W, H, 0, seed + 1, sx=50, sy=7)
     band = np.exp(-((ys - 700) / 40.0) ** 2) * 0.85 + np.exp(-((ys - 650) / 30.0) ** 2) * 0.4 + np.exp(-((ys - 760) / 40.0) ** 2) * 0.35
     a = band * np.clip(0.5 + 0.6 * n1 + 0.25 * n2, 0, 1)
     a = np.clip(a * 0.6, 0, 0.75).astype(np.float32)
-    rgb = np.repeat(SKY[:, None, :], W, 1) * 0.55 + c01(MINT)[None, None, :] * 0.45
+    rgb = np.repeat(ik.hd_lin(SKY)[:, None, :], ik.P(W), 1) * 0.55 + c01(MINT)[None, None, :] * 0.45
     L = Layer(W, H)
     L.a = premul(rgb, a)
     return L
@@ -563,13 +563,15 @@ def layer_fogband(seed=60):
 def layer_shafts(seed=70):
     """Tavan çatlaklarından süzülen soluk yeşil ışık hüzmeleri + havada asılı ışıklı zerreler (toplamalı)."""
     W = 2880
-    out = np.zeros((H, W), np.float32)
+    out = np.zeros((ik.P(H), ik.P(W)), np.float32)
     rng = np.random.default_rng(seed)
-    ys = np.arange(H, dtype=np.float32)[:, None]
-    xs = np.arange(W, dtype=np.float32)[None, :]
+    ys = ik.axis(H)[:, None]
+    xs = ik.axis(W)[None, :]
     ang = math.radians(10)
     u_all = xs * math.cos(ang) + ys * math.sin(ang)
-    umin, umax = float(u_all.min()), float(u_all.max())
+    # aralık temel piksel ızgarasından (HD'de aynı hüzme konumları)
+    ub = np.arange(W, dtype=np.float32)[None, :] * math.cos(ang) + np.arange(H, dtype=np.float32)[:, None] * math.sin(ang)
+    umin, umax = float(ub.min()), float(ub.max())
     for k in range(5):
         u0 = rng.uniform(umin + 200, umax - 300)
         wid = rng.uniform(26, 90)
@@ -581,10 +583,11 @@ def layer_shafts(seed=70):
     out *= fade * brk
     out = np.clip(out, 0, 1)
     bl = 200
-    t = np.linspace(0, 1, bl)[None, :]
-    out[:, :bl] = out[:, :bl] * t + out[:, -bl:] * (1 - t)
-    out = out[:, :W - bl]
-    W2 = out.shape[1]
+    blp = ik.P(bl)
+    t = np.clip(ik.axis(bl) / (bl - 1), 0, 1)[None, :]
+    out[:, :blp] = out[:, :blp] * t + out[:, -blp:] * (1 - t)
+    out = out[:, :out.shape[1] - blp]
+    W2 = W - bl
     col = c01((120, 230, 190))
     rgb = col[None, None, :] * out[..., None]
     a = out.copy()

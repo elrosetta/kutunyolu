@@ -29,7 +29,7 @@ func _ready() -> void:
 
 
 func _add_strip(path: String, fx: float, bottom: bool, k: float, alpha: float) -> void:
-	var tex: Texture2D = load(path)
+	var tex: Texture2D = Data.tex(path)   # HD paketi varsa 2 kat ayrıntı; boyut temel raporlanır
 	if tex == null:
 		return
 	var holder := Node2D.new()

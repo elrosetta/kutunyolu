@@ -26,6 +26,7 @@ import numpy as np
 from PIL import Image
 
 import export_ink as ex
+from hdpack import HD   # KY_HD=2: renk sayfaları assets_hd/x2'ye 2 kat (düzen ve json temel hücreyle aynı)
 
 SPR = ex.SPR
 PAGE = 4096
@@ -45,6 +46,8 @@ def _render(job):
     t0 = time.time()
     rgba, nm, em, info = m.render_frame(an, i)
     ga = em[..., 3]
+    if HD > 1:   # HD paketi: ışıma sayfası yazılmaz; yalnızca "glow" bayrağı için var/yok
+        return (an, i, rgba.astype(np.float16), bool(ga.max() > 0), info, time.time() - t0)
     glo = np.zeros_like(em)
     glo[..., :3] = np.where(ga[..., None] > 1e-4, em[..., :3] / np.maximum(ga[..., None], 1e-4), 0)
     glo[..., 3] = ga
@@ -102,10 +105,18 @@ def export_boss(bid, only=(), procs=4):
     cols, L, heights = plan(names, frames, cw, ch)
     name = bid + '_v2'
     out_json = os.path.join(SPR, name + '.json')
-    pages_a = [np.zeros((h * ch, cols * cw, 4), np.float32) for h in heights]
-    pages_g = [np.zeros((h * ch, cols * cw, 4), np.float32) for h in heights]
+    meta_cell = [cw, ch]
+    hd_glow = False
+    if HD > 1:
+        # HD paketi: düzen (sütun, sayfa, satır) temel hücreyle planlanır, sayfalar HD kat; ışıma sayfası tutulmaz
+        cw, ch = cw * HD, ch * HD
+        pages_a = [np.zeros((h * ch, cols * cw, 4), np.float16) for h in heights]
+        pages_g = None
+    else:
+        pages_a = [np.zeros((h * ch, cols * cw, 4), np.float32) for h in heights]
+        pages_g = [np.zeros((h * ch, cols * cw, 4), np.float32) for h in heights]
     old = None
-    if only and os.path.exists(out_json):
+    if only and os.path.exists(out_json) and HD == 1:
         o = json.load(open(out_json, encoding='utf-8'))
         if o.get('cell') == [cw, ch] and o.get('cols') == cols:
             old = o
@@ -118,7 +129,7 @@ def export_boss(bid, only=(), procs=4):
                     g_ = np.asarray(Image.fromarray((g_ * 255).astype(np.uint8), 'RGBA').resize((a_.shape[1], a_.shape[0]), Image.BILINEAR), np.float32) / 255.0
                     pages_g[k][:g_.shape[0], :g_.shape[1]] = g_
     meta = old or {}
-    meta.update({'cell': [cw, ch], 'origin': list(m.FEET), 'texel': m.TEX, 'filter': 'linear', 'cols': cols,
+    meta.update({'cell': meta_cell, 'origin': list(m.FEET), 'texel': m.TEX, 'filter': 'linear', 'cols': cols,
                  'glow_scale': 2, 'page_rows': 9999})
     meta.setdefault('anims', {})
     jobs = [(modname, an, i) for an in names if (not old or an in only) for i in range(frames[an])]
@@ -129,7 +140,10 @@ def export_boss(bid, only=(), procs=4):
             pg, row0, c_ = L[an]
             r, c = row0 + i // c_, i % c_
             pages_a[pg][r * ch:(r + 1) * ch, c * cw:(c + 1) * cw] = rgba
-            pages_g[pg][r * ch:(r + 1) * ch, c * cw:(c + 1) * cw] = glo
+            if pages_g is None:
+                hd_glow = hd_glow or glo
+            else:
+                pages_g[pg][r * ch:(r + 1) * ch, c * cw:(c + 1) * cw] = glo
             infos[(an, i)] = info
             print('  %s %s:%d %.1fs' % (bid, an, i, dt), flush=True)
     for an in names:
@@ -139,11 +153,11 @@ def export_boss(bid, only=(), procs=4):
         pg, row0, c_ = L[an]
         meta['anims'][an] = {'row': row0, 'page': pg, 'cols': c_, 'frames': la['frames'], 'fps': la['fps'], 'loop': la['loop'],
                              'arm': la.get('arm', True), 'data': [ex._frame_meta(infos[(an, i)]) for i in range(la['frames'])]}
-    has_glow = any(g[..., 3].max() > 0 for g in pages_g)
+    has_glow = hd_glow if pages_g is None else any(g[..., 3].max() > 0 for g in pages_g)
     for k in range(len(pages_a)):
         pn = os.path.join(SPR, ex._page_name(name, k))
         ex._png(pages_a[k], pn + '.png', vram=True)
-        if has_glow:
+        if has_glow and pages_g is not None:
             ex._png(_down2(pages_g[k]), pn + '_e.png', vram=True)
         print('  sayfa', ex._page_name(name, k), pages_a[k].shape[1], pages_a[k].shape[0])
     k = len(pages_a)

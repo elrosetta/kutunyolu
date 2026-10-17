@@ -62,9 +62,9 @@ def layer_sky(seed=1):
     W = 1920
     L = Layer(W, H)
     rng = np.random.default_rng(seed)
-    rgb = np.repeat(SKY[:, None, :], W, 1).copy()
-    ys = np.arange(H, dtype=np.float32)[:, None]
-    xs = np.arange(W, dtype=np.float32)[None, :]
+    rgb = np.repeat(ko.hd_lin(SKY)[:, None, :], L.w, 1).copy()
+    ys = ko.axis(H)[:, None]
+    xs = ko.axis(W)[None, :]
     # boya lekeleri
     n1 = fbm(W, H, [120, 50, 18], seed)
     rgb *= (1 + 0.06 * n1[..., None])
@@ -73,8 +73,8 @@ def layer_sky(seed=1):
     mw = np.exp(-u * u) * np.clip(0.5 + 0.7 * fbm(W, H, [40, 14], seed + 3), 0, 1) * (1 - smoothstep(380, 640, ys))
     rgb = mix(rgb, c01((96, 100, 150))[None, None, :], (mw * 0.35)[..., None])
     # kuzey ışıkları: dikey çizgili perdeler (yeşil-firuze gövde, mor tepe)
-    aur = np.zeros((H, W), np.float32)
-    aur_top = np.zeros((H, W), np.float32)
+    aur = np.zeros((L.h, L.w), np.float32)
+    aur_top = np.zeros((L.h, L.w), np.float32)
     streak = noise(W, 1, 0, seed + 5, sx=2.2, sy=0.01)[0]
     streak2 = noise(W, 1, 0, seed + 6, sx=9.0, sy=0.01)[0]
     for k, (y_mid, amp, ph, wid, inten) in enumerate([(250, 70, 0.0, 130, 0.9), (330, 50, 1.7, 100, 0.6), (190, 40, 3.1, 80, 0.45)]):
@@ -92,7 +92,7 @@ def layer_sky(seed=1):
     # ufuk parıltısı (ayın ve obanın ışığı)
     hz = np.exp(-((ys - 640) / 90.0) ** 2) * (0.6 + 0.4 * np.exp(-((xs - 1300) / 900.0) ** 2))
     rgb = mix(rgb, c01((120, 190, 180))[None, None, :], (hz * 0.25)[..., None])
-    L.a = premul(np.clip(rgb, 0, 1), np.ones((H, W), np.float32))
+    L.a = premul(np.clip(rgb, 0, 1), np.ones((L.h, L.w), np.float32))
     # yıldızlar
     sk = Sk(W, H)
     for _ in range(900):
@@ -150,17 +150,17 @@ def ridge(W, base, amp, seed, rough=1.0, period=900.0):
 
 
 def mountains(L, seed, base, amp, col, rim, fog, snow=0.0, ink_a=0.6, period=1280.0):
-    W = L.w
-    xs = np.arange(W, dtype=np.float32)
+    W = L.w / ko.K
+    xs = ko.axis(W)
     rng = np.random.default_rng(seed)
-    y = np.full(W, base, np.float32)
+    y = np.full(L.w, base, np.float32)
     for p, a in ((period, 1.0), (period / 2, 0.5), (period / 5, 0.2), (period / 15, 0.07)):
         ph = rng.uniform(0, 2 * math.pi)
         y -= amp * a * np.abs(np.sin(xs * math.pi / p + ph)) ** 1.4
-    ys = np.arange(H, dtype=np.float32)[:, None]
-    cov = np.clip((ys - y[None, :]) + 0.5, 0, 1)
-    # yüz gölgesi: eğim yönüne göre (ay solda): sol bakan yüz açık, sağ koyu
-    dy = np.gradient(y)
+    ys = ko.axis(H)[:, None]
+    cov = np.clip((ys - y[None, :]) * ko.HD + 0.5, 0, 1)
+    # yüz gölgesi: eğim yönüne göre (ay solda): sol bakan yüz açık, sağ koyu (temel piksel başına eğim)
+    dy = np.gradient(y) * ko.HD
     lit = np.clip(0.5 + dy * 1.2, 0, 1)[None, :] * np.exp(-np.clip(ys - y[None, :], 0, None) / 60.0)
     rgb = c01(col)[None, None, :] * (0.85 + 0.0 * ys[..., None])
     rgb = mix(rgb, c01(rim)[None, None, :], (lit * 0.55)[..., None])
@@ -241,12 +241,12 @@ def layer_tree(seed=20):
             sk.path(ribbon(tw, np.linspace(wd[j] * 0.35, 2, 8)), INK, 0.8, 0, 1.6)
             branch_tips.append(tw[-1])
         branch_tips.append(pts[-1])
-    back = _wrap(sk.snap(), pad, WL)
+    back = _wrap(sk.snap(), ko.P(pad), ko.P(WL))
     apply_fog(back, 0, SKY, fog_amount(0.22, 0.0, top=0.05))
     L.over(back)
     arr, xl, yt = trunk(H, WL, 690, tx, 190, seed + 2, kind='birch', lean=0.0, bend=0.08, top_y=-60, bark=(120, 130, 156),
                         light=(184, 196, 214), rim=(130, 230, 200), ink_w=5.0, taper=0.55, detail=1.0)
-    apply_fog(arr, yt, SKY, fog_amount(0.2, 0.25, 640, 90))
+    apply_fog(arr, ko.P(yt), SKY, fog_amount(0.2, 0.25, 640, 90))
     L.over_wrap(arr, xl, yt)
     # taç: koyu yaprak kütleleri, üst kenarlarda kuzey ışığı, ışıyan kut yaprakları
     sk = Sk(WL + 2 * pad, H)
@@ -259,16 +259,16 @@ def layer_tree(seed=20):
         leaf_mass(sk, x, y, r, int(rng.integers(1 << 30)), tuple(np.array((40, 70, 80)) * k), tuple(np.array((26, 46, 58)) * k),
                   rim_col=(110, 230, 190), n_leaves=int(r * 0.6), kut=int(r * 0.12))
     crown = sk.snap()
-    crown_w = _wrap(crown, pad, WL)
+    crown_w = _wrap(crown, ko.P(pad), ko.P(WL))
     apply_fog(crown_w, 0, SKY, fog_amount(0.18, 0.0, top=0.05))
     L.over(crown_w)
     # kökler dağ sırtına taşar + ön sıradağ (daha koyu) + kök boğazında sis
     mountains(L, seed + 5, 700, 120, (34, 44, 74), (80, 110, 150), fog_amount(0.38, 0.4, 680, 50), snow=0.35, ink_a=0.35, period=900.0)
     # dipte pus
-    ys = np.arange(H, dtype=np.float32)[:, None]
+    ys = ko.axis(H)[:, None]
     a = (np.exp(-((ys - 650) / 60.0) ** 2) * 0.5 * np.clip(0.6 + 0.5 * noise(WL, H, 0, seed + 9, sx=200, sy=20), 0, 1)).astype(np.float32)
-    rgb = np.repeat(SKY[:, None, :], WL, 1) * 0.5 + c01(FOG_C)[None, None, :] * 0.5
-    fogL = premul(rgb, np.broadcast_to(a, (H, WL)).astype(np.float32))
+    rgb = np.repeat(ko.hd_lin(SKY)[:, None, :], L.w, 1) * 0.5 + c01(FOG_C)[None, None, :] * 0.5
+    fogL = premul(rgb, np.broadcast_to(a, (L.h, L.w)).astype(np.float32))
     L.over(fogL)
     return L
 
@@ -349,7 +349,7 @@ def layer_camp(seed=30):
             x = hx + rng.uniform(-90, 90)
             base = float(np.interp(x, xs, yb)) + rng.uniform(6, 16)
             horse_sil(sk, x, base, rng.uniform(0.9, 1.2), (26, 34, 46), flip=1 if rng.random() < 0.5 else -1)
-    arr = _wrap(sk.snap(), pad, WL)
+    arr = _wrap(sk.snap(), ko.P(pad), ko.P(WL))
     apply_fog(arr, 0, SKY, fog_amount(0.26, 0.3, 650, 50))
     L.over(arr)
     return L
@@ -375,7 +375,7 @@ def layer_mid(seed=40):
             for j in range(3):
                 leaf_mass(sk, x + rng.uniform(-60, 60), base - hgt * rng.uniform(0.7, 0.95), rng.uniform(55, 85), int(rng.integers(1 << 30)),
                           (30, 52, 58), (20, 34, 42), rim_col=(80, 170, 150), n_leaves=50, kut=0)
-    crowns = _wrap(sk.snap(), pad, WL)
+    crowns = _wrap(sk.snap(), ko.P(pad), ko.P(WL))
     apply_fog(crowns, 0, SKY, fog_amount(0.32, 0.0))
     L.over(crowns)
     for (x, base, hgt) in trees:
@@ -383,7 +383,7 @@ def layer_mid(seed=40):
             arr, xl, yt = trunk(H, WL, base, x, rng.uniform(16, 30), int(rng.integers(1 << 30)), kind='birch', lean=rng.uniform(-0.04, 0.04),
                                 bend=rng.uniform(-0.2, 0.2), top_y=int(base - hgt), bark=(78, 86, 108), light=(124, 134, 156),
                                 rim=(120, 210, 190), ink_w=2.2, taper=0.5, detail=0.8)
-            apply_fog(arr, yt, SKY, fog_amount(0.3, 0.25, 650, 60))
+            apply_fog(arr, ko.P(yt), SKY, fog_amount(0.3, 0.25, 650, 60))
             L.over_wrap(arr, xl, yt)
     # sırt dolgusu + çit + balballar + fener dizisi
     sk = Sk(WL + 2 * pad, H)
@@ -423,7 +423,7 @@ def layer_mid(seed=40):
         y = float(np.interp(x, xs, yb)) + 10
         from otuken_ink import balbal
         balbal(sk, x, y, rng.uniform(60, 80), (88, 94, 108), (130, 140, 156), int(rng.integers(1 << 30)), ink_a=0.8)
-    arr = _wrap(sk.snap(), pad, WL)
+    arr = _wrap(sk.snap(), ko.P(pad), ko.P(WL))
     apply_fog(arr, 0, SKY, fog_amount(0.1, 0.3, 676, 40))
     L.over(arr)
     return L
@@ -431,12 +431,12 @@ def layer_mid(seed=40):
 
 def layer_fog(seed=60):
     W = WL
-    ys = np.arange(H, dtype=np.float32)[:, None]
+    ys = ko.axis(H)[:, None]
     n1 = noise(W, H, 0, seed, sx=140, sy=16)
     n2 = noise(W, H, 0, seed + 1, sx=50, sy=8)
     band = np.exp(-((ys - 680) / 60.0) ** 2) * 0.8 + np.exp(-((ys - 600) / 40.0) ** 2) * 0.3
     a = np.clip(band * np.clip(0.5 + 0.6 * n1 + 0.25 * n2, 0, 1) * 0.6, 0, 0.7).astype(np.float32)
-    rgb = np.repeat(SKY[:, None, :], W, 1) * 0.5 + c01(FOG_C)[None, None, :] * 0.5
+    rgb = np.repeat(ko.hd_lin(SKY)[:, None, :], ko.P(W), 1) * 0.5 + c01(FOG_C)[None, None, :] * 0.5
     L = Layer(W, H)
     L.a = premul(rgb, a)
     return L

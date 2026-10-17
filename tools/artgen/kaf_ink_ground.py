@@ -8,6 +8,7 @@ import math
 import numpy as np
 
 import inkkit_ortam as ik
+from hdpack import HD
 from inkkit_ortam import (INK, Layer, Sk, bezier, blade, blade_tip, blob, c01, fbm, leaf_shape, mix, noise, poly_path,
                           premul, ribbon, smooth_path, smoothstep)
 import ink_zemin as Z
@@ -243,9 +244,12 @@ def soil_texture(seed=600, S=1024):
     ik.K = 0.5
     edge, cid = Z.crack_net(S, seed + 4, n=150)
     ik.K = k0
-    zf = ik.P(S) / edge.shape[0]
+    zf = ik.P(S) // HD / edge.shape[0]
     edge = ndimage.zoom(edge, zf, order=1)
     cid = ndimage.zoom(cid, zf, order=0)
+    if HD > 1:   # HD paketi: aynı çatlak ağı temel boyutta büyütülür, sonra HD'ye doğrusal örneklenir
+        edge = ik.hd_lin(ik.hd_lin(edge, 0), 1)
+        cid = np.repeat(np.repeat(cid, HD, 0), HD, 1)
     tone = np.random.default_rng(seed + 9).uniform(0.86, 1.16, 80)[cid % 80]
     rgb = rgb * tone[..., None]
     crack = np.clip((1.2 - edge) * ik.K * 0.5 + 0.5, 0, 1)
@@ -376,7 +380,7 @@ def fg_grass_strip(seed=700, W=3840, Hs=260):
     arr = sk.snap()
     from ink_biyom import fold
     L = Layer(W, Hs)
-    L.a = fold(arr, pad, W)
+    L.a = fold(arr, ik.P(pad), ik.P(W))
     return L
 
 
@@ -413,7 +417,7 @@ def fg_top_strip(seed=720, W=3840, Hs=300):
     arr = sk.snap()
     from ink_biyom import fold
     L = Layer(W, Hs)
-    L.a = fold(arr, pad, W)
+    L.a = fold(arr, ik.P(pad), ik.P(W))
     return L
 
 

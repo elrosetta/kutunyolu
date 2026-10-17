@@ -246,16 +246,18 @@ def reflect(L, y_water, depth, seed, tint=(20, 50, 52), k_dark=0.55, ripple=3.0,
     d = src.shape[0]
     if d <= 0:
         return
-    rows = np.arange(d, dtype=np.float32)
-    shift = (np.sin(rows * 0.9 + rng.uniform(0, 6)) * 0.6 + np.sin(rows * 0.23 + 1.0) * 0.4) * ripple * (0.4 + rows / d)
+    # dalgalanma temel piksel satırı biriminde (HD paketinde aynı dalga, kayma HD pikseline çevrilir)
+    rows = ik.axis_px(d) * np.float32(ik.KB())
+    db = d / ik.HD
+    shift = (np.sin(rows * 0.9 + rng.uniform(0, 6)) * 0.6 + np.sin(rows * 0.23 + 1.0) * 0.4) * ripple * (0.4 + rows / db)
     out = np.empty_like(src)
     for r in range(d):
-        out[r] = np.roll(src[r], int(round(shift[r])), axis=0)
+        out[r] = np.roll(src[r], int(round(shift[r] * ik.HD)), axis=0)
     # dikey sıkıştırma hissi: satırları seyrek atla
     a = out[..., 3:4]
     rgb = out[..., :3]
     tcol = c01(tint)
-    t = smoothstep(0, d, rows)[:, None, None]
+    t = smoothstep(0, db, rows)[:, None, None]
     rgb = rgb * k_dark * (1 - 0.6 * t) + tcol[None, None, :] * a * (0.35 + 0.4 * t)
     fa = (1 - t * 0.85) * fade
     out = np.concatenate([rgb, a], -1) * fa
@@ -483,7 +485,7 @@ def skia_rect(x0, y0, x1, y1):
 def smoke_layer(W, Hh, seed, centers, col_top, col_bot, under=None, alpha=0.6, sx=160, sy=40, rise=0.0):
     """Yatay sürüklenen kalın duman bulutu katmanı (önçarpılmış). centers: [(y, genişlik, güç)];
     under: altta ışıyan renk (lavla aydınlanan alt yüz)."""
-    ys = np.arange(ik.P(Hh), dtype=np.float32)[:, None] / ik.K
+    ys = ik.axis(Hh)[:, None]
     n1 = noise(W, Hh, 0, seed, sx=sx, sy=sy)
     n2 = noise(W, Hh, 0, seed + 1, sx=sx * 0.35, sy=sy * 0.5)
     n3 = noise(W, Hh, 0, seed + 2, sx=sx * 0.1, sy=sy * 0.25)

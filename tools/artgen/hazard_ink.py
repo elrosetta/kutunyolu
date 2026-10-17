@@ -12,9 +12,10 @@ KINDS = {'sahmeran': {'zehir': 'liquid_zehir'}, 'tamu': {'lav': 'liquid_lav'}}
 def _voronoi_edge(S, n, seed, stretch=1.0):
     rng = np.random.default_rng(seed)
     pts = rng.uniform(0, S, (n, 2))
-    ys, xs = np.mgrid[0:S, 0:S].astype(np.float32)
-    best = np.full((S, S), 1e9, np.float32)
-    second = np.full((S, S), 1e9, np.float32)
+    g = ik.axis(S)                      # K = 1 temel: np.arange(S); HD'de aynı hücreler 2 kat sık örneklenir
+    ys, xs = np.meshgrid(g, g, indexing='ij')
+    best = np.full(ys.shape, 1e9, np.float32)
+    second = np.full(ys.shape, 1e9, np.float32)
     for dx in (-S, 0, S):
         for dy in (-S, 0, S):
             for (px, py) in pts:

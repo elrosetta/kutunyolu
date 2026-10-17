@@ -19,6 +19,7 @@ import os
 import numpy as np
 
 import inkkit as ik
+from hdpack import HD   # HD doku paketi (KY_HD=2): Prop tuvali HD kat; atlas / karo yerleşimi temel x HD
 from inkkit import Ink, INK
 from inkprop import (Prop, TEX, FELT, FELT_C, RED, BLUE, SKYB, TURQ, GOLD, BRONZE, IRON, STEEL, WOOD, WOOD_D, WOOD_R, STONE,
                      STONE_W, STONE_D, MOSS, LEATHER, HAIR_K, HAIR_W, ROPE, BARK_W, LEAF, CLOTH_COLS, KUT, KUT_GLOW,
@@ -513,7 +514,7 @@ def export_atlas(save, to8, A):
     pos = {}
     pad = 4
     for n, r, g, o in items:
-        h, w = r.shape[:2]
+        h, w = r.shape[0] // HD, r.shape[1] // HD   # paketleme temel piksellerle (HD'de yerleşim birebir x HD)
         if x + w + pad > W:
             x = 0
             y += rowh + pad
@@ -523,14 +524,15 @@ def export_atlas(save, to8, A):
         rowh = max(rowh, h)
     Hh = y + rowh
     Hh = int(math.ceil(Hh / 4.0) * 4)
-    alb = np.zeros((Hh, W, 4), np.float32)
-    glo = np.zeros((Hh, W, 4), np.float32)
+    alb = np.zeros((Hh * HD, W * HD, 4), np.float32)
+    glo = np.zeros((Hh * HD, W * HD, 4), np.float32)
     meta = {"texel": TEX, "filter": "linear", "sprites": {}}
     for n, r, g, o in items:
         px, py = pos[n]
         h, w = r.shape[:2]
-        alb[py:py + h, px:px + w] = r
-        glo[py:py + h, px:px + w] = g
+        alb[py * HD:py * HD + h, px * HD:px * HD + w] = r
+        glo[py * HD:py * HD + h, px * HD:px * HD + w] = g
+        h, w = h // HD, w // HD
         meta["sprites"][n] = {"rect": [px, py, w, h], "pivot": [round(o[0], 2), round(o[1], 2)], "glow": bool(g[..., 3].max() > 0.02)}
     save(to8(alb), 'fx/ink', 'sus_v2.png')
     save(to8(glo), 'fx/ink', 'sus_v2_e.png')
@@ -585,13 +587,14 @@ def _haz_cell(kind, frame):
 def export_hazards(save, to8, A):
     rows = ['diken', 'zehir', 'lav', 'buz']
     C = int(24 * TEX)
-    alb = np.zeros((C * 4, C * 2, 4), np.float32)
+    Q = C * HD   # HD paketi: hücre HD kat (json temel hücreyi yazar)
+    alb = np.zeros((Q * 4, Q * 2, 4), np.float32)
     glo = np.zeros_like(alb)
     for r, kind in enumerate(rows):
         for f in range(2):
             rgba, glow, org = _haz_cell(kind, f)
-            alb[r * C:(r + 1) * C, f * C:(f + 1) * C] = rgba[:C, :C]
-            glo[r * C:(r + 1) * C, f * C:(f + 1) * C] = glow[:C, :C]
+            alb[r * Q:(r + 1) * Q, f * Q:(f + 1) * Q] = rgba[:Q, :Q]
+            glo[r * Q:(r + 1) * Q, f * Q:(f + 1) * Q] = glow[:Q, :Q]
     save(to8(alb), 'tiles', 'hazards_v2.png')
     save(to8(glo), 'tiles', 'hazards_v2_e.png')
     json.dump({"cell": [C, C], "texel": TEX, "rows": {k: i for i, k in enumerate(rows)}, "filter": "linear"},

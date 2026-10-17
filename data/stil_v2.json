@@ -181,7 +181,7 @@
    110.0
   ],
   "pollen_amount": 24,
-  "camera_zoom": 2.0,
+  "camera_zoom": 1.65,
   "ink_extras": [
    {
     "names": [
@@ -408,7 +408,7 @@
    ]
   },
   "pollen_amount": 70,
-  "camera_zoom": 2.0,
+  "camera_zoom": 1.7,
   "ink_extras": [
    {
     "names": [
@@ -601,7 +601,7 @@
   "leaf_tex": "res://assets/bg/otuken_v2_leaf.png",
   "leaf_amount": 34,
   "pollen_amount": 16,
-  "camera_zoom": 2.0
+  "camera_zoom": 1.7
  },
  "sahmeran": {
   "bg": [
@@ -764,7 +764,7 @@
     "z": -3
    }
   ],
-  "camera_zoom": 2.0,
+  "camera_zoom": 1.75,
   "tower_brace": false,
   "soil_emit": 1.5,
   "emit_pulse": [
@@ -971,7 +971,7 @@
     "z": -3
    }
   ],
-  "camera_zoom": 2.0,
+  "camera_zoom": 1.7,
   "tower_brace": true,
   "soil_emit": 1.2,
   "emit_pulse": [

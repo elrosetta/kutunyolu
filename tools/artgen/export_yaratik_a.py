@@ -13,6 +13,8 @@ import os
 import sys
 from concurrent.futures import ProcessPoolExecutor
 
+import numpy as np
+
 import export_ink as ex
 
 MODS = {
@@ -27,7 +29,10 @@ def _render(args):
     mod, an, i, var = args
     import importlib
     m = importlib.import_module(mod)
-    return (an, i), m.render_frame(an, i, var)
+    rgba, nm, em, info = m.render_frame(an, i, var)
+    if ex.HD > 1:   # HD paketi: normal/ışıma sayfası yazılmaz; ana sürece yalnızca renk (float16) + ışıma var/yok
+        return (an, i), (rgba.astype(np.float16), None, np.full((1, 1, 4), em[..., 3].max(), np.float32), info)
+    return (an, i), (rgba, nm, em, info)
 
 
 def export_variant(group, var, pool):
@@ -46,7 +51,9 @@ def main():
     args = sys.argv[1:]
     groups = [g for g in MODS if '--' + g in args] or list(MODS)
     only = [a for a in args if not a.startswith('--')]
-    with ProcessPoolExecutor(max_workers=max(1, (os.cpu_count() or 2) - 1)) as pool:
+    # KY_IS: süreç sayısı sınırı (başka dışa aktarımlarla paralel çalışırken; varsayılan çekirdek - 1)
+    workers = int(os.environ.get('KY_IS', '0') or '0') or max(1, (os.cpu_count() or 2) - 1)
+    with ProcessPoolExecutor(max_workers=workers) as pool:
         for g in groups:
             m = importlib.import_module(MODS[g][0])
             for var in m.VARIANTS:
