@@ -13,6 +13,10 @@ extends WeaponTrail
 ## kalın zerreler + bitişte sıçrantı · mızrak saplaması = düz çizgi + iki yankı · hançer = hızlı çift fırça ·
 ## kırbaç = ince kıvrak şerit · uzun sap (teber / tırpan / asa) = uzun ince hilal. Ağır / şarjlı / bitiriş:
 ## arka koyu katman + dış ikinci hilal. Element silahları kendi paletinde (od, ayaz, zehir, ruh, yıldırım, erlik, ay, yel).
+## v20: sınıflar belirgin ayrıldı (hançer ince hızlı fiske, kılıç temiz hilal, ağır kalın sürüklenen kuru fırça + damlayan
+## sıçrantı, uzun sap geniş süpürme + iç yankı yayı, mızrak uzun çizgi + üç yankı, kırbaç kıvrılan kurdele) ve unsurlu
+## silah (Unsur.gd) kendi paletinde + kendi zerreleriyle çizilir: od alev dilleri, ayaz buz kıymığı + sis, yıldırım
+## çatırdayan kıvılcım arkları, kam tayfsı ard görüntü + ruh dumanı, Yer-Su yapraklar. Zerreler aynı üçgen dizisinde.
 
 enum { SWEEP, PATH }
 
@@ -36,6 +40,14 @@ var fleck_k := 1.0          # zerre yoğunluğu
 var splash_end := false     # ağır: iz bitince uçta mürekkep sıçrantısı
 var min_w := 4.0            # SÜPÜRME: en az mürekkep genişliği (dünya birimi; kısa bıçaklar)
 var ramp_len := 0.55        # baskı rampası: ucun ilk (bıçak boyu x ramp_len) yolu ince başlar
+var unsur := ""             # v20: unsur zerreleri (od, ayaz, yildirim, kam, yersu)
+var u_scale := 1.0          # v20: kıl dokusunun boyuna ölçeği (ağır < 1: uzun sürüklenen izler)
+var ghost := false          # v20 kam: tayfsı ard görüntü katmanı
+var inner_arc := false      # v20 uzun sap: içte soluk ikinci yay
+var twist := false          # v20 kırbaç: genişlik boyunca kıvrılan kurdele
+var _elem: Array = []       # v20 unsur zerreleri [konum, hız, ömür, yaş, boy, tür, açı, açısal hız]
+var _u_acc := 0.0
+var _crk_t := 0.0
 var _s: Array = []          # [kök, uç, zaman, baskı, yay uzunluğu]
 var _batch := 0             # son işlemeden beri eklenen örnek sayısı
 var _prev_t := 0.0
@@ -95,6 +107,14 @@ func _reset() -> void:
 	fleck_k = 1.0
 	splash_end = false
 	ramp_len = 0.55
+	unsur = ""
+	u_scale = 1.0
+	ghost = false
+	inner_arc = false
+	twist = false
+	_elem.clear()
+	_u_acc = 0.0
+	_crk_t = 0.0
 	life = 0.2
 	_auto = {}
 	material = null
@@ -140,57 +160,71 @@ func setup(it: Dictionary, atk: Dictionary, weight: float) -> void:
 			w_frac = 0.62
 			life = 0.2
 		"agir":
-			w_frac = 0.95
-			life = 0.28
-			fleck_k = 1.8
+			# v20: kalın, kuru, sürüklenen geniş darbe; kıllar boyuna uzun (u_scale), iri damlalar, uçta sıçrantı
+			w_frac = 1.05
+			life = 0.32
+			fleck_k = 2.4
 			splash_end = true
 			ramp_len = 0.8
+			u_scale = 0.55
 		"uzun":
-			w_frac = 0.4
-			life = 0.24
-			fleck_k = 1.2
+			# v20: uzun sapın geniş süpürmesi: ince uzun hilal, uzun ömür, içte soluk yankı yayı
+			w_frac = 0.34
+			life = 0.3
+			fleck_k = 1.0
+			inner_arc = true
+			u_scale = 1.25
 		"hancer":
-			# hançer: kısa bıçağın süpürdüğü alan küçük; uç yolunu izleyen iki paralel hızlı fırça çizgisi
+			# hançer: kısa bıçağın süpürdüğü alan küçük; uç yolunu izleyen iki paralel hızlı, ince fiske
 			mode = PATH
-			path_w = 3.2
-			life = 0.18
+			path_w = 3.4
+			life = 0.16
 			double = true
-			fleck_k = 0.7
-			ramp_len = 0.3
+			fleck_k = 0.5
+			ramp_len = 0.25
+			u_scale = 1.6
 		"mizrak":
-			w_frac = 0.45
+			w_frac = 0.4
 			life = 0.2
 		"kirbac":
 			mode = PATH
-			path_w = 2.6
-			wiggle = 2.2
-			life = 0.3
+			path_w = 2.8
+			wiggle = 2.6
+			life = 0.32
 			fleck_k = 0.8
+			twist = true
 	if sw in THRUSTS:
+		# v20 saplama: uzun düz çizgi + üç yankı (mızrak / ağır saplama daha uzun yaşar)
 		mode = PATH
-		path_w = 3.4 if style != "agir" else 5.0
-		echoes = 2
-		life = 0.2
+		path_w = (3.0 if style != "agir" else 5.0)
+		echoes = 3 if style in ["mizrak", "uzun"] else 2
+		life = 0.24 if style in ["mizrak", "uzun"] else 0.2
 		double = false
 		wiggle = 0.0
+		twist = false
 	elif sw in WHIP_SW:
 		mode = PATH
-		path_w = 2.6
-		wiggle = 2.2
-		life = 0.3
+		path_w = 2.8
+		wiggle = 2.6
+		life = 0.32
+		twist = true
 	if finisher or heavy:
 		layered = 2 if (heavy and hold > 0.35) or atk.get("pause", false) else 1
 		w_frac *= 1.2
 		path_w *= 1.35
 		life *= 1.25
 		fleck_k *= 1.5
+	if style == "agir":
+		layered = maxi(layered, 1)   # v20: ağır silahın arkasında her zaman koyu kuru sürüntü
+	unsur = Unsur.of(it)
+	ghost = unsur == "kam"
 	life *= 1.0 + 0.2 * weight
 	active = self
 	_apply_mat()
 
 
 func _apply_mat() -> void:
-	var key := "%d_%s_%d" % [pal, style, layered]
+	var key := "%d_%s_%d_%.2f" % [pal, style, layered, u_scale]
 	if not _mats.has(key):
 		var m := ShaderMaterial.new()
 		m.shader = SHADER
@@ -201,9 +235,10 @@ func _apply_mat() -> void:
 		m.set_shader_parameter("c_body", p[2])
 		m.set_shader_parameter("c_rim", p[3])
 		m.set_shader_parameter("c_hot", p[4])
-		m.set_shader_parameter("rough", 1.45 if style == "agir" else (0.8 if style == "hancer" else 1.0))
-		m.set_shader_parameter("streaks", 1.35 if style == "agir" else (0.6 if style in ["hancer", "kirbac"] else 1.0))
-		m.set_shader_parameter("dry_in", 0.7 if style == "agir" else 0.5)
+		m.set_shader_parameter("rough", 1.6 if style == "agir" else (0.65 if style == "hancer" else (0.9 if style == "kilic" else 1.0)))
+		m.set_shader_parameter("streaks", 1.5 if style == "agir" else (0.6 if style in ["hancer", "kirbac"] else (0.9 if style == "kilic" else 1.0)))
+		m.set_shader_parameter("dry_in", 0.8 if style == "agir" else 0.5)
+		m.set_shader_parameter("u_scale", u_scale)
 		m.set_shader_parameter("glow_gain", 0.5 + 0.25 * float(layered))
 		_mats[key] = m
 	material = _mats[key]
@@ -249,6 +284,11 @@ func _push(base: Vector2, tip: Vector2) -> void:
 			if _rng.randf() < n:
 				_spawn_fleck(base, tip)
 			n -= 1.0
+		if unsur != "":
+			_u_acc += d * float(U_RATE.get(unsur, 0.0)) * (1.35 if style == "agir" else (0.7 if style == "hancer" else 1.0))
+			while _u_acc >= 1.0:
+				_u_acc -= 1.0
+				_spawn_elem(base, tip)
 
 
 func _spawn_fleck(base: Vector2, tip: Vector2) -> void:
@@ -305,7 +345,8 @@ func _process(delta: float) -> void:
 		var dir := ((last[1] as Vector2) - (last[0] as Vector2)).normalized()
 		for k in 9:
 			_flecks.append([(last[1] as Vector2) - dir * _rng.randf_range(0, 6), dir.rotated(_rng.randf_range(-1.2, 1.2)) * _rng.randf_range(40, 150) + Vector2(0, -40), _rng.randf_range(0.3, 0.6), 0.0, _rng.randf_range(1.0, 2.6), 0 if k % 3 else 1])
-	if _s.is_empty() and _flecks.is_empty() and done:
+	_elem_step(delta)
+	if _s.is_empty() and _flecks.is_empty() and _elem.is_empty() and done:
 		_release()
 		return
 	queue_redraw()
@@ -342,6 +383,7 @@ func _release() -> void:
 	set_process(false)
 	_s.clear()
 	_flecks.clear()
+	_elem.clear()
 	if active == self:
 		active = null
 	if _pool.size() < 6:
@@ -415,7 +457,7 @@ func _ribbon(layer: int, wmul: float, shift: float, u_shift: float, age_add: flo
 			# kuyruk ucu (en eski örnek) her zaman sivri: kare bayrak gibi kesik başlangıç yok
 			var tail := smoothstep(0.0, bl * 0.45, float(s[4]) - float(_s[0][4]))
 			var w := maxf(w_frac * bl, min_w) * press * shrink * wmul * wk * lerpf(0.12, 1.0, tail)
-			var c := tip + across * shift * bl
+			var c := tip + across * shift * bl + offs * (0.4 + 0.6 * age)
 			inner = c - across * w
 			outer = c + across * w * 0.3
 		else:
@@ -472,6 +514,9 @@ func _ribbon_path(layer: int, wmul: float, u_shift: float, age_add: float, offs:
 		var hw := path_w * float(e[2]) * (1.0 - 0.6 * pow(age, 1.4)) * wmul
 		if style == "kirbac":
 			hw *= 0.25 + 0.75 * smoothstep(0.0, 0.12, 1.0 - float(i) / float(m - 1))
+		if twist:
+			# v20 kurdele: genişlik yay boyunca kıvrılır (dönen şerit), kıvrımda ince bel
+			hw *= 0.35 + 0.65 * absf(sin(float(e[3]) * 0.15 + _u_off * 3.0))
 		var c: Vector2 = (e[0] as Vector2) + offs
 		if wiggle > 0.0:
 			c += nrm * sin(float(e[3]) * 0.32 + _t * 26.0) * wiggle * (1.0 - age) * smoothstep(0.0, 0.4, float(i) / float(m))
@@ -494,6 +539,14 @@ func _draw() -> void:
 		_ribbon(0, 1.0, 0.0, 0.0, 0.0)
 		if layered >= 2 and mode == SWEEP:
 			_ribbon(0, 0.32, 0.36, 0.53, 0.18)
+		if inner_arc and mode == SWEEP:
+			_ribbon(2, 0.5, -0.5, 0.43, 0.1)
+		if ghost:
+			# v20 kam: tayfsı ard görüntü, savuruşun arkasına ve yukarı kayarak süzülür
+			var ga: Vector2 = _s[0][1]
+			var gb: Vector2 = _s[_s.size() - 1][1]
+			var gd := (gb - ga).normalized() if ga.distance_to(gb) > 1.0 else Vector2.RIGHT
+			_ribbon(2, 1.15, 0.0, 0.37, 0.1, -gd * 14.0 + Vector2(0, -9.0))
 		if double and mode == SWEEP:
 			_ribbon(0, 0.45, -0.62, 0.71, 0.22)
 		if double and mode == PATH:
@@ -526,9 +579,141 @@ func _draw() -> void:
 		_vert(head - nrm, u0 + 1.0, 6.0, age)
 		_vert(head + nrm, u0 + 1.0, 7.0, age)
 		_vidx.append_array([st, st + 1, st + 2, st + 1, st + 3, st + 2])
+	_elem_draw()
 	if _vidx.is_empty():
 		return
 	RenderingServer.canvas_item_add_triangle_array(get_canvas_item(), _vidx, _vp, _vcol, _vuv)
+
+
+# ------------------------------------------------------------------ v20 unsur zerreleri
+## tür: 3 alev dili, 4 buz kıymığı, 5 şimşek arkı (parça), 6 ruh dumanı / ayaz sisi, 7 yaprak
+const U_RATE := {"od": 0.15, "ayaz": 0.16, "yildirim": 0.06, "kam": 0.1, "yersu": 0.1}
+
+
+func _spawn_elem(base: Vector2, tip: Vector2) -> void:
+	if _elem.size() > 90:
+		return
+	var dir := (tip - base).normalized()
+	var prev: Vector2 = _s[_s.size() - 2][1]
+	var tan := (tip - prev).normalized() if prev.distance_to(tip) > 0.01 else dir.orthogonal()
+	# doğuş noktası: mürekkebin dış (bıçak ucu) yarısında
+	var p := tip - dir * _rng.randf_range(0.0, (tip - base).length() * w_frac * 0.6) if mode == SWEEP else tip + tan.orthogonal() * _rng.randf_range(-path_w, path_w) * 1.5
+	var big := 1.3 if style == "agir" else (0.75 if style == "hancer" else 1.0)
+	match unsur:
+		"od":
+			_elem.append([p, Vector2(_rng.randf_range(-25, 25), _rng.randf_range(-150, -80)) + tan * 30.0, _rng.randf_range(0.2, 0.4), 0.0, _rng.randf_range(2.2, 6.0) * big, 3, clampf(-tan.x * 0.7, -0.8, 0.8) + _rng.randf_range(-0.3, 0.3), _rng.randf_range(-0.8, 0.8)])
+			if _rng.randf() < 0.35:
+				_flecks.append([p, Vector2(_rng.randf_range(-40, 40), _rng.randf_range(-160, -80)), _rng.randf_range(0.3, 0.6), 0.0, _rng.randf_range(0.5, 1.0), 2])
+		"ayaz":
+			if _rng.randf() < 0.72:
+				_elem.append([p, tan * _rng.randf_range(20, 90) + Vector2(_rng.randf_range(-40, 40), _rng.randf_range(-70, 10)), _rng.randf_range(0.45, 0.75), 0.0, _rng.randf_range(3.0, 5.6) * big, 4, _rng.randf() * TAU, _rng.randf_range(-10, 10)])
+				if _rng.randf() < 0.4:
+					_flecks.append([p, tan * _rng.randf_range(30, 120) + Vector2(0, -40), _rng.randf_range(0.2, 0.4), 0.0, _rng.randf_range(0.5, 0.9), 2])
+			else:
+				_elem.append([p, Vector2(_rng.randf_range(-15, 15), _rng.randf_range(-25, 5)), _rng.randf_range(0.5, 0.8), 0.0, _rng.randf_range(5.0, 8.0) * big, 6, _rng.randf() * TAU, _rng.randf_range(-1, 1)])
+		"yildirim":
+			_flecks.append([p, tan * _rng.randf_range(60, 200) + tan.orthogonal() * _rng.randf_range(-120, 120), _rng.randf_range(0.15, 0.3), 0.0, _rng.randf_range(0.5, 1.1), 2])
+		"kam":
+			_elem.append([p, Vector2(_rng.randf_range(-20, 20), _rng.randf_range(-45, -15)) - tan * 15.0, _rng.randf_range(0.55, 0.9), 0.0, _rng.randf_range(6.0, 11.0) * big, 6, _rng.randf() * TAU, _rng.randf_range(-1.5, 1.5)])
+			if _rng.randf() < 0.3:
+				_flecks.append([p, Vector2(_rng.randf_range(-30, 30), _rng.randf_range(-90, -40)), _rng.randf_range(0.4, 0.7), 0.0, _rng.randf_range(0.5, 0.9), 2])
+		"yersu":
+			_elem.append([p, tan * _rng.randf_range(20, 70) + Vector2(_rng.randf_range(-30, 30), _rng.randf_range(-80, -20)), _rng.randf_range(0.7, 1.1), 0.0, _rng.randf_range(3.8, 5.8) * big, 7, _rng.randf() * TAU, _rng.randf_range(-8, 8)])
+
+
+func _elem_step(delta: float) -> void:
+	for f in _elem:
+		f[3] = float(f[3]) + delta
+		var v: Vector2 = f[1]
+		match int(f[5]):
+			3:
+				v = v * maxf(0.0, 1.0 - 2.5 * delta) + Vector2(0, -90.0 * delta)
+			4:
+				v = v * maxf(0.0, 1.0 - 1.8 * delta) + Vector2(0, 300.0 * delta)
+			6:
+				v = v * maxf(0.0, 1.0 - 1.5 * delta) + Vector2(0, -20.0 * delta)
+			7:
+				v = v * maxf(0.0, 1.0 - 2.2 * delta) + Vector2(sin(float(f[3]) * 8.0 + float(f[6])) * 220.0 * delta, 130.0 * delta)
+		f[1] = v
+		f[0] = (f[0] as Vector2) + v * delta
+		f[6] = float(f[6]) + float(f[7]) * delta
+	var i := _elem.size() - 1
+	while i >= 0:
+		if float(_elem[i][3]) >= float(_elem[i][2]):
+			_elem.remove_at(i)
+		i -= 1
+	# yıldırım: taze iz boyunca çatırdayan kısa arklar (sık yenilenir: titreşir)
+	if unsur == "yildirim" and _s.size() > 3:
+		_crk_t -= delta
+		if _crk_t <= 0.0:
+			_crk_t = 0.03
+			for k in (3 if style == "agir" else 2):
+				_crackle()
+
+
+func _crackle() -> void:
+	var n := _s.size()
+	var fresh := 0
+	while fresh < n and _t - float(_s[n - 1 - fresh][2]) < life * 0.6:
+		fresh += 1
+	if fresh < 2:
+		return
+	var s: Array = _s[n - 1 - _rng.randi_range(0, fresh - 1)]
+	var base: Vector2 = s[0]
+	var tip: Vector2 = s[1]
+	var dir := (tip - base).normalized() if tip.distance_to(base) > 0.1 else Vector2.RIGHT
+	var p := tip - dir * _rng.randf_range(0.0, (tip - base).length() * w_frac * 0.7) if mode == SWEEP else tip
+	# ark izin dış kenarından dışa doğru (bıçak yönünde) ya da iz boyunca sıçrar
+	var a := dir.angle() + _rng.randf_range(-1.3, 1.3)
+	var L := _rng.randf_range(12.0, 26.0) * (1.3 if style == "agir" else 1.0)
+	var segs := _rng.randi_range(3, 5)
+	var q := p
+	for j in segs:
+		var nq := q + Vector2.from_angle(a + _rng.randf_range(-0.9, 0.9)) * (L / float(segs))
+		_elem.append([(q + nq) * 0.5, Vector2.ZERO, _rng.randf_range(0.07, 0.13), 0.0, q.distance_to(nq), 5, (nq - q).angle(), 0.0])
+		q = nq
+
+
+func _elem_draw() -> void:
+	for f in _elem:
+		var p: Vector2 = f[0]
+		var age := clampf(float(f[3]) / float(f[2]), 0.0, 1.0)
+		var sz: float = f[4]
+		var typ: int = f[5]
+		var ax: Vector2   # u ekseni (kuyruk -> baş)
+		var hw: float
+		var L: float
+		match typ:
+			3:
+				ax = Vector2.from_angle(-PI * 0.5 + float(f[6]) + sin(float(f[3]) * 18.0 + float(f[7])) * 0.22)
+				L = sz * 2.9 * (1.0 - 0.55 * age)
+				hw = sz * 0.9 * (1.0 - 0.35 * age)
+			4:
+				ax = Vector2.from_angle(float(f[6]))
+				L = sz * 2.0
+				hw = sz * 0.55
+			5:
+				ax = Vector2.from_angle(float(f[6]))
+				L = sz + 2.0
+				hw = 3.2
+			6:
+				ax = Vector2.from_angle(float(f[6]))
+				L = sz * 2.0 * (1.0 + 0.8 * age)
+				hw = L * 0.5
+			_:
+				ax = Vector2.from_angle(float(f[6]))
+				L = sz * 2.0
+				hw = sz * 0.6
+		var nrm := ax.orthogonal() * hw
+		var tail := p - ax * L * (0.25 if typ == 3 else 0.5)
+		var head := p + ax * L * (0.75 if typ == 3 else 0.5)
+		var st := _vp.size()
+		var u0 := float(typ) * 2.0
+		_vert(tail - nrm, u0, 6.0, age)
+		_vert(tail + nrm, u0, 7.0, age)
+		_vert(head - nrm, u0 + 1.0, 6.0, age)
+		_vert(head + nrm, u0 + 1.0, 7.0, age)
+		_vidx.append_array([st, st + 1, st + 2, st + 1, st + 3, st + 2])
 
 
 # ------------------------------------------------------------------ kendiliğinden yay (düşman / boss savuruşu)

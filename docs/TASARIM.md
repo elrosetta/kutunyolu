@@ -1809,3 +1809,108 @@ Sprite'a çizilmez: her kare çalışma zamanında benzetilir ve mürekkep-cel f
   koşu, sıçrayış, saldırı, yay germe, yuvarlanma, dönüş, kurt ve kurt sonrası çekimleri (+ `k_*` yakın kırpım) ve
   koşu -> duruş -> sıçrayış kare dizisi (`dizi/sNNN.png`). `--sac_yakin` kamerayı ~2,2 kat yaklaştırır, `--sac_renk` şeritleri
   hata ayıklama renkleriyle çizer, `--sac_govdesiz` sırt çarpışmasını kapatır.
+
+## v20: Unsur (silah ruhu), iz çeşitliliği, ağır silah yer tozu
+
+Geri bildirim: "Silahların çoğunun mürekkep izi aynı savuruş. Ağır silahlar yere vurunca TOZ kalkardı, o gitmiş. Yerden aldığımız
+silahların ateş, buz, elektrik, şaman gücü, doğa gücü gibi bir unsuru olsun; mürekkebi ona uysun, özellikleri de değişsin
+(ateşin mürekkebi alev saçsın, elektrikli olan şimşek; şansla düşmanı yaksın ya da başına yıldırım indirsin). Kırmızı silah
+mürekkebi biraz daha koyu olsun."
+
+### Unsur (`scripts/core/Unsur.gd`)
+
+Yerden alınan silahın (rastgele malzemeyle yuvarlanan her düşüş: `ItemGen.random_drop` → `roll(id, tier)`) bir unsuru
+olabilir. Başlangıç silahları, Demirci / test eşyaları gibi malzemesi açıkça verilen eşyalar sade kalır (testler belirleyici).
+Ongun (Kurt / Kartal / Ayı) ayrı bir eksendir (ölçekleme rengi); unsur onun yerine geçmez, yanına eklenir.
+
+* **Kimler:** yakın (kılıç, ağır, mızrak, hançer, kırbaç) + yay ve fırlatma (`kind`: slash, heavy, thrust, dual, whip, bow, throw).
+  Büyü silahları (Kam Kopuzu, Gök Asası, Yel Borusu) unsursuz: zaten kendi büyüleri var. Tetiklenme `Player._deal` içinde
+  olduğundan oklar, fırlatılan balta, sapan, Bozkurt biçimi ve kalkan karşı vuruşu da tetikler.
+* **Olasılık:** sıradan %30 · nadir %50 · destansı %70 · efsanevi %90; tema silahı +%25 ve unsur gelirse %80 kendi unsuru
+  (Od Kamçısı / Kor Çekici / Od Okları → od, Ayaz Ata'nın Kılıcı / Rüzgâr Kılıcı → ayaz, Yıldırım Kılıcı / Tufan Yayı →
+  yıldırım, Ruh Kılıcı / Erlik Tırpanı / Kartal Tüyleri → kam, Yılan Kılıcı / Ulu Kayın Asası → Yer-Su); malzeme eğilimi %45
+  (od taşı → od, ayaz → ayaz, gök demiri → yıldırım, ruhani → kam, yeşim → Yer-Su). Kalan ağırlıklar (sıradan → efsanevi):
+  od 30→24, ayaz 28→22, yıldırım 12→24, kam 6→19, Yer-Su 24→20 (nadir unsurlar yüksek nadirlikte daha olası).
+  600 düşüşlük ölçüm (kademe 2, kalkan / teçhizat dahil): %31 unsurlu; od 60, ayaz 42, Yer-Su 39, kam 31, yıldırım 16.
+* **Unsur gücü** `unsur_g`: sıradan 1,0 · nadir 1,1 · destansı 1,22 · efsanevi 1,35 (×0,92-1,08).
+* **Tetiklenme olasılığı** = taban × unsur gücü × hız katsayısı × (boss 0,5). Hız katsayısı `clamp((2 / aps)^0,6; 0,55; 1,6)`:
+  vuruş başına yavaş silah daha olası, hızlı silah daha az (saniyedeki tetiklenme silahlar arasında yakın kalır): Ulu Kılıç
+  (0,85 aps) 1,6 · Alp Kılıcı (2,3) 0,92 · İkiz Bıçaklar (4,6) 0,61. Bosslarda süreler de yarıya iner; donma ve kök yoktur.
+* **Ad / kart / görünüş:** sıfat adın önünde ("Keskin **Alazlı** Demir Alp Kılıcı"; Alazlı, Ayazlı, Şimşekli, Tözlü, Köklü);
+  kartta unsur renginde "◈ Unsur: ..." satırı ve o eşyanın gerçek yüzdeleri; HUD yuvasında köşede unsur simgesi (yordamsal,
+  kenar yumuşatmalı: alev, kar tanesi, şimşek, ruh gözü, yaprak) + yuvaya ince unsur yıkaması; yerdeki eşyada unsur renginde
+  nabız gibi atan hale, unsura özgü zerreler (alev dili, buz yıldızı, şimşek çatırtısı, ruh dumanı, yaprak), simge, ışık
+  unsur rengine kayar; elde savururken bıçak boyunca unsur ışıması (`Unsur.BladeGlow`). Savuruş izi unsurun paletinde
+  (`InkFX.weapon_pal` önce unsura bakar), vuruş sıçrantıları izden paleti alır.
+
+| Unsur | Sıfat / palet | Tetiklenme (taban) | Etki | Bossta |
+|---|---|---|---|---|
+| **Od** (ateş) | Alazlı · 1 od | %20 tutuşma (bitiriş / ağır ×1,3) | 3 sn yanma (0,5 sn'de 3×(1+0,6×kademe)); yanan düşmana +%10 hasar; zincir bitirişi yerdeyse alev gölü (r 30, 2,2 sn, sn'de silah hasarının %24'ü, 1,4 sn bekleme) | %10, yanma 1,5 sn |
+| **Ayaz** (buz) | Ayazlı · 2 ayaz | %45 ayaz yükü (+1; bitiriş / ağır +2) | en çok 4 yük, 3,5 sn; yük başına %8 yavaşlatır; 4 yükte donar (1,3 sn, seçkin 0,9); donmuşa vuruş **kırar**: kesin kritik ×1,25 + 56 birimde çevreye %30 buz kıymığı | %22,5 yük (yük başına %4 yavaşlatır); donma yok, 4 yükte sıradaki vuruş "buz kırığı" ×1,35 |
+| **Yıldırım** (şimşek) | Şimşekli · 5 yıldırım | %13 (bitiriş / ağır ×1,5), hedef başına 0,45 sn bekleme | hedefin başına gökten şimşek: silah hasarının %80'i + 0,35 sn sersem; 110 birimde 2 düşmana sıçrar (%40, 0,2 sn) | %6,5; sersem ×0,4 (`Enemy.stun`) |
+| **Kam** (şaman ruhu) | Tözlü · 10 kam (yeni) | %30 töz damgası, %12 ruh kurdu yankısı | damga 5 sn: +%10 hasar alır; damgalı ölünce ruh zerresi oyuncuya uçar (canın %3'ü + 10 Kut); yankı 0,16 sn sonra hayalet pençe, silah hasarının %50'si. Yeraltında (Üç Âlem "yer") olasılıklar ×1,5 | %15 / %6, damga 2,5 sn |
+| **Yer-Su** (doğa) | Köklü · 11 Yer-Su (yeni) | %14 kök, %30 diken zehri | kök 1,1 sn (seçkin 0,65) yerinde tutar (ayağa dolanan kökler); +1 zehir yükü (4 sn); zincir bitirişi yaprak şifası: canın %1,5'i + 1 (2,5 sn bekleme) | kök yok; zehir %15 |
+
+Taban hasarlar `Unsur._base` = silah hasarı × eşya ölçeği (ongun / kademe; `_deal` çarpanları yok); unsur vuruşları unsuru
+yeniden tetiklemez (`unsur_proc`), Kut verir (%10). Sayılar `Unsur.N` sözlüğünde.
+
+**Denge ölçümü** (`--unsur --boss`, 6 tur × 3'lü zincir, 3 kukla, nadir unsur gücü 1,1; "unsur payı" = unsur vuruşları + ek
+çarpanlar + süreğen hasar tahmini / silahın kendi hasarı): silah × unsur (6 tur) unsur
+payı çoğunlukla +%8-13: Od +%8-10 (yanma + göl), Ayaz +%4-10 (+ donma: Dağ Çekici'nde 6 turda 19 donma / 18 kırılma),
+Yıldırım +%7-13 (Dağ Çekici 18 şimşek / 36 sıçrama), Kam +%10-13 (+ damgalı öldürme ödülü), Yer-Su +%1-7 hasar (asıl
+değeri kök ve şifa: 6 turda 5-23 kök, 9-12 can). Hızlı / yavaş silahlarda pay yakın (İkiz Bıçaklar +%7-13, Dağ Çekici +%1-13):
+hız katsayısı işini görüyor. Bosslarda olay / isabet oranı yaklaşık yarı (Od 0,29 → 0,08, Yer-Su 0,46 → 0,29; tek kuklada
+örnek küçük, yıldırımda hedef başına bekleme yüzünden gürültülü).
+
+### İz çeşitliliği (`InkTrail.setup`, `shaders/ink_brush.gdshader`)
+
+Önceki sürümde sınıf farkları vardı ama genişlik / ömür farkları küçüktü; çoğu silah aynı kızıl hilal gibi okunuyordu.
+
+* **Hançer** ince hızlı çift fiske (YOL, yarı genişlik 2,6, ömür 0,16, kıl ölçeği 1,6: sık ince kıl, pürüz 0,65).
+* **Kılıç** temiz hilal (%62, pürüz 0,9, iz 0,9).
+* **Ağır** kalın sürüklenen kuru darbe: genişlik bıçak boyunun %105'i, ömür 0,32, arkada her zaman koyu kuru sürüntü katmanı,
+  kıl dokusu boyuna 0,55 (uzun sürüklenen kıl izleri), pürüz 1,6, iz 1,5, zerre ×2,4 ve bitişte uçta sıçrantı.
+* **Uzun sap** geniş süpürme: ince uzun hilal (%34), ömür 0,3, içte soluk ikinci yankı yayı.
+* **Mızrak / saplama** uzun düz çizgi + üç soluk yankı (ömür 0,24).
+* **Kırbaç** kıvrılan kurdele: yol boyunca genişlik dönerek incelip kalınlaşır (`twist`), baş iğne gibi.
+* **Unsur zerreleri** (aynı üçgen dizisi, aynı çizim çağrısı, gölgelendiricide fwidth kenar yumuşatma): od alev dilleri
+  (karınlı dipten kıvrılan uzun dil; dipte sarı-beyaz, uçta koyu kızıl) + kor kıvılcımları · ayaz sivri buz kıymıkları (iki
+  yüzeyli, beyaz sırtlı, mürekkep konturlu, dönerek düşer) + soğuk sis + parıltı · yıldırım izin dışına sıçrayan, sık yenilenen
+  zikzak arkları (beyaz-sıcak kılcal çekirdek, toplamalı ışıma) + kıvılcım · kam tayfsı ard görüntü katmanı (iz arkaya ve
+  yukarı kayarak süzülür) + gürültüyle yenen ruh dumanı + ruh kıvılcımı · Yer-Su badem yapraklar (damarlı, salınarak düşer).
+* **Kızıl mürekkep** (palet 0) bir ton koyulaştı: gövde `fa0c06` → `d80a10`, çekirdek `a00008` → `86000c`, kenar `ff4a12` →
+  `f43c16`, mürekkep `3a0214` → `2e0111`.
+
+### Ağır silah yer tozu (`scripts/core/InkDust.gd`, `shaders/ink_dust.gdshader`)
+
+**Neden kaybolmuştu:** v16'nın `GroundSlamFX` tozu piksel çiziliyordu. Stil v2 mürekkep fırçası işinde (571e42d) v2'de
+`GroundSlamFX` tümüyle gizlendi (piksel flaş / şok / moloz / çatlak mürekkebe uymuyordu) ve yerine yalnızca iki küçük, soluk
+`FX.dust` kümesi (3-5 yıkama zerresi) + silah paletinde kızıl yer sıçrantısı kaldı. Varsayılan stil v2 olunca (363a7fb) ağır
+silahların yer tozu fiilen yok oldu; yere çakma kızıl bir kan lekesi gibi okunuyordu. v18/v19 temposu `_slam_contact`'ı
+bozmamıştı (çakma anı doğru karede tetikleniyordu), sorun yalnızca v2 görseliydi.
+
+**Düzeltme:** `GroundSlamFX` v2 dalı artık `InkDust.burst` çağırır (sarsıntı / itiş / titreşim / ışık `_juice` aynen):
+* iki yana açılan V tutamları (dik hızlı kol + yatık gövde, ileri taraf dolgun) ve ortada yükselen kabarık çekirdek:
+  karakterlerin ardında (etkin z -1; bulutun yere taşan alt kısmı zeminin arkasında kalır)
+* zemin boyunca dışa yuvarlanan alçak sürünen toz (şok cephesi, gecikmeli), sekip duran moloz kırıkları, od silahında ve
+  Tamu'da kor: önde
+* kalıcı dallanan fırça çatlağı (`FX.decal`) + ezik zemin lekesi (güç ≥ 0,85)
+* gölgelendirici: fbm gürültüsüyle kabaran karnabahar silüeti, üstte ışık alan açık yıkama, altta orta ton, kenarda koyulaşan
+  ıslak pigment bandı, alt kenarda ince mürekkep konturu, tutam başına ton farkı (üst üste binenler ayrı okunur); yaşlandıkça
+  kenardan yenip içinde kuru boşluklar açılarak dağılır. Piksel kare yok.
+* biyom renkleri: Ötüken orman toprağı, Bozkır sarı bozkır tozu, Kaf kar tozu (ak-mavi), Şahmeran mağara kumu, Tamu kül (koyu,
+  korlu), Çini Saray; bilinmeyen biyomda `FX.dust_col`'dan türetilir.
+* silah paletindeki yer sıçrantısı (`InkFX.slam`) ×0,62'ye küçüldü: asıl görsel toz.
+
+**Yeni tetikleyiciler:** çakma / sarsıntı bayrağı olmayan ama başı yere inen ağır ve uzun sap savuruşları (ezme, iniş, baş
+üstü, adımlı iniş, yel değirmeni; `InkDust.GROUND_SW`) değdikleri karede hafif toz (güç ×0,6, sarsıntısız, sessiz; baş yere
+inmezse yok) · Kor Çekici'nin yerde sürüklemesinde başın ardında sürünen toz + kırık (`InkDust.drag`) · Kartal Dalışı inişi.
+Bosslar (`FX.ground_slam` güç 2) da aynı tozu kaldırır.
+
+### Test
+
+`-- --unsur --boss [--unsur_silah=a,b] [--unsur_tur=N]` (`tools/tests/unsur_testi.gd`): 600 düşüşlük yuvarlama dağılımı ve
+ad denetimi, açık malzemeli eşyaya unsur gelmediği, her silah × her unsur için tetiklenme sayıları ve unsur payı, boss
+kuklasında olay / isabet oranı; "[unsur] HATA=n". Pencereli + `--anlik=<klasör>`: `--unsur_cekim=iz,tetik,toz` (iz: düşmansız,
+tetiklenmesiz unsur izleri; tetik: her vuruşta tetiklenen unsur; toz: dört ağır silahta basılı çakma, temas sonrası 1/6/14/26/40.
+kareler). Biyom tozu için `--boss=tepegoz` (Bozkır), `yelbegen` (Kaf), `sahmeran`, `erlik_han` (Tamu).

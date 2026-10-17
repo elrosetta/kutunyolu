@@ -3368,6 +3368,10 @@ func _on_strike_start() -> void:
 		# v16: yer çarpmasının görseli / sarsıntısı / sesi vuruşun başında değil, silahın başı yere değdiği
 		# karede (_slam_contact). Havadaysa (bitirişin sıçrayışı, havada çakma) inişte.
 		atk["gslam"] = true
+	elif FX.ink() and InkDust.ground_swing(it, c):
+		# v20: çakma bayrağı olmayan ama başı yere inen ağır / uzun sap savuruşu: değdiği karede hafif mürekkep tozu
+		atk["gslam"] = true
+		atk["gslam_lite"] = true
 	if (c.get("shock", false) or c.get("slam", false)) and is_on_floor():
 		var w := float(it.get("mech_v", 50.0)) * (1.0 + hold / 0.7 * 0.8) if c.get("shock", false) else 40.0
 		if atk.get("pause", false):
@@ -3394,8 +3398,12 @@ func _slam_contact(it: Dictionary, k: float, hit1: float) -> void:
 		# baş boşluğun üstünde: ayağın altındaki zemine, öne yakın
 		gx = global_position.x + facing * 8.0
 		gy = global_position.y
+	var lite: bool = atk.get("gslam_lite", false)
 	if tip.y < gy - 3.0:
 		if k < hit1 - 0.02:
+			return
+		if lite:
+			atk["gslam"] = false   # v20 hafif değme: baş yere inmediyse toz yok
 			return
 		# baş hiç inmedi (pencere bitti / havadan iniş): öndeki zemine
 		gx = global_position.x + facing * clampf(absf(tip.x - global_position.x), 8.0, R)
@@ -3412,8 +3420,8 @@ func _slam_contact(it: Dictionary, k: float, hit1: float) -> void:
 		power += 0.08
 	var id := String(it.get("id", ""))
 	var hot: bool = id == "kor_cekici" or it.get("mech_id", "") == "kor_izi"
-	FX.ground_slam(Vector2(roundf(gx), gy), facing, clampf(power, 0.6, 1.9), weapon_color(it), id != "kayin_asasi", hot)
-	Ses.play("sarsinti_buyuk" if (hold >= 0.6 or pause) else "sarsinti", -2.0 + 3.0 * hold)
+	FX.ground_slam(Vector2(roundf(gx), gy), facing, clampf(power, 0.6, 1.9) * (0.6 if lite else 1.0), weapon_color(it), id != "kayin_asasi", hot, not lite)
+	Ses.play("sarsinti_buyuk" if (hold >= 0.6 or pause) else "sarsinti", -2.0 + 3.0 * hold - (9.0 if lite else 0.0))
 	vis_scale = Vector2(1.1, 0.92)
 
 
@@ -3441,6 +3449,8 @@ func _plunge_land(it: Dictionary) -> void:
 	FX.shock_line(global_position, r * 0.8)
 	FX.shockwave(global_position + Vector2(0, -6), r * 1.3, 0.8)
 	FX.dust(global_position, Vector2.UP, 10, 0.36)
+	if FX.ink():
+		InkDust.burst(global_position, facing, 1.1 * power)   # v20: dalış inişinde mürekkep toz bulutu
 	FX.flash_light(global_position + Vector2(0, -10), Color(0.75, 0.9, 1.0), 160.0, 1.6, 0.2)
 	FX.decal("decal_crack_%d" % (randi() % 2), global_position + Vector2(0, 2), 0.0, 10.0, 0.9 * power)
 	Ses.play("darbe_cekic", -1.0, 1.05)
@@ -3557,7 +3567,10 @@ func _wind_fx(it: Dictionary, sw: Dictionary, k: float) -> void:
 			if Engine.get_physics_frames() % 2 == 0 and k > 0.12:
 				var tip := arm_root.to_global(_hand_local + _blade_local * _reach(it))
 				FX.sparks(tip, Vector2(-facing, -0.8), Color(1.0, 0.8, 0.5), 3, 150.0)
-				FX.dust(tip, Vector2(-facing, -0.3), 1, 0.2)
+				if FX.ink():
+					InkDust.drag(Vector2(tip.x, global_position.y), -facing)   # v20: sürüklenen başın ardında mürekkep tozu
+				else:
+					FX.dust(tip, Vector2(-facing, -0.3), 1, 0.2)
 		"iai":
 			if not atk.get("wind_fx", false):
 				atk["wind_fx"] = true
@@ -4132,7 +4145,9 @@ func _deal(e: Node, base: float, it: Dictionary, opts: Dictionary = {}) -> void:
 		opts["stagger"] = true
 	if Game.has_lutuf("gun_ana") and randf() < 0.25:
 		opts["burn"] = maxf(float(opts.get("burn", 0.0)), 3.0)
+	d = Unsur.before_hit(self, e, it, opts, d)   # v20 unsur: yanana ek, donmuşu kırma, damgalıya ek
 	var killed: bool = e.take_hit(d, opts)
+	Unsur.after_hit(self, e, it, opts, d, killed)   # v20 unsur: tutuşma, ayaz yükü, şimşek, töz, kök
 	if killed:
 		# v12 destanlar: yayla kesilenler, tek savuruşta üç
 		if opts.get("ok", false):
@@ -4757,6 +4772,7 @@ func _update_weapon_visual() -> void:
 		shield_spr.position = h + Vector2(facing * 3, 0)
 		shield_spr.rotation = 0.0
 		shield_spr.scale = Vector2(facing, 1) * ssc
+	Unsur.weapon_glow(arm_root, it, h, bd, _reach(it), weapon.visible)   # v20: bıçak boyunca unsur ışıması
 
 
 var _wmat_ink: ShaderMaterial

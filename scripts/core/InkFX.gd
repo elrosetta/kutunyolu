@@ -17,7 +17,7 @@ const ATLAS: Texture2D = preload("res://assets/fx/ink/ink_fx.png")
 
 ## Paletler (sRGB): mürekkep, çekirdek, gövde, kenar, sıcak
 const PALETTES := [
-	["3a0214", "a00008", "fa0c06", "ff4a12", "ffdca0"],  # 0 kızıl (varsayılan; referanstan ölçüldü)
+	["2e0111", "86000c", "d80a10", "f43c16", "ffd6a0"],  # 0 kızıl (varsayılan; v20: bir ton koyu, derin kızıl)
 	["1c0903", "7a2504", "f07812", "ffc040", "fff7d0"],  # 1 od
 	["06121e", "144a78", "4cb8ea", "b4f0ff", "ffffff"],  # 2 ayaz
 	["071408", "1a4a10", "55b828", "b8f04c", "f6ffd8"],  # 3 zehir
@@ -27,6 +27,8 @@ const PALETTES := [
 	["0a0c18", "2a3460", "8ea4dc", "dfe8ff", "ffffff"],  # 7 ay
 	["08140f", "1f5240", "6cc8a4", "d4ffe8", "ffffff"],  # 8 yel / kayın
 	["160c02", "6a3a06", "e0a020", "ffe080", "fffbe8"],  # 9 altın
+	["0a0620", "2e2276", "7064f0", "c4b8ff", "f6f2ff"],  # 10 kam (v20 unsur: tayfsı mavi-mor)
+	["0b1405", "2a5014", "62ae34", "cce878", "fbffe0"],  # 11 Yer-Su (v20 unsur: orman yeşili)
 ]
 const ID_PAL := {"od_kamcisi": 1, "kor_cekici": 1, "ayaz_kilici": 2, "yilan_kilici": 3, "ruh_kilici": 4,
 	"yildirim_kilici": 5, "erlik_tirpani": 6, "bozgun_kilici": 6, "ay_palasi": 7, "ruzgar_kilici": 8, "kayin_asasi": 8}
@@ -53,6 +55,8 @@ static func palette(i: int) -> Array:
 
 static func weapon_pal(it: Dictionary) -> int:
 	var id := String(it.get("id", ""))
+	if Unsur.of(it) != "":
+		return Unsur.pal(Unsur.of(it))   # v20: unsurlu silah kendi unsurunun mürekkebinde
 	if ID_PAL.has(id):
 		return ID_PAL[id]
 	return MAT_PAL.get(String(it.get("material", "")), 0)

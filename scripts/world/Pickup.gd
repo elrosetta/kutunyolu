@@ -122,6 +122,8 @@ func _refresh() -> void:
 			spr.offset.x += (16.0 - float(cell[0]) / 2.0 + 16.0) * Data.wscale() / float(wd["scale"])
 	if light and not item.is_empty():
 		light.color = Color.from_string(Data.items["rarities"][int(item["rarity"])]["color"], Color.WHITE)
+		if Unsur.of(item) != "":
+			light.color = light.color.lerp(Unsur.color(Unsur.of(item)), 0.7)   # v20: unsurlu eşya kendi renginde ışır
 
 
 func _physics_process(delta: float) -> void:
@@ -245,6 +247,7 @@ func _collect_blueprint(pl: Node) -> void:
 func _draw() -> void:
 	if ink_spr or ink_base:
 		if kind == "item":
+			Unsur.pickup_aura(self, item, _t)   # v20: unsur renginde yıkama, unsur zerreleri, simge
 			var colr := Color.from_string(Data.items["rarities"][int(item.get("rarity", 0))]["color"], Color.WHITE)
 			for k in 3:
 				var a := _t * 2.0 + k * TAU / 3.0
@@ -292,6 +295,8 @@ func _draw() -> void:
 			for k in 3:
 				var a := _t * 2.0 + k * TAU / 3.0
 				draw_circle(Vector2(cos(a) * 14.0, -6.0 + sin(a) * 4.0), 1.0, col)
+			if Unsur.of(item) != "":
+				Unsur.glyph(self, Unsur.of(item), Vector2(0, -28.0 + sin(_t * 2.0)), 4.0, Unsur.color(Unsur.of(item)), _t)
 		"tilsim":
 			# taş kaide üstünde asılı, üç renkli kam tılsımı (kurt kızılı, kartal mavisi, ayı yeşili)
 			var bob := sin(_t * 2.2) * 2.0
