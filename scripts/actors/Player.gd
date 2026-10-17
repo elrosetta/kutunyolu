@@ -3821,10 +3821,21 @@ func _melee_hits() -> void:
 			opts["hit_n"] = atk["hit"].size()
 			opts["sfx_done"] = true
 			opts["feel_done"] = true
+			# v21 Yıldırım Hamlesi (tam şarj): deldiği her düşmana gökten yıldırım; ilki tam güç, sonrakiler
+			# hafif (art arda ekran flaşı yormasın). Vuruş +%30 ve kısa sersemletme.
+			var thunder_k := float(atk.get("thunder", 0.0))
+			if thunder_k > 0.0:
+				mult *= 1.3
+				opts["stun"] = maxf(float(opts.get("stun", 0.0)), 0.45)
 			var v19_tag := _v19_opts(e, c, opts)
 			if int(atk.get("yanki", 0)) > 0:
 				mult *= float(V19["yk_mult"])
 			_deal(e, float(it["dmg"]) * mult, it, opts)
+			if thunder_k > 0.0 and is_instance_valid(e):
+				# şimşek düşmanın ayağına (tepeden iner); ölmüş olsa da son konumuna
+				FX.thunder(e.global_position, thunder_k)
+				FX.anim("electric_impact", e.center(), 0.0, 0.9, Color(0.7, 0.88, 1.0))
+				atk["thunder"] = 0.55
 			# v15 çekiş: tırpan / kanca düşmanı kendine çeker (ağırlar yerinde kalır, çekilme penceresi açılır)
 			if c.has("pull") and is_instance_valid(e) and not e.dead and not e.heavy and not e.flying:
 				e.velocity.x = -signf(e.center().x - center().x) * float(c["pull"]) * (1.0 + 0.5 * hold)
@@ -5098,8 +5109,12 @@ func _lightning_dash(it: Dictionary, held: float) -> void:
 	FX.anim("electric_impact", center(), 0.0, 0.9, Color(0.6, 0.85, 1.0))
 	Game.hitstop(0.05)
 	if held >= 0.6:
-		# tam şarj: hamleden önce gökten yıldırım iner (FX.thunder sesi kendi verir)
-		FX.thunder(global_position, 0.8)
+		# v21 tam şarj: yıldırım oyuncunun durduğu yere değil, hamlenin deldiği her düşmanın tepesine iner
+		# (_melee_hits: atk["thunder"]). Burada yalnızca bırakış kıvılcımı ve uzak gürleme.
+		atk["thunder"] = 0.85
+		FX.lightning(center() + Vector2(0, -18), center() + Vector2(facing * 26, -40), Color(0.7, 0.88, 1.0))
+		if Ses.has_method("thunder"):
+			Ses.call("thunder", center(), 0.1, -8.0)
 	elif Ses.has_method("thunder"):
 		Ses.call("thunder", center(), 0.1, -6.0)
 	else:

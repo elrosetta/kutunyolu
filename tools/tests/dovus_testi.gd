@@ -238,6 +238,11 @@ func _run() -> void:
 		_p("TAKILMA=%d" % stuck)
 		get_tree().quit()
 		return
+	if OS.get_cmdline_user_args().has("--yildirim"):
+		await _yildirim()
+		_p("TAKILMA=%d" % stuck)
+		get_tree().quit()
+		return
 	# ---------------------------------------------------------------- 1) gecikme, kilit, ara bellek (her silah)
 	for w in WEAPONS:
 		await _reset(w)
@@ -1232,3 +1237,36 @@ func _klip20() -> void:
 			if i == 6 and k == 4:
 				await _snap("kizisma_kement", "v20")
 	await _f(10)
+
+
+func _yildirim() -> void:
+	## v21 Yıldırım Hamlesi: tam şarjlı hamlede yıldırım oyuncunun yerine değil, deldiği düşmanların tepesine iner.
+	## Çıktı: inen her şimşeğin konumu, en yakın düşmana uzaklığı ve oyuncuya uzaklığı.
+	var strikes: Array = []
+	var on_add := func(n: Node) -> void:
+		if n is ThunderFX:
+			strikes.append(n)
+	get_tree().node_added.connect(on_add)
+	for full in [true, false]:
+		await _reset("yildirim_kilici")
+		strikes.clear()
+		var foes := [_enemy(60.0), _enemy(110.0)]
+		await _f(2)
+		var start := pl.global_position
+		Input.action_press("saldiri1")
+		await _until(func() -> bool: return pl.atk.get("heavy", false), 90)
+		await _f(60 if full else 4)
+		Input.action_release("saldiri1")
+		await _f(40)
+		var parts: Array = []
+		for s in strikes:
+			if not is_instance_valid(s):
+				continue
+			var nd := 99999.0
+			for e in foes:
+				if is_instance_valid(e):
+					nd = minf(nd, (s as Node2D).global_position.distance_to(e.global_position))
+			parts.append("(düşmana %.0f px, başlangıca %.0f px, güç %.2f)" % [nd, (s as Node2D).global_position.distance_to(start), float(s.strength)])
+		_p("yildirim %s: şimşek=%d %s" % ["tam şarj" if full else "kısa şarj", strikes.size(), " ".join(parts)])
+		await _idle_check("yildirim/" + ("tam" if full else "kisa"))
+	get_tree().node_added.disconnect(on_add)

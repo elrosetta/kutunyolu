@@ -1914,3 +1914,8 @@ ad denetimi, açık malzemeli eşyaya unsur gelmediği, her silah × her unsur i
 kuklasında olay / isabet oranı; "[unsur] HATA=n". Pencereli + `--anlik=<klasör>`: `--unsur_cekim=iz,tetik,toz` (iz: düşmansız,
 tetiklenmesiz unsur izleri; tetik: her vuruşta tetiklenen unsur; toz: dört ağır silahta basılı çakma, temas sonrası 1/6/14/26/40.
 kareler). Biyom tozu için `--boss=tepegoz` (Bozkır), `yelbegen` (Kaf), `sahmeran`, `erlik_han` (Tamu).
+
+
+## v21: Yıldırım Hamlesi düzeltmesi
+
+Yıldırım Kılıcı tam şarjlı hamlesinde (basılı tutma ≥ 0,6 sn) gökten inen yıldırım artık oyuncunun durduğu yere değil, hamlenin deldiği her düşmanın tepesine iner (`Player._melee_hits`, `atk["thunder"]`). İlk düşmana tam güç (0,85), sonrakilere hafif (0,55) şimşek; tam şarjlı vuruş ×1,3 hasar ve 0,45 sn sersemletme. Bırakışta yalnızca kılıçtan kısa bir kıvılcım ve uzak gürleme. Test: `-- --dovus --boss --yildirim` (şimşek konumu ↔ düşman uzaklığı).
