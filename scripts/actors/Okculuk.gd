@@ -80,8 +80,26 @@ func _init(player: Player) -> void:
 	p = player
 
 
+## v20 saldırı hızı: Player._hiz_tick her kare yazar (1 = taban). Gerilme, en kısa bırakış ve atış kilidi bununla
+## çarpılır (Player.HIZ.yay oranında); tam bırakış penceresi aynı kalır (beceri penceresi kısalmasın).
+static var hiz_k := 1.0
+static var _hiz_cache: Dictionary = {}
+
+
 static func prof(it: Dictionary) -> Dictionary:
-	return PROF.get(String(it.get("id", "")), PROF["turk_yayi"])
+	var pr: Dictionary = PROF.get(String(it.get("id", "")), PROF["turk_yayi"])
+	if absf(hiz_k - 1.0) < 0.001:
+		return pr
+	var key := "%s|%.3f" % [String(it.get("id", "")), hiz_k]
+	if not _hiz_cache.has(key):
+		if _hiz_cache.size() > 64:
+			_hiz_cache.clear()
+		var q := pr.duplicate()
+		q["draw"] = maxf(0.05, float(pr["draw"]) * hiz_k)
+		q["min"] = maxf(0.033, float(pr["min"]) * hiz_k) if float(pr["min"]) > 0.033 else float(pr["min"])
+		q["rec"] = maxf(0.05, float(pr["rec"]) * hiz_k)
+		_hiz_cache[key] = q
+	return _hiz_cache[key]
 
 
 func _bow() -> Dictionary:

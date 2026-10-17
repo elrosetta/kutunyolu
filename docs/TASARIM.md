@@ -356,7 +356,7 @@ Altı biyomda 36 yaratık tasarlandı. Örnekler: Kara Börü, Çor, Ağaç İye
 - **Ongun (stat totemleri):** Bozkurt yakın dövüşü, Kartal uzak silah ve teçhizatı, Ayı dayanıklılığı güçlendirir.
 - **Malzeme (11 tür):** Demir, Tunç, Gümüş, Altın, Kemik, Yeşim, Kara Taş, Od Taşı, Ayaz, Gök Demiri, Ruhani. Her biri statları ve rengi değiştirir ve kendi özelliğini getirir.
 - **Nadirlik (4 kademe):** Sıradan, Nadir, Destansı, Efsanevi. Kademe, kaç ek özellik geleceğini belirler.
-- **Ek özellikler ve kusurlar:** 24 ek özellik var; değerleri her düşüşte yuvarlanır. Kusurlu silahlar karşılığında %15 daha güçlüdür.
+- **Ek özellikler ve kusurlar:** 25 ek özellik var (v20: kalkan / teçhizatta "Tez Elli" saldırı hızı); değerleri her düşüşte yuvarlanır. Kusurlu silahlar karşılığında %15 daha güçlüdür.
 - **Kalite yüzdesi:** Her düşüşte hasar, hız, kritik, mekanik değeri ve özellikler yeniden yuvarlanır. Kalite yüzdesi o düşüşün ne kadar iyi geldiğini gösterir.
 - **Uygulama durumu:** `"impl": true` olanlar oyunda çalışıyor, diğerleri sırayla eklenecek.
 
@@ -1641,3 +1641,99 @@ yer çarpması, çıkartmalar, alev gölü, uyarı, gök gürlemesi, kökler, to
 **Bilinen kalanlar:** yaydaki kiriş/ok (`Player.BowString`, 1 px `draw_rect`) yay çalışmasının kapsamında, burada
 dokunulmadı. Ayarlar'daki "keskin piksel" tam sayı ölçekleme seçeneği HD/kamera çalışmasının kapsamında.
 
+
+## Dövüş temposu v20: biraz daha ağır kombolar, saldırı hızı statı, Kızışma
+
+Geri bildirim: "kombolar çok hızlı oldu, biraz yavaşlatalım. Saldırı hızı kazanabilmeliyiz. Bazı silahlarda vurdukça
+saldırı hızı artan bir pasif olsun. Kombo güzel görünüyor." Savuruş biçimleri, iptaller, ara bellekler, Kut Yankısı ve
+isabet iptali aynı; yalnızca evre süreleri değişti.
+
+### Genel yavaşlama (`Player.TEMPO_YAVAS`, `Player.TEMPO_V20`)
+
+Tek düğme `TEMPO_YAVAS` (1,0 = v20, 0 = v19 temposu, 1,5 = daha ağır). Her evre `1 + TEMPO_YAVAS × pay` ile çarpılır;
+sınıf payları `[ilk hazırlık, zincir hazırlığı, süpürme, kilit, toparlanma]`: hançer 0,05 / 0,15 / 0 / 0,25 / 0,15 · düello,
+kılıç, mızrak 0,05 / 0,15 / 0 / 0,22 / 0,15 · kırbaç 0,05 / 0,12 / 0 / 0,2 / 0,12 · uzun sap 0,04 / 0,12 / 0 / 0,18 / 0,12 ·
+ağır 0,03 / 0,06 / 0 / 0,1 / 0,08 · dev 0 / 0,06 / 0 / 0,1 / 0,06. Yanıt verme önce: basış→temas neredeyse aynı kalır, uzayan
+zincir aralığıdır (kilit + zincir hazırlığı). Süpürme (2-3 karelik son yay, smear karesi) hiç değişmez: kombonun görünüşü odur.
+
+Ölçüm (`-- --dovus --boss --hiz`, 60 Hz, ±1 kare; silah taban aps'iyle, niteliksiz; "önce" aynı betik `TEMPO_YAVAS = 0`):
+
+| Silah | basış→temas önce → sonra (ms) | zincir aralıkları önce → sonra (ms) | ortalama |
+|---|---|---|---|
+| İkiz Bıçak | 100 → 100 | 117, 100, 167 → 150, 100, 200 | +17% |
+| Böri Hançeri | 100 → 100 | 117, 117, 117 → 150, 117, 133 | +14% |
+| Kurt Pençeleri | 67 → 67 | 200, 133, 117 → 250, 133, 150 | +18% |
+| Ay Palası | 67 → 67 | 217, 117, 83 → 250, 133, 117 | +19% |
+| Yatağan | 100 → 117 | 167, 150, 200 → 183, 183, 233 | +15% |
+| Rüzgâr Kılıcı | 100 → 117 | 167, 200, 200 → 183, 233, 233 | +14% |
+| Alp Kılıcı | 133 → 133 | 183, 233, 233 → 217, 267, 283 | +18% |
+| Ruh / Yılan Kılıcı | 133 → 133 | 183, 233, 233 → 217, 250-267, 283 | +16-18% |
+| Ayaz Kılıcı | 133 → 133 | 233, 233, 233 → 267, 283, 267 | +17% |
+| Yıldırım Kılıcı | 133 → 133 | 183, 250, 267 → 217, 283, 317 | +16% |
+| Kargı / Tulpar | 150 → 150 | 167, 217, 200-233 → 200, 250, 250-283 | +19% |
+| Kement / Od Kamçısı | 183 → 183 | 233-267, 267-283, 267-283 → 250-300, 300-317, 300-317 | +12% |
+| Teber / Tırpan | 183 → 200 | 250, 267-317, 317-467 → 300, 300-350, 367-533 | +14-16% |
+| Gürz / Çivili Topuz | 267 → 283 | 367-417, 517, 450 → 383-450, 567, 450 | +6-7% |
+| Savaş Baltası / İkiz Balta | 267 → 283-300 | 433 / 367-633 → 450 / 367-667 | +4% |
+| Ulu Kılıç | 383 → 383 | 483, 817, 483 → 533, 883, 550 | +10% |
+| Bozgun Kılıcı | 367 → 367 | 417, 850, 567 → 467, 933, 633 | +10% |
+| Dağ / Kor Çekici | 367-383 → 367-383 | 550-567, 567-583, 550-567 → 583-617, 633, 600-617 | +8% |
+
+### Saldırı hızı statı (`Player.HIZ`, `hiz_kaynak`, `hiz_bonus`)
+
+Oyuncu statı (yüzde). Evrelerin hepsini (hazırlık, tutuş, süpürme, kilit, toparlanma) `1 / (1 + hız × sınıf etkisi)`
+oranında kısaltır; zincir aralığı ve basış→temas birlikte kısalır. Sınıf etkisi: hançer / düello / kılıç / mızrak 1,0,
+kırbaç 0,95, uzun sap 0,85, ağır 0,7, dev 0,6. Hiçbir evre okunurluk sınırının altına inmez (hazırlık 2 kare, süpürme 1,
+kilit 3 kare; taban zaten kısaysa tabanı korunur; %60'ta 27 silahın tüm zincirlerinde ihlal 0).
+
+| Kaynak | Değer | Nasıl kazanılır |
+|---|---|---|
+| Silah niteliği "Çevik" (`hiz`) | +%6-20, yalnız o silah | düşen silahta yuvarlanır (yay / fırlatma / büyüde de işler) |
+| Kalkan / teçhizat niteliği "Tez Elli" (`saldiri_hizi`) | +%4-10, kuşanılan her eşya | düşen kalkan / teçhizatta yuvarlanır |
+| Kurt ongunu (Kam Tılsımı) | seviye başına +%2 | bölümdeki tılsımlarla, koşu içinde |
+| Yel Ana'nın Soluğu (tanrı lütfu) | +%15 | tanrı sunağı, yurda dönene dek |
+| Kam Davulu (Umay Ana) | seviye başına +%4 (2 seviye: 40 / 85 Kut) | kalıcı |
+
+Kalıcı kaynakların toplamı **en çok %40** (`cap`); Kızışma bunun üstüne eklenir, hepsi birlikte **en çok %60** (`cap_all`).
+Yaylarda gerilme, en kısa bırakış ve atış kilidi hızın 0,6'sı oranında kısalır (`Okculuk.hiz_k`; tam bırakış penceresi aynı:
+%40'ta Türk yayı gerilme 400 → 322 ms, kilit 140 → 112 ms); fırlatma / büyü beklemesi 0,8'i oranında (`Player._sec_cd`).
+Duraklatma ekranında "Saldırı hızı +%N (kaynaklar)" satırı, eşya kartında "Hız" artık gerçek tempodan.
+
+Ölçüm (basış→temas / zincir aralıkları, ms): İkiz Bıçak %0 100/150-200 · %20 83/100-183 · %40 83/83-167; Alp %0 133/217-283
+· %20 100/200-233 · %40 100/150-200; Kargı %0 150/200-250 · %20 117/183-200 · %40 100/150-183; Gürz %0 283/450-567 · %20
+250/383-483 · %40 233/317-433; Ulu Kılıç %0 383/533-883 · %20 333/483-783 · %40 317/433-700.
+
+### Kızışma (silah pasifi; `items.json` "kizisma", `Player._kz_gain`, `scripts/core/KizismaFX.gd`)
+
+Her yakın isabet (savuruş geçişi başına bir yük: iki düşmana değen vuruş tek yük; çok vuruşlu tırmık / seri saplama her
+geçişte bir) bir yük verir, yük başına +%v saldırı hızı (ItemGen yuvarlar, kalite yüzdesine katılır). 1,8 sn vuruşsuz kalınca
+0,25 sn'de bir yük söner; hasar alınca tümden söner; silah değişince söner.
+
+| Silah | Yük başına | En çok yük | Tam yükte |
+|---|---|---|---|
+| İkiz Bıçak | +%3-5 | 6 | +%18-30 |
+| Böri Hançeri | +%3-5 | 5 | +%15-25 |
+| Kurt Pençeleri | +%4-6 | 5 | +%20-30 |
+| Rüzgâr Kılıcı | +%4-6 | 5 | +%20-30 |
+| Kement | +%5-8 | 4 | +%20-32 |
+| Od Kamçısı | +%5-8 | 4 | +%20-32 |
+
+Geri bildirim: kolda / bıçakta yükle yoğunlaşan mürekkep (savururken bıçağın uç yarısının son kareler yolunda 1-5 incelen
+hız çizgisi; her an elden geriye-yukarı savrulan ince tüller ve hafif hale; renk kızıl mürekkepten altına kayar), HUD'da
+yakın silah yuvasının üstünde yük taneleri ve "+%N hız", savuruş sesi tam yükte %8 incelir, tam yüke ulaşınca altın halka +
+gövde flaşı + "KIZIŞMA". Yatağanın eski "ivme" mekaniği aynı göstergeyi ve görseli (çelik renkte) kullanır, kuralı değişmedi.
+
+### Saniyedeki hasar (kart)
+
+`ItemGen.dps` yakın silahta artık `1 / aps` değil gerçek tempodan: zincirin adım çarpanları toplamı / bir zincir turunun süresi
+(`Player.tempo_aps`: hazırlık + tutuş + süpürme + kilit; v20 yavaşlaması, saldırı hızı, "Ağır" kusuru, ikiz bıçak / Ay Dansı
+hızlanması dahil; Kızışma sayılmaz). Kartın "Hız" değeri vuruş / sn (İkiz Bıçak ~9, Alp ~4,1, Gürz ~2,1). Uzak silahta
+aps × saldırı hızı.
+
+### Test
+
+`-- --dovus --boss` artık sonda v20 bölümünü de koşar; `--hiz` yalnız onu (`--hiz_silah=a,b` süzer): 27 silahta %0 / %20 / %40
+ve tam Kızışma ile basış→temas ve zincir aralıkları, en az kare denetimi, kaynak toplamı ve üst sınır, kart hızı / SnH (+%20
+Çevik), yay gerilmesi, Kızışma yük dizisi (İkiz Bıçak 9 savuruşta 1, 2, 4, 6...; Kement 1, 1, 2, 2, 3...), sönme, hasarla
+sönme, ses perdesi. `--klip20 --pencere=1920x1080 --anlik=<klasör>` (headless değil) Kızışma görsel / HUD anlık görüntüleri
+(`v20_*.png`). TAKILMA=0.

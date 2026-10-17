@@ -76,6 +76,56 @@ const TEMPO := {
 	"dev": [0.33, 0.267, 0.05, 0.2, 0.28, 0.067, 0.033],        # ulu kılıç, dağ / kor çekici, bozgun kılıcı
 }
 
+## ------------------------------------------------------------------ TEMPO v20: biraz daha ağır kombolar
+## Geri bildirim: "kombolar çok hızlı oldu, biraz yavaşlatalım; kombo güzel görünüyor." Savuruş biçimleri, iptaller ve ara
+## bellekler aynı; yalnızca evre süreleri uzar. Yanıt verme önce: ilk hazırlık (basış→temas) çok az uzar, uzayan asıl
+## zincir aralığıdır (kilit + zincir hazırlığı). Süpürme (bıçağın 2-3 karelik son yayı, smear karesi) hiç değişmez:
+## kombonun "görünüşü" odur.
+## Tek düğme: TEMPO_YAVAS. Her evrenin çarpanı 1 + TEMPO_YAVAS × pay; 0 = v19 temposu, 1 = v20, 1,5 = daha da ağır.
+## Sınıf payları (TEMPO_V20): [ilk hazırlık, zincir hazırlığı, süpürme, kilit, toparlanma]; hafif / orta silahta zincir
+## aralığı ~%15-18, ağır ~%7, dev ~%6 uzar (ölçüm: docs/TASARIM.md "v20").
+const TEMPO_YAVAS := 1.0
+const TEMPO_V20 := {
+	"hancer": [0.05, 0.15, 0.0, 0.25, 0.15],
+	"duello": [0.05, 0.15, 0.0, 0.22, 0.15],
+	"kilic": [0.05, 0.15, 0.0, 0.22, 0.15],
+	"mizrak": [0.05, 0.15, 0.0, 0.22, 0.15],
+	"kirbac": [0.05, 0.12, 0.0, 0.2, 0.12],
+	"uzun": [0.04, 0.12, 0.0, 0.18, 0.12],
+	"agir": [0.03, 0.06, 0.0, 0.1, 0.08],
+	"dev": [0.0, 0.06, 0.0, 0.1, 0.06],
+}
+
+## ------------------------------------------------------------------ SALDIRI HIZI (v20)
+## Oyuncu statı (yüzde): evre sürelerini (hazırlık, süpürme, kilit, toparlanma, tutuş) ve dolayısıyla zincir aralığını
+## 1 / (1 + hız × sınıf etkisi) oranında kısaltır. Kaynaklar (hiz_kaynak):
+##   silah   yakın silahın kendi "hiz" niteliği (Çevik, +%6-20; yalnız o silah için)
+##   techizat  kalkan / teçhizat "saldiri_hizi" niteliği (Tez Elli, +%4-10; kuşanılan her eşya toplanır)
+##   kurt    Kurt ongunu: tılsım seviyesi başına +%2 (koşu içinde kazanılır)
+##   lutuf   Yel Ana'nın Soluğu (tanrı sunağı): +%15, yurda dönene dek
+##   umay    Kam Davulu (Umay Ana, kalıcı): seviye başına +%4
+## Kalıcı kaynaklar toplamı "cap" ile sınırlı; Kızışma yükleri bunun üstüne eklenir, hepsi "cap_all"da durur. Ağır
+## silahlarda etkisi azalır ("sinif"); hiçbir evre "min_*" karesinin altına inmez (vuruş okunur kalsın). Yaylarda gerilme,
+## en kısa bırakış ve atış kilidi "yay" oranında, fırlatma / büyü beklemesi "atis" oranında kısalır.
+## KIZIŞMA (silah pasifi, items.json "kizisma"): her isabet (savuruş geçişi başına bir) bir yük ve yük başına +%kz_v
+## saldırı hızı verir (en çok kz_max); "kz_decay" sn vuruşsuz kalınca ya da hasar alınca söner. Kolda incelen mürekkep
+## hız çizgileri, HUD'da yuvanın üstünde yük taneleri, savuruş sesi incelir, tam yükte altın parıltı.
+const HIZ := {
+	"cap": 40.0,
+	"cap_all": 60.0,
+	"kurt": 2.0,
+	"lutuf": 15.0,
+	"umay": 4.0,
+	"sinif": {"hancer": 1.0, "duello": 1.0, "kilic": 1.0, "mizrak": 1.0, "kirbac": 0.95, "uzun": 0.85, "agir": 0.7, "dev": 0.6},
+	"min_wind": 0.033,      # hazırlık en az 2 kare (taban zaten kısaysa tabanın altına inmez)
+	"min_sweep": 0.0167,    # süpürme en az 1 kare
+	"min_lock": 0.05,       # kilit en az 3 kare
+	"yay": 0.6,
+	"atis": 0.8,
+	"kz_decay": 1.8,
+	"kz_pitch": 0.08,       # tam yükte savuruş sesi bu oranda incelir
+}
+
 ## ------------------------------------------------------------------ SAVURUŞLAR
 ## Ön kol ve silah oyunda sürülür. Anahtar: [t, a1, a2, w, k, ext, ease]
 ##   a1 üst kol açısı, a2 dirsek bükümü, w bilek (silahın ön kola göre açısı); 0 aşağı, pi/2 ileri, pi yukarı
@@ -1282,6 +1332,7 @@ func _physics_process(delta: float) -> void:
 		_feel(delta, 0.0)
 		return
 	_v12_tick(delta)
+	_hiz_tick(delta)   # v20 saldırı hızı / Kızışma
 	if grabbed_by != null:
 		if not is_instance_valid(grabbed_by) or grabbed_by.dead:
 			release_grab(Vector2(-facing * 120.0, -120.0))
@@ -2072,7 +2123,7 @@ func _weight(it: Dictionary) -> float:
 static var _base_aps: Dictionary = {}
 
 
-func _tempo_class(it: Dictionary) -> String:
+static func _tempo_class(it: Dictionary) -> String:
 	var id := String(it.get("id", ""))
 	if id in ["ulu_kilic", "dag_cekici", "kor_cekici", "bozgun_kilici"]:
 		return "dev"
@@ -2096,7 +2147,7 @@ func _tempo_class(it: Dictionary) -> String:
 	return "kilic"
 
 
-func _tempo_scale(it: Dictionary, spd_mult: float) -> float:
+static func _tempo_scale(it: Dictionary, spd_mult: float) -> float:
 	## Eşyanın taban aps'ine göre hız sapması (malzeme, kalite, nitelik, ivme): 1 = taban tempo
 	var id := String(it.get("id", ""))
 	if not _base_aps.has(id):
@@ -2107,13 +2158,28 @@ func _tempo_scale(it: Dictionary, spd_mult: float) -> float:
 func _phase_times(it: Dictionary, c: Dictionary, sw: Dictionary, chain: bool, spd_mult: float, kind := "") -> Array:
 	## [hazırlık, süpürme, kilit, toparlanma, tutuş] gerçek saniye: TEMPO + savuruşun çarpanları ("ws" hazırlık,
 	## "ss" kilit — çark / çok vuruşlu savuruşta yay kilit evresinde döner) + bitiriş / bekleme / ağır + adımın tm'si
-	var tp: Array = TEMPO[_tempo_class(it)]
+	## v20: + TEMPO_V20 yavaşlaması + saldırı hızı statı (hiz_bonus; Kızışma yükleri dahil)
+	return tempo_phases(it, c, sw, chain, spd_mult, kind, hiz_bonus(it))
+
+
+static func tempo_phases(it: Dictionary, c: Dictionary, sw: Dictionary, chain: bool, spd_mult: float, kind: String, hiz: float) -> Array:
+	## _phase_times'ın durumsuz çekirdeği (ItemGen.dps de bunu kullanır). hiz: saldırı hızı (oran, sınıf etkisi uygulanmış)
+	var cls := _tempo_class(it)
+	var tp: Array = TEMPO[cls]
 	var sc := _tempo_scale(it, spd_mult) * float(c.get("tm", 1.0))
 	var M := float(tp[2]) * float(sw.get("ms", 1.0))
 	var H := float(tp[6] if chain else tp[5])
 	var W := maxf(0.016, float(tp[1] if chain else tp[0]) - float(tp[2]) - H) * float(sw.get("ws", 1.0))
 	var L := float(tp[3]) * float(sw.get("ss", 1.0))
 	var R := float(tp[4]) * float(sw.get("rs", 1.0))
+	# v20 yavaşlama: süpürme payı (0) kombonun görünüşünü korur; uzayan kilit ve zincir hazırlığı
+	var sl: Array = TEMPO_V20.get(cls, [0.0, 0.0, 0.0, 0.0, 0.0])
+	var wk := 1.0 + TEMPO_YAVAS * float(sl[1] if chain else sl[0])
+	W *= wk
+	H *= wk
+	M *= 1.0 + TEMPO_YAVAS * float(sl[2])
+	L *= 1.0 + TEMPO_YAVAS * float(sl[3])
+	R *= 1.0 + TEMPO_YAVAS * float(sl[4])
 	if _contact_k(sw) <= float(sw["hit"][0]) + 0.001:
 		# temas anahtarı yok (çark, seri saplama): süpürme kilide katılır
 		L += M
@@ -2130,7 +2196,183 @@ func _phase_times(it: Dictionary, c: Dictionary, sw: Dictionary, chain: bool, sp
 		"heavy":   # ağır saldırı: hazırlığın çoğu şarjda geçer; bırakınca kısa, sert; kilit uzun (darbe oturur)
 			L *= 1.4
 			R *= 1.25
-	return [W * sc, M * sc, maxf(0.033, L * sc), maxf(0.05, R * sc), H * sc]
+	var out := [W * sc, M * sc, maxf(0.033, L * sc), maxf(0.05, R * sc), H * sc]
+	if hiz > 0.0:
+		# v20 saldırı hızı: her evre 1 / (1 + hiz) kısalır; en az okunur kare sayısı (taban zaten kısaysa taban)
+		var k := 1.0 / (1.0 + hiz)
+		var mins := [float(HIZ["min_wind"]), float(HIZ["min_sweep"]), float(HIZ["min_lock"]), 0.05, 0.0]
+		for i in 5:
+			out[i] = maxf(float(out[i]) * k, minf(float(out[i]), float(mins[i])))
+	return out
+
+
+## ------------------------------------------------------------------ v20 saldırı hızı ve Kızışma (HIZ tablosu)
+const KIZISMA_FX := preload("res://scripts/core/KizismaFX.gd")
+var kz_n := 0                  # Kızışma yükü
+var kz_t := 0.0                # son yükten beri geçen süre (sn)
+var kz_flash := 0.0            # tam yük parıltısı (1 → 0)
+var _kz_atk: Dictionary = {}   # yükün verildiği savuruş (geçiş başına bir yük)
+var _kz_pass := -1
+var _kz_id := ""               # yükün ait olduğu silah (silah değişince söner)
+var _kz_fx: Node2D
+var hiz_test := -1.0           # test (dovus_testi): >= 0 ise kalıcı kaynaklar yerine bu yüzde kullanılır
+
+
+static func hiz_kaynak(it: Dictionary) -> Dictionary:
+	## Kalıcı saldırı hızı kaynakları (yüzde). it: hızı sorulan silah (kendi "hiz" niteliği yalnız ona işler)
+	var out := {"silah": ItemGen.aff(it, "hiz"), "techizat": 0.0, "kurt": 0.0, "lutuf": 0.0, "umay": 0.0}
+	if Game.run.is_empty():
+		return out
+	var slots: Dictionary = Game.run.get("slots", {})
+	for sk in ["melee", "second", "g1", "g2"]:
+		var o: Dictionary = slots.get(sk, {})
+		if not o.is_empty():
+			out["techizat"] = float(out["techizat"]) + ItemGen.aff(o, "saldiri_hizi")
+	out["kurt"] = float(HIZ["kurt"]) * float(Game.run.get("ongun", {}).get("kurt", 0))
+	out["lutuf"] = float(HIZ["lutuf"]) if Game.has_lutuf("yel_ana") else 0.0
+	out["umay"] = float(HIZ["umay"]) * float(Game.umay_level("hiz"))
+	return out
+
+
+static func hiz_kalici(it: Dictionary) -> float:
+	## Kalıcı kaynakların toplamı (yüzde; üst sınır HIZ.cap)
+	var s := 0.0
+	for v in hiz_kaynak(it).values():
+		s += float(v)
+	return minf(float(HIZ["cap"]), s)
+
+
+static func hiz_oran(it: Dictionary, pct: float) -> float:
+	## yüzde → evre kısaltma oranı: mutlak üst sınır (cap_all) ve silah sınıfının etkisi (ağır silahta az)
+	return clampf(pct, 0.0, float(HIZ["cap_all"])) / 100.0 * float(HIZ["sinif"].get(_tempo_class(it), 1.0))
+
+
+func hiz_yuzde(it: Dictionary) -> float:
+	## Bu silah için şu anki saldırı hızı (yüzde): kalıcı kaynaklar + Kızışma yükleri
+	var base := hiz_test if hiz_test >= 0.0 else hiz_kalici(it)
+	return minf(float(HIZ["cap_all"]), base + kz_yuzde(it))
+
+
+func hiz_bonus(it: Dictionary) -> float:
+	return hiz_oran(it, hiz_yuzde(it))
+
+
+func kz_yuzde(it: Dictionary) -> float:
+	if not it.has("kz_v") or String(it.get("id", "")) != _kz_id:
+		return 0.0
+	return float(kz_n) * float(it["kz_v"])
+
+
+func hiz_yuk() -> Array:
+	## HUD / görsel: [yük, en çok, saldırı hızı yüzdesi, tür] — Kızışma ya da yatağanın ivmesi; ikisi de yoksa []
+	var it := slot(mel_slot)
+	if it.has("kz_v"):
+		var n := kz_n if String(it.get("id", "")) == _kz_id else 0
+		return [n, int(it.get("kz_max", 5)), kz_yuzde(it), "kizisma"]
+	if it.get("mech_id", "") == "ivme":
+		return [momentum, 5, float(momentum) * float(it.get("mech_v", 8.0)), "ivme"]
+	return []
+
+
+func _kz_gain(it: Dictionary) -> void:
+	## Kızışma: yakın vuruş isabeti; savuruş geçişi başına bir yük (çok düşmanlı vuruş tek yük, süreyi tazeler)
+	if not it.has("kz_v") or atk.is_empty() or String(it.get("id", "")) != String(slot(mel_slot).get("id", "")):
+		return
+	kz_t = 0.0
+	var mi := int(atk.get("multi_i", 0))
+	if is_same(atk, _kz_atk) and mi == _kz_pass:
+		return
+	_kz_atk = atk
+	_kz_pass = mi
+	if _kz_id != String(it.get("id", "")):
+		_kz_id = String(it.get("id", ""))
+		kz_n = 0
+	var mx := int(it.get("kz_max", 5))
+	if kz_n >= mx:
+		return
+	kz_n += 1
+	if kz_n >= mx:
+		# tam yük: kısa altın parıltı (gövde flaşı, halka, kolda altın mürekkep)
+		kz_flash = 1.0
+		anim.set_flash(0.32)
+		get_tree().create_timer(0.05).timeout.connect(func() -> void:
+			if is_instance_valid(self):
+				anim.set_flash(0.0))
+		FX.ring(center(), 20.0, Color(1.0, 0.84, 0.42), 0.28)
+		FX.text(center() + Vector2(0, -42), "KIZIŞMA", Color(1.0, 0.86, 0.45), 8)
+		Ses.play("yay_dolu", -12.0, 1.35)
+
+
+func kz_lose() -> void:
+	## Hasar alınca Kızışma tümden söner
+	kz_n = 0
+	kz_t = 0.0
+
+
+func _kz_pitch() -> float:
+	## Savuruş sesi Kızışma yüküyle hafifçe incelir
+	var y := hiz_yuk()
+	if y.is_empty() or int(y[1]) <= 0:
+		return 1.0
+	return 1.0 + float(HIZ["kz_pitch"]) * float(y[0]) / float(y[1])
+
+
+func _hiz_tick(delta: float) -> void:
+	## Her kare: Kızışma sönmesi (kz_decay sn vuruşsuz kalınca 0,25 sn'de bir yük), yay temposu, görsel düğüm
+	kz_t += delta
+	kz_flash = maxf(0.0, kz_flash - delta * 3.5)
+	if kz_n > 0:
+		if String(slot(mel_slot).get("id", "")) != _kz_id:
+			kz_n = 0
+		elif kz_t > float(HIZ["kz_decay"]):
+			kz_n -= 1
+			kz_t = float(HIZ["kz_decay"]) - 0.25
+	var bw := slot(sec_slot)
+	if bw.get("kind", "") == "bow":
+		var pct := hiz_test if hiz_test >= 0.0 else hiz_kalici(bw)
+		Okculuk.hiz_k = 1.0 / (1.0 + hiz_oran(bw, pct) * float(HIZ["yay"]))
+	else:
+		Okculuk.hiz_k = 1.0
+	if _kz_fx == null and is_inside_tree():
+		_kz_fx = KIZISMA_FX.new()
+		_kz_fx.set("pl", self)
+		add_child(_kz_fx)
+
+
+func _sec_cd(it: Dictionary) -> float:
+	## Fırlatma / büyü beklemesi: 1 / aps, saldırı hızıyla kısalır (HIZ.atis oranında)
+	var pct := hiz_test if hiz_test >= 0.0 else hiz_kalici(it)
+	return 1.0 / maxf(0.05, float(it["aps"])) / (1.0 + hiz_oran(it, pct) * float(HIZ["atis"]))
+
+
+static func tempo_aps(it: Dictionary, pct: float) -> Array:
+	## Sürekli zincirde (her temasta yeniden basış) [vuruş / sn, hasar çarpanı / sn]: ItemGen.dps ve kartın "Hız" değeri.
+	## Bir tur = zincirin her adımının hazırlık + tutuş + süpürme + kilit süresi (zincir içi; toparlanma görünmez).
+	var chain: Array = _combo_for(it)["chain"]
+	var hz := hiz_oran(it, pct)
+	var t := 0.0
+	var hits := 0.0
+	var mult := 0.0
+	for i in chain.size():
+		var c: Dictionary = chain[i]
+		var sw: Dictionary = SWINGS[c["s"]]
+		var spd := 1.0
+		if it.get("kind", "") == "dual":
+			spd *= 1.0 + 0.07 * i
+		if it.get("mech_id", "") == "ay_dansi":
+			spd *= 1.0 + float(it.get("mech_v", 6.0)) / 100.0 * i
+		if it.get("flaw", "") == "agir":
+			spd *= 0.88
+		var ph := tempo_phases(it, c, sw, true, spd, "", hz)
+		t += float(ph[0]) + float(ph[1]) + float(ph[2]) + float(ph[4])
+		var n := float((sw["multi"] as Array).size()) if sw.has("multi") else 1.0
+		if c.get("double", false):
+			n *= 2.0
+		hits += n
+		mult += n * float(c.get("mult", 1.0))
+	if t <= 0.0:
+		return [0.0, 0.0]
+	return [hits / t, mult / t]
 
 
 func _atk_advance(delta: float) -> void:
@@ -2162,7 +2404,7 @@ func _atk_advance(delta: float) -> void:
 		rem -= to_end
 
 
-func _contact_k(sw: Dictionary) -> float:
+static func _contact_k(sw: Dictionary) -> float:
 	## İsabetin başladığı an (bıçağın düşmana vardığı kare): savuruşun "ck"si; yoksa vuruş penceresinden sonraki ilk
 	## anahtar (hızlanan yayın sonu). Çark ve çok vuruşlu savuruşlarda pencerenin başı.
 	if sw.has("ck"):
@@ -2176,7 +2418,7 @@ func _contact_k(sw: Dictionary) -> float:
 	return h0
 
 
-func _combo_for(it: Dictionary) -> Dictionary:
+static func _combo_for(it: Dictionary) -> Dictionary:
 	if COMBOS_EXTRA.has(it.get("id", "")):
 		return COMBOS_EXTRA[it["id"]]
 	if COMBOS.has(it.get("id", "")):
@@ -2226,7 +2468,7 @@ func _start_attack(step: int) -> void:
 		facing = int(signf(ex_t.global_position.x - global_position.x)) if absf(ex_t.global_position.x - global_position.x) > 1.0 else facing
 		anim.set_facing(facing)
 	var sw: Dictionary = SWINGS[c["s"]]
-	var spd_mult := 1.0 + ItemGen.aff(it, "hiz") / 100.0
+	var spd_mult := 1.0   # v20: "hiz" niteliği artık saldırı hızı statında (hiz_bonus)
 	if it.get("mech_id", "") == "ivme":
 		spd_mult *= 1.0 + momentum * float(it.get("mech_v", 8.0)) / 100.0
 	if it.get("kind", "") == "dual":
@@ -3218,7 +3460,7 @@ func _begin_heavy(it: Dictionary) -> void:
 	## Ağır saldırı: hazırlık pozunda şarj; bırakınca (ya da dolup 0.5 sn geçince) silahın özgün ağır vuruşu
 	var h := _heavy_for(it)
 	var sw: Dictionary = SWINGS[h["s"]]
-	var spd_mult := 1.0 + ItemGen.aff(it, "hiz") / 100.0
+	var spd_mult := 1.0   # v20: "hiz" niteliği artık saldırı hızı statında (hiz_bonus)
 	if it["flaw"] == "agir":
 		spd_mult *= 0.88
 	var ph := _phase_times(it, h, sw, false, spd_mult, "heavy")
@@ -3664,6 +3906,8 @@ func _melee_hits() -> void:
 
 # ------------------------------------------------------------------ hasar hesabı
 func _deal(e: Node, base: float, it: Dictionary, opts: Dictionary = {}) -> void:
+	if not opts.get("ok", false):
+		_kz_gain(it)   # v20 Kızışma (yakın vuruş isabeti)
 	var d := base * Game.item_mult(opts.get("scale_item", it))
 	d *= 1.0 + ItemGen.aff(it, "hasar") / 100.0
 	var hp_k := float(Game.run["hp"]) / max_hp()
@@ -3941,6 +4185,7 @@ func _swing_sfx(it: Dictionary, sw: Dictionary, is_pause: bool) -> void:
 		pit *= 1.1
 	if sname in ["whip_crack", "whip_side"]:
 		name = "savur_kirbac"
+	pit *= _kz_pitch()   # v20: Kızışma yüküyle incelir
 	Ses.play(name, vol, pit, 0.06)
 	if is_pause:
 		Ses.play("savur_dev", -7.0, 1.1, 0.05, 0.0)
@@ -4005,7 +4250,7 @@ func _throw_item(it: Dictionary) -> void:
 			f.on_hit = func(e: Node) -> void:
 				_deal(e, float(it["dmg"]), it, {"kb": 50.0, "dir": signf(e.center().x - origin.x), "far": e.center().distance_to(origin) > 150.0})
 			level.add_projectile(f)
-		cd[sec_slot] = 1.0 / float(it["aps"])
+		cd[sec_slot] = _sec_cd(it)
 		cd_max[sec_slot] = cd[sec_slot]
 		vis_scale = Vector2(1.06, 0.95)
 		return
@@ -4020,7 +4265,7 @@ func _throw_item(it: Dictionary) -> void:
 		p.on_explode = func(pos: Vector2) -> void:
 			level.quake(pos, r, float(it["dmg"]), it, self)
 		level.add_projectile(p)
-		cd[sec_slot] = 1.0 / float(it["aps"])
+		cd[sec_slot] = _sec_cd(it)
 		cd_max[sec_slot] = cd[sec_slot]
 		vis_scale = Vector2(1.1, 0.9)
 		return
@@ -4032,7 +4277,7 @@ func _throw_item(it: Dictionary) -> void:
 	p.on_hit = func(e: Node) -> void:
 		_deal(e, float(it["dmg"]), it, {"kb": 90.0, "dir": facing, "stun": 0.25 if it["id"] == "coban_sapani" else 0.0})
 	level.add_projectile(p)
-	cd[sec_slot] = 1.0 / float(it["aps"])
+	cd[sec_slot] = _sec_cd(it)
 	cd_max[sec_slot] = cd[sec_slot]
 	vis_scale = Vector2(1.08, 0.94)
 
@@ -4712,6 +4957,7 @@ func take_hit(dmg: float, from: Node, projectile: Node = null, forced := false) 
 		FX.ring(center(), 64, Color(1.0, 0.45, 0.35), 0.5)
 		Game.slowmo(0.25, 0.6)
 	Game.run["hp"] = float(Game.run["hp"]) - dmg
+	kz_lose()   # v20: hasar Kızışmayı söndürür
 	# v15 süper zırh: ağır savuruş sürerken hasar alınır ama savuruş kesilmez, geri itme / sarsılma yok
 	var armored: bool = not atk.is_empty() and bool(atk.get("super_armor", false)) and float(Game.run["hp"]) > 0.0
 	inv_t = 0.8 if not armored else 0.35
@@ -4888,7 +5134,7 @@ func _cast_magic(it: Dictionary) -> void:
 	Ses.play("buyu", -4.0)
 	var mv := float(it.get("mech_v", 3))
 	var power := Game.item_mult(it)
-	cd[sec_slot] = 1.0 / float(it["aps"])
+	cd[sec_slot] = _sec_cd(it)
 	cd_max[sec_slot] = cd[sec_slot]
 	cast_t = 0.35
 	anim.show_frame("cast", 1)

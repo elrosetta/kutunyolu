@@ -224,6 +224,15 @@ func _run() -> void:
 		get_tree().quit()
 		return
 	var sum := {}
+	if OS.get_cmdline_user_args().has("--klip20"):
+		await _klip20()
+		get_tree().quit()
+		return
+	if OS.get_cmdline_user_args().has("--hiz"):
+		await _hiz()
+		_p("TAKILMA=%d" % stuck)
+		get_tree().quit()
+		return
 	if OS.get_cmdline_user_args().has("--v19"):
 		await _v19()
 		_p("TAKILMA=%d" % stuck)
@@ -309,6 +318,8 @@ func _run() -> void:
 	_p("TEMPO " + tline)
 	# ---------------------------------------------------------------- 1c) v19 mekanikleri
 	await _v19()
+	# ---------------------------------------------------------------- 1d) v20 saldırı hızı ve Kızışma
+	await _hiz()
 	# ---------------------------------------------------------------- 2) iptaller (alp kılıcı)
 	var w0 := "alp_kilici"
 	await _reset(w0)
@@ -798,7 +809,7 @@ var _snap_dir := ""
 var _snap_n := 0
 
 
-func _snap(tag: String) -> void:
+func _snap(tag: String, pre := "v19") -> void:
 	## --anlik=<klasör>: o anki kareyi PNG kaydet (HDR 2D doğrusal → sRGB)
 	if _snap_dir == "":
 		for arg in OS.get_cmdline_user_args():
@@ -813,7 +824,7 @@ func _snap(tag: String) -> void:
 			img.convert(Image.FORMAT_RGBA8)
 		img.linear_to_srgb()
 	_snap_n += 1
-	var out := "%s/v19_%02d_%s.png" % [_snap_dir, _snap_n, tag]
+	var out := "%s/%s_%02d_%s.png" % [_snap_dir, pre, _snap_n, tag]
 	img.save_png(out)
 	_p("anlik %s" % out)
 
@@ -965,3 +976,259 @@ func _klip19() -> void:
 		_release_all()
 		await _f(24)
 
+
+# ================================================================== v20: saldırı hızı statı ve Kızışma
+const KZ_WEAPONS := ["ikiz_bicak", "bori_hanceri", "kurt_pencesi", "ruzgar_kilici", "kement", "od_kamcisi"]
+
+
+func _hiz_reset(w: String, pct: float) -> void:
+	## silahı taban aps'iyle (malzeme / kalite sapması yok: ölçüm kararlı) kuşan, saldırı hızını sabitle
+	await _reset(w)
+	var it: Dictionary = Game.run["slots"]["melee"]
+	it["aps"] = float(Data.find_item(w)["aps"])
+	it["affixes"] = []
+	it["flaw"] = ""
+	pl.hiz_test = pct
+	pl.kz_n = 0
+
+
+func _tempo_olc(w: String, kz_full := false) -> Array:
+	## 20 Hz seri basış: [basış→temas (kare), zincir aralıkları (ms)] — 1b ile aynı yöntem
+	var contacts: Array = []
+	var cur: Dictionary = {}
+	var seen := false
+	var first_ck := -1
+	var it: Dictionary = Game.run["slots"]["melee"]
+	for i in 300:
+		if kz_full:
+			pl.kz_n = int(it.get("kz_max", 5))
+			pl._kz_id = w
+			pl.kz_t = 0.0
+		if i % 3 == 0 and contacts.size() < 4:
+			Input.action_press("saldiri1")
+		elif i % 3 == 1:
+			Input.action_release("saldiri1")
+		await _f()
+		if not is_same(pl.atk, cur):
+			cur = pl.atk
+			seen = false
+		if not pl.atk.is_empty() and not seen and _at_contact():
+			seen = true
+			contacts.append(i)
+			if first_ck < 0:
+				first_ck = i + 1
+		if contacts.size() >= 4:
+			break
+	Input.action_release("saldiri1")
+	var gaps: Array = []
+	for j in range(1, contacts.size()):
+		gaps.append(int(round((int(contacts[j]) - int(contacts[j - 1])) * 1000.0 / 60.0)))
+	return [first_ck, gaps]
+
+
+func _hiz() -> void:
+	_p("---- v20 saldırı hızı (TEMPO_YAVAS=%s, üst sınır %%%d / Kızışma dahil %%%d)" % [str(Player.TEMPO_YAVAS), int(Player.HIZ["cap"]), int(Player.HIZ["cap_all"])])
+	var only := ""
+	for arg in OS.get_cmdline_user_args():
+		if String(arg).begins_with("--hiz_silah="):
+			only = String(arg).trim_prefix("--hiz_silah=")
+	# --- 1) tempo tablosu: saldırı hızı 0 / 20 / 40 ve tam Kızışma
+	var line := ""
+	for w in TEMPO_WEAPONS:
+		if only != "" and not (w in only.split(",")):
+			continue
+		var row := "%s" % w
+		for pct in [0.0, 20.0, 40.0]:
+			await _hiz_reset(w, pct)
+			var r := await _tempo_olc(w)
+			row += " | %%%d: %d/%s" % [int(pct), int(round(int(r[0]) * 1000.0 / 60.0)), str(r[1])]
+			await _idle_check("hiz/%s/%d" % [w, int(pct)])
+		if w in KZ_WEAPONS:
+			await _hiz_reset(w, 0.0)
+			var it: Dictionary = Game.run["slots"]["melee"]
+			var r2 := await _tempo_olc(w, true)
+			row += " | Kızışma %d×%s: %d/%s" % [int(it["kz_max"]), ItemGen.fmt(float(it["kz_v"])), int(round(int(r2[0]) * 1000.0 / 60.0)), str(r2[1])]
+			pl.kz_n = 0
+			await _idle_check("hiz/%s/kz" % w)
+		_p("hiz " + row)
+		line += row + " || "
+	pl.hiz_test = -1.0
+	# --- 2) en az kare: %60'ta hiçbir evre okunurluk sınırının (ya da zaten kısaysa tabanın) altına inmiyor
+	var bad := 0
+	for w in TEMPO_WEAPONS:
+		var it2 := ItemGen.roll(w, 1, "demir", 0)
+		it2["aps"] = float(Data.find_item(w)["aps"])
+		for c in Player._combo_for(it2)["chain"]:
+			var sw: Dictionary = Player.SWINGS[c["s"]]
+			var p0 := Player.tempo_phases(it2, c, sw, true, 1.0, "", 0.0)
+			var p6 := Player.tempo_phases(it2, c, sw, true, 1.0, "", Player.hiz_oran(it2, 60.0))
+			var mins := [float(Player.HIZ["min_wind"]), float(Player.HIZ["min_sweep"]), float(Player.HIZ["min_lock"])]
+			for i in 3:
+				if float(p6[i]) < minf(float(p0[i]), float(mins[i])) - 0.0001:
+					bad += 1
+	_p("hiz en_az_kare ihlali=%d" % bad)
+	# --- 3) kaynaklar ve üst sınır
+	await _reset("alp_kilici")
+	var mel: Dictionary = Game.run["slots"]["melee"]
+	mel["affixes"] = [{"id": "hiz", "v": 12.0}]
+	var shield := ItemGen.roll("yuvarlak_kalkan", 1, "demir", 0)
+	shield["affixes"] = [{"id": "saldiri_hizi", "v": 8.0}]
+	Game.run["slots"]["g2"] = shield
+	var kurt0 := int(Game.run["ongun"]["kurt"])
+	Game.run["ongun"]["kurt"] = 3
+	var lut0: Array = (Game.run.get("lutuf", []) as Array).duplicate()
+	Game.grant_lutuf("yel_ana")
+	_p("hiz kaynaklar=%s toplam=%%%s" % [str(Player.hiz_kaynak(mel)), ItemGen.fmt(Player.hiz_kalici(mel))])
+	Game.run["ongun"]["kurt"] = 30
+	_p("hiz üst_sınır: Kurt 30 → toplam=%%%s (en çok %%%d)" % [ItemGen.fmt(Player.hiz_kalici(mel)), int(Player.HIZ["cap"])])
+	Game.run["ongun"]["kurt"] = 0
+	Game.run["lutuf"] = []
+	Game.run["slots"]["g2"] = {}
+	mel["affixes"] = []
+	var dps_line := ""
+	for w in ["ikiz_bicak", "alp_kilici", "kargi", "gurz", "ulu_kilic"]:
+		var it3 := ItemGen.roll(w, 1, "demir", 0)
+		it3["aps"] = float(Data.find_item(w)["aps"])
+		it3["affixes"] = []
+		it3["flaw"] = ""
+		var a0 := ItemGen.aps_eff(it3)
+		var d0 := ItemGen.dps(it3)
+		it3["affixes"] = [{"id": "hiz", "v": 20.0}]
+		var a20 := ItemGen.aps_eff(it3)
+		var d20 := ItemGen.dps(it3)
+		dps_line += "%s hız %s→%s/sn SnH %s→%s | " % [w, ItemGen.fmt(a0), ItemGen.fmt(a20), ItemGen.fmt(d0), ItemGen.fmt(d20)]
+	_p("hiz kart (+%20 Çevik): " + dps_line)
+	Game.run["ongun"]["kurt"] = kurt0
+	Game.run["lutuf"] = lut0
+	# --- 4) yay: gerilme ve atış kilidi
+	pl.hiz_test = 0.0
+	await _f(2)
+	var d0b := Okculuk.prof(Game.run["slots"]["second"])
+	var dr0 := float(d0b["draw"])
+	var rc0 := float(d0b["rec"])
+	pl.hiz_test = 40.0
+	await _f(2)
+	var d40 := Okculuk.prof(Game.run["slots"]["second"])
+	_p("hiz yay (Türk yayı): gerilme %d → %d ms, kilit %d → %d ms (%%40)" % [int(dr0 * 1000.0), int(float(d40["draw"]) * 1000.0), int(rc0 * 1000.0), int(float(d40["rec"]) * 1000.0)])
+	pl.hiz_test = -1.0
+	await _f(2)
+	# --- 5) Kızışma: yük kazanma (iki düşmana vuruş tek yük), sönme, hasar
+	for w in ["ikiz_bicak", "kement"]:
+		await _hiz_reset(w, 0.0)
+		pl.hiz_test = -1.0
+		var it4: Dictionary = Game.run["slots"]["melee"]
+		var dx := 22.0 if w == "ikiz_bicak" else 40.0
+		var e := _enemy(dx)
+		var e2 := _enemy(dx + 8.0)
+		await _f(4)
+		var seq: Array = []
+		for i in 9:
+			Input.action_press("saldiri1")
+			await _f(1)
+			Input.action_release("saldiri1")
+			for k in 11:
+				await _f(1)
+				_pin(e, dx)
+				_pin(e2, dx + 8.0)
+			seq.append(pl.kz_n)
+		var full_t := -1.0
+		var t0 := Game.clock()
+		var decay_first := -1.0
+		var n0 := pl.kz_n
+		while Game.clock() - t0 < 4.0:
+			await _f(1)
+			if decay_first < 0.0 and pl.kz_n < n0:
+				decay_first = Game.clock() - t0
+			if pl.kz_n == 0:
+				full_t = Game.clock() - t0
+				break
+		_p("hiz Kızışma %s (+%%%s × %d): 9 savuruşta yük=%s; ilk sönme %.2f sn, tümden %.2f sn" % [w, ItemGen.fmt(float(it4["kz_v"])), int(it4["kz_max"]), str(seq), decay_first, full_t])
+		# hasar alınca söner
+		pl.kz_n = 3
+		pl._kz_id = w
+		pl.kz_t = 0.0
+		pl.inv_t = 0.0
+		pl.roll_t = 0.0
+		pl.take_hit(3.0, e)
+		_p("hiz Kızışma hasar sonrası yük=%d" % pl.kz_n)
+		pl.inv_t = 0.0
+		pl.hurt_t = 0.0
+		_clear_enemies()
+		await _idle_check("hiz/kz/" + w)
+	# ses perdesi
+	await _hiz_reset("ikiz_bicak", 0.0)
+	pl.kz_n = int(Game.run["slots"]["melee"]["kz_max"])
+	pl._kz_id = "ikiz_bicak"
+	_p("hiz ses perdesi tam yükte ×%s" % ItemGen.fmt(pl._kz_pitch()))
+	pl.kz_n = 0
+	pl.hiz_test = -1.0
+	_p("HIZ " + line)
+
+
+func _klip20() -> void:
+	## --dovus --boss --klip20 --anlik=<klasör> (headless değil): Kızışma görseli ve HUD göstergesi anlık görüntüleri
+	_track = false
+	await _hiz_reset("ikiz_bicak", 0.0)
+	pl.hiz_test = -1.0
+	var e := _enemy(26.0)
+	var e2 := _enemy(40.0)
+	await _f(150)  # bölüm adı kartı kaybolsun
+	var done := {}
+	for i in 40:
+		Input.action_press("saldiri1")
+		await _f(1)
+		Input.action_release("saldiri1")
+		for k in 8:
+			await _f(1)
+			_pin(e, 26.0)
+			_pin(e2, 40.0)
+			if pl.kz_n in [2, 4] and not done.has(pl.kz_n) and not pl.atk.is_empty() and pl.atk.get("phase", "") == "act":
+				done[pl.kz_n] = true
+				await _snap("kizisma_yuk%d" % pl.kz_n, "v20")
+			if pl.kz_flash > 0.6 and not done.has("tam"):
+				done["tam"] = true
+				await _snap("kizisma_tam_parilti", "v20")
+		if done.has("tam") and i > 12:
+			break
+	# tam yükte savuruş (hız çizgileri)
+	for i in 6:
+		Input.action_press("saldiri1")
+		await _f(1)
+		Input.action_release("saldiri1")
+		for k in 8:
+			await _f(1)
+			_pin(e, 26.0)
+			_pin(e2, 40.0)
+			if i == 3 and k == 3:
+				await _snap("kizisma_tam_savurus", "v20")
+	# düşmansız: tam yükte boşa savuruş (hız çizgileri net görünsün) ve dururken eldeki tüller
+	_clear_enemies()
+	for i in 4:
+		Input.action_press("saldiri1")
+		await _f(1)
+		Input.action_release("saldiri1")
+		for k in 8:
+			pl.kz_n = int(Game.run["slots"]["melee"]["kz_max"])
+			pl.kz_t = 0.0
+			await _f(1)
+			if i == 2 and k in [2, 4]:
+				await _snap("kizisma_bos_savurus_%d" % k, "v20")
+	for k in 40:
+		pl.kz_n = int(Game.run["slots"]["melee"]["kz_max"])
+		pl.kz_t = 0.0
+		await _f(1)
+	await _snap("kizisma_durus", "v20")
+	# kement ile yük
+	await _hiz_reset("kement", 0.0)
+	pl.hiz_test = -1.0
+	e = _enemy(40.0)
+	for i in 10:
+		Input.action_press("saldiri1")
+		await _f(1)
+		Input.action_release("saldiri1")
+		for k in 12:
+			await _f(1)
+			_pin(e, 40.0)
+			if i == 6 and k == 4:
+				await _snap("kizisma_kement", "v20")
+	await _f(10)
