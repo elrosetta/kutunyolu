@@ -1737,3 +1737,75 @@ ve tam Kızışma ile basış→temas ve zincir aralıkları, en az kare denetim
 Çevik), yay gerilmesi, Kızışma yük dizisi (İkiz Bıçak 9 savuruşta 1, 2, 4, 6...; Kement 1, 1, 2, 2, 3...), sönme, hasarla
 sönme, ses perdesi. `--klip20 --pencere=1920x1080 --anlik=<klasör>` (headless değil) Kızışma görsel / HUD anlık görüntüleri
 (`v20_*.png`). TAKILMA=0.
+
+## Bengü v20: kurt başlıklı kadın savaşçı ve fizikli uzun saç
+
+İstek: "Bengü bir kadın adı; kurt başı yerine kurt başlığı olsun, uzun ve güzel saçı fizikli olsun, iyi bir fiziği olsun."
+Bengü artık kurt kafalı bir yaratık değil: Asena / Bozkurt soyundan bir bozkır şaman-savaşçısı kadın. Kurt kimliği başlıkta
+yaşar; gerçek kurt biçimi (Kut gücü "Bozkurt" dönüşümü, `bengu_kurt_v2`) aynen kurt kalır.
+
+### Tasarım (`tools/artgen/bengu_ink.py`)
+- **Kurt başlığı:** ak kurdun üst kafatası başın üstüne oturur; kalın burnu alnın üstünden öne uzanır (iri siyah burun ucu),
+  kulaklar dik, üst çenenin iki köpek dişi alnın önünde sarkar. Başlığın gözü camgöbeği ışır (eski "Kut gözü" kimliği ışıma
+  katmanında sürüyor), alnında kırmızı tamga, burun yanında savaş boyası. Yan post yüzün arkasını örter, boyunda omuzlara
+  inen gri kurt postu pelerine bağlanır (alt kenarı tutamlı); ön pençe omuzdan göğse sarkar, altın toka + turkuaz taş.
+- **Yüz:** yandan insan profili (yüz başlığa göre 1,18 büyük çizilir: 1080p'de ~25 px yüz okunur), kurt burnunun gölgesinde
+  badem göz (koyu camgöbeği bebek, beyaz parıltı), kalın kaş, kanatlı üst kirpik, ince dudak; elmacık kemiği boyunca kalın +
+  ince kırmızı savaş boyası, çenede dikey çizgi. Şakaktan çene altına inen saç tutamı ve kurt burnunun altından kâkül yüzü
+  çerçeveler. Açık ağız (`jaw`) savaş narası olarak çizilir.
+- **Fizik:** atletik kahraman oranı (~7 baş), kadın gövdesi: omuzlar biraz dar, bel ince (iki kat sarılı turkuaz kuşakla
+  sıkılı), kalça hafif geniş; göğüs lamel yeleğin altında (cinselleştirme yok). Kollar `AW` = 0,88, omuzluk `AWP` = 0,86
+  incelikte (kemik boyları ve Player.gd kol iskeleti aynı).
+- **Renk kimliği** korunur: kırmızı kaftan + altın sırma, çelik lamel yelek / omuzluk / dizlik, çivit şalvar, kahve çizme,
+  turkuaz (eski boyun atkısı artık belde kuşak; iki kuyruğu belin arkasından sarkar).
+- Kare düzeni, hücre (384x320), köken, kemik boyları ve kol parçaları (`bengu_kol_v2`) aynı: SpriteAnim, vuruş kutuları,
+  silah tutuşu, hayalet / vuruş karesi değişmez. Yeni kare çapaları (json, her kare): `sac` (saçın başlığın arka kenarından
+  çıktığı ense noktası), `sac_d` (kökün ilk doğrultusu, ekran açısı), `neck`, `hip` (sırt çizgisi). Yuvarlanmada tuval
+  dönüşümü uygulanmış hâlleri yazılır (saç topla döner).
+
+### Uzun saç (`scripts/core/BenguSac.gd`, `shaders/bengu_sac.gdshader`)
+Sprite'a çizilmez: her kare çalışma zamanında benzetilir ve mürekkep-cel fırça şeridi olarak çizilir.
+- **Zincirler:** gür at kuyruğu (12 nokta x 2,2 = ~26 birim, beline iner), uzak örgü (9 x 2,0, gövdenin arkasında), yakın örgü
+  (8 x 1,9, kulağın arkasından omuz üstüne düşer). Kök = `sac` çapası + baş çerçevesinde ofset; ikinci nokta `sac_d`
+  doğrultusuna çekilir (saç başlığın altından belli bir yönde çıkar).
+- **Benzetim:** küresel uzayda Verlet, sabit 1/120 sn alt adım (kare hızından bağımsız; en çok 8 adım/kare). Yerçekimi 430,
+  hava sürtünmesi 6,6/sn (mutlak hıza göre: koşuda saç arkaya akar, sıçrayışta aşağı, düşüşte yukarı savrulur), hafif sürekli
+  esinti + ara ara sağanak, koşuda uçlarda çırpınma. Kısıtlar Jakobsen gevşetmesiyle (alt adım başına 8 tur): iki yönlü parça
+  boyu (kök sabit), bükülme = i ile i+2 arası en kısa uzaklık (kökte ~düz, uçta serbest; katlanma/zikzak yok), %4 uzama sınırı
+  (önceki konum da kaydırılır: hız eklenmez). İlk deneme "lideri izle" (FTL) kamçılanıp titriyordu; çevrimdışı benzetimle
+  (koşu + 14 fps basamaklı baş sıçraması) karşılaştırılıp bırakıldı.
+- **Çapa yumuşatma:** sprite karesi 8-18 fps'de değişir; çapa yerel uzayda kısa üstel yumuşatmadan geçer (yoksa koşunun her
+  karesindeki baş sıçraması saçı kamçılar). Yön değişince yumuşatılmış çapa aynalanır; saç küresel uzayda kaldığı için kesmeden
+  öbür yana savrulur.
+- **Gövde:** sırt kapsülü (boyun -> kalça, sprite silüetine denk yarıçap 6,6 -> 5,8, kalça altında etek açılır); içine giren
+  nokta dışarı, göğüs yanındaysa sırt yanına itilir. At kuyruğu kapsülün 0,8'iyle sırtın üstünde yatar. Yerdeyken saç toprağa
+  girmez, sürtünür. Işınlanmada (>48 birim) ve yeniden görünürken (kurt / Don dönüşümü bitişi) dinlenme duruşundan başlar.
+- **Katmanlar:** iki düğüm de SpriteAnim'in çocuğu (ezilme/esneme, eğilme ve görünürlük gövdeyle aynı). Arka katman
+  (SpriteAnim'in ilk çocuğu): uzak örgü. Ön katman (gövde sprite'ının hemen önü, kol iskeletinin altı): at kuyruğu post
+  pelerinin üstüne düşer (koyu saç ak postun üstünde en iyi okunur; arkada çizilince sırtta silüetin içinde kayboluyordu),
+  yakın örgü. Kök başlığın altında altın saç bağıyla başlar.
+- **Çizim:** `RenderingServer.canvas_item_add_triangle_array` ile şerit (Catmull-Rom x3). At kuyruğu aynı eğri üzerinde beş
+  tutam (uca doğru açılır, boyları farklı; aradaki kontur tel ayrımı olur) + iki uçuşan ince tel. Örgü: V loblu plak deseni,
+  ucunda altın halka, serbest püskül, turkuaz boncuk. Gölgelendirici: silindir normaliyle iki tonlu cel (ışık sol üst), kırık tel
+  parlaması, gölgede kesik mürekkep tel çizgileri, kökte başlık gölgesi; kontur ekran türeviyle (fwidth) kenar yumuşatmalı,
+  kalınlığı genişlikten bağımsız 0,3 birim. Vuruş parlaması / zehir tonu / ay gölgesi gövde malzemesinden kopyalanır, ışıklar
+  ink_char ile aynı.
+- **Dikkat (HDR 2D):** görüntü alanı `use_hdr_2d` iken Godot köşe renklerini sRGB -> doğrusal çevirir; şerit verisi köşe
+  renginde taşındığı için gölgelendirici `vcol_linear` ile geri çevirir (yoksa örgü kipi "post" kipine düşüp saydam/ak
+  görünüyordu).
+- Yalnızca stil v2 (v1 piksel görünümde `BenguSac.ekle` saç takmaz). Duraklatmada / başlık ekranında ilk duruş çizilir,
+  benzetim durur.
+
+### HD paketi
+`KY_HD=2 python export_ink.py --bengu` + `python hd_paket.py --paketle`: `bengu_v2`, `_p1`, `_p2`, `bengu_kol_v2` yeniden
+üretildi, manifest md5'leri güncel (oyun HD'den temel dokuya düşmez).
+
+### Test
+`tools/tests/bengu_testi.gd`:
+- `godot --headless --path . --quit-after 99999 -- --bengu [--boss]`: saç zincirlerinin sağlığı (NaN yok, uzama < %6,
+  erim zincir boyunu aşmıyor), durgunken saç gövdenin önüne geçmiyor, koşuda arkaya akıyor, sola dönünce öbür yana geçiyor,
+  kurt dönüşümünde gizli, dönüşten sonra yeniden görünür. Sonda `[bengu] OZET hata=n`.
+- `godot --path . --fixed-fps 60 -- --bengu=C:/mutlak/klasor --boss --pencere=1920x1080 [--doku=2] [--sac_yakin]`: durgun,
+  koşu, sıçrayış, saldırı, yay germe, yuvarlanma, dönüş, kurt ve kurt sonrası çekimleri (+ `k_*` yakın kırpım) ve
+  koşu -> duruş -> sıçrayış kare dizisi (`dizi/sNNN.png`). `--sac_yakin` kamerayı ~2,2 kat yaklaştırır, `--sac_renk` şeritleri
+  hata ayıklama renkleriyle çizer, `--sac_govdesiz` sırt çarpışmasını kapatır.

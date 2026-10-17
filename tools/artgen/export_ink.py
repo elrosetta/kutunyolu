@@ -102,7 +102,7 @@ def _page_name(name, k):
 
 def _frame_meta(info):
     fr = {}
-    for k in ('hand_f', 'hand_b', 'mouth', 'hand', 'head', 'sh_f', 'sh_b'):
+    for k in ('hand_f', 'hand_b', 'mouth', 'hand', 'head', 'sh_f', 'sh_b', 'sac', 'neck', 'hip'):
         if info and k in info:
             fr[k] = [round(info[k][0], 2), round(info[k][1], 2)]
     for k in ('arm', 'arm_b'):
@@ -111,6 +111,8 @@ def _frame_meta(info):
     for k in ('ang_f', 'ang_b'):
         if info and k in info:
             fr[k] = round(ang_of(info[k]), 4)
+    if info and 'sac_d' in info:   # saç kökü doğrultusu: doğrudan ekran açısı (BenguSac.gd; SpriteAnim.anchor_angle aynalar)
+        fr['sac_d'] = round(info['sac_d'], 4)
     return fr
 
 

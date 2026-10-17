@@ -2,9 +2,11 @@
 2,0 yakın: 1080p'de 1 doku pikseli = 1 ekran pikseli), kenar yumuşatmalı vektör çizim, oyunda doğrusal süzgeç + mipmap.
 
 İskelet ve çapalar bengu_v2 ile aynı (bacak 12 + 11.8, gövde 17, kol 10 + 9.4, kalça -23.6): Player.gd kol iskeleti,
-silah tutuşu ve çarpışma kutuları değişmez. Kimlik: ak kurt başı (camgöbeği Kut gözü, kırmızı savaş boyası),
-kırmızı kaftan (diz boyu, altın sırma), çelik lamel yelek + omuzluk + dizlik, geniş deri kemer ve altın plakalar,
-çivit şalvar (çizme üstünde bollanır), uzun çizme, ak post yaka, iki kuyruklu turkuaz atkı.
+silah tutuşu ve çarpışma kutuları değişmez. v20 kimlik: kurt başlıklı kadın savaşçı (Asena soyu): ak kurt başlığı
+(camgöbeği ışıyan kurt gözü, köpek dişleri, kırmızı tamga), altında insan yüzü (savaş boyası), gri kurt postu pelerin +
+göğüse sarkan pençe ve altın toka, kırmızı kaftan (diz boyu, altın sırma), çelik lamel yelek + omuzluk + dizlik, geniş deri
+kemer ve altın plakalar, belde iki kat turkuaz kuşak (iki kuyruklu), çivit şalvar, uzun çizme. Uzun saç ve örgüler sprite'ta
+yok: oyunda çizilir (scripts/core/BenguSac.gd; çapalar 'sac', 'sac_d', 'neck', 'hip'). Bkz. docs/TASARIM.md "Bengü v20".
 """
 import math
 
@@ -21,7 +23,7 @@ L_THIGH, L_SHIN = 13.0, 12.6      # v2: 12 + 11.8; ninja oranı için uzun bacak
 L_UP, L_FORE = v2.L_UP, v2.L_FORE
 HIP_Y = v2.HIP_Y
 TORSO = v2.TORSO
-HEAD_K = 0.9            # baş ölçeği (küçük baş: ~7 baş boy)
+HEAD_K = 1.05           # baş ölçeği (insan başı + başlık; ~7 baş boy, oyun yakınlığında yüz okunsun)
 
 # ------------------------------------------------------------ malzemeler
 KAFTAN = Ink('#d23138', '#6c1838', '#ff6a50', '#3a0f2a', name='kırmızı kaftan')
@@ -48,6 +50,10 @@ NOSE = Ink('#26232c', '#141218', '#6a6a7a', name='burun')
 PAINT = (0.86, 0.12, 0.16)
 EYE = (0.55, 0.98, 1.0)
 EYE_GLOW = (0.35, 0.95, 1.0)
+SKIN = Ink('#e9b48e', '#a65d58', '#ffdcb8', '#6a3040', name='ten')
+HAIR = Ink('#2e2636', '#16121d', '#6e74a0', '#0c0a12', name='kuzgun saç')     # BenguSac.gd ile aynı renkler
+PELT = Ink('#b9c0d2', '#6b7394', '#e9edf5', '#4a5274', kind='fur', name='kurt postu (sırt)')
+TOOTH = Ink('#f2efe4', '#a8a6b0', '#ffffff', name='kurt dişi')
 
 
 def _T(hip, ax, pe):
@@ -80,6 +86,18 @@ def fur_ring(c, rx, ry, rot, a0, a1, n, depth, tuft_from=0.0, tuft_to=1.0, phase
         x, y = math.cos(a) * rx * r, math.sin(a) * ry * r
         pts.append((c[0] + x * cr - y * sr, c[1] + x * sr + y * cr, 0.0 if tip else 0.8))
     return pts
+
+
+AW = 0.88       # kol kalınlığı (kadın savaşçı: atletik ama daha ince kol, bilek ve yumruk; kemik boyları aynı)
+AWP = 0.86      # omuzluk
+
+
+def _al(a, b, t, off=0.0):
+    return along(a, b, t, off * AW)
+
+
+def _alp(a, b, t, off=0.0):
+    return along(a, b, t, off * AWP)
 
 
 # ------------------------------------------------------------ parçalar
@@ -130,16 +148,16 @@ def _upper(cv, sh, e, z, near=True):
     prof_o = [(0.0, 3.3), (0.18, 3.75), (0.4, 3.45), (0.7, 3.0), (0.92, 2.75), (1.04, 2.2)]
     prof_i = [(1.04, -2.2), (0.9, -3.05), (0.72, -3.15), (0.45, -2.95), (0.15, -3.2), (0.0, -3.1)]
     for t, o in prof_o + prof_i:
-        pts.append(along(sh, e, t, o))
-    up = ik.union(cv.blob(pts), cv.capsule(sh, sh, 3.2, 3.2))
+        pts.append(_al(sh, e, t, o))
+    up = ik.union(cv.blob(pts), cv.capsule(sh, sh, 3.2 * AW, 3.2 * AW))
     det = []
     if near:
         # dirsek içinde toplanan kumaş: üç kısa zikzak kıvrım (gölge kaması + incelen çizgi)
-        det += cv.fold([along(sh, e, 0.62, -3.0), along(sh, e, 0.7, -1.4), along(sh, e, 0.8, -0.2)], 0.55, 1.25, 1, (0.1, 0.7))
-        det += cv.fold([along(sh, e, 0.78, -3.0), along(sh, e, 0.86, -1.6)], 0.45, 1.15, 1, (0.1, 0.7))
-        det += cv.fold([along(sh, e, 0.35, 2.9), along(sh, e, 0.5, 1.4), along(sh, e, 0.56, 0.2)], 0.5, 1.1, -1, (0.1, 0.8))
+        det += cv.fold([_al(sh, e, 0.62, -3.0), _al(sh, e, 0.7, -1.4), _al(sh, e, 0.8, -0.2)], 0.55, 1.25, 1, (0.1, 0.7))
+        det += cv.fold([_al(sh, e, 0.78, -3.0), _al(sh, e, 0.86, -1.6)], 0.45, 1.15, 1, (0.1, 0.7))
+        det += cv.fold([_al(sh, e, 0.35, 2.9), _al(sh, e, 0.5, 1.4), _al(sh, e, 0.56, 0.2)], 0.5, 1.1, -1, (0.1, 0.8))
         # kas çizgisi (deltoid alt sınırı): kısa, ince iç kontur
-        det.append(('ink', [along(sh, e, 0.3, 3.2), along(sh, e, 0.42, 2.2), along(sh, e, 0.46, 1.0)], 1.0, (0.1, 0.9)))
+        det.append(('ink', [_al(sh, e, 0.3, 3.2), _al(sh, e, 0.42, 2.2), _al(sh, e, 0.46, 1.0)], 1.0, (0.1, 0.9)))
     cv.shape(up, km, z=z, sd=2.6, details=det, bounce=0.3 if near else 0.0)
 
 
@@ -148,47 +166,47 @@ def _fore(cv, e, h, z, near=True):
     km = KAFTAN if near else KAFTAN_B
     prof_o = [(-0.05, 2.6), (0.12, 3.0), (0.3, 3.05), (0.55, 2.6), (0.8, 2.15), (1.0, 1.95)]
     prof_i = [(1.0, -1.9), (0.8, -2.05), (0.5, -2.55), (0.22, -2.95), (0.04, -2.75), (-0.08, -2.0)]
-    fore = cv.blob([along(e, h, t, o) for t, o in prof_o + prof_i])
-    fore = ik.union(fore, cv.capsule(e, e, 2.55, 2.55))
+    fore = cv.blob([_al(e, h, t, o) for t, o in prof_o + prof_i])
+    fore = ik.union(fore, cv.capsule(e, e, 2.55 * AW, 2.55 * AW))
     det = []
     if near:
-        det += cv.fold([along(e, h, 0.08, -2.4), along(e, h, 0.2, -0.6), along(e, h, 0.3, 1.2)], 0.5, 1.15, 1, (0.1, 0.7))
-        det += cv.fold([along(e, h, 0.28, -2.6), along(e, h, 0.38, -1.2)], 0.4, 1.05, 1, (0.1, 0.7))
+        det += cv.fold([_al(e, h, 0.08, -2.4), _al(e, h, 0.2, -0.6), _al(e, h, 0.3, 1.2)], 0.5, 1.15, 1, (0.1, 0.7))
+        det += cv.fold([_al(e, h, 0.28, -2.6), _al(e, h, 0.38, -1.2)], 0.4, 1.05, 1, (0.1, 0.7))
     cv.shape(fore, km, z=z, sd=2.3, details=det, bounce=0.3 if near else 0.0)
     # kol ağzı: sırma bant (kumaşın üstünde, siperin hemen üstü)
-    cuff = ik.isect(fore, cv.poly([along(e, h, 0.44, -4.0), along(e, h, 0.44, 4.0), along(e, h, 0.53, 4.0), along(e, h, 0.53, -4.0)]))
+    cuff = ik.isect(fore, cv.poly([_al(e, h, 0.44, -4.0), _al(e, h, 0.44, 4.0), _al(e, h, 0.53, 4.0), _al(e, h, 0.53, -4.0)]))
     cv.shape(cuff, EMBR if near else EMBR.darker(0.75), z=z + 0.05, sd=0.8, hi=0.25 if near else 0.0, ol=0.7, spec=0.6,
-             details=[('ink', [along(e, h, 0.48, -2.8), along(e, h, 0.48, 2.8)], 0.8, (0.05, 0.05))])
-    br = cv.blob([along(e, h, 0.54, 2.75), along(e, h, 0.72, 2.45), along(e, h, 0.9, 2.2), along(e, h, 0.95, 1.6),
-                  along(e, h, 0.95, -1.6), along(e, h, 0.9, -2.1), along(e, h, 0.72, -2.3), along(e, h, 0.54, -2.6)])
+             details=[('ink', [_al(e, h, 0.48, -2.8), _al(e, h, 0.48, 2.8)], 0.8, (0.05, 0.05))])
+    br = cv.blob([_al(e, h, 0.54, 2.75), _al(e, h, 0.72, 2.45), _al(e, h, 0.9, 2.2), _al(e, h, 0.95, 1.6),
+                  _al(e, h, 0.95, -1.6), _al(e, h, 0.9, -2.1), _al(e, h, 0.72, -2.3), _al(e, h, 0.54, -2.6)])
     bm = BRACER if near else BRACER.darker(0.72)
     bdet = []
     if near:
         # çapraz bağcık + çelik şerit + perçinler
         for tt in (0.6, 0.7, 0.8):
-            bdet.append(('stroke', [along(e, h, tt, -1.6), along(e, h, tt + 0.08, 1.6)], 0.9, (0.86, 0.74, 0.52), (0.1, 0.1)))
-            bdet.append(('stroke', [along(e, h, tt, 1.6), along(e, h, tt + 0.08, -1.6)], 0.9, (0.74, 0.6, 0.4), (0.1, 0.1)))
-        bdet.append(('col', cv.limb([along(e, h, 0.57, 2.0), along(e, h, 0.9, 1.7)], [0.55, 0.45]), STEEL.base))
-        bdet.append(('stroke', [along(e, h, 0.6, 1.85), along(e, h, 0.84, 1.6)], 0.8, (1.0, 1.0, 1.0), (0.3, 0.6)))
-        bdet.append(('ink', [along(e, h, 0.93, -2.0), along(e, h, 0.93, 2.0)], 1.2, (0.1, 0.1)))
+            bdet.append(('stroke', [_al(e, h, tt, -1.6), _al(e, h, tt + 0.08, 1.6)], 0.9, (0.86, 0.74, 0.52), (0.1, 0.1)))
+            bdet.append(('stroke', [_al(e, h, tt, 1.6), _al(e, h, tt + 0.08, -1.6)], 0.9, (0.74, 0.6, 0.4), (0.1, 0.1)))
+        bdet.append(('col', cv.limb([_al(e, h, 0.57, 2.0), _al(e, h, 0.9, 1.7)], [0.55, 0.45]), STEEL.base))
+        bdet.append(('stroke', [_al(e, h, 0.6, 1.85), _al(e, h, 0.84, 1.6)], 0.8, (1.0, 1.0, 1.0), (0.3, 0.6)))
+        bdet.append(('ink', [_al(e, h, 0.93, -2.0), _al(e, h, 0.93, 2.0)], 1.2, (0.1, 0.1)))
     cv.shape(br, bm, z=z + 0.1, sd=1.4, hi=0.3 if near else 0.0, details=bdet)
 
 
 def _fist(cv, e, h, z, near=True):
     """Eldivenli yumruk: köşeli-yuvarlak kütle, sarılı başparmak, parmak araları ve boğum parlaması."""
     gm = GLOVE if near else GLOVE.darker(0.8)
-    fist = cv.blob([along(e, h, 0.86, -2.1), along(e, h, 0.86, 2.0), along(e, h, 0.97, 2.75), along(e, h, 1.1, 2.7),
-                    along(e, h, 1.2, 2.2, ), along(e, h, 1.25, 0.6), along(e, h, 1.24, -1.4), along(e, h, 1.14, -2.4),
-                    along(e, h, 0.98, -2.5)])
+    fist = cv.blob([_al(e, h, 0.86, -2.1), _al(e, h, 0.86, 2.0), _al(e, h, 0.97, 2.75), _al(e, h, 1.1, 2.7),
+                    _al(e, h, 1.2, 2.2, ), _al(e, h, 1.25, 0.6), _al(e, h, 1.24, -1.4), _al(e, h, 1.14, -2.4),
+                    _al(e, h, 0.98, -2.5)])
     det = []
     if near:
         for o in (-1.2, 0.2, 1.5):    # parmak araları (yumruğun ucuna doğru)
-            det.append(('ink', [along(e, h, 1.14, o), along(e, h, 1.25, o + 0.1)], 1.0, (0.05, 0.8)))
-        det.append(('ink', [along(e, h, 1.0, 2.6), along(e, h, 1.05, 1.0), along(e, h, 1.03, -0.6)], 1.15, (0.1, 0.6)))
-        det.append(('hi', cv.blob([along(e, h, 1.15, 2.2), along(e, h, 1.21, 1.6), along(e, h, 1.19, 0.4), along(e, h, 1.14, 1.2)])))
+            det.append(('ink', [_al(e, h, 1.14, o), _al(e, h, 1.25, o + 0.1)], 1.0, (0.05, 0.8)))
+        det.append(('ink', [_al(e, h, 1.0, 2.6), _al(e, h, 1.05, 1.0), _al(e, h, 1.03, -0.6)], 1.15, (0.1, 0.6)))
+        det.append(('hi', cv.blob([_al(e, h, 1.15, 2.2), _al(e, h, 1.21, 1.6), _al(e, h, 1.19, 0.4), _al(e, h, 1.14, 1.2)])))
     cv.shape(fist, gm, z=z, sd=1.3, hi=0.35 if near else 0.0, details=det)
     # başparmak: yumruğun önünden sarılır
-    th = cv.blob([along(e, h, 0.92, 1.8), along(e, h, 1.0, 2.95), along(e, h, 1.12, 2.6), along(e, h, 1.08, 1.4)])
+    th = cv.blob([_al(e, h, 0.92, 1.8), _al(e, h, 1.0, 2.95), _al(e, h, 1.12, 2.6), _al(e, h, 1.08, 1.4)])
     cv.shape(th, gm, z=z + 0.05, sd=0.8, hi=0.25 if near else 0.0, ol=0.8)
 
 
@@ -231,16 +249,16 @@ def render_arm_parts(ss=4, mirror=False):
 def _pauldron(cv, sh, e, z, near):
     """Lamel omuzluk: üç sıra plaka, kolun üstüne biner."""
     n, d = _perp(sh, e)
-    pts = [along(sh, e, -0.28, -2.2), along(sh, e, -0.3, 1.6), along(sh, e, -0.05, 3.7), along(sh, e, 0.3, 3.6),
-           along(sh, e, 0.45, 2.0), along(sh, e, 0.42, -1.4), along(sh, e, 0.2, -3.4)]
+    pts = [_alp(sh, e, -0.28, -2.2), _alp(sh, e, -0.3, 1.6), _alp(sh, e, -0.05, 3.7), _alp(sh, e, 0.3, 3.6),
+           _alp(sh, e, 0.45, 2.0), _alp(sh, e, 0.42, -1.4), _alp(sh, e, 0.2, -3.4)]
     path = cv.blob(pts)
     det = []
     for t in (0.0, 0.17, 0.32):
-        det.append(('ink', [along(sh, e, t - 0.02, -3.4), along(sh, e, t + 0.04, 0.0), along(sh, e, t - 0.02, 3.6)], 1.15, (0.15, 0.15)))
+        det.append(('ink', [_alp(sh, e, t - 0.02, -3.4), _alp(sh, e, t + 0.04, 0.0), _alp(sh, e, t - 0.02, 3.6)], 1.15, (0.15, 0.15)))
     cv.shape(path, STEEL if near else STEEL_B, z=z, sd=1.5, hi=0.5 if near else 0.0, details=det)
 
 
-def _scarf_tails(cv, root, pk, bp, z):
+def _scarf_tails(cv, root, pk, bp, z, k=1.0):
     if pk <= 0:
         u_ = max(0.0, min(1.0, 1.0 + pk)) * 0.5
         a0, bend = math.pi * (0.95 - 0.12 * u_), -(0.03 + 0.10 * u_)
@@ -250,12 +268,13 @@ def _scarf_tails(cv, root, pk, bp, z):
     dr = max(0.0, min(1.0, 1.0 - abs(pk) / 0.7))
     a0 = a0 + (math.pi * 0.62 - a0) * dr * 0.85
     bend = bend + (-0.05 - bend) * dr * 0.85
+    ks = k
     for k, (n, seg, w0, dph, da) in enumerate(((9, 3.3, 3.6, 0.0, 0.0), (7, 3.0, 2.8, 1.3, 0.22))):
-        sc = chain(root, n, seg, a0 + da, bend * (1.0 + 0.5 * k), bp * 6.28 - 0.9 - dph, 0.75 + 0.15 * k)
+        sc = chain(root, n, seg * ks, a0 + da + (1.0 - ks) * 0.9, bend * (1.0 + 0.5 * k), bp * 6.28 - 0.9 - dph, 0.75 + 0.15 * k)
         q = [cv.W(p) for p in sc]
         ph = bp * 6.28 * 0.5 + k * 0.7
         prof = lambda s, ph=ph: max(0.18, (1 - 0.55 * s) * (0.45 + 0.55 * abs(math.cos(s * 5.2 + ph))))
-        path = ik.taper_path(q, cv.u(w0), prof=prof)
+        path = ik.taper_path(q, cv.u(w0 * (0.6 + 0.4 * ks)), prof=prof)
         m = SCARF if k == 0 else SCARF_B
         cv.shape(path, m, z=z - k * 0.5, sd=0.9, hi=0.3 if k == 0 else 0.0)
         ex, ey = sc[-1]
@@ -265,60 +284,128 @@ def _scarf_tails(cv, root, pk, bp, z):
         cv.shape(cv.ellipse((ex, ey), 1.0, 1.0), GOLD, z=z + 0.3 - k * 0.5, sd=0.6, hi=0.3, ol=0.8)
 
 
+def _xf(cv, p):
+    """Tuvalin dünya->dünya dönüşüm yığınını (yuvarlanma vb.) bir noktaya uygula (çapa kaydı için; cihaz ölçeği yok)."""
+    x, y = p[0], p[1]
+    for f in reversed(cv.xf):
+        x, y = f((x, y))
+    return (x, y)
+
+
 def _head(cv, head, neck, p, z):
+    """Bengü'nün başı: insan yüzü (yandan, sağa bakan) + ak kurt başlığı (Asena soyu). Kurdun üst kafatası başın üstüne
+    oturur: kalın burnu alnın üstünden öne uzanır, kulakları dik, üst çenenin iki köpek dişi alnın önünde sarkar; yan
+    postu başın arkasını örtüp boyunda omuz postuna (pelerin) bağlanır. Yüz kurt burnunun gölgesinde: badem göz (Kut
+    ışığı: camgöbeği bebek), kalın kaş, kırmızı savaş boyası (elmacık kemiği), ince dudak; yüzü şakaktan inen bir saç
+    tutamı çerçeveler. Uzun saç oyunda çizilir (scripts/core/BenguSac.gd): başlığın arka kenarının altından ('sac')."""
     hx_, hy_ = head
     jaw = p.get('jaw', 0.0)
     bp = p.get('bp', 0.0)
     lean = p['lean']
-    # uzak kulak (başın arkasında)
-    ear = p.get('ear', 0.0) + max(0.0, lean - 0.1) * 0.7 + math.sin(bp * 6.28 - 1.4) * 0.05
-    for (ox, mat, zz, ln, near) in ((-2.4, FUR_B, z - 0.5, 5.0, False), (-0.2, FUR, z + 1.5, 5.4, True)):
-        b0 = (hx_ + ox - 2.4, hy_ - 1.8)
-        b1 = (hx_ + ox + 2.3, hy_ - 3.1)
-        a = -math.pi * 0.5 - 0.3 - ear
-        tip = (hx_ + ox + math.cos(a) * ln, hy_ - 3.0 + math.sin(a) * ln)
-        e_path = cv.blob([b0, (lerp2(b0, tip, 0.5)[0] - 0.5, lerp2(b0, tip, 0.5)[1]), (tip[0], tip[1], 0.0), (lerp2(b1, tip, 0.5)[0] + 0.3, lerp2(b1, tip, 0.5)[1]), b1])
+    ear = p.get('ear', 0.0) + max(0.0, lean - 0.1) * 0.6 + math.sin(bp * 6.28 - 1.4) * 0.05
+
+    def H(x, y, *k):       # başlık koordinatı (baş merkezine göre)
+        return (hx_ + x, hy_ + y - 0.3) + tuple(k)
+
+    FS, FX0, FY0 = 1.18, 0.4, 0.8
+
+    def F(x, y, *k):       # yüz koordinatı: yüz başlığa göre 1,18 büyük (oyun yakınlığında okunsun)
+        return (hx_ + FX0 + (x - FX0) * FS, hy_ + FY0 + (y - FY0) * FS) + tuple(k)
+
+    # ---- kulaklar: uzak kulak başlığın arkasında, yakın kulak önünde (iç kulak gölgesi + kıl çizgisi)
+    for near in (False, True):
+        if near:
+            b0, b1, ln, a_ = H(-0.1, -4.9), H(2.5, -4.6), 5.2, -math.pi * 0.5 - 0.22 - ear
+            mat, zz = FUR, z + 2.2
+            org = H(0.9, -4.9)
+        else:
+            b0, b1, ln, a_ = H(-2.9, -4.0), H(-0.3, -5.1), 4.7, -math.pi * 0.5 - 0.42 - ear
+            mat, zz = FUR_B, z - 0.8
+            org = H(-1.7, -4.7)
+        tip = (org[0] + math.cos(a_) * ln, org[1] + math.sin(a_) * ln)
+        m0, m1 = lerp2(b0, tip, 0.55), lerp2(b1, tip, 0.55)
+        e_path = cv.blob([b0, (m0[0] - 0.45, m0[1]), (tip[0], tip[1], 0.0), (m1[0] + 0.35, m1[1] + 0.1), b1])
         det = []
         if near:
-            inner = cv.blob([lerp2(b0, b1, 0.3), lerp2(lerp2(b0, b1, 0.35), tip, 0.75), (lerp2(lerp2(b0, b1, 0.5), tip, 0.88)[0], lerp2(lerp2(b0, b1, 0.5), tip, 0.88)[1], 0.0), lerp2(b0, b1, 0.85)])
-            det.append(('col', inner, EAR_IN.shadow))
-        cv.shape(e_path, mat, z=zz, sd=1.6, details=det)
-    # kafa: kafatası + güçlü burun + yanak yelesi (tek kontur)
-    jw = jaw * 2.0
-    skull = cv.blob([(hx_ - 3.6, hy_ + 0.4), (hx_ - 3.3, hy_ - 2.4), (hx_ - 1.3, hy_ - 4.0), (hx_ + 1.6, hy_ - 4.1),
-                     (hx_ + 3.8, hy_ - 3.0), (hx_ + 5.0, hy_ - 2.0), (hx_ + 7.4, hy_ - 1.6), (hx_ + 9.2, hy_ - 1.2),
-                     (hx_ + 9.9, hy_ - 0.6, 0.5), (hx_ + 9.9, hy_ + 0.9, 0.5), (hx_ + 9.0, hy_ + 1.9), (hx_ + 6.2, hy_ + 2.4),
-                     (hx_ + 3.4, hy_ + 3.1), (hx_ + 1.0, hy_ + 3.9)])
-    ruff = cv.blob(fur_ring((hx_ - 0.6, hy_ + 1.3), 3.9, 3.3, 0.3, math.pi * 0.2, math.pi * 1.12, 5, 0.45, 0.05, 0.95, 0.4)
-                   + [(hx_ + 0.6, hy_ - 0.8)])
-    head_p = ik.union(skull, ruff)
-    lower = cv.blob([(hx_ + 2.8, hy_ + 2.4), (hx_ + 8.4, hy_ + 2.0 + jw * 0.5), (hx_ + 8.0, hy_ + 3.0 + jw * 0.9, 0.3),
-                     (hx_ + 4.8, hy_ + 4.0 + jw), (hx_ + 2.0, hy_ + 4.2 + jw * 0.4)])
-    if jaw > 0.25:
-        mouth = cv.blob([(hx_ + 3.0, hy_ + 2.1), (hx_ + 8.6, hy_ + 1.6), (hx_ + 7.4, hy_ + 2.4 + jw * 0.8), (hx_ + 3.4, hy_ + 3.0 + jw * 0.5)])
-        cv.fill(mouth, (0.38, 0.07, 0.12), z=z + 1.9)
-        for tx in (5.2, 7.0):
-            cv.fill(cv.blob([(hx_ + tx - 0.4, hy_ + 1.75), (hx_ + tx + 0.4, hy_ + 1.75), (hx_ + tx, hy_ + 2.7, 0.0)]), (0.96, 0.94, 0.86), z=z + 1.95)
-    cv.shape(lower, FUR_B, z=z + 1.8, sd=1.0)
-    eye_c = (hx_ + 2.7, hy_ - 1.1)
-    det = [
-        ('deep', cv.wedge([(hx_ + 0.6, hy_ - 1.9), (hx_ + 2.6, hy_ - 2.2), (hx_ + 4.6, hy_ - 1.5)], 0.9, -1.0)),
-        ('ink', [(hx_ + 0.4, hy_ - 2.3), (hx_ + 2.6, hy_ - 2.4), (hx_ + 4.7, hy_ - 1.4)], 2.6, (0.15, 0.7)),
-        ('ink', [(hx_ + 5.0, hy_ - 1.3), (hx_ + 7.0, hy_ - 1.0), (hx_ + 8.8, hy_ - 0.7)], 1.2, (0.3, 0.6)),
-        ('ink', [(hx_ + 9.4, hy_ + 1.9), (hx_ + 6.6, hy_ + 2.4), (hx_ + 4.0, hy_ + 2.7), (hx_ + 3.1, hy_ + 2.2)], 1.8, (0.1, 0.5)),
-        ('stroke', [(hx_ + 3.4, hy_ + 0.0), (hx_ + 2.2, hy_ + 0.6), (hx_ + 0.8, hy_ + 1.6)], 2.6, PAINT, (0.1, 0.8)),
-        ('stroke', [(hx_ + 4.2, hy_ + 0.5), (hx_ + 3.0, hy_ + 1.1), (hx_ + 1.8, hy_ + 2.0)], 2.0, PAINT, (0.1, 0.8)),
-        ('ink', [(hx_ - 1.8, hy_ - 1.8), (hx_ - 0.7, hy_ - 0.3), (hx_ - 1.3, hy_ + 1.4)], 1.3, (0.4, 0.4)),
-        ('ink', [(hx_ - 2.6, hy_ + 0.6), (hx_ - 1.3, hy_ + 2.1)], 1.2, (0.4, 0.4)),
+            i0, i1 = lerp2(b0, b1, 0.28), lerp2(b0, b1, 0.8)
+            itip = lerp2(lerp2(b0, b1, 0.5), tip, 0.8)
+            det.append(('col', cv.blob([i0, lerp2(i0, itip, 0.6), (itip[0], itip[1], 0.0), lerp2(i1, itip, 0.5), i1]), EAR_IN.shadow))
+            det.append(('ink', [lerp2(b0, tip, 0.2), lerp2(b0, tip, 0.75)], 1.0, (0.2, 0.8)))
+        cv.shape(e_path, mat, z=zz, sd=1.5, details=det, fur=0.4)
+
+    # ---- yüz (ten): profil alından çeneye; arka yarısı başlığın yan postunun altında kalır
+    jw = jaw * 0.9
+    face = cv.blob([F(-1.2, -3.2), F(1.4, -3.4), F(2.75, -2.6), F(3.2, -1.65), F(3.0, -1.0), F(3.62, 0.15, 0.4),
+                    F(3.45, 0.55, 0.5), F(3.05, 0.7), F(3.22, 1.12), F(2.98, 1.42 + jw * 0.35), F(3.12, 1.8 + jw),
+                    F(2.92, 2.4 + jw), F(2.62, 2.95 + jw, 0.6), F(1.6, 3.12 + jw * 0.6), F(0.2, 2.6), F(-1.3, 0.6)])
+    fdet = [
+        # kurt burnunun yüze düşen gölgesi (alnın üstü)
+        ('shade', cv.blob([F(-1.0, -3.6), F(3.6, -3.6), F(3.15, -2.2), F(2.2, -1.95), F(1.0, -2.05), F(-1.0, -1.8)])),
+        # kaş: kalın, hafif kavisli; göz: badem, üst kirpik çizgisi geriye kuyruklu
+        ('ink', [F(1.05, -1.45), F(2.0, -1.72), F(3.0, -1.55)], 2.0, (0.2, 0.45)),
+        ('col', cv.blob([F(2.78, -0.88, 0.0), F(2.15, -1.16), F(1.3, -1.0), F(1.42, -0.55, 0.0), F(2.2, -0.52)]), (0.97, 0.94, 0.9)),
+        ('col', cv.ellipse(F(2.2, -0.84), 0.42 * FS, 0.44 * FS), (0.05, 0.3, 0.36)),
+        ('col', cv.ellipse(F(2.3, -0.92), 0.16 * FS, 0.16 * FS), (0.62, 1.0, 1.0)),
+        ('ink', [F(2.85, -0.95), F(2.1, -1.22), F(1.25, -1.05), F(0.8, -0.85)], 1.7, (0.12, 0.7)),
+        ('ink', [F(2.6, -0.55), F(1.7, -0.5)], 0.8, (0.4, 0.4)),
+        # burun kanadı + ağız çizgisi + dudak rengi
+        ('ink', [F(3.0, 0.38), F(2.72, 0.52), F(2.75, 0.7)], 0.9, (0.3, 0.3)),
+        ('col', cv.blob([F(3.3, 1.02), F(3.0, 1.38 + jw * 0.3), F(3.18, 1.85 + jw), F(2.7, 1.72 + jw * 0.8), F(2.72, 1.18)]), (0.74, 0.3, 0.32)),
+        ('ink', [F(3.06, 1.42 + jw * 0.35), F(2.55, 1.5 + jw * 0.4)], 1.0, (0.1, 0.7)),
+        # savaş boyası: elmacık kemiği boyunca kalın kırmızı çizgi + altında ince ikinci çizgi; çenede dikey çizgi
+        ('stroke', [F(2.75, -0.12), F(1.9, 0.02), F(0.4, 0.15)], 2.4, PAINT, (0.12, 0.7)),
+        ('stroke', [F(2.45, 0.5), F(1.7, 0.6), F(0.7, 0.7)], 1.3, PAINT, (0.12, 0.7)),
+        ('stroke', [F(2.45, 2.3 + jw), F(2.4, 3.0 + jw)], 1.2, PAINT, (0.2, 0.3)),
+        # elmacık/çene gölge kaması
+        ('shade', cv.wedge([F(0.8, 1.0), F(1.5, 2.0), F(2.5, 2.75)], 0.45, -1.0)),
     ]
-    cv.shape(head_p, FUR, z=z + 1.6, sd=2.4, hi=0.35, details=det, cast=1.0, bounce=0.35, fur=0.8)
-    # burun ucu
-    cv.shape(cv.blob([(hx_ + 8.8, hy_ - 1.1), (hx_ + 10.1, hy_ - 0.7), (hx_ + 10.4, hy_ + 0.5, 0.4), (hx_ + 9.2, hy_ + 0.9)]), NOSE, z=z + 2.2, sd=0.5, hi=0.25, ol=0.7)
-    # göz: burna doğru eğik badem, camgöbeği ve ışıyan
-    eye = cv.blob([(eye_c[0] - 1.2, eye_c[1] - 0.25, 0.0), (eye_c[0] + 0.2, eye_c[1] - 0.45), (eye_c[0] + 1.3, eye_c[1] + 0.25, 0.0),
-                   (eye_c[0] + 0.0, eye_c[1] + 0.45)])
-    cv.fill(eye, EYE, z=z + 2.3, glow=EYE_GLOW)
-    cv.fill(cv.ellipse((eye_c[0] + 0.45, eye_c[1] + 0.05), 0.3, 0.38), (0.05, 0.25, 0.32), z=z + 2.35)
+    if jaw > 0.3:   # savaş narası: açık ağız
+        fdet.append(('col', cv.blob([F(3.05, 1.3), F(2.5, 1.45), F(2.65, 1.75 + jw), F(3.1, 1.75 + jw)]), (0.3, 0.06, 0.1)))
+    cv.shape(face, SKIN, z=z + 0.4, sd=0.75, hi=0.25, details=fdet, bounce=0.35, soft=0.25)
+    # boyun (ince, uzun)
+    cv.shape(cv.capsule(F(0.6, 2.4), (neck[0] + 0.6, neck[1] + 0.6), 1.5, 1.8), SKIN, z=z - 0.2, sd=1.0, ol=0.9)
+
+    # ---- yüzü çerçeveleyen saç tutamı (şakaktan çene altına; başlığın kenarının önünde)
+    lock = ik.taper_path([cv.W(F(1.0, -2.6)), cv.W(F(0.45, -0.8)), cv.W(F(0.35, 1.4)), cv.W(F(0.75, 3.6 + jw * 0.5))],
+                         cv.u(1.15), prof=lambda s: max(0.2, max(0.0, 1.0 - s) ** 0.7) * (0.6 + 0.4 * min(1.0, s * 6.0)))
+    cv.shape(lock, HAIR, z=z + 1.95, sd=0.6, hi=0.0, ol=0.7,
+             details=[('stroke', [F(0.85, -2.0), F(0.55, -0.4), F(0.5, 1.2)], 0.8, HAIR.hi, (0.3, 0.6))])
+    # alına düşen kısa kâkül (kurt burnunun altından)
+    bang = ik.taper_path([cv.W(F(2.0, -2.7)), cv.W(F(2.55, -2.05)), cv.W(F(2.8, -1.7))], cv.u(0.85), (0.1, 0.9))
+    cv.shape(bang, HAIR, z=z + 0.6, sd=0.4, ol=0.6)
+
+    # ---- kurt başlığı: kafatası + kalın burun + yüzü çevreleyen yan post (tek kontur)
+    hood = cv.blob([H(-4.2, 1.9), H(-4.5, -1.4), H(-3.6, -3.9), H(-1.6, -5.5), H(1.1, -5.9), H(3.0, -5.5), H(4.0, -4.8),
+                    H(5.4, -4.6), H(6.9, -4.35), H(7.9, -4.05), H(8.4, -3.5, 0.5), H(8.35, -2.8, 0.5), H(7.75, -2.3),
+                    H(6.8, -1.75), H(5.6, -1.6), H(4.4, -1.75), H(3.4, -1.95), H(2.4, -2.35, 0.5), H(1.1, -2.1),
+                    H(0.2, -0.7), H(-0.15, 1.3), H(0.25, 3.3), H(-0.1, 4.7), H(-1.8, 5.1), H(-3.5, 4.0)])
+    hdet = [
+        # kaş çıkıntısı (gölge kaması + mürekkep), burun sırtı, üst dudak (sarkık) çizgisi ve altındaki gölge
+        ('deep', cv.wedge([H(3.3, -4.65), H(4.6, -4.4), H(5.9, -4.05)], 0.5, 1.0)),
+        ('ink', [H(3.2, -4.8), H(4.6, -4.55), H(6.0, -4.15)], 2.0, (0.15, 0.7)),
+        ('ink', [H(6.2, -4.2), H(7.2, -4.0), H(7.7, -3.85)], 1.0, (0.3, 0.6)),
+        ('ink', [H(7.9, -2.5), H(7.0, -2.25), H(6.0, -2.3), H(5.6, -1.95)], 1.4, (0.2, 0.5)),
+        ('shade', cv.wedge([H(7.7, -2.25), H(5.8, -1.7), H(3.6, -1.95)], 0.5, 1.0)),
+        # yan postun yüz kenarı: içe dönük kıl tutamları (gölge) + kalın iç kontur
+        ('shade', cv.wedge([H(1.3, -2.2), H(0.4, -0.6), H(0.05, 1.4), H(0.35, 3.4)], 0.75, -1.0)),
+        ('ink', [H(-0.4, -1.8), H(-1.0, -0.2), H(-0.8, 1.2)], 1.1, (0.4, 0.4)),
+        ('ink', [H(-1.9, 0.8), H(-2.5, 2.4), H(-1.9, 3.8)], 1.1, (0.4, 0.4)),
+        ('ink', [H(-2.9, -2.6), H(-1.7, -1.6)], 1.0, (0.4, 0.4)),
+        # kurt yüzünün ak-gri maskesi: alnın gerisi koyu eyer lekesi
+        ('col', cv.blob([H(-3.6, -3.4), H(-1.4, -5.2), H(1.6, -5.5), H(0.8, -4.2), H(-1.2, -2.6), H(-3.4, -1.4)]), FUR_B.base),
+        # Kut damgası: kurt alnında kırmızı tamga, burun yanında boya (eski kurt başının boyası)
+        ('stroke', [H(2.4, -5.3), H(3.2, -4.95), H(3.8, -5.05)], 1.6, PAINT, (0.2, 0.4)),
+        ('stroke', [H(6.6, -2.95), H(5.3, -2.85), H(4.2, -3.05)], 1.8, PAINT, (0.15, 0.6)),
+    ]
+    cv.shape(hood, FUR, z=z + 1.6, sd=1.7, hi=0.35, details=hdet, cast=0.5, bounce=0.35, fur=0.7)
+    # kurdun gözü: dar, camgöbeği ışıyan (Kut gözü kimliği başlıkta yaşar)
+    cv.fill(cv.blob([H(4.25, -3.75, 0.0), H(4.95, -4.1), H(5.75, -3.88, 0.0), H(5.0, -3.58)]), EYE, z=z + 1.9, glow=EYE_GLOW)
+    cv.fill(cv.ellipse(H(5.1, -3.84), 0.18, 0.21), (0.05, 0.25, 0.32), z=z + 1.95)
+    # burun ucu (iri, siyah, parlak)
+    cv.shape(cv.blob([H(7.55, -4.2), H(8.45, -3.95), H(8.6, -3.25, 0.4), H(7.95, -3.05)]), NOSE, z=z + 2.0, sd=0.5, hi=0.3, ol=0.7)
+    # üst çenenin köpek dişleri (alnın önünde sarkar)
+    for fx_, fy_, ln in ((6.7, -1.85, 1.25), (4.6, -1.8, 1.0)):
+        cv.shape(cv.blob([H(fx_ + 0.34, fy_), H(fx_ - 0.32, fy_), H(fx_ + 0.02, fy_ + ln, 0.0)]), TOOTH, z=z + 1.5, sd=0.3, ol=0.6, hi=0.0)
 
 
 def draw(cv, p, front_arm=True, back_arm=True):
@@ -341,8 +428,8 @@ def draw(cv, p, front_arm=True, back_arm=True):
     pe = (math.cos(lean), math.sin(lean))
     T = _T(hip, ax, pe)
 
-    # ---- atkı kuyrukları (en arkada)
-    _scarf_tails(cv, (nx_ - 1.6, ny_ + 1.2), pk, bp, -14)
+    # ---- turkuaz kuşağın iki kuyruğu (belin arkasından sarkar; en arkada). Uzun saç ve post oyunda (BenguSac.gd).
+    _scarf_tails(cv, T(4.6, -5.2), pk, bp, -14, k=0.62)
 
     # ---- arka kol
     e, h = fk_arm(sh_b, p['ab'][0], p['ab'][1], L_UP, L_FORE)
@@ -365,15 +452,17 @@ def draw(cv, p, front_arm=True, back_arm=True):
     _leg(cv, hip, p['lb'], -10, False)
 
     # ---- gövde (kaftan)
-    torso = cv.blob([T(-1.0, -5.6), T(5.0, -5.4), T(10.5, -6.5 - br * 0.1), T(15.0, -6.0), T(17.8, -3.0), T(18.6, 0.6),
-                     T(16.8, 4.4), T(12.4, 6.6 + br * 0.25), T(7.6, 6.0), T(3.0, 5.4), T(-1.0, 5.6)])
+    # kadın savaşçı gövdesi: omuzlar biraz dar, bel ince (kuşakla sıkılı), kalça hafif geniş; göğüs lamel yeleğin altında
+    torso = cv.blob([T(-1.0, -5.9), T(3.4, -5.0), T(7.2, -4.6), T(11.0, -5.5 - br * 0.1), T(15.0, -5.5), T(17.6, -3.0),
+                     T(18.4, 0.4), T(16.8, 4.0), T(14.2, 5.8 + br * 0.25), T(11.4, 5.5), T(8.0, 4.4), T(4.4, 4.5),
+                     T(1.0, 5.5), T(-1.0, 5.9)])
     tdet = cv.fold([T(13.0, -4.8), T(9.0, -3.4), T(5.0, -3.8)], 0.7, 1.4, 1)
     for v in (-4.0, -2.0):   # kemer üstünde kumaş bolluğu
         tdet += cv.fold([T(4.4, v), T(3.0, v + 0.8), T(2.6, v + 1.6)], 0.5, 1.2, 1)
     cv.shape(torso, KAFTAN, z=0, sd=4.6, hatch=0.45, deep=0.3, details=tdet, bounce=0.35)
     # lamel yelek (göğüs + karın; arka kenarı deri şeritli)
-    vest = cv.blob([T(1.8, -2.6), T(8.6, -3.0), T(14.6, -2.2), T(16.2, 1.0), T(15.4, 4.6), T(11.8, 6.5 + br * 0.2),
-                    T(7.2, 5.9), T(2.0, 5.4)])
+    vest = cv.blob([T(1.8, -2.6), T(8.6, -2.7), T(14.6, -2.2), T(16.2, 1.0), T(15.4, 4.3), T(13.6, 5.7 + br * 0.2),
+                    T(11.0, 5.3), T(7.6, 4.3), T(2.0, 5.0)])
     vdet = []
     rows = (2.8, 5.4, 8.0, 10.6, 13.2)
     for i, u in enumerate(rows):
@@ -386,6 +475,14 @@ def draw(cv, p, front_arm=True, back_arm=True):
     vdet.append(('stroke', [T(1.8, -2.6), T(8.6, -3.0), T(14.6, -2.2)], 2.4, BELT.base, (0.0, 0.0)))
     vdet.append(('ink', [T(1.8, -1.7), T(8.6, -2.1), T(14.6, -1.3)], 1.0, (0.0, 0.0)))
     cv.shape(vest, STEEL, z=3.0, sd=3.0, hi=0.5, details=vdet, cast=0.6)
+    # turkuaz kuşak: belde iki kat sarılı (yeleğin üstünde, kemerin üstünde), arkada düğüm
+    sash_pts = [T(4.5 - 0.5 * math.cos(math.pi * 0.5 * v / 5.6) ** 2, v) for v in (-5.4, -3.2, -1.0, 1.2, 3.4, 4.9)]
+    sash = ik.union(*[cv.capsule(a_, b_, 1.35, 1.35) for a_, b_ in zip(sash_pts, sash_pts[1:])])
+    cv.shape(sash, SCARF, z=4.6, sd=1.0, hi=0.3, cast=0.5,
+             details=[('ink', [T(4.2, -5.0), T(4.6, -1.0), T(4.4, 4.4)], 0.9, (0.2, 0.2)),
+                      ('stroke', [T(5.2, -3.8), T(5.4, 0.0), T(5.2, 3.6)], 0.8, SCARF.hi, (0.3, 0.3))])
+    cv.shape(cv.ellipse(T(4.5, -5.4), 1.7, 1.5, lean), SCARF, z=4.8, sd=0.8, hi=0.3, ol=0.9,
+             details=[('ink', [T(3.6, -5.8), T(5.4, -5.0)], 1.0)])
 
     # ---- ön etek (diz boyu; önü açık kaftan dizleri izler: adım açılınca etek uyluğun üstünden gerilir)
     kf, _ = fk_leg((hip[0] + 1, hip[1]), p['lf'][0], p['lf'][1], L_THIGH, L_SHIN)
@@ -440,26 +537,51 @@ def draw(cv, p, front_arm=True, back_arm=True):
     k, f = _leg(cv, (hip[0] + 1, hip[1]), p['lf'], 6.0 if raised else 1.0, True, kz=7.0 if raised else 2.6)
     out['foot_f'] = f
 
-    # ---- ak post yaka (omuzları saran)
-    collar = cv.blob(fur_ring((nx_ - 0.3, ny_ + 1.2), 6.2, 3.4, lean * 0.6, -math.pi * 1.05, math.pi * 0.08, 7, 0.38, 0.32, 1.0, bp * 3.0)
-                     + [(nx_ + 3.0, ny_ - 0.6), (nx_ - 1.0, ny_ - 1.6)])
-    cv.shape(collar, FUR, z=9.0, sd=1.8, hi=0.25, cast=0.8,
-             details=[('ink', [(nx_ - 3.6, ny_ + 0.8), (nx_ - 2.4, ny_ + 2.6)], 1.1), ('ink', [(nx_ - 0.4, ny_ + 1.6), (nx_ + 0.4, ny_ + 3.4)], 1.1)])
+    # ---- kurt postu pelerini: başlığın devamı, omuzları sarar ve sırtta kürek kemiğine dek iner; alt kenarı tutamlı
+    edge = []
+    nt = 9
+    for i in range(nt + 1):
+        t_ = i / nt
+        q = lerp2(T(12.0, -6.4), T(15.2, 4.9), t_)
+        if i % 2 == 1:
+            dd = 0.95 + 0.35 * math.sin(i * 1.7 + bp * 6.28)
+            q = (q[0] - ax[0] * dd + pe[0] * 0.2, q[1] - ax[1] * dd + pe[1] * 0.2, 0.0)
+        edge.append(q)
+    mantle = cv.blob([T(18.0, 3.8), T(19.1, 1.2), T(19.2, -2.2), T(17.9, -5.0), T(15.6, -6.3), T(12.8, -6.7) + (0.0,)] + edge)
+    mdet = [('ink', [T(17.4, -4.6), T(14.8, -5.2), T(12.8, -4.6)], 1.0, (0.4, 0.4)),
+            ('ink', [T(17.8, -1.0), T(15.6, -1.4)], 1.0, (0.4, 0.4)),
+            ('shade', cv.wedge([T(13.0, -6.6), T(14.0, -2.0), T(15.0, 3.6)], 0.8, -1.0))]
+    cv.shape(mantle, PELT, z=9.0, sd=1.9, hi=0.25, cast=0.8, details=mdet, fur=0.7)
+    # ön pençe: postun ön ayağı omuzdan göğse sarkar (kısa, uca doğru genişleyen gri post, üç siyah tırnak); altın tokayla
+    # (turkuaz taş) karşı pençeye bağlı
+    pw0, pw1 = T(17.6, 3.0), T(14.4, 4.7)
+    paw = ik.union(cv.capsule(pw0, pw1, 1.2, 1.35), cv.ellipse(T(13.8, 5.0), 1.55, 1.3, lean + 0.4))
+    cv.shape(paw, PELT, z=14.4, sd=1.0, hi=0.25, cast=0.6, fur=0.6,
+             details=[('ink', [T(16.6, 2.6), T(15.0, 3.6)], 0.9, (0.4, 0.4)),
+                      ('ink', [T(13.2, 4.0), T(13.0, 5.0)], 0.8, (0.3, 0.3)), ('ink', [T(13.1, 5.4), T(12.9, 6.0)], 0.8, (0.3, 0.3))])
+    for dv in (-0.7, 0.2, 1.1):
+        c0 = T(12.6, 4.8 + dv)
+        c1 = T(11.6, 5.2 + dv)
+        cv.stroke([c0, c1], 1.3, z=14.6, taper=(0.1, 0.9))
+    cv.shape(cv.ellipse(T(16.2, 3.9), 1.25, 1.25), GOLD, z=14.8, sd=0.7, hi=0.4, ol=0.9)
+    cv.shape(cv.ellipse(T(16.2, 3.9), 0.6, 0.6), SCARF, z=14.9, sd=0.4, hi=0.3, ol=0.6)
 
-    # ---- boyun + baş
-    neckp = cv.capsule((nx_ - 0.6, ny_ + 0.4), (head[0] - 1.0, head[1] + 1.4), 3.0, 2.8)
-    cv.shape(neckp, FUR, z=9.6, sd=1.6, ol=1.0)
+    # ---- baş (boyun _head içinde)
     hs = HEAD_K
     cv.push(lambda q, c0=head: (c0[0] + (q[0] - c0[0]) * hs, c0[1] + (q[1] - c0[1]) * hs))
     _head(cv, head, neck, p, 10.0)
     cv.pop()
     out['head'] = head
-
-    # ---- atkı düğümü
-    knot = ik.union(cv.capsule((nx_ - 1.6, ny_ + 0.4), (nx_ + 2.6, ny_ + 1.9), 1.8, 1.8), cv.ellipse((nx_ + 2.2, ny_ + 1.7), 2.0, 1.7))
-    cv.shape(knot, SCARF, z=14.6, sd=1.1, hi=0.3, cast=0.6,
-             details=[('ink', [(nx_ - 0.6, ny_ + 0.2), (nx_ + 1.0, ny_ + 1.6)], 1.2)])
-    cv.shape(cv.capsule((nx_ + 2.5, ny_ + 2.4), (nx_ + 3.3 + sk * 0.4, ny_ + 5.8), 1.1, 0.75), SCARF, z=14.8, sd=0.6)
+    # çalışma zamanı saç çapaları (BenguSac.gd): 'sac' = saçın başlığın arka kenarından çıktığı ense noktası, 'sac_d' =
+    # kökün ilk doğrultusu (ekran açısı, aşağı-geri), 'neck' / 'hip' = sırt çizgisi (saç gövdenin içine girmesin).
+    # Tuval dönüşümü (yuvarlanma) uygulanmış hâlleri: saç topla birlikte döner.
+    sac = (head[0] - 3.3, head[1] + 2.2)
+    s0 = _xf(cv, sac)
+    s1 = _xf(cv, (sac[0] - 0.5, sac[1] + 0.87))
+    out['sac'] = s0
+    out['sac_d'] = math.atan2(s1[1] - s0[1], s1[0] - s0[0])
+    out['neck'] = _xf(cv, neck)
+    out['hip'] = _xf(cv, hip)
 
     # ---- ön kol
     a1, a2 = p['af']
