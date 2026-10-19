@@ -3036,6 +3036,8 @@ func _akin_delis(d: Dictionary) -> void:
 		var mult := float(d.get("delis_hasar", 1.6)) * kr
 		h.vurus_cb = func(e: Node, _hp: Vector2) -> void:
 			var lift := kaldirilir(e)
+			if lift and "root_t" in e:
+				e.root_t = 0.0   # v31: çivili düşman delen okla yerinden sökülür (kök itmeyi yutuyordu)
 			self_ref._uzak_vur(e, it, dd, "delis", mult, {"kb": 340.0 if lift else 90.0, "dir": float(f), "stagger": true, "stun": 0.5 if lift else 0.0})
 	SanatFX.akin_birak(src, f, int(cur["pal"]), kr > 1.0)
 	SanatFX.damga(src + Vector2(float(f) * 34.0, -40.0), "viz", int(cur["pal"]), f, 1.0 if kr <= 1.0 else 1.2)

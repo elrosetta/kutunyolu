@@ -163,7 +163,7 @@ static func _hasar_metni(d: Dictionary) -> String:
 		"akinci_akini":
 			hs = "%d + %d ok × ×%s, delen ok ×%s" % [int(d.get("yaylim_ok", 5)), int(d.get("seri_ok", 6)), ItemGen.fmt(float(d.get("seri_hasar", 0.35))), ItemGen.fmt(float(d.get("delis_hasar", 1.6)))]
 	if d.has("ritim_k"):
-		hs += " · TAM ×%s" % ItemGen.fmt(float(d["ritim_k"]))
+		hs += " · TAM ×%s" % ("%.2f" % float(d["ritim_k"])).replace(".", ",").trim_suffix("0")
 	return hs + " · duruş %s · boss ×%s" % [ItemGen.fmt(float(d.get("durus", 1.0))), ItemGen.fmt(float(d.get("boss_k", 0.7)))]
 
 
