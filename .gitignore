@@ -1,0 +1,20 @@
+# Godot önbelleği (her makinede yeniden üretilir)
+.godot/
+*.tmp
+
+# Önizleme görselleri ve GIF'ler (224 MB; repoya gerek yok)
+art_preview/
+
+# Python
+__pycache__/
+*.pyc
+
+# İşletim sistemi
+.DS_Store
+Thumbs.db
+
+# Depodaki motor zip'inden açılan Godot (zip depoda, 180 MB'lık .exe değil)
+motor/*.exe
+
+# Dışa aktarılan oyun (build)
+build/

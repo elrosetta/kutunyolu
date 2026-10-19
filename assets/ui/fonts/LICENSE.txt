@@ -1,0 +1,18 @@
+Kut'un Yolu - Stil v2 (mürekkep) arayüz yazı tipleri
+=====================================================
+Hepsi SIL Open Font License 1.1 (OFL) ile lisanslıdır; tam metinler LICENSE_<ad>.txt dosyalarında.
+Dosyalar değiştirilmeden kullanılır (Godot içe aktarımı yazı tipini oyuna gömer; OFL buna izin verir).
+İndirme tarihi: 2026-10-16, kaynak: Google Fonts deposu https://github.com/google/fonts (main dalı).
+
+KaushanScript-Regular.ttf  - Kaushan Script, Pablo Impallari & Igino Marini (2011). Ayrılmış ad: "Kaushan Script".
+                             https://github.com/google/fonts/tree/main/ofl/kaushanscript
+                             Kullanım: fırça başlıklar, kombo ve hasar rakamları, büyük adlar.
+Cinzel-VF.ttf              - Cinzel (değişken, wght 400-900), Natanael Gama / The Cinzel Project Authors (2020).
+                             https://github.com/google/fonts/tree/main/ofl/cinzel  (asıl kaynak: github.com/NDISCOVER/Cinzel)
+                             Kullanım: yazıt (kitabe) havalı büyük harf başlıklar, bölüm adları, panel başlıkları.
+AlegreyaSans-Medium.ttf    - Alegreya Sans, Juan Pablo del Peral / Huerta Tipográfica (2013).
+AlegreyaSans-Bold.ttf        https://github.com/google/fonts/tree/main/ofl/alegreyasans
+                             Kullanım: gövde metni, göstergeler, sayılar (tam Türkçe: ş ğ ı İ ç ö ü, → ▲ ▼ « » ·).
+Alegreya-VF.ttf            - Alegreya (değişken), Juan Pablo del Peral / Huerta Tipográfica (2011).
+                             https://github.com/google/fonts/tree/main/ofl/alegreya
+                             Kullanım: hikâye / ozan / tören sözleri (tırnaklı anlatı).

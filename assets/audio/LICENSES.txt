@@ -1,0 +1,16 @@
+Ses kaynakları ve lisansları (assets/audio):
+
+Tüm müzik (music/*.wav) ve efektlerin sentez katmanı tools/audiogen ile prosedürel üretilmiştir (projeye aittir).
+Aşağıdaki CC0 (Creative Commons Zero, kamu malı) kayıtlar tools/audiogen/layer.py ve pro.py ile katmanlanarak sfx/*.wav dosyalarına işlenmiştir:
+
+1) Kenney — Impact Sounds (1.0), https://kenney.nl/assets/impact-sounds — CC0 1.0
+   (impactSoft/Punch/Plate/Metal/Mining/Bell/Wood, footstep_grass/snow/concrete/wood)
+2) Kenney — RPG Audio, https://kenney.nl/assets/rpg-audio — CC0 1.0
+   (knifeSlice, drawKnife, chop, cloth, creak, bookOpen/Close, metalClick/Latch, dropLeather)
+3) "Swishes Sound Pack", OpenGameArt.org, https://opengameart.org/content/swishes-sound-pack — CC0 1.0
+   (swish-1..13: kılıç savruluşları)
+4) "RPG Sound Pack" (artisticdude), OpenGameArt.org, https://opengameart.org/content/rpg-sound-pack — CC0 1.0
+   (battle/swing, sword-unsheathe, magic; NPC/gutteral beast, giant, beetle, shade, ogre; inventory/coin, bottle, armor-light, cloth-heavy, cloth, metal-small; interface)
+5) "Air whoosh", OpenGameArt.org, https://opengameart.org/content/air-whoosh — CC0 1.0
+
+CC0: https://creativecommons.org/publicdomain/zero/1.0/

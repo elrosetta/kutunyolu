@@ -1,0 +1,14 @@
+{
+ "cell": [
+  96,
+  96
+ ],
+ "texel": 4.0,
+ "rows": {
+  "diken": 0,
+  "zehir": 1,
+  "lav": 2,
+  "buz": 3
+ },
+ "filter": "linear"
+}

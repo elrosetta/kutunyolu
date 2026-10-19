@@ -1,0 +1,132 @@
+{
+ "tile": 96,
+ "world_tile": 24,
+ "density": 4.0,
+ "cols": 16,
+ "ground_rows": 3,
+ "overlay_row": 3,
+ "grass_cols": 8,
+ "ceiling_cols": [
+  8,
+  9,
+  10
+ ],
+ "platform_row": 4,
+ "ink": true,
+ "filter": "linear_mipmap",
+ "mask": "sahmeran_v2_mask.png",
+ "soil_size": 2048,
+ "soil_density": 4.0,
+ "meadow": "sahmeran_v2_meadow.png",
+ "glow": null,
+ "emit": "sahmeran_v2_e.png",
+ "emit_cells": [
+  [
+   1,
+   0
+  ],
+  [
+   3,
+   0
+  ],
+  [
+   7,
+   0
+  ],
+  [
+   9,
+   0
+  ],
+  [
+   11,
+   0
+  ],
+  [
+   15,
+   0
+  ],
+  [
+   1,
+   1
+  ],
+  [
+   2,
+   1
+  ],
+  [
+   3,
+   1
+  ],
+  [
+   5,
+   1
+  ],
+  [
+   8,
+   1
+  ],
+  [
+   9,
+   1
+  ],
+  [
+   10,
+   1
+  ],
+  [
+   11,
+   1
+  ],
+  [
+   13,
+   1
+  ],
+  [
+   15,
+   1
+  ],
+  [
+   5,
+   2
+  ],
+  [
+   7,
+   2
+  ],
+  [
+   9,
+   2
+  ],
+  [
+   13,
+   2
+  ],
+  [
+   1,
+   3
+  ],
+  [
+   2,
+   3
+  ],
+  [
+   4,
+   3
+  ],
+  [
+   6,
+   3
+  ],
+  [
+   9,
+   3
+  ],
+  [
+   10,
+   3
+  ]
+ ],
+ "soil_e": "sahmeran_v2_soil_e.png",
+ "meadow_depth": 0.55,
+ "not": "v2 mürekkep zemini (sahmeran): sanat RGBA + maske (R kaplama, G kenar gölgesi) + ışıma atlası (_e, ADD) + dünya uzayı kaya (_soil, ışıyan damarlar _soil_e) ve üst yüzey (_meadow)"
+}

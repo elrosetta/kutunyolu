@@ -1,0 +1,266 @@
+{
+ "crescent_slash": {
+  "frames": 10,
+  "cols": 8,
+  "cell": 96,
+  "fps": 20,
+  "pivot": [
+   48,
+   50
+  ],
+  "loop": false
+ },
+ "electric_impact": {
+  "frames": 13,
+  "cols": 8,
+  "cell": 96,
+  "fps": 20,
+  "pivot": [
+   48,
+   54
+  ],
+  "loop": false
+ },
+ "warm_explosion": {
+  "frames": 15,
+  "cols": 8,
+  "cell": 96,
+  "fps": 20,
+  "pivot": [
+   48,
+   58
+  ],
+  "loop": false
+ },
+ "landing_dust": {
+  "frames": 14,
+  "cols": 8,
+  "cell": 96,
+  "fps": 20,
+  "pivot": [
+   48,
+   70
+  ],
+  "loop": false
+ },
+ "smoke_puff": {
+  "frames": 14,
+  "cols": 8,
+  "cell": 96,
+  "fps": 20,
+  "pivot": [
+   48,
+   48
+  ],
+  "loop": false
+ },
+ "earth_rupture": {
+  "frames": 20,
+  "cols": 8,
+  "cell": 96,
+  "fps": 20,
+  "pivot": [
+   48,
+   71
+  ],
+  "loop": false
+ },
+ "frost_nova": {
+  "frames": 13,
+  "cols": 8,
+  "cell": 96,
+  "fps": 20,
+  "pivot": [
+   48,
+   61
+  ],
+  "loop": false
+ },
+ "acid_splash": {
+  "frames": 14,
+  "cols": 8,
+  "cell": 96,
+  "fps": 20,
+  "pivot": [
+   48,
+   64
+  ],
+  "loop": false
+ },
+ "arcane_parry": {
+  "frames": 16,
+  "cols": 8,
+  "cell": 96,
+  "fps": 20,
+  "pivot": [
+   50,
+   72
+  ],
+  "loop": false
+ },
+ "focus_charge": {
+  "frames": 13,
+  "cols": 8,
+  "cell": 96,
+  "fps": 20,
+  "pivot": [
+   48,
+   48
+  ],
+  "loop": false
+ },
+ "radiant_heal": {
+  "frames": 14,
+  "cols": 8,
+  "cell": 96,
+  "fps": 20,
+  "pivot": [
+   48,
+   67
+  ],
+  "loop": false
+ },
+ "leaf_gust": {
+  "frames": 14,
+  "cols": 8,
+  "cell": 96,
+  "fps": 20,
+  "pivot": [
+   48,
+   62
+  ],
+  "loop": false
+ },
+ "solar_shrapnel": {
+  "frames": 14,
+  "cols": 8,
+  "cell": 96,
+  "fps": 20,
+  "pivot": [
+   48,
+   56
+  ],
+  "loop": false
+ },
+ "void_implosion": {
+  "frames": 14,
+  "cols": 8,
+  "cell": 96,
+  "fps": 20,
+  "pivot": [
+   48,
+   50
+  ],
+  "loop": false
+ },
+ "rift_portal": {
+  "frames": 16,
+  "cols": 8,
+  "cell": 96,
+  "fps": 20,
+  "pivot": [
+   48,
+   48
+  ],
+  "loop": true
+ },
+ "ember_jet": {
+  "frames": 14,
+  "cols": 8,
+  "cell": 96,
+  "fps": 20,
+  "pivot": [
+   24,
+   56
+  ],
+  "loop": false
+ },
+ "spectral_bloom": {
+  "frames": 16,
+  "cols": 8,
+  "cell": 96,
+  "fps": 20,
+  "pivot": [
+   48,
+   64
+  ],
+  "loop": false
+ },
+ "magical_projectile": {
+  "frames": 12,
+  "cols": 8,
+  "cell": 96,
+  "fps": 20,
+  "pivot": [
+   48,
+   50
+  ],
+  "loop": false
+ },
+ "resonant_break": {
+  "frames": 33,
+  "cols": 8,
+  "cell": 96,
+  "fps": 20,
+  "pivot": [
+   48,
+   48
+  ],
+  "loop": false
+ },
+ "splash_crown": {
+  "frames": 11,
+  "cols": 8,
+  "cell": 96,
+  "fps": 20,
+  "pivot": [
+   48,
+   70
+  ],
+  "loop": false
+ },
+ "cinder_orchid": {
+  "frames": 41,
+  "cols": 8,
+  "cell": 96,
+  "fps": 20,
+  "pivot": [
+   38,
+   78
+  ],
+  "loop": false
+ },
+ "hush_lock": {
+  "frames": 35,
+  "cols": 8,
+  "cell": 96,
+  "fps": 20,
+  "pivot": [
+   48,
+   48
+  ],
+  "loop": false
+ },
+ "tether_catch": {
+  "frames": 26,
+  "cols": 8,
+  "cell": 96,
+  "fps": 20,
+  "pivot": [
+   48,
+   48
+  ],
+  "loop": false
+ },
+ "mass_release": {
+  "frames": 29,
+  "cols": 8,
+  "cell": 96,
+  "fps": 20,
+  "pivot": [
+   48,
+   72
+  ],
+  "loop": false
+ }
+}

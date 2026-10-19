@@ -1,0 +1,136 @@
+"""Tüm sesleri üretir: assets/audio/sfx/*.wav (44.1 kHz mono; ortam döngüleri 22.05 kHz) ve assets/audio/music/*.wav (22.05 kHz mono).
+Sıra: sfx.py (eski sentez) -> layer.py (CC0 kayıt katmanları) -> pro.py (v9 katmanları, üstüne yazar) -> mastering.
+Mastering: her ses kategorisine göre aynı algılanan yüksekliğe (synth.loudness) getirilir, tepe -1 dBFS'de yumuşak sınırlanır.
+Böylece çağrı yerlerindeki vol_db farkları gerçekten kategori farkı olur (eskiden her dosya tepeden eşitleniyordu: kısa
+vuruşlar uzun seslerden algıda çok daha kısık kalıyordu).
+Kullanım: python tools/audiogen/export_audio.py [--sfx] [--music] [ad ...]   Denetim: python tools/audiogen/check.py"""
+import os
+import re
+import sys
+import json
+import time
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import numpy as np
+from synth import write_wav, SR, master
+import sfx as S
+import music as Mu
+
+A = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..', 'assets', 'audio')
+os.makedirs(os.path.join(A, 'sfx'), exist_ok=True)
+os.makedirs(os.path.join(A, 'music'), exist_ok=True)
+args = sys.argv[1:]
+only = [a for a in args if not a.startswith('-')]
+do_sfx = '--sfx' in args or not any(a.startswith('-') for a in args)
+do_music = '--music' in args or not any(a.startswith('-') for a in args)
+
+# Kategori -> hedef yükseklik (dB, synth.loudness ölçüsü). İlk eşleşen kural geçerli.
+TARGETS = [
+    # v27 savaş sanatları (v27_sanat.TARGET ile aynı)
+    (r'^sanat_cekis$', -7.5), (r'^sanat_gum$', -6.5), (r'^sanat_hazir$', -15.0), (r'^sanat_(ors|kin)$', -9.0), (r'^sanat_', -10.5),
+    # v13 darbe hiyerarşisi / kademeli patlama / yıldırım (impact.py): kritik ve öldürücü ağırdan ~2 dB sıcak (v26: kritik
+    # -8 → -6,5; kısa ve yoğun olduğundan master sınırına dayanır, ~-7,4 ölçülür),
+    # patlama en gür efekt (Master'daki sert sınırlayıcı tavanı tutar), uzak patlama ve cızırtı döngüsü kısık
+    (r'^kin_', -18.0), (r'^olum_vurus', -7.5), (r'^darbe_kritik', -6.5), (r'^darbe_agir', -9.5), (r'^darbe_hafif', -10.5), (r'^darbe_donuk', -11.0),
+    (r'^savur_hazirlik', -24.0), (r'^patlama_uzak$', -15.0), (r'^patlama_buyuk$', -6.5), (r'^patlama', -7.0),
+    (r'^sarsinti_buyuk$', -7.5), (r'^sarsinti', -8.0), (r'^simsek_sizirti_dongu$', -27.0), (r'^simsek_catirti', -8.5), (r'^gok_gurleme', -10.0),
+    (r'^ortam_', -21.0), (r'^kalp_dongu$', -13.0), (r'_dongu$', -17.0),
+    (r'^darbe_(kritik|cekic)', -9.0), (r'^darbe_agir$', -9.5), (r'^darbe_', -10.0), (r'^ok_vurus', -11.0), (r'^ok_ucus', -17.0),
+    (r'^(patlama|sarsinti)$', -8.0), (r'^(yildirim|kut_donusum)$', -9.0),
+    (r'^savur_(dev|cekic|agir)', -12.0), (r'^(savur_|sapla$)', -13.0),
+    (r'_olum$', -10.0), (r'^(hazirlik_|dusman_hazirlik$|kurt_hirlama|cor_fisilti|agac_inilti|tas_surtunme|surale_ciglik|kam_)', -13.0),
+    (r'_can(_\d+)?$', -12.0), (r'^(isirik|sicrayis|uluma)', -11.0),
+    (r'^adim_', -20.0), (r'^inis_', -15.0), (r'^(zipla|yuvarlan)$', -16.0),
+    (r'^(ui_gez|ui_sec)', -21.0), (r'^npc_', -19.0), (r'^ui_', -17.0), (r'^esya_(kusan|degis)$', -15.0), (r'^(tilsim_sec|seviye)$', -12.0),
+    (r'^altin', -16.0), (r'^kut_tane$', -16.0), (r'^(esya|tilsim|sise|acilis|ors|kut_banka|kapi)$', -13.0),
+    (r'^usul_vurus$', -17.0), (r'^usul_', -14.0), (r'^tamu_seli$', -12.0), (r'^ruh_kusu$', -16.0), (r'^ruh_tasi$', -12.0), (r'^don_', -12.0), (r'^(destan|ad_toren)$', -12.0),
+    (r'^yay_ger', -16.0), (r'^yay_dolu', -15.0), (r'^yay_birak', -12.0),
+]
+
+
+def target_for(name):
+    for pat, db in TARGETS:
+        if re.search(pat, name):
+            return db
+    return -12.0
+
+
+if do_sfx:
+    import layer as L
+    import pro as P
+    allsfx = {}
+    t0 = time.time()
+    for name, fn in S.SFX.items():
+        if only and name not in only:
+            continue
+        allsfx[name] = fn()
+    for fn in (L.swings, L.hits, L.creatures, L.movement_pickups):
+        allsfx.update(fn())
+    allsfx.update(P.build_all())
+    import bow2
+    allsfx.update(bow2.build_bow())
+    import v12
+    allsfx.update(v12.build())
+    import impact  # v13: darbe hiyerarşisi, kademeli patlama, yıldırım, sarsıntı (eski darbe_agir/kritik/patlama/sarsinti'nin üstüne yazar)
+    allsfx.update(impact.build_all())
+    import v25  # v25: tatmin edici kritik vuruş sesi (geçiş t=0; bıçak + künt çeşidi), impact.py'nin kritiğinin üstüne yazar
+    allsfx.update(v25.build_all())
+    import v26  # v26: Dead Cells'e yakın gür, kirli kritik (KRAK + THWACK + şing; kısa), v25'in üstüne yazar
+    allsfx.update(v26.build_all())
+    import v27  # v27: metal kritik (kılıç çarpışması: kipsel çelik çınlaması + sıyırma; künt: örs), v26'nın üstüne yazar
+    allsfx.update(v27.build_all())
+    import v27_sanat  # v27: savaş sanatları sesleri (SavasSanati.gd; hedef yükseklik v27_sanat.TARGET)
+    allsfx.update(v27_sanat.build_all())
+    impact.ONSET['darbe_kritik'] = 0.0
+    amb = P.ambience()
+    print('üretildi:', len(allsfx) + len(amb), 'ses', round(time.time() - t0, 1), 's')
+    meta = {}
+    for name, x in sorted(allsfx.items()):
+        if only and name not in only:
+            continue
+        loop = name.endswith('_dongu')
+        y = master(x, target_for(name), loop=loop)
+        write_wav(os.path.join(A, 'sfx', name + '.wav'), y, SR, None)
+        meta[name] = {'loop': loop, 'len': round(len(y) / SR, 3), 'hedef_db': target_for(name)}
+        pre = name[:name.rfind('_')] if name.rfind('_') > 0 and name[name.rfind('_') + 1:].isdigit() else name
+        if pre in impact.ONSET and impact.ONSET[pre] > 0:
+            meta[name]['onset'] = impact.ONSET[pre]  # geçişin dosya içindeki anı (sn): ön-yankı payı
+    for name, x in sorted(amb.items()):
+        if only and name not in only:
+            continue
+        y = master(x, target_for(name), sr=P.AMB_SR, loop=True)
+        write_wav(os.path.join(A, 'sfx', name + '.wav'), y, P.AMB_SR, None)
+        meta[name] = {'loop': True, 'len': round(len(y) / P.AMB_SR, 3), 'hedef_db': target_for(name)}
+    mp = os.path.join(A, 'sfx', 'sfx.json')
+    if only and os.path.exists(mp):
+        old = json.load(open(mp, encoding='utf-8'))
+        old.update(meta)
+        meta = old
+    json.dump(meta, open(mp, 'w', encoding='utf-8'), indent=1, ensure_ascii=False)
+    print('sfx yazıldı:', len(meta))
+if do_music:
+    for biome in ['otuken', 'bozkir', 'sahmeran', 'kaf', 'tamu', 'boss', 'yurt', 'baslik']:
+        if only and biome not in only:
+            continue
+        t0 = time.time()
+        x = Mu.track(biome)
+        if biome in Mu.RMS_DB:
+            # v11: müzik ortalama seviyeye (RMS) göre; tek bir davul vuruşu tüm parçayı kısmasın
+            import numpy as _np
+            from synth import soft_limit
+            x = x - _np.mean(x)
+            x = soft_limit(x * 10 ** ((Mu.RMS_DB[biome] - 20 * _np.log10(_np.sqrt(_np.mean(x ** 2)) + 1e-9)) / 20), 0.85)
+        else:
+            x = master(x, Mu.TARGET_DB.get(biome, -15.0), ceiling=0.85, sr=Mu.MSR, loop=True)
+        write_wav(os.path.join(A, 'music', biome + '.wav'), x, Mu.MSR, None)
+        print('music', biome, round(len(x) / Mu.MSR, 1), 's', round(time.time() - t0, 1))
+    # v12: Usul Vuruşu için vuruş ızgarası (türkü parçaları)
+    try:
+        import turku as _tk
+        if _tk.META:
+            up = os.path.join(A, 'music', 'usul.json')
+            old = json.load(open(up, encoding='utf-8')) if os.path.exists(up) else {}
+            old.update(_tk.META)
+            json.dump(old, open(up, 'w', encoding='utf-8'), indent=1)
+            print('usul.json', sorted(old.keys()))
+    except ImportError:
+        pass

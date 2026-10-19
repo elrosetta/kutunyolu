@@ -1,0 +1,1243 @@
+extends Node
+## Giriş noktası: başlık → hikâye → (Demirci) → bölüm. Kut Kapısı'ndan geçince eşyalar korunarak
+## bir sonraki derinliğe inilir; ölünce toplanan Kut bankaya eklenir ve yeni koşu başlar.
+## Tılsım seçimi ve Demirci ekranı burada yönetilir (ağaç duraklıyken girdi).
+
+var level: Level
+var hud: HUD
+var ui_layer: CanvasLayer
+var auto_test := false
+var showcase := false
+var lab := false
+var _lab_i := 0
+var scroll_pickup: Pickup
+var slot_pickup: Pickup
+var _depth_forced := false
+
+
+func _ready() -> void:
+	process_mode = Node.PROCESS_MODE_ALWAYS
+	ui_layer = CanvasLayer.new()
+	ui_layer.layer = 10
+	add_child(ui_layer)
+	hud = HUD.new()
+	hud.main = self
+	ui_layer.add_child(hud)
+	auto_test = OS.get_cmdline_user_args().has("--otomatik")
+	showcase = OS.get_cmdline_user_args().has("--sahne") or OS.get_cmdline_user_args().has("--savurus")
+	lab = OS.get_cmdline_user_args().has("--savurus")
+	for arg in OS.get_cmdline_user_args():
+		if String(arg).begins_with("--muhur="):
+			Zorluk.set_muhur(int(String(arg).trim_prefix("--muhur=")))   # v23 test: kayıtlı mühürden bağımsız ölçüm
+		if String(arg).begins_with("--ekran="):
+			_ekran = String(arg).trim_prefix("--ekran=")
+			auto_test = false
+	_new_run()
+	if OS.get_cmdline_user_args().has("--yurt"):
+		_build_hub()  # yurt testi: doğrudan Ulu Kayın'da başla
+	if OS.get_cmdline_user_args().has("--mekanik"):
+		var mt: Node = load("res://tools/tests/mekanik_testi.gd").new()
+		mt.set("main", self)
+		add_child(mt)
+	if OS.get_cmdline_user_args().has("--denge"):
+		# v22 denge ölçümü (tools/tests/denge_testi.gd): derinlik başına vuruş sayıları, boss süreleri, silah SnH
+		var dg: Node = load("res://tools/tests/denge_testi.gd").new()
+		dg.set("main", self)
+		add_child(dg)
+	if OS.get_cmdline_user_args().has("--tomar"):
+		# v23 tomar ekonomisi testi (tools/tests/tomar_testi.gd): tomar okununca gösterilen SnH = ölçülen SnH, kritik oranı
+		var tt: Node = load("res://tools/tests/tomar_testi.gd").new()
+		tt.set("main", self)
+		add_child(tt)
+	if OS.get_cmdline_user_args().has("--dovus"):
+		# dövüş akıcılığı testi (tools/tests/dovus_testi.gd): betikli girdiyle gecikme / iptal / ara bellek ölçümü
+		var dt: Node = load("res://tools/tests/dovus_testi.gd").new()
+		dt.set("main", self)
+		add_child(dt)
+	if OS.get_cmdline_user_args().has("--zeka"):
+		# v23 yapay zekâ denetimi (tools/tests/zeka_testi.gd): yaratık / boss başına saldırı sıklığı, kilit payı, hasar
+		var zt: Node = load("res://tools/tests/zeka_testi.gd").new()
+		zt.set("main", self)
+		add_child(zt)
+	if OS.get_cmdline_user_args().has("--tuccar"):
+		# v24 tüccar testi (tools/tests/tuccar_testi.gd): pazar, satın alma, altın, SnH farkı, yenileme, parşömen armağanı
+		var tct: Node = load("res://tools/tests/tuccar_testi.gd").new()
+		tct.set("main", self)
+		add_child(tct)
+	if OS.get_cmdline_user_args().has("--harita"):
+		# v25 harita testi (tools/tests/harita_testi.gd): baş boşluğu / ana yol ölçümü, düşman yerleşimi, tehlike, tüccar
+		var ht: Node = load("res://tools/tests/harita_testi.gd").new()
+		ht.set("main", self)
+		add_child(ht)
+	if OS.get_cmdline_user_args().has("--silah27"):
+		# v27 yeni silahlar testi / çekimi (tools/tests/silah27_testi.gd): her silahın mekaniği, kart, görüntüler
+		var s27: Node = load("res://tools/tests/silah27_testi.gd").new()
+		s27.set("main", self)
+		add_child(s27)
+	if OS.get_cmdline_user_args().has("--yay"):
+		# v19 okçuluk testi (tools/tests/yay_testi.gd): her yayın dokunuş / tam bırakış / seri atış / akış ölçümü
+		var yt2: Node = load("res://tools/tests/yay_testi.gd").new()
+		yt2.set("main", self)
+		add_child(yt2)
+	if OS.get_cmdline_user_args().has("--sanat"):
+		# v27 savaş sanatları testi (tools/tests/sanat_testi.gd): bedel, bekleme, isabet, sınıf kuralı, kilit ve kayıt
+		var sat: Node = load("res://tools/tests/sanat_testi.gd").new()
+		sat.set("main", self)
+		add_child(sat)
+	var bengu_t := false
+	for arg in OS.get_cmdline_user_args():
+		bengu_t = bengu_t or String(arg) == "--bengu" or String(arg).begins_with("--bengu=")
+	if bengu_t:
+		# v20 Bengü testi (tools/tests/bengu_testi.gd): saç fiziği denetimi / çekimleri
+		var bt: Node = load("res://tools/tests/bengu_testi.gd").new()
+		bt.set("main", self)
+		add_child(bt)
+	for arg in OS.get_cmdline_user_args():
+		if String(arg).begins_with("--piksel_tara"):
+			# stil v2 piksel denetimi (tools/tests/piksel_tara.gd): başka test bayraklarıyla birlikte çalışır
+			var pt: Node = load("res://tools/tests/piksel_tara.gd").new()
+			pt.set("main", self)
+			add_child(pt)
+			break
+	var sus := false
+	for arg in OS.get_cmdline_user_args():
+		sus = sus or String(arg).begins_with("--sus=")
+	if sus:  # stil v2 süs / toplanabilir / tehlike çekimi (tools/tests/sus_testi.gd)
+		var st: Node = load("res://tools/tests/sus_testi.gd").new()
+		st.set("main", self)
+		add_child(st)
+	if OS.get_cmdline_user_args().has("--unsur"):
+		# v20 unsur testi (tools/tests/unsur_testi.gd): tetiklenme sayıları, ek hasar, iz / toz çekimleri
+		var ut: Node = load("res://tools/tests/unsur_testi.gd").new()
+		ut.set("main", self)
+		add_child(ut)
+	var firca := false
+	for arg in OS.get_cmdline_user_args():
+		firca = firca or String(arg).begins_with("--firca")
+	if firca:  # stil v2 mürekkep fırçası laboratuvarı (tools/tests/firca_testi.gd)
+		var ft: Node = load("res://tools/tests/firca_testi.gd").new()
+		ft.set("main", self)
+		add_child(ft)
+	for arg in OS.get_cmdline_user_args():
+		if String(arg).begins_with("--fx_vitrin="):
+			# efekt vitrini (tools/tests/fx_vitrin.gd): her efekt türü sabit düzende, önce/sonra çekimleri
+			var fv: Node = load("res://tools/tests/fx_vitrin.gd").new()
+			fv.set("main", self)
+			add_child(fv)
+			firca = true
+	# yaratık testleri: --yaratik_cikti=... verilirse poz galerisi (yaratik_galeri.gd), yoksa canlı yapay zekâlı
+	# çekim sahnesi ve Bozkurt biçimi (yaratik_testi.gd)
+	var galeri := false
+	for arg in OS.get_cmdline_user_args():
+		galeri = galeri or String(arg).begins_with("--yaratik_cikti")
+	for arg in OS.get_cmdline_user_args():
+		if String(arg) == "--yaratik" or String(arg).begins_with("--yaratik="):
+			var yt: Node = load("res://tools/tests/yaratik_galeri.gd" if galeri else "res://tools/tests/yaratik_testi.gd").new()
+			yt.set("main", self)
+			add_child(yt)
+			firca = true  # oyun kipinde başla (başlık ekranı yok)
+			break
+	for arg in OS.get_cmdline_user_args():
+		if String(arg) == "--boss":
+			_build_boss("kara_boru_han")
+		elif String(arg).begins_with("--boss="):
+			_build_boss(String(arg).trim_prefix("--boss="))
+	if auto_test or showcase or _ekran != "" or firca or sus or bengu_t or OS.get_cmdline_user_args().has("--mekanik") or OS.get_cmdline_user_args().has("--dovus") or OS.get_cmdline_user_args().has("--yay") or OS.get_cmdline_user_args().has("--unsur") or OS.get_cmdline_user_args().has("--denge") or OS.get_cmdline_user_args().has("--tomar") or OS.get_cmdline_user_args().has("--zeka") or OS.get_cmdline_user_args().has("--tuccar") or OS.get_cmdline_user_args().has("--harita") or OS.get_cmdline_user_args().has("--sanat"):
+		hud.mode = "play"
+		get_tree().paused = false
+	else:
+		hud.mode = "title"
+		get_tree().paused = true
+		Ses.music("baslik")
+
+
+func _new_run() -> void:
+	Ses.low_hp(0.0)
+	Game.new_run()
+	Game.meta["runs"] = int(Game.meta.get("runs", 0)) + 1
+	Game.save_meta()
+	_build_level()
+	if auto_test and _bot_gercek:
+		_bot_loadout()
+
+
+func _bot_loadout() -> void:
+	## v22 --bot_gercek: derinliğe uygun "beklenen" donanım (o kademenin Nadir Demir Alp Kılıcı, derinlik başına
+	## ~2,5 tılsımın etkisi; tools/tests/denge_testi.gd ile aynı varsayım), böylece bot derin bölümde de ölçü olur
+	var d := int(Game.run.get("depth", 1))
+	var o := Zorluk.beklenen_tomar(d)   # v23: derinlik başına tomar + geçilen boss tomarları (zorluk.json "tomar")
+	if OS.get_cmdline_user_args().has("--tomarsiz"):
+		o = {"kurt": 0, "kartal": 0, "ayi": 0}   # v23 ölçüm: tomar toplamayan oyuncu
+	Game.run["ongun"] = o
+	var hp := Zorluk.beklenen_can(o, float(Game.run["max_hp"]))
+	Game.run["max_hp"] = hp
+	Game.run["hp"] = hp
+	if d > 1:
+		Game.run["slots"]["melee"] = ItemGen.roll("alp_kilici", int(Game.run.get("tier", 0)), "demir", 1, "")
+	if level and level.player:
+		level.player.on_equip()
+	_bot_last_hp = hp
+
+
+func _build_level() -> void:
+	if level:
+		level.queue_free()
+	level = Level.new()
+	level.process_mode = Node.PROCESS_MODE_PAUSABLE
+	add_child(level)
+	var seed_v := randi() if not auto_test else 1234 + int(Game.run.get("depth", 1))
+	for arg in OS.get_cmdline_user_args():
+		if String(arg).begins_with("--derinlik=") and not _depth_forced:
+			_depth_forced = true
+			var dd := int(String(arg).trim_prefix("--derinlik="))
+			Game.run["depth"] = dd
+			Game.run["tier"] = Zorluk.kademe(dd)
+		if String(arg).begins_with("--tohum="):
+			seed_v = int(String(arg).trim_prefix("--tohum=")) + int(Game.run.get("depth", 1))
+	level.build(seed_v)
+	for arg in OS.get_cmdline_user_args():
+		if String(arg).begins_with("--dok="):
+			level.dump_png(String(arg).trim_prefix("--dok="))
+	level.finished.connect(_on_finished)
+	level.player_died.connect(_on_died)
+	level.scroll_requested.connect(_on_scroll)
+	level.slot_requested.connect(_on_slot_request)
+	level.lutuf_requested.connect(_on_lutuf)
+	level.tuccar_requested.connect(_on_tuccar)   # v24 Bezirgân Sartak
+	hud.level = level
+	hud._card_t = 0.0
+
+
+func _build_boss(bid: String) -> void:
+	if level:
+		level.queue_free()
+	level = Level.new()
+	level.process_mode = Node.PROCESS_MODE_PAUSABLE
+	add_child(level)
+	level.build_boss(randi(), bid)
+	level.finished.connect(_on_finished)
+	level.player_died.connect(_on_died)
+	level.slot_requested.connect(_on_slot_request)
+	level.scroll_requested.connect(_on_scroll)   # v23: boss tomar bırakır
+	level.boss_died.connect(func() -> void: hud.flash_msg = "Kut Kapısı açılıyor..."; hud.flash_t = 3.0)
+	hud.level = level
+	hud._card_t = 0.0
+
+
+func _on_lutuf(p: Pickup) -> void:
+	## Sunak: rastgele bir tanrı lütfu (sahip olunmayanlardan), en çok 3
+	var have: Array = Game.run.get("lutuf", [])
+	if have.size() >= 3:
+		hud.flash_msg = "Üç lütuf taşıyorsun; sunak sessiz."
+		hud.flash_t = 2.5
+		return
+	var pool: Array = []
+	for k in Game.LUTUF.keys():
+		if not (k in have):
+			pool.append(k)
+	if pool.is_empty():
+		return
+	var id: String = pool[randi() % pool.size()]
+	Game.grant_lutuf(id)
+	var l: Array = Game.LUTUF[id]
+	var col := Color(l[2][0], l[2][1], l[2][2])
+	if level.player:
+		FX.ring(level.player.center(), 60, col, 0.6)
+		FX.soul(level.player.center(), col, 30)
+		FX.flash_light(level.player.center(), col, 260.0, 2.0, 0.5)
+		FX.text(level.player.center() + Vector2(0, -44), String(l[0]), col, 11)
+		level.player.vis_scale = Vector2(0.85, 1.15)
+	Game.slowmo(0.4, 0.3)
+	Ses.play("acilis", -2.0)
+	hud.flash_msg = "%s: %s" % [l[0], l[1]]
+	hud.flash_t = 5.0
+	level.pickups.erase(p)
+	p.queue_free()
+
+
+func _on_tuccar() -> void:
+	## v24: Bezirgân Sartak'ın pazarı (oyun durur). Mallar Level.bezirgan.offers; satın alma Pazar.satin_al.
+	if level == null or level.bezirgan == null:
+		return
+	hud.sel = 0
+	hud.tuccar_onay = false
+	hud.mode = "tuccar"
+	hud.open_anim()
+	Ses.play("npc_1")
+	Ses.play("ui_ac", -4.0)
+	get_tree().paused = true
+
+
+func _tuccar_sec(i: int) -> void:
+	## Pazarda seçilen satıra onay (Boşluk / Enter): mal ise önce onay sorulur, ikinci basışta alınır; son satır yeniler.
+	var bz: Bezirgan = level.bezirgan
+	if i >= bz.offers.size():
+		var ry := Pazar.yenile(bz)
+		hud.flash_msg = ry["msg"]
+		hud.flash_t = 2.5
+		Ses.play("acilis" if ry["ok"] else "ui_sec", -4.0 if ry["ok"] else 0.0, 1.0 if ry["ok"] else 0.7)
+		return
+	var o: Dictionary = bz.offers[i]
+	if bool(o["satildi"]):
+		hud.flash_msg = "Bu mal satıldı."
+		hud.flash_t = 2.0
+		Ses.play("ui_sec", 0.0, 0.7)
+		return
+	if int(Game.run.get("gold", 0)) < int(o["fiyat"]):
+		hud.flash_msg = "Altının yetmez (%d gerekir, %d var)." % [int(o["fiyat"]), int(Game.run.get("gold", 0))]
+		hud.flash_t = 2.5
+		Ses.play("ui_sec", 0.0, 0.7)
+		return
+	if not hud.tuccar_onay:
+		hud.tuccar_onay = true
+		Ses.play("ui_gez")
+		return
+	hud.tuccar_onay = false
+	var r := Pazar.satin_al(level, bz, i)
+	hud.flash_msg = r["msg"]
+	hud.flash_t = 3.0
+	if r["ok"]:
+		Ses.play("altin", -2.0, 0.8)
+		Ses.play("esya_kusan", -4.0)
+		bz.talk()
+		if level.player:
+			FX.burst(level.player.center(), Color(1.0, 0.85, 0.4), 14, 70, 0.4, 0.16, -60, true)
+	else:
+		Ses.play("ui_sec", 0.0, 0.7)
+
+
+func _demirci_ac(id: String) -> bool:
+	## Parşömeni aç (Kut bankasından). v24: açılan eşya HEMEN verilir: koşu başı gücünde (kademe 0) normal düşüş gibi
+	## rastgele yuvarlanır (malzeme, nadirlik, hasar, ek özellik, unsur) ve oyuncunun önüne bırakılır; düşme havuzuna da
+	## girer (Game.unlock). Kart Demirci ekranında gösterilir (hud.demirci_son).
+	if not Game.unlock(id):
+		return false
+	var it := ItemGen.roll(id, 0)
+	hud.demirci_son = it
+	if level and level.player:
+		var pl: Player = level.player
+		var x := pl.global_position.x + float(pl.facing) * 30.0
+		var gy: float = level.ground_y_below(Vector2(x, pl.global_position.y - 30.0), 140.0)
+		if gy < 0.0:
+			x = pl.global_position.x
+			gy = pl.global_position.y
+		level.drop_item(it, Vector2(x, gy - 12.0))
+		var p: Pickup = level.pickups[level.pickups.size() - 1]
+		p.set_meta("parsomen_armagani", id)
+		var rc := Color.from_string(Data.items["rarities"][int(it["rarity"])]["color"], Color.WHITE)
+		FX.ring(Vector2(x, gy - 16.0), 30, rc, 0.5)
+		FX.burst(Vector2(x, gy - 16.0), Color(1.0, 0.6, 0.3), 18, 90, 0.5, 0.2, -80, true)
+	return true
+
+
+func _build_hub() -> void:
+	## Bölüm bitti: Ulu Kayın yurdu (NPC'ler). Eşyalar ve can korunur.
+	if level:
+		level.queue_free()
+	level = Level.new()
+	level.process_mode = Node.PROCESS_MODE_PAUSABLE
+	add_child(level)
+	level.build_hub(77)
+	level.finished.connect(_on_finished)
+	level.player_died.connect(_on_died)
+	level.npc_requested.connect(_on_npc)
+	level.slot_requested.connect(_on_slot_request)   # v24: Demirci'nin dövdüğü eşya yurtta alınır (yuva seçimi)
+	hud.level = level
+	hud._card_t = 99.0
+
+
+func _next_level() -> void:
+	Game.next_depth()
+	Game.meta["best_depth"] = maxi(int(Game.meta.get("best_depth", 1)), int(Game.run["depth"]))
+	Game.save_meta()
+	_build_level()
+	_start_play()
+
+
+func _on_finished() -> void:
+	if level and level.hub:
+		# yurttan derine
+		_next_level()
+		return
+	# bu derinliğin sonunda boss var mı?
+	var depth := int(Game.run.get("depth", 1))
+	if level and level.boss_id == "":
+		var bid: String = String(Game.BOSS_AFTER.get(depth, ""))
+		if bid != "" and not (bid in Game.run.get("boss_done", [])):
+			_build_boss(bid)
+			_start_play()
+			Game.run["lutuf"] = Game.run.get("lutuf", [])
+			return
+	if auto_test or showcase:
+		hud.mode = "done"
+		get_tree().paused = true
+		return
+	Game.run["lutuf"] = []  # lütuflar yurda dönünce söner
+	_build_hub()
+	_start_play()
+	hud.flash_msg = "Ulu Kayın yurdu: Kut'unu Umay Ana'ya götür (W). Kapı seni derine indirir."
+	hud.flash_t = 5.0
+
+
+func _on_npc(id: String) -> void:
+	hud.sel = 0
+	get_tree().paused = true
+	match id:
+		"umay":
+			var saved := int(Game.run.get("kut", 0))
+			if saved > 0:
+				Game.bank_run_kut()
+				Ses.play("kut_banka")
+				hud.flash_msg = "%d Kut Umay'a ulaştı." % saved
+				hud.flash_t = 3.0
+				if level.player:
+					FX.soul(level.player.center(), Color(0.6, 1.0, 1.0), 30)
+			hud.mode = "umay"
+		"demirci":
+			Ses.play("ors")
+			hud.mode = "demirci"
+		"ozan":
+			if not Adlar.pending().is_empty():
+				_ad_toreni()
+				return
+			Ses.play("npc_1")
+			hud.ozan_i = randi() % 4
+			hud.mode = "ozan"
+		"alp_ata":
+			Ses.play("npc_2")
+			_open_sanat(true)
+
+
+func _open_sanat(mentor: bool) -> void:
+	## v27 savaş sanatları ekranı: duraklatmadan (T) kuşan; Alp Ata'da öğren (Kut bankası) + kuşan
+	hud.sanat_ogretmen = mentor
+	hud.sel = maxi(0, SavasSanati.ids().find(SavasSanati.secili()))
+	hud.mode = "sanat"
+	hud.open_anim()
+	Ses.play("ui_ac", -4.0)
+	get_tree().paused = true
+
+
+func _sanat_sec(i: int) -> void:
+	var ids := SavasSanati.ids()
+	var id: String = ids[clampi(i, 0, ids.size() - 1)]
+	var ad := String(SavasSanati.def_of(id).get("ad", id))
+	if SavasSanati.acik_mi(id):
+		if SavasSanati.secili() == id:
+			hud.flash_msg = "%s zaten kuşanılı." % ad
+			Ses.play("ui_sec", 0.0, 0.8)
+		else:
+			SavasSanati.sec(id)
+			hud.flash_msg = "%s kuşanıldı (T)." % ad
+			Ses.play("esya_kusan", -4.0)
+	elif hud.sanat_ogretmen:
+		if SavasSanati.ogret(id):
+			SavasSanati.sec(id)
+			hud.flash_msg = "Alp Ata %s sanatını öğretti; kuşanıldı." % ad
+			Ses.play("acilis", -2.0)
+			Ses.play("ors", -8.0, 1.2)
+			if level and level.player:
+				FX.soul(level.player.center(), SavasSanati.renk(id), 24)
+		else:
+			hud.flash_msg = "Yeterli Kut yok (%d gerekir, bankada %d)." % [SavasSanati.bedel(id), int(Game.meta.get("kut_bank", 0))]
+			Ses.play("ui_sec", 0.0, 0.7)
+	else:
+		hud.flash_msg = "Kilitli: yurtta Alp Ata öğretir ya da Sanat Tomarı bul."
+		Ses.play("ui_sec", 0.0, 0.7)
+	hud.flash_t = 2.5
+
+
+func _on_died() -> void:
+	var saved := Game.lose_run_kut()
+	hud.flash_msg = ("Ruh Düğümü %d Kut kurtardı." % saved) if saved > 0 else ""
+	hud.mode = "dead"
+	Ses.music("baslik", 2.5)
+	get_tree().paused = true
+
+
+func _on_scroll(p: Pickup) -> void:
+	scroll_pickup = p
+	hud.sel = 0
+	hud.mode = "tilsim"
+	Ses.play("ui_ac")
+	get_tree().paused = true
+
+
+func _on_slot_request(p: Pickup) -> void:
+	## İki uygun yuva da dolu: hangisinin değişeceğini oyuncu seçer (oyun durur).
+	slot_pickup = p
+	var opts: Array = level.slot_options(p.item)
+	hud.slot_opts = opts
+	hud.sel = maxi(0, opts.find(level.natural_slot(p.item)))
+	hud.mode = "slot"
+	hud.open_anim()
+	Ses.play("ui_ac")
+	get_tree().paused = true
+
+
+func _finish_slot(slot: String) -> void:
+	if slot != "" and is_instance_valid(slot_pickup) and level:
+		level.equip(slot_pickup, slot)
+		Ses.play("esya_degis")
+	else:
+		Ses.play("ui_iptal")
+	slot_pickup = null
+	_start_play()
+
+
+func _apply_scroll(sel: int) -> void:
+	## v23 Kut Tomarı: seçilen stat +1 (eşyaların hasarı Zorluk.tomar_k ile), azami can artar; SnH değişimi duyurulur
+	var keys := ["kurt", "kartal", "ayi"]
+	var k: String = keys[sel]
+	var msk := String(level.player.mel_slot) if level and level.player and String(level.player.mel_slot) != "" else "melee"
+	var mel: Dictionary = Game.run["slots"].get(msk, {})
+	var dps0 := ItemGen.dps_oyuncu(mel) if not mel.is_empty() else 0.0
+	Game.run["ongun"][k] = int(Game.run["ongun"][k]) + 1
+	var hp_gain := float(Game.run["max_hp"]) * Zorluk.tomar_can(k)
+	Game.run["max_hp"] = float(Game.run["max_hp"]) + hp_gain
+	Game.run["hp"] = minf(float(Game.run["max_hp"]), float(Game.run["hp"]) + hp_gain + float(Game.run["max_hp"]) * Zorluk.tomar_iyilesme())
+	Game.run["scrolls"] = int(Game.run.get("scrolls", 0)) + 1
+	var dps1 := ItemGen.dps_oyuncu(mel) if not mel.is_empty() else 0.0
+	if dps1 > dps0 + 0.05:
+		hud.flash_msg = "%s +1 · %s SnH %s → %s" % [Data.items["ongun"][k]["name"], String(mel.get("name_base", "")), ItemGen.fmt(dps0), ItemGen.fmt(dps1)]
+	else:
+		hud.flash_msg = "%s +1 · azami can +%d" % [Data.items["ongun"][k]["name"], int(round(hp_gain))]
+	hud.flash_t = 3.5
+	Ses.play("tilsim_sec")
+	Ses.play("seviye", -4.0)
+	if level and level.player:
+		var col := Color.from_string(Data.items["ongun"][k]["color"], Color.WHITE)
+		FX.ring(level.player.center(), 40, col, 0.4)
+		FX.soul(level.player.center(), col, 24)
+		FX.text(level.player.center() + Vector2(0, -36), "%s +1" % Data.items["ongun"][k]["name"], col, 9)
+		level.player.vis_scale = Vector2(0.85, 1.15)
+	if is_instance_valid(scroll_pickup):
+		level.pickups.erase(scroll_pickup)
+		scroll_pickup.queue_free()
+	scroll_pickup = null
+	_start_play()
+
+
+func _unhandled_input(event: InputEvent) -> void:
+	var go: bool = event.is_action_pressed("zipla") or (event is InputEventKey and event.pressed and event.physical_keycode == KEY_ENTER)
+	match hud.mode:
+		"ayarlar":
+			var n: int = Ayarlar.rows().size()
+			if event.is_action_pressed("yukari"):
+				hud.sel = (hud.sel + n - 1) % n
+				Ses.play("ui_gez")
+			elif event.is_action_pressed("asagi"):
+				hud.sel = (hud.sel + 1) % n
+				Ses.play("ui_gez")
+			elif event.is_action_pressed("sol") or event.is_action_pressed("sag"):
+				Ayarlar.change(hud.sel, -1 if event.is_action_pressed("sol") else 1)
+				Ses.play("ui_onay")
+			elif go:   # v23: menüde onay Boşluk / Enter (W / ↑ seçimi gezer)
+				Ayarlar.change(hud.sel, 1)
+				Ses.play("ui_onay")
+			elif event.is_action_pressed("duraklat") or event.is_action_pressed("ayarlar"):
+				hud.mode = hud.back_mode
+				Ses.play("ui_iptal")
+		"title":
+			if event.is_action_pressed("ayarlar"):
+				_open_settings()
+			elif go:
+				hud.mode = "intro"
+				hud.intro_i = 0
+				Ses.play("ui_onay")
+		"intro":
+			if event.is_action_pressed("duraklat"):
+				_after_intro()
+			elif go:
+				hud.intro_i += 1
+				if hud.intro_i >= Data.story["intro"].size():
+					_after_intro()
+		"dead":
+			if go:
+				_new_run()
+				_after_intro()
+		"done":
+			if go:
+				_next_level()
+		"tilsim":
+			if event.is_action_pressed("sol"):
+				hud.sel = (hud.sel + 2) % 3
+				Ses.play("ui_gez")
+			elif event.is_action_pressed("sag"):
+				hud.sel = (hud.sel + 1) % 3
+				Ses.play("ui_gez")
+			elif go or event.is_action_pressed("saldiri1"):
+				_apply_scroll(hud.sel)
+		"slot":
+			var opts: Array = hud.slot_opts
+			if event.is_action_pressed("sol") or event.is_action_pressed("sag") or event.is_action_pressed("yukari") or event.is_action_pressed("asagi"):
+				hud.sel = 1 - hud.sel
+				Ses.play("ui_gez")
+			elif event.is_action_pressed("saldiri1") and "melee" in opts:
+				_finish_slot("melee")
+			elif event.is_action_pressed("saldiri2") and "second" in opts:
+				_finish_slot("second")
+			elif event.is_action_pressed("techizat1") and "g1" in opts:
+				_finish_slot("g1")
+			elif event.is_action_pressed("techizat2") and "g2" in opts:
+				_finish_slot("g2")
+			elif go:
+				_finish_slot(String(opts[clampi(hud.sel, 0, opts.size() - 1)]))
+			elif event.is_action_pressed("duraklat") or event.is_action_pressed("yuvarlan"):
+				_finish_slot("")
+		"demirci":
+			var bps: Array = Game.meta.get("blueprints", [])
+			if not hud.demirci_son.is_empty():
+				# v24: dövülen eşyanın kartı açık; Boşluk / Esc kapatır (sonra başka parşömen açılabilir)
+				if go or event.is_action_pressed("duraklat") or event.is_action_pressed("yuvarlan"):
+					hud.demirci_son = {}
+					Ses.play("ui_gez")
+				return
+			if event.is_action_pressed("sol") and bps.size() > 0:
+				hud.sel = (hud.sel + bps.size() - 1) % bps.size()
+				Ses.play("ui_gez")
+			elif event.is_action_pressed("sag") and bps.size() > 0:
+				hud.sel = (hud.sel + 1) % bps.size()
+				Ses.play("ui_gez")
+			elif go and bps.size() > 0:   # v23: Boşluk / Enter parşömeni açar; Esc yola çıkar
+				var id: String = bps[clampi(hud.sel, 0, bps.size() - 1)]
+				if _demirci_ac(id):
+					hud.flash_msg = "%s dövüldü: önüne bırakıldı. Artık düşebilir de." % Data.find_item(id).get("name", id)
+					hud.sel = 0
+					Ses.play("acilis")
+				else:
+					hud.flash_msg = "Yeterli Kut yok (%d gerekir)." % Game.unlock_cost(id)
+					Ses.play("ui_sec", 0.0, 0.7)
+				hud.flash_t = 2.0
+			elif go or event.is_action_pressed("duraklat") or event.is_action_pressed("yuvarlan"):
+				_start_play()
+		"tuccar":
+			# v24 pazar: W/S (A/D) satır, Boşluk / Enter onay (iki adım), Esc / L onayı geri alır ya da ayrılır
+			var n_rows: int = level.bezirgan.offers.size() + 1 if level and level.bezirgan else 1
+			if event.is_action_pressed("yukari") or event.is_action_pressed("sol"):
+				hud.sel = (hud.sel + n_rows - 1) % n_rows
+				hud.tuccar_onay = false
+				Ses.play("ui_gez")
+			elif event.is_action_pressed("asagi") or event.is_action_pressed("sag"):
+				hud.sel = (hud.sel + 1) % n_rows
+				hud.tuccar_onay = false
+				Ses.play("ui_gez")
+			elif go:
+				_tuccar_sec(hud.sel)
+			elif event.is_action_pressed("duraklat") or event.is_action_pressed("yuvarlan"):
+				if hud.tuccar_onay:
+					hud.tuccar_onay = false
+					Ses.play("ui_iptal")
+				else:
+					Ses.play("ui_iptal")
+					_start_play()
+		"umay":
+			var keys: Array = Game.UMAY.keys()
+			if event.is_action_pressed("yukari") or event.is_action_pressed("sol"):
+				hud.sel = (hud.sel + keys.size() - 1) % keys.size()
+				Ses.play("ui_gez")
+			elif event.is_action_pressed("asagi") or event.is_action_pressed("sag"):
+				hud.sel = (hud.sel + 1) % keys.size()
+				Ses.play("ui_gez")
+			elif go:   # v23: Boşluk / Enter alır; Esc ayrılır
+				var id: String = keys[hud.sel]
+				if Game.umay_buy(id):
+					hud.flash_msg = "%s: seviye %d." % [Game.UMAY[id][0], Game.umay_level(id)]
+					Ses.play("acilis")
+					if id == "sise":
+						Game.run["max_flasks"] = int(Game.run["max_flasks"]) + 1
+						Game.run["flasks"] = int(Game.run["flasks"]) + 1
+					elif id == "can":
+						Game.run["max_hp"] = float(Game.run["max_hp"]) * 1.1
+						Game.run["hp"] = float(Game.run["hp"]) * 1.1
+				else:
+					hud.flash_msg = "Yeterli Kut yok." if Game.umay_cost(id) >= 0 else "Bu armağan tamamlandı."
+					Ses.play("ui_sec", 0.0, 0.7)
+				hud.flash_t = 2.0
+			elif event.is_action_pressed("duraklat") or event.is_action_pressed("yuvarlan"):
+				_start_play()
+		"ad":
+			if (go or event.is_action_pressed("duraklat")) and hud.ad_t > 1.2:
+				if not Adlar.pending().is_empty():
+					_ad_toreni()
+				else:
+					_start_play()
+		"ozan":
+			if go:
+				hud.ozan_i += 1
+				Ses.play("npc_%d" % (1 + hud.ozan_i % 3))
+				if hud.ozan_i >= 4:
+					_start_play()
+			elif event.is_action_pressed("duraklat"):
+				_start_play()
+		"sanat":
+			# v27 savaş sanatları: W/S seç, Boşluk / Enter kuşan (Alp Ata'da öğren), Esc / L geri
+			var n_s: int = SavasSanati.ids().size()
+			if event.is_action_pressed("yukari") or event.is_action_pressed("sol"):
+				hud.sel = (hud.sel + n_s - 1) % n_s
+				Ses.play("ui_gez")
+			elif event.is_action_pressed("asagi") or event.is_action_pressed("sag"):
+				hud.sel = (hud.sel + 1) % n_s
+				Ses.play("ui_gez")
+			elif go:
+				_sanat_sec(hud.sel)
+			elif event.is_action_pressed("duraklat") or event.is_action_pressed("yuvarlan") or (event.is_action_pressed("sanat") and not hud.sanat_ogretmen):
+				Ses.play("ui_iptal")
+				if hud.sanat_ogretmen:
+					_start_play()
+				else:
+					hud.mode = "play"   # duraklatma ekranına dön (ağaç duraklı kalır)
+		"play":
+			if event.is_action_pressed("duraklat"):
+				get_tree().paused = not get_tree().paused
+			elif event.is_action_pressed("ayarlar") and get_tree().paused:
+				_open_settings()
+			elif event.is_action_pressed("sanat") and get_tree().paused:
+				_open_sanat(false)   # v27: duraklatmada T savaş sanatlarını açar
+
+
+func _open_settings() -> void:
+	hud.back_mode = hud.mode
+	hud.mode = "ayarlar"
+	hud.sel = 0
+	hud.open_anim()
+	Ses.play("ui_ac")
+
+
+func _ad_toreni() -> void:
+	## Ozan kopuzunu alır, destanı anlatır, yiğide adını koyar
+	var id: String = Adlar.pending()[0]
+	Adlar.grant(id)
+	hud.ad_id = id
+	hud.ad_t = 0.0
+	hud.mode = "ad"
+	get_tree().paused = true
+	Ses.play("ad_toren", 0.0)
+	if level and level.player:
+		FX.soul(level.player.center(), Color(1.0, 0.85, 0.45), 30)
+
+
+func _after_intro() -> void:
+	## Hikâyeden (ya da ölümden) sonra: bekleyen parşömen varsa Demirci'ye uğra.
+	if not Game.meta.get("blueprints", []).is_empty():
+		hud.mode = "demirci"
+		hud.sel = 0
+		get_tree().paused = true
+	else:
+		_start_play()
+
+
+func _start_play() -> void:
+	hud.mode = "play"
+	hud._card_t = 0.0
+	get_tree().paused = false
+
+
+# ------------------------------------------------------------------ otomatik test (--otomatik)
+var _auto_t := 0.0
+var _auto_pressed: Array = []
+var _auto_last_x := 0.0
+var _auto_stuck := 0.0
+var _sc_t := 0.0
+var _sc_step := -1
+var _sc_hold := ""
+
+
+func _lab(delta: float) -> void:
+	## Savuruş laboratuvarı: düşman yok, karakter sabit; her savuruş tipi sırayla, aralarında boşluk.
+	if hud.mode != "play" or level == null or level.player == null:
+		return
+	var pl: Player = level.player
+	if _sc_step < 0:
+		_sc_step = 0
+		var tx := 40
+		pl.global_position = Vector2(tx * 24.0, level.surface_y(tx) * 24.0 - 2)
+		pl.facing = 1
+		Game.camera.reset_smoothing.call_deferred()
+	for e in get_tree().get_nodes_in_group("dusman"):
+		e.queue_free()
+	_sc_t += delta
+	var f := int(_sc_t * 60.0)
+	# v5: silaha özgü savuruşlar (hepsi sağa bakar; kontak sayfasında kol pozları karşılaştırılır)
+	var order := ["diag_down", "diag_up", "cross_x", "overhead_2h", "ground_drag", "sweep_low", "reverse_grip", "twirl", "windmill", "pole_thrust",
+		"pole_sweep", "reap", "rake", "whip_crack", "axe_hook", "iai", "uppercut_2h", "slam_2h", "stab_heavy", "helicopter",
+		"pole_thrust_lo", "pole_rise", "dual_l", "dual_r", "whip_side"]
+	var items := ["alp_kilici", "alp_kilici", "alp_kilici", "ulu_kilic", "ulu_kilic", "ayaz_kilici", "yatagan", "ay_palasi", "gurz", "kargi",
+		"teber", "erlik_tirpani", "kurt_pencesi", "kement", "savas_baltasi", "yildirim_kilici", "dag_cekici", "dag_cekici", "kargi", "teber",
+		"kargi", "kargi", "ikiz_bicak", "ikiz_bicak", "kement"]
+	if f >= 30 and f % 80 == 30 and _lab_i < order.size():
+		pl.facing = 1
+		pl.debug_swing(order[_lab_i], items[_lab_i])
+		_lab_i += 1
+
+
+func _showcase(delta: float) -> void:
+	if lab:
+		_lab(delta)
+		return
+	## --sahne: düz arenada dövüş gösterisi. Silahlar sırayla değişir, düşmanlar düzenli gelir;
+	## efekt ve animasyonları çekim için güvenilir biçimde tekrar eder.
+	if hud.mode != "play" or level == null or level.player == null:
+		if hud.mode == "tilsim":
+			_apply_scroll(0)
+		return
+	for a in _auto_pressed:
+		Input.action_release(a)
+	_auto_pressed.clear()
+	var pl: Player = level.player
+	var TSx := float(Level.TS)
+	if _sc_step < 0:
+		_sc_step = 0
+		var tx := 4
+		pl.global_position = Vector2(tx * TSx, level.surface_y(tx) * TSx - 2)
+		pl.facing = 1
+		for e in get_tree().get_nodes_in_group("dusman"):
+			e.queue_free()
+		Game.camera.reset_smoothing.call_deferred()
+	_sc_t += delta
+	Game.run["hp"] = 100.0
+	pl.inv_t = maxf(pl.inv_t, 0.0)
+	var t := _sc_t
+	var tx0 := int(pl.global_position.x / TSx)
+	# düşman akışı: her 2.6 sn'de sağdan bir kurt; 9. sn'de balbal, 19. sn'de iye
+	if int(t * 60.0) % 156 == 30:
+		level.spawn_enemy("kara_boru", Vector2((tx0 + 6) * TSx, level.surface_y(tx0 + 6) * TSx - 1))
+	if int(t * 60.0) == 9 * 60:
+		level.spawn_enemy("balbal", Vector2((tx0 + 6) * TSx, level.surface_y(tx0 + 6) * TSx - 1))
+	if int(t * 60.0) == 19 * 60:
+		level.spawn_enemy("agac_iyesi", Vector2((tx0 + 6) * TSx, level.surface_y(tx0 + 6) * TSx - 1))
+	if int(t * 60.0) == 28 * 60:
+		level.spawn_enemy("surale", Vector2((tx0 + 6) * TSx, level.surface_y(tx0 + 6) * TSx - 1))
+	if int(t * 60.0) == 36 * 60:
+		level.spawn_enemy("arcura", Vector2((tx0 + 6) * TSx, level.surface_y(tx0 + 6) * TSx - 1))
+	# silah programı
+	var sched := [[0.0, "ulu_kilic"], [7.0, "dag_cekici"], [12.0, "ruh_kilici"], [17.0, "ay_palasi"], [22.0, "yildirim_kilici"], [27.0, "teber"], [32.0, "erlik_tirpani"], [37.0, "gurz"], [42.0, "alp_kilici"], [47.0, "bozgun_kilici"], [52.0, "bori_hanceri"], [56.0, "tulpar_mizragi"]]
+	for s in sched:
+		if int(t * 60.0) == int(float(s[0]) * 60.0):
+			var mat := "demir"
+			match String(s[1]):
+				"pala":
+					mat = "gok_demiri"
+				"teber":
+					mat = "od_tasi"
+				"ayaz_kilici":
+					mat = "ayaz"
+			Game.run["slots"]["melee"] = ItemGen.roll(s[1], 1, mat, 1)
+			if s[1] == "erlik_tirpani":
+				Game.run["slots"]["melee"]["affixes"].append({"id": "zehirleme", "v": 100.0})
+			if s[1] == "teber":
+				Game.run["slots"]["melee"]["affixes"].append({"id": "yanma", "v": 100.0})
+			if s[1] == "ayaz_kilici":
+				Game.run["slots"]["melee"]["affixes"].append({"id": "dondurma", "v": 60.0})
+			FX.text(pl.center() + Vector2(0, -40), Game.run["slots"]["melee"]["name"], Color(1, 0.9, 0.6), 9)
+	var sched2 := [[0.0, "od_oklari"], [8.0, "saganak_yayi"], [16.0, "tufan_yayi"], [24.0, "gok_asasi"], [32.0, "akinci_yayi"], [40.0, "turk_yayi"]]
+	for s in sched2:
+		if int(t * 60.0) == int(float(s[0]) * 60.0):
+			Game.run["slots"]["second"] = ItemGen.roll(s[1], 2, "demir", 1)
+	var sched3 := [[3.0, "davul_totemi"], [15.0, "ayaz_tilsimi"], [25.0, "yel_tilsimi"], [35.0, "ok_yagmuru"], [45.0, "kartal_cagrisi"]]
+	for s in sched3:
+		if int(t * 60.0) == int(float(s[0]) * 60.0):
+			Game.run["slots"]["g1"] = ItemGen.roll(s[1], 1, "demir", 0)
+			pl.cd["g1"] = 0.0
+	# saldırı ritmi: gürz basılı tutulur, diğerleri tıklanır; arada yuvarlanma ve yay
+	var cur: String = Game.run["slots"]["melee"].get("id", "")
+	var f := int(t * 60.0)
+	if cur != "":
+		# 150 karelik turlar: A zincir (art arda), B bas-bas-bekle-bas (bekleme bitirişi), C basılı tut (ağır saldırı)
+		var cyc := (f / 150) % 5
+		var ph := f % 150
+		if cyc == 0 and ph in [0, 16, 32, 48, 64]:
+			_tap("saldiri1")
+		elif cyc == 1 and ph in [0, 16, 78]:
+			_tap("saldiri1")
+		elif cyc == 2 and ph < 70:
+			Input.action_press("saldiri1")
+			_auto_pressed.append("saldiri1")
+		elif cyc == 3:
+			# göğe savur -> zıpla -> hava kombosu -> kartal dalışı
+			if ph < 4:
+				Input.action_press("yukari")
+				_auto_pressed.append("yukari")
+				if ph == 1:
+					_tap("saldiri1")
+			if ph == 18:
+				_tap("zipla")
+			if ph in [24, 36, 48]:
+				_tap("saldiri1")
+			if ph >= 62 and ph < 70:
+				Input.action_press("asagi")
+				_auto_pressed.append("asagi")
+				if ph == 64:
+					_tap("saldiri1")
+		elif cyc == 4:
+			# yuvarlan -> dönüş kesiği; koş -> akın kesiği; çömel -> diz biçen
+			if ph == 0:
+				_tap("yuvarlan")
+			if ph == 20:
+				_tap("saldiri1")
+			if ph >= 50 and ph < 95:
+				Input.action_press("yuvarlan")
+				_auto_pressed.append("yuvarlan")
+				Input.action_press("sag" if pl.facing > 0 else "sol")
+				_auto_pressed.append("sag" if pl.facing > 0 else "sol")
+				if ph == 90:
+					_tap("saldiri1")
+			if ph >= 110 and ph < 130:
+				Input.action_press("asagi")
+				_auto_pressed.append("asagi")
+				if ph == 114:
+					_tap("saldiri1")
+	if f % 240 == 200:
+		_tap("yuvarlan")
+	if f % 300 >= 250 and f % 300 < 290:
+		Input.action_press("saldiri2")
+		_auto_pressed.append("saldiri2")
+	if f % 300 == 200:
+		_tap("techizat1")
+	if f == 42 * 60 + 30:
+		pl.kut = 100.0
+		_tap("kut")
+	if pl.wolf_t > 0.0:
+		if f % 40 == 20:
+			_tap("saldiri2")
+		if f % 150 == 100:
+			_tap("kut")
+	# yüzü hep en yakın düşmana dön
+	var best: Node = null
+	var bd := 9999.0
+	for e in get_tree().get_nodes_in_group("dusman"):
+		if is_instance_valid(e) and not e.dead:
+			var d: float = absf(e.global_position.x - pl.global_position.x)
+			if d < bd:
+				bd = d
+				best = e
+	if best and pl.atk.is_empty() and pl.roll_t <= 0.0:
+		pl.facing = int(signf(best.global_position.x - pl.global_position.x))
+		if bd > 70.0:
+			_tap("sag" if pl.facing > 0 else "sol")
+
+
+var _ekran := ""
+var _ekran_t := 0
+var _ekran_ikinci := false
+
+
+func _debug_screen() -> void:
+	## --ekran=oyun|tilsim|yuva|duraklat|olum|umay|demirci : arayüz testleri ve ekran görüntüsü için
+	_ekran_t += 1
+	if _ekran in ["yay", "kilic"] and level and level.player:
+		# yay: 45. karede ger, 85. karede bırak; kılıç: 45/70/95. karelerde zincir vuruş
+		var pl0: Player = level.player
+		for a0 in _auto_pressed:
+			Input.action_release(a0)
+		_auto_pressed.clear()
+		for e in get_tree().get_nodes_in_group("dusman"):
+			if e.global_position.distance_to(pl0.global_position) > 60.0:
+				e.set_physics_process(false)
+		if _ekran_t == 40:
+			pl0.facing = 1
+			if _ekran == "yay":
+				Game.run["slots"]["second"] = ItemGen.roll("turk_yayi", 1, "demir", 1)
+			for arg in OS.get_cmdline_user_args():
+				if String(arg).begins_with("--silah="):
+					Game.run["slots"]["melee"] = ItemGen.roll(String(arg).trim_prefix("--silah="), 1, "demir", 0)
+				elif String(arg).begins_with("--ikinci="):
+					Game.run["slots"]["second"] = ItemGen.roll(String(arg).trim_prefix("--ikinci="), 2, "demir", 0)
+					_ekran_ikinci = true
+			pl0.on_equip()
+			# vuruş testi: önüne iki durağan düşman koy (--dusman=kimlik ile tür seçilir)
+			var ek := "kara_boru"
+			for arg in OS.get_cmdline_user_args():
+				if String(arg).begins_with("--dusman="):
+					ek = String(arg).trim_prefix("--dusman=")
+			for i in 2:
+				var en := level.spawn_enemy(ek, pl0.global_position + Vector2(34 + i * 26, 0), i == 1)
+				if en:
+					en.set_physics_process(false)
+					en.facing = -1
+					en.anim.set_facing(-1)
+		if _ekran == "yay":
+			if _ekran_t == 45:
+				Input.action_press("saldiri2")
+			elif _ekran_t == 85:
+				Input.action_release("saldiri2")
+		elif _ekran_t in [45, 70, 95]:
+			_tap("saldiri2" if _ekran_ikinci else "saldiri1")
+		return
+	if _ekran_t != 40 or level == null or level.player == null:
+		return
+	var pl: Player = level.player
+	Game.run["slots"]["second"] = ItemGen.roll("savas_baltasi", 2, "gumus", 2)
+	Game.run["slots"]["g2"] = ItemGen.roll("sifa_muskasi", 1, "tunc", 1)
+	Game.run["ongun"] = {"kurt": 3, "kartal": 1, "ayi": 2}
+	Game.run["gold"] = 245
+	Game.run["kut"] = 37
+	pl.kut = 65.0
+	var it := ItemGen.roll("dag_cekici", 2, "altin", 3)
+	level.drop_item(it, pl.global_position + Vector2(10, -20))
+	# v23: biraz ötede ikinci bir silah (yerdeki silahın SnH etiketi ▲ / ▼)
+	level.drop_item(ItemGen.roll("ikiz_bicak", 1, "gumus", 1), pl.global_position + Vector2(130, -20))
+	level.drop_item(ItemGen.roll("ulu_kilic", 0, "demir", 0), pl.global_position + Vector2(-110, -20))
+	match _ekran:
+		"tilsim":
+			hud.sel = 0
+			hud.mode = "tilsim"
+			get_tree().paused = true
+		"yuva":
+			await get_tree().create_timer(0.4).timeout
+			var p := level.nearest_item(pl.global_position + Vector2(0, -10))
+			if p:
+				_on_slot_request(p)
+		"duraklat":
+			get_tree().paused = true
+		"olum":
+			_on_died()
+		"umay":
+			_on_npc("umay")
+		"demirci":
+			Game.meta["blueprints"] = ["saganak_yayi", "ayaz_kilici"]
+			_on_npc("demirci")
+		"sanat":   # v27: duraklatmadan savaş sanatları (kart: Ay Hilali)
+			Game.meta["sanat_acik"] = ["ay_hilali", "bir_cekis", "demir_durus"]
+			get_tree().paused = true
+			_open_sanat(false)
+			hud.sel = 2
+		"ogretmen":   # v27: Alp Ata (Kut bankasıyla öğretme)
+			Game.meta["sanat_acik"] = ["ay_hilali"]
+			Game.meta["kut_bank"] = maxi(int(Game.meta.get("kut_bank", 0)), 85)
+			_on_npc("alp_ata")
+			hud.sel = 3
+		"sanat_hud":   # v27: HUD halkası, dolu nişan
+			Game.run["nisan"] = 340.0
+		"alp_ata":   # v27: yurtta Alp Ata (--yurt ile): oyuncu yanına
+			for n in level.npcs:
+				if n.id == "alp_ata":
+					pl.global_position = n.global_position + Vector2(-34, -2)
+					pl.facing = 1
+					Game.camera.reset_smoothing.call_deferred()
+		"baslik":
+			hud.mode = "title"
+		"ayarlar":
+			hud.mode = "title"
+			_open_settings()
+			hud.sel = 2   # doku kalitesi
+
+
+func _physics_process(delta: float) -> void:
+	if _ekran != "":
+		_debug_screen()
+		return
+	if showcase:
+		_showcase(delta)
+		return
+	if not auto_test:
+		return
+	match hud.mode:
+		"tilsim":
+			_apply_scroll(0 if _bot_gercek else randi_range(0, 2))
+			return
+		"demirci":
+			var bps: Array = Game.meta.get("blueprints", [])
+			if not bps.is_empty():
+				_demirci_ac(bps[0])
+			hud.demirci_son = {}
+			_start_play()
+			return
+		"tuccar":
+			_start_play()
+			return
+		"sanat":
+			_start_play()
+			return
+		"umay":
+			Game.umay_buy("can")
+			_start_play()
+			return
+		"ozan":
+			_start_play()
+			return
+		"done":
+			_bot_report("BOLUM_SONU")
+			_next_level()
+			return
+		"dead":
+			_bot_olum += 1
+			_bot_report("OLUM")
+			if _bot_gercek:
+				_depth_forced = false   # v22: ölçüm kipinde aynı derinlikten yeniden başla
+			_new_run()
+			_start_play()
+			_bot_last_hp = float(Game.run["hp"])
+			return
+	if hud.mode != "play" or level == null or level.player == null:
+		return
+	for a in _auto_pressed:
+		Input.action_release(a)
+	_auto_pressed.clear()
+	_auto_t += delta
+	var t := _auto_t
+	var pl: Player = level.player
+	if pl.dead:
+		return
+	if _bot_gercek and _bot_fight(pl, t):
+		pass   # v22: ölçüm kipinde yakındaki düşmanla dövüşür (aşağıdaki yürüyüş / zıplama dizisi yine işler)
+	else:
+		Input.action_press("sag")
+		if int(t * 60.0) % 23 == 0:
+			_tap("saldiri1")
+	# v9: koşu (Shift basılı) ve çömelerek saldırı yolları da sınanır
+	var f9 := int(t * 60.0) % 700
+	if f9 >= 200 and f9 < 330:
+		Input.action_press("yuvarlan")
+		_auto_pressed.append("yuvarlan")
+	if f9 >= 420 and f9 < 470:
+		Input.action_press("asagi")
+		_auto_pressed.append("asagi")
+		if f9 % 12 == 0:
+			_tap("saldiri1")
+		if f9 == 450:
+			Input.action_press("saldiri2")
+			_auto_pressed.append("saldiri2")
+	if level.hub and int(t * 60.0) % 45 == 0:
+		_tap("etkiles")
+	# duvara takıldıysa: çift zıpla + yuvarlan
+	if absf(pl.global_position.x - _auto_last_x) < 2.0:
+		if _auto_stuck <= 1.2 and _auto_stuck + delta > 1.2:
+			_bot_takilma += 1
+		_auto_stuck += delta
+	else:
+		_auto_stuck = 0.0
+	if pl.is_on_floor() and pl.wolf_t <= 0.0 and not pl.don_on and pl.grabbed_by == null and pl._head_blocked():
+		_bot_alcak += 1
+		if _bot_alcak % 30 == 1 and _bot_alcak < 200:
+			var tx := int(pl.global_position.x / Level.TS)
+			var ty := int(pl.global_position.y / Level.TS)
+			var col := ""
+			for yy in range(ty - 4, ty + 1):
+				for xx in range(tx - 1, tx + 2):
+					col += str(level.cell(xx, yy))
+				col += "|"
+			print("[otomatik] ALCAK x=%.0f y=%.0f karo=%d,%d çevre=%s" % [pl.global_position.x, pl.global_position.y, tx, ty, col])
+	if float(pl._haz_last) > _bot_cukur_t:
+		_bot_cukur_t = float(pl._haz_last)
+		_bot_cukur += 1
+	_auto_last_x = pl.global_position.x
+	if _auto_stuck > 1.2 and int(t * 60.0) % 20 == 0:
+		_tap("zipla")
+	if _auto_stuck > 1.2 and int(t * 60.0) % 20 == 12:
+		_tap("yuvarlan")
+	if int(t * 60.0) % 97 == 0:
+		_tap("zipla")
+	if int(t * 60.0) % 101 == 50:
+		_tap("zipla")
+	if int(t * 60.0) % 173 == 0:
+		_tap("yuvarlan")
+	if int(t * 60.0) % 211 == 0:
+		Input.action_press("saldiri2")
+	if int(t * 60.0) % 211 == 40:
+		Input.action_release("saldiri2")
+	if int(t * 60.0) % 317 == 0:
+		_tap("techizat1")
+	if int(t * 60.0) % 401 == 0:
+		_tap("etkiles")
+	if int(t * 60.0) % 599 == 0:
+		pl.kut = 100.0
+		_tap("kut")
+	# v22: alınan hasar sayacı; --bot_gercek kipinde can doldurulmaz (şişe içilir, ölüm sayılır)
+	var hp_now := float(Game.run["hp"])
+	if hp_now < _bot_last_hp:
+		_bot_hasar += _bot_last_hp - hp_now
+	if _bot_gercek:
+		if int(Game.run["flasks"]) < _bot_fl:
+			_bot_sise += 1
+		_bot_fl = int(Game.run["flasks"])
+		if hp_now < float(Game.run["max_hp"]) * 0.35 and int(Game.run["flasks"]) > 0 and pl.drink_t <= 0.0 and int(t * 60.0) % 10 == 0:
+			_tap("sise")
+	elif hp_now < 40.0:
+		Game.run["hp"] = maxf(100.0, float(Game.run["max_hp"]) * 0.6)
+		_bot_dolum += 1
+	_bot_last_hp = float(Game.run["hp"])
+	if Engine.get_physics_frames() % 300 == 0:
+		print("[otomatik] can=%d/%d hasar=%d dolum=%d şişe=%d ölüm=%d" % [int(Game.run["hp"]), int(Game.run["max_hp"]), int(_bot_hasar), _bot_dolum, _bot_sise, _bot_olum])
+		print("[otomatik] biyom=%s stil=%s koridor=%d kare=%d t=%.1f ts=%.2f derinlik=%d x=%.0f y=%.0f zemin=%s öldürülen=%d altın=%d kut=%d yuva1=%s yuva2=%s düşman=%d mermi=%d parşömen=%d" % [level.biome.get("id", "?"), level.style, level.carved, Engine.get_physics_frames(), t, Engine.time_scale, int(Game.run["depth"]), pl.global_position.x, pl.global_position.y, str(pl.is_on_floor()), int(Game.run["kills"]), int(Game.run["gold"]), int(Game.run["kut"]), Game.run["slots"]["melee"].get("name", "-"), Game.run["slots"]["second"].get("name", "-"), get_tree().get_nodes_in_group("dusman").size(), level.proj_root.get_child_count(), Game.meta.get("blueprints", []).size()])
+
+
+var _bot_gercek := OS.get_cmdline_user_args().has("--bot_gercek")
+var _bot_hasar := 0.0
+var _bot_last_hp := 100.0
+var _bot_dolum := 0
+var _bot_sise := 0
+var _bot_fl := 99
+var _bot_tgt: Node = null
+var _bot_tgt_hp := 0.0
+var _bot_tgt_t := 0.0
+var _bot_skip: Dictionary = {}
+var _bot_olum := 0
+var _bot_takilma := 0      # v25: duvara / engele 1,2 sn'den uzun takılma sayısı
+var _bot_alcak := 0        # v25: ayağa kalkılamayan alçak tavan altında geçen kare (yalnızca yuvarlanarak geçilen yer)
+var _bot_cukur := 0        # v25: tehlike çukuruna değme sayısı
+var _bot_cukur_t := -9.0
+
+
+func _bot_fight(pl: Player, t: float) -> bool:
+	## v22 --bot_gercek: basit dövüşçü. Yakında (130 px) uyanık düşman varsa durur, ona döner, 8 karede bir vurur;
+	## hazırlıktaki düşman yakınsa yarı yarıya yuvarlanarak kaçar (orta beceri). true: dövüşüyor.
+	var best: Node = null
+	var bd := 130.0
+	for e in get_tree().get_nodes_in_group("dusman"):
+		if not is_instance_valid(e) or e.dead or _bot_skip.has(e.get_instance_id()):
+			continue
+		var dx: float = absf(e.global_position.x - pl.global_position.x)
+		if dx < bd and absf(e.center().y - pl.center().y) < 70.0:
+			bd = dx
+			best = e
+	if best == null:
+		return false
+	# aynı hedefe 5 sn boyunca hasar veremediyse (uçan, kabukta, ulaşılmaz) onu bırak
+	if best != _bot_tgt or float(best.hp) < _bot_tgt_hp - 0.5:
+		_bot_tgt = best
+		_bot_tgt_hp = float(best.hp)
+		_bot_tgt_t = t
+	elif t - _bot_tgt_t > 5.0:
+		_bot_skip[best.get_instance_id()] = true
+		return false
+	var f := int(t * 60.0)
+	if pl.atk.is_empty() and pl.roll_t <= 0.0:
+		pl.facing = int(signf(best.global_position.x - pl.global_position.x)) if absf(best.global_position.x - pl.global_position.x) > 2.0 else pl.facing
+	if best.state == "windup" and bd < 90.0 and f % 30 == 0 and randf() < 0.5:
+		_tap("yuvarlan")
+	elif bd > 46.0:
+		_tap("sag" if pl.facing > 0 else "sol")
+	if f % 8 == 0:
+		_tap("saldiri1")
+	return true
+
+
+func _exit_tree() -> void:
+	## v26: bot ölçümü --quit-after ile bitince de son satırları yaz (kritik payı, ölüm, hasar)
+	if auto_test and is_instance_valid(level) and not Game.run.is_empty():
+		_bot_report("CIKIS")
+
+
+func _bot_report(tag: String) -> void:
+	## v22 bot ölçümü: bölüm sonu / ölüm satırı (denge raporu için)
+	print("[otomatik] %s derinlik=%d süre=%.1f öldürülen=%d hasar=%d dolum=%d şişe=%d ölüm=%d can=%d/%d" % [tag, int(Game.run.get("depth", 1)), _auto_t, int(Game.run.get("kills", 0)), int(_bot_hasar), _bot_dolum, _bot_sise, _bot_olum, int(Game.run.get("hp", 0)), int(Game.run.get("max_hp", 0))])
+	# v25 harita: takılma, alçak tavan (yalnızca yuvarlanarak geçilen yer) ve tehlike çukuru sayaçları
+	print("[otomatik] HARITA derinlik=%d genişlik=%d takılma=%d alçak_tavan_kare=%d çukur_değme=%d düşman_taşınan=%d konmayan=%d" % [int(Game.run.get("depth", 1)), Level.W, _bot_takilma, _bot_alcak, _bot_cukur, int(level.spawn_moved) if level else 0, int(level.spawn_skipped) if level else 0])
+	# v24 altın ekonomisi: bu koşuda toplanan altın (Pickup altin_kazanc) ve bölümdeki tüccar
+	var bz_n := 1 if level and level.bezirgan else 0
+	print("[otomatik] ALTIN derinlik=%d toplanan=%d kese=%d bezirgan=%d duvar_ok=%s" % [int(Game.run.get("depth", 1)), int(Game.run.get("altin_kazanc", 0)), int(Game.run.get("gold", 0)), bz_n, str(level.bezirgan_ok()) if level else "-"])
+	# v23 kritik oranı (Player.krit_say: şans / silah koşulu / kesin)
+	var ks: Dictionary = Player.krit_say
+	var n := maxi(1, int(ks["isabet"]))
+	print("[otomatik] KRIT isabet=%d kritik=%%%.1f (şans %%%.1f, koşul %%%.1f, kesin %%%.1f) tomar K/Ka/A=%d/%d/%d" % [int(ks["isabet"]), 100.0 * float(int(ks["sans"]) + int(ks["kosul"]) + int(ks["kesin"])) / n, 100.0 * float(ks["sans"]) / n, 100.0 * float(ks["kosul"]) / n, 100.0 * float(ks["kesin"]) / n, int(Game.run["ongun"]["kurt"]), int(Game.run["ongun"]["kartal"]), int(Game.run["ongun"]["ayi"])])
+	var kes: Array = []
+	for kk in ks:
+		if String(kk).begins_with("kesin_"):
+			kes.append("%s %d" % [String(kk).trim_prefix("kesin_"), int(ks[kk])])
+	print("[otomatik] KRIT_KESIN " + ", ".join(kes))
+
+
+func _tap(a: String) -> void:
+	Input.action_press(a)
+	_auto_pressed.append(a)

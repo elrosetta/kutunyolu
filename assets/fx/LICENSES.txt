@@ -1,0 +1,66 @@
+Bu klasördeki dış kaynaklı efektler ve lisansları:
+
+v30 notu: eski piksel stiline (v1) ait PVFX kare animasyonları (assets/fx/anim/<ad>.png) ve Kenney parçacık
+dokuları (assets/fx/k_*.png) depodan kaldırıldı. Yalnızca PVFX animasyonlarının kimlik listesi / meta bilgisi
+(assets/fx/anim/anim.json) duruyor; oyundaki efektler mürekkep çizimleridir (anim_v2, ink, ink_p).
+
+1) PVFX Foundry Thirteen (nerijs, https://nerijs.itch.io/pvfx-foundry) — CC0 1.0 — assets/fx/anim/*
+PVFX FOUNDRY THIRTEEN ASSET SCOPE
+
+To the extent the publisher owns Copyright and Related Rights, CC0 1.0
+Universal below applies only to these files in this release:
+
+- effects/*/grid/sprite-sheet.png
+- effects/*/grid/manifest.json
+- effects/*/packed/sprite-sheet.png
+- effects/*/packed/manifest.json
+- pack.json
+- README.md, IMPORTING.md, FORMAT.md, CHANGELOG.md, and THIRD_PARTY_NOTICES.txt
+
+The dedication does not apply to Pixel VFX Studio software, effect project
+source, imported source assets, style documents, repository content, or product
+names and marks. Those materials are not included in this release.
+
+Creative Commons Legal Code
+
+CC0 1.0 Universal
+
+    CREATIVE COMMONS CORPORATION IS NOT A LAW FIRM AND DOES NOT PROVIDE
+    LEGAL SERVICES. DISTRIBUTION OF THIS DOCUMENT DOES NOT CREATE AN
+    ATTORNEY-CLIENT RELATIONSHIP. CREATIVE COMMONS PROVIDES THIS
+    INFORMATION ON AN "AS-IS" BASIS. CREATIVE COMMONS MAKES NO WARRANTIES
+    REGARDING THE USE OF THIS DOCUMENT OR THE INFORMATION OR WORKS
+    PROVIDED HEREUNDER, AND DISCLAIMS LIABILITY FOR DAMAGES RESULTING FROM
+    THE USE OF THIS DOCUMENT OR THE INFORMATION OR WORKS PROVIDED
+    HEREUNDER.
+
+Statement of Purpose
+
+The laws of most jurisdictions throughout the world automatically confer
+exclusive Copyright and Related Rights (defined below) upon the creator
+and subsequent owner(s) (each and all, an "owner") of an origin
+
+2) Kenney Particle Pack (Kenney Vleugels, https://kenney.nl) — CC0 1.0 — assets/fx/k_*.png
+
+
+	Particle Pack (1.1)
+
+	by Kenney Vleugels (Kenney.nl)
+
+	Additional credit for creating filter templates:
+	Indigo Ray, Craig Nisbet, Zoltan Erdokovy, Heliagon, ThreeDee, Killst4r and Tim2501
+
+			------------------------------
+
+	License (Creative Commons Zero, CC0)
+	http://creativecommons.org/publicdomain/zero/1.0/
+
+	You may use these assets in personal and commercial projects.
+	Credit (Kenney or www.kenney.nl) would be nice but is not mandatory.
+
+			------------------------------
+
+	Donate:   http://support.kenney.nl
+	Request:  http://request.kenney.nl
+
+	Follow on Twitter for updates: @KenneyNL (www.twitter.com/kenneynl)

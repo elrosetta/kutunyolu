@@ -1,0 +1,112 @@
+{
+ "arc": {
+  "w": 128,
+  "h": 128,
+  "frames": 8
+ },
+ "arc_thin": {
+  "w": 128,
+  "h": 128,
+  "frames": 8
+ },
+ "arc_heavy": {
+  "w": 144,
+  "h": 144,
+  "frames": 9
+ },
+ "arc_short": {
+  "w": 80,
+  "h": 80,
+  "frames": 6
+ },
+ "line": {
+  "w": 96,
+  "h": 96,
+  "frames": 5
+ },
+ "ring": {
+  "w": 112,
+  "h": 112,
+  "frames": 6
+ },
+ "x": {
+  "w": 96,
+  "h": 96,
+  "frames": 6
+ },
+ "impact_cut": {
+  "w": 64,
+  "h": 64,
+  "frames": 5
+ },
+ "impact_blunt": {
+  "w": 64,
+  "h": 64,
+  "frames": 6
+ },
+ "impact_pierce": {
+  "w": 64,
+  "h": 64,
+  "frames": 5
+ },
+ "impact_magic": {
+  "w": 64,
+  "h": 64,
+  "frames": 6
+ },
+ "spark_s": {
+  "w": 16,
+  "h": 16,
+  "frames": 4
+ },
+ "spark_m": {
+  "w": 24,
+  "h": 24,
+  "frames": 5
+ },
+ "hit_ring": {
+  "w": 48,
+  "h": 48,
+  "frames": 5
+ },
+ "smear_h": {
+  "w": 96,
+  "h": 24,
+  "frames": 2
+ },
+ "crit_burst": {
+  "w": 96,
+  "h": 96,
+  "frames": 6
+ },
+ "kill_flash": {
+  "w": 64,
+  "h": 64,
+  "frames": 3
+ },
+ "decal_crack_0": {
+  "w": 64,
+  "h": 20,
+  "frames": 1
+ },
+ "decal_crack_1": {
+  "w": 64,
+  "h": 20,
+  "frames": 1
+ },
+ "decal_blood_0": {
+  "w": 40,
+  "h": 16,
+  "frames": 1
+ },
+ "decal_blood_1": {
+  "w": 40,
+  "h": 16,
+  "frames": 1
+ },
+ "decal_blood_2": {
+  "w": 40,
+  "h": 16,
+  "frames": 1
+ }
+}

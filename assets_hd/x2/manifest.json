@@ -1,0 +1,1802 @@
+{
+ "bg/bozkir_v2_0_sky.png": [
+  1920,
+  1080,
+  "bg/bozkir_v2_0_sky.webp",
+  "ef07bb14a4940ef5752e85d2b547c171"
+ ],
+ "bg/bozkir_v2_0b_shafts.png": [
+  1920,
+  1080,
+  "bg/bozkir_v2_0b_shafts.webp",
+  "94d381f421e6d40053da8a05d429a31e"
+ ],
+ "bg/bozkir_v2_1_far.png": [
+  3840,
+  1080,
+  "bg/bozkir_v2_1_far.webp",
+  "042d6fa3294ff1b99da1749c5f264727"
+ ],
+ "bg/bozkir_v2_2_farmid.png": [
+  3840,
+  1080,
+  "bg/bozkir_v2_2_farmid.webp",
+  "e2bfe463794d0fba868bae02dd775dde"
+ ],
+ "bg/bozkir_v2_2b_haze.png": [
+  3840,
+  1080,
+  "bg/bozkir_v2_2b_haze.webp",
+  "5285103b1914c8fdb58bff98ce6e5b92"
+ ],
+ "bg/bozkir_v2_3_mid.png": [
+  3840,
+  1080,
+  "bg/bozkir_v2_3_mid.webp",
+  "3e4d841e3677100414e68f5866a4ca08"
+ ],
+ "bg/bozkir_v2_4_dust.png": [
+  3840,
+  1080,
+  "bg/bozkir_v2_4_dust.webp",
+  "c7b6683fd1264f5eface2dfef209706c"
+ ],
+ "bg/bozkir_v2_6_near.png": [
+  3840,
+  1080,
+  "bg/bozkir_v2_6_near.webp",
+  "6e5bbe657bb07c9b09cb6fad971a52d3"
+ ],
+ "bg/bozkir_v2_7_wind.png": [
+  3840,
+  1080,
+  "bg/bozkir_v2_7_wind.webp",
+  "084dfdeccbf0f463d92819ffe9084496"
+ ],
+ "bg/bozkir_v2_chaff.png": [
+  32,
+  12,
+  "bg/bozkir_v2_chaff.webp",
+  "69f23d6686f1231086a0d469885c51d1"
+ ],
+ "bg/bozkir_v2_fg_grass.png": [
+  3840,
+  280,
+  "bg/bozkir_v2_fg_grass.webp",
+  "f4ff2202f28e269bb2f12f373fd3e54a"
+ ],
+ "bg/kaf_v2_0_sky.png": [
+  1920,
+  1080,
+  "bg/kaf_v2_0_sky.webp",
+  "cf85f1f6ce889352287e39d1de7e8c52"
+ ],
+ "bg/kaf_v2_0b_aurora.png": [
+  3840,
+  1080,
+  "bg/kaf_v2_0b_aurora.webp",
+  "615b619917248e087e7dbf188bf4e919"
+ ],
+ "bg/kaf_v2_1_far.png": [
+  3840,
+  1080,
+  "bg/kaf_v2_1_far.webp",
+  "35dd859b8cbd9e426045e343f9d2d30f"
+ ],
+ "bg/kaf_v2_2_farmid.png": [
+  3840,
+  1080,
+  "bg/kaf_v2_2_farmid.webp",
+  "89e47e390d4608d763fea183e35f0731"
+ ],
+ "bg/kaf_v2_2b_haze.png": [
+  3840,
+  1080,
+  "bg/kaf_v2_2b_haze.webp",
+  "cdc88e138469c545ab685017a9bb9254"
+ ],
+ "bg/kaf_v2_3_mid.png": [
+  3840,
+  1080,
+  "bg/kaf_v2_3_mid.webp",
+  "49ac7d89f95c17610a2291e88218de34"
+ ],
+ "bg/kaf_v2_4_blizzard.png": [
+  3840,
+  1080,
+  "bg/kaf_v2_4_blizzard.webp",
+  "5f9b14500bb981b70e8f0458304a27a7"
+ ],
+ "bg/kaf_v2_5_snow_far.png": [
+  1920,
+  1080,
+  "bg/kaf_v2_5_snow_far.webp",
+  "ecdfc2e9121e1204081a2d02264cf2c9"
+ ],
+ "bg/kaf_v2_6_near.png": [
+  3840,
+  1080,
+  "bg/kaf_v2_6_near.webp",
+  "ce02d8e825735237c9a98691f4f1553e"
+ ],
+ "bg/kaf_v2_7_snow.png": [
+  1920,
+  1080,
+  "bg/kaf_v2_7_snow.webp",
+  "930cf4d7a1aa4bff3eb849db935f132f"
+ ],
+ "bg/kaf_v2_fg_grass.png": [
+  3840,
+  260,
+  "bg/kaf_v2_fg_grass.webp",
+  "a83e0bf3eebc4f8ce299108534596b14"
+ ],
+ "bg/kaf_v2_fg_top.png": [
+  3840,
+  300,
+  "bg/kaf_v2_fg_top.webp",
+  "e41cfe2c4ae609ae36fcb011305b2c63"
+ ],
+ "bg/kaf_v2_flake.png": [
+  24,
+  24,
+  "bg/kaf_v2_flake.webp",
+  "cac119477091763ffa8e531313aaffc1"
+ ],
+ "bg/otuken_v2_0_sky.png": [
+  1920,
+  1080,
+  "bg/otuken_v2_0_sky.webp",
+  "f26a227e9bc3e40a7f959442e190c41a"
+ ],
+ "bg/otuken_v2_1_far.png": [
+  3840,
+  1080,
+  "bg/otuken_v2_1_far.webp",
+  "0fa42d8b6f34c55dcdebf0599d84c687"
+ ],
+ "bg/otuken_v2_2_farmid.png": [
+  3840,
+  1080,
+  "bg/otuken_v2_2_farmid.webp",
+  "2420007d3b3d9ac194147d8cc2fca903"
+ ],
+ "bg/otuken_v2_2b_haze.png": [
+  3840,
+  1080,
+  "bg/otuken_v2_2b_haze.webp",
+  "6328a19aa6e386a3ecd28db087a8fd95"
+ ],
+ "bg/otuken_v2_3_mid.png": [
+  3840,
+  1080,
+  "bg/otuken_v2_3_mid.webp",
+  "02288cfb727b129adaf770a5e56be926"
+ ],
+ "bg/otuken_v2_4_fog.png": [
+  3840,
+  1080,
+  "bg/otuken_v2_4_fog.webp",
+  "f4037313d526d38645a7905abaf00948"
+ ],
+ "bg/otuken_v2_5_shafts.png": [
+  2680,
+  1080,
+  "bg/otuken_v2_5_shafts.webp",
+  "cdf328deb6b9b55d4529db90f6cbf58e"
+ ],
+ "bg/otuken_v2_6_near.png": [
+  3840,
+  1080,
+  "bg/otuken_v2_6_near.webp",
+  "1ca508b5daf90fc22ad3659174eef7fe"
+ ],
+ "bg/otuken_v2_fg_grass.png": [
+  3840,
+  260,
+  "bg/otuken_v2_fg_grass.webp",
+  "b58aa49b468bebb781fbe91d48747f3c"
+ ],
+ "bg/otuken_v2_fg_top.png": [
+  3840,
+  300,
+  "bg/otuken_v2_fg_top.webp",
+  "66220656f3054b589954a8422746f378"
+ ],
+ "bg/otuken_v2_leaf.png": [
+  32,
+  16,
+  "bg/otuken_v2_leaf.webp",
+  "76f0b19b6858be16680b47b2d2efff59"
+ ],
+ "bg/sahmeran_v2_0_sky.png": [
+  1920,
+  1080,
+  "bg/sahmeran_v2_0_sky.webp",
+  "2527ccdd1fb6c094b90ce9c358a885e9"
+ ],
+ "bg/sahmeran_v2_1_far.png": [
+  3840,
+  1080,
+  "bg/sahmeran_v2_1_far.webp",
+  "e665a85d760ad5456b255ff2cdf7ef8e"
+ ],
+ "bg/sahmeran_v2_2_farmid.png": [
+  3840,
+  1080,
+  "bg/sahmeran_v2_2_farmid.webp",
+  "68d22d1d1c7c3b8c8a4f08a953dc89eb"
+ ],
+ "bg/sahmeran_v2_2b_haze.png": [
+  3840,
+  1080,
+  "bg/sahmeran_v2_2b_haze.webp",
+  "e078c3230d244b34432ad09ce23516dc"
+ ],
+ "bg/sahmeran_v2_3_mid.png": [
+  3840,
+  1080,
+  "bg/sahmeran_v2_3_mid.webp",
+  "b1295c58fa4756d65abd542371f5d32d"
+ ],
+ "bg/sahmeran_v2_3_mid_boss.png": [
+  3840,
+  1080,
+  "bg/sahmeran_v2_3_mid_boss.webp",
+  "28ba1aeb9b8f3abbb3baecb51d77dae1"
+ ],
+ "bg/sahmeran_v2_4_fog.png": [
+  3840,
+  1080,
+  "bg/sahmeran_v2_4_fog.webp",
+  "de2993fcbb7b4e37a33d4622ceca4408"
+ ],
+ "bg/sahmeran_v2_5_shafts.png": [
+  2680,
+  1080,
+  "bg/sahmeran_v2_5_shafts.webp",
+  "389f0a989dd8167ecd85fbc2415e5aee"
+ ],
+ "bg/sahmeran_v2_6_near.png": [
+  3840,
+  1080,
+  "bg/sahmeran_v2_6_near.webp",
+  "8c4186c8414cf9126524d856edf2085f"
+ ],
+ "bg/sahmeran_v2_drip.png": [
+  8,
+  24,
+  "bg/sahmeran_v2_drip.webp",
+  "93616b8679a92f7d34d7cc72c94adafd"
+ ],
+ "bg/sahmeran_v2_fg_bottom.png": [
+  3840,
+  260,
+  "bg/sahmeran_v2_fg_bottom.webp",
+  "8509e3ce9705468550f89626a6add659"
+ ],
+ "bg/sahmeran_v2_fg_top.png": [
+  3840,
+  300,
+  "bg/sahmeran_v2_fg_top.webp",
+  "4bab2056df9776b92a63cb08855a43ff"
+ ],
+ "bg/sahmeran_v2_spore.png": [
+  16,
+  16,
+  "bg/sahmeran_v2_spore.webp",
+  "61be6667ee6ee097109b307727759179"
+ ],
+ "bg/tamu_v2_0_sky.png": [
+  1920,
+  1080,
+  "bg/tamu_v2_0_sky.webp",
+  "c573ead3cf8a78209d2c7939882d0dcf"
+ ],
+ "bg/tamu_v2_1_far.png": [
+  3840,
+  1080,
+  "bg/tamu_v2_1_far.webp",
+  "5be59e6358ff128f15b39ab7df7c25e0"
+ ],
+ "bg/tamu_v2_2_farmid.png": [
+  3840,
+  1080,
+  "bg/tamu_v2_2_farmid.webp",
+  "379ee3256428a0194e82cadbaced7406"
+ ],
+ "bg/tamu_v2_2b_haze.png": [
+  3840,
+  1080,
+  "bg/tamu_v2_2b_haze.webp",
+  "c1f579ac5070535db914a4d6a7eac402"
+ ],
+ "bg/tamu_v2_3_mid.png": [
+  3840,
+  1080,
+  "bg/tamu_v2_3_mid.webp",
+  "c85b3b0379ce7745436d62a1a10ae665"
+ ],
+ "bg/tamu_v2_3_mid_boss.png": [
+  3840,
+  1080,
+  "bg/tamu_v2_3_mid_boss.webp",
+  "a1f568c7fff54b2b74453e680f0fac4a"
+ ],
+ "bg/tamu_v2_4_fog.png": [
+  3840,
+  1080,
+  "bg/tamu_v2_4_fog.webp",
+  "8560fd5fefb350fbf53fdef7fb7b20d2"
+ ],
+ "bg/tamu_v2_5_shafts.png": [
+  2680,
+  1080,
+  "bg/tamu_v2_5_shafts.webp",
+  "0488353782e6cfea0eb40ca25b597c37"
+ ],
+ "bg/tamu_v2_6_near.png": [
+  3840,
+  1080,
+  "bg/tamu_v2_6_near.webp",
+  "60f2d9b607bdf8610325177ca3e3e651"
+ ],
+ "bg/tamu_v2_ash.png": [
+  16,
+  12,
+  "bg/tamu_v2_ash.webp",
+  "591ad2d54ffc3e4c05af3cffaa071cac"
+ ],
+ "bg/tamu_v2_ember.png": [
+  16,
+  16,
+  "bg/tamu_v2_ember.webp",
+  "48200d134e5fdda2c175b6d177cf0967"
+ ],
+ "bg/tamu_v2_fg_bottom.png": [
+  3840,
+  260,
+  "bg/tamu_v2_fg_bottom.webp",
+  "1399c87fb60cef4ca87c5f61168bbeaa"
+ ],
+ "bg/tamu_v2_fg_top.png": [
+  3840,
+  320,
+  "bg/tamu_v2_fg_top.webp",
+  "4688443a7b0ca5ccb51aa7784c348fd0"
+ ],
+ "bg/yurt_v2_0_sky.png": [
+  1920,
+  1080,
+  "bg/yurt_v2_0_sky.webp",
+  "568ae10eb854104ad5111628823a5ed6"
+ ],
+ "bg/yurt_v2_1_tree.png": [
+  3840,
+  1080,
+  "bg/yurt_v2_1_tree.webp",
+  "7585796888311b8a21d6ed85938addb4"
+ ],
+ "bg/yurt_v2_2_camp.png": [
+  3840,
+  1080,
+  "bg/yurt_v2_2_camp.webp",
+  "ded7398b1a669010c92666e8cc04de03"
+ ],
+ "bg/yurt_v2_3_mid.png": [
+  3840,
+  1080,
+  "bg/yurt_v2_3_mid.webp",
+  "15aa88d6dfd09ae40661991369b5e583"
+ ],
+ "bg/yurt_v2_4_fog.png": [
+  3840,
+  1080,
+  "bg/yurt_v2_4_fog.webp",
+  "dff6eaac03c1f8651fb3958cb851f868"
+ ],
+ "decor/balbal_bozkir_v2.png": [
+  160,
+  248,
+  "decor/balbal_bozkir_v2.webp",
+  "f6257b6a4ef620f50c7c49cdd19ce164"
+ ],
+ "decor/balbal_sahmeran_v2.png": [
+  180,
+  140,
+  "decor/balbal_sahmeran_v2.webp",
+  "028865d4fda9fe79d91cb166b30a4ef3"
+ ],
+ "decor/balbal_tamu_v2.png": [
+  140,
+  260,
+  "decor/balbal_tamu_v2.webp",
+  "307d1e18aa248c3bc63b56bc32b0efb6"
+ ],
+ "decor/balbal_v2.png": [
+  160,
+  240,
+  "decor/balbal_v2.webp",
+  "c4a656c51b000a8e5099fea7ba9c97e4"
+ ],
+ "decor/bezirgan_kervan_v2.png": [
+  736,
+  416,
+  "decor/bezirgan_kervan_v2.webp",
+  "56447268132755ca33b177e646af34d6"
+ ],
+ "decor/bitig_bozkir_v2.png": [
+  220,
+  400,
+  "decor/bitig_bozkir_v2.webp",
+  "796ffd89dafe598512ee18a994ea5571"
+ ],
+ "decor/bulut_1_v2.png": [
+  376,
+  136,
+  "decor/bulut_1_v2.webp",
+  "61479324c743d98bdfe3dade7d7930a8"
+ ],
+ "decor/bulut_2_v2.png": [
+  376,
+  136,
+  "decor/bulut_2_v2.webp",
+  "3f8666393213a635d5e287e4130a0d42"
+ ],
+ "decor/bulut_3_v2.png": [
+  376,
+  136,
+  "decor/bulut_3_v2.webp",
+  "5d22470f28f9e71c2e34a79b12ed3122"
+ ],
+ "decor/bulut_4_v2.png": [
+  376,
+  136,
+  "decor/bulut_4_v2.webp",
+  "baa8c8aa4b8c7a7fe1c713d8c1f56f6d"
+ ],
+ "decor/cicek_1_bozkir_v2.png": [
+  180,
+  140,
+  "decor/cicek_1_bozkir_v2.webp",
+  "018f967e8a44f1a692065eb2891937d2"
+ ],
+ "decor/cicek_1_sahmeran_v2.png": [
+  180,
+  128,
+  "decor/cicek_1_sahmeran_v2.webp",
+  "3db38467d1091736b6c84d412c162b6a"
+ ],
+ "decor/cicek_1_tamu_v2.png": [
+  180,
+  128,
+  "decor/cicek_1_tamu_v2.webp",
+  "458d2ced5f693295fb7d06c50d88bde8"
+ ],
+ "decor/cicek_1_v2.png": [
+  180,
+  120,
+  "decor/cicek_1_v2.webp",
+  "06819cdede1bd3b09beef2d46a2230d2"
+ ],
+ "decor/cicek_2_bozkir_v2.png": [
+  180,
+  140,
+  "decor/cicek_2_bozkir_v2.webp",
+  "d1707b5627e53662300f77039bf83a48"
+ ],
+ "decor/cicek_2_sahmeran_v2.png": [
+  180,
+  128,
+  "decor/cicek_2_sahmeran_v2.webp",
+  "f6a9ce68824500977297d749a6d2d454"
+ ],
+ "decor/cicek_2_tamu_v2.png": [
+  180,
+  128,
+  "decor/cicek_2_tamu_v2.webp",
+  "f19755402cf9d90a7eeb09e0b6dd9dfb"
+ ],
+ "decor/cicek_2_v2.png": [
+  180,
+  120,
+  "decor/cicek_2_v2.webp",
+  "41642eb9a0a81a71227bffc06e780661"
+ ],
+ "decor/cicek_3_bozkir_v2.png": [
+  180,
+  140,
+  "decor/cicek_3_bozkir_v2.webp",
+  "330c4b0a84dbca3d24158276d7a20910"
+ ],
+ "decor/cicek_3_sahmeran_v2.png": [
+  180,
+  128,
+  "decor/cicek_3_sahmeran_v2.webp",
+  "eff885677b2d393c41107e19ddb2e6b1"
+ ],
+ "decor/cicek_3_tamu_v2.png": [
+  180,
+  128,
+  "decor/cicek_3_tamu_v2.webp",
+  "7d751ccd25fe66505c7bad71c964e585"
+ ],
+ "decor/cicek_3_v2.png": [
+  180,
+  120,
+  "decor/cicek_3_v2.webp",
+  "10dff6245d9fa33de831e136c7fdc7e7"
+ ],
+ "decor/cira_bozkir_v2.png": [
+  128,
+  300,
+  "decor/cira_bozkir_v2.webp",
+  "6d90991baca82bfc977519035f22fb06"
+ ],
+ "decor/cira_kaf_v2.png": [
+  128,
+  300,
+  "decor/cira_kaf_v2.webp",
+  "21bc68a1e785ce501c3b1bb485339691"
+ ],
+ "decor/cira_sahmeran_v2.png": [
+  180,
+  300,
+  "decor/cira_sahmeran_v2.webp",
+  "451cb10a0f4e542f058a206ed4eb598e"
+ ],
+ "decor/cira_tamu_v2.png": [
+  160,
+  240,
+  "decor/cira_tamu_v2.webp",
+  "39941f430a1caad3b1270c282c6c743f"
+ ],
+ "decor/cira_v2.png": [
+  112,
+  280,
+  "decor/cira_v2.webp",
+  "63af63adc64c5f4509614ab1ff3da232"
+ ],
+ "decor/dilek_agaci_sahmeran_v2.png": [
+  480,
+  660,
+  "decor/dilek_agaci_sahmeran_v2.webp",
+  "a8cff5969d0249691c7a70a0f9ed8c76"
+ ],
+ "decor/dilek_agaci_tamu_v2.png": [
+  520,
+  660,
+  "decor/dilek_agaci_tamu_v2.webp",
+  "f07a10683498ff5cade9541e5012c266"
+ ],
+ "decor/dilek_agaci_v2.png": [
+  520,
+  660,
+  "decor/dilek_agaci_v2.webp",
+  "f0cd722f230c875fca2f091e7ffb54ac"
+ ],
+ "decor/kam_diregi_bozkir_v2.png": [
+  340,
+  500,
+  "decor/kam_diregi_bozkir_v2.webp",
+  "fd6019958aec466ed7a8daee7588a77d"
+ ],
+ "decor/kam_diregi_kaf_v2.png": [
+  260,
+  480,
+  "decor/kam_diregi_kaf_v2.webp",
+  "d79285276df5fe20b7bdffca3905613c"
+ ],
+ "decor/kam_diregi_sahmeran_v2.png": [
+  220,
+  460,
+  "decor/kam_diregi_sahmeran_v2.webp",
+  "207850c350b9c6e594d48f523c269c58"
+ ],
+ "decor/kam_diregi_tamu_v2.png": [
+  260,
+  500,
+  "decor/kam_diregi_tamu_v2.webp",
+  "0a82c07de67276e35daa66462460cf07"
+ ],
+ "decor/kam_diregi_v2.png": [
+  240,
+  480,
+  "decor/kam_diregi_v2.webp",
+  "d928dc11ab27abfce75e9d74377c2954"
+ ],
+ "decor/kaya_1_bozkir_v2.png": [
+  192,
+  112,
+  "decor/kaya_1_bozkir_v2.webp",
+  "d73bf3760ac9d22e1b77bc6d8d66c12e"
+ ],
+ "decor/kaya_1_kaf_v2.png": [
+  192,
+  112,
+  "decor/kaya_1_kaf_v2.webp",
+  "9f5ddbd7632b5699ec689cbc12bcc699"
+ ],
+ "decor/kaya_1_sahmeran_v2.png": [
+  200,
+  112,
+  "decor/kaya_1_sahmeran_v2.webp",
+  "a2042d89d7ece7d204697bb4e2d3b48e"
+ ],
+ "decor/kaya_1_tamu_v2.png": [
+  200,
+  112,
+  "decor/kaya_1_tamu_v2.webp",
+  "a257b07fc0ea0ddd3f31f3da9600f8a2"
+ ],
+ "decor/kaya_1_v2.png": [
+  200,
+  112,
+  "decor/kaya_1_v2.webp",
+  "c40afadb152d4f309842e0a444b42267"
+ ],
+ "decor/kaya_2_bozkir_v2.png": [
+  144,
+  94,
+  "decor/kaya_2_bozkir_v2.webp",
+  "7e443a752b5a584a20e55146c2d1495f"
+ ],
+ "decor/kaya_2_kaf_v2.png": [
+  144,
+  94,
+  "decor/kaya_2_kaf_v2.webp",
+  "72acef1c24826310d9f18ba6e17a2a47"
+ ],
+ "decor/kaya_2_sahmeran_v2.png": [
+  152,
+  100,
+  "decor/kaya_2_sahmeran_v2.webp",
+  "fe8b95d5ff31868819dcd2659b4d0a75"
+ ],
+ "decor/kaya_2_tamu_v2.png": [
+  152,
+  100,
+  "decor/kaya_2_tamu_v2.webp",
+  "27e42e06ee093f2ba9bfcc81b8e69d26"
+ ],
+ "decor/kaya_2_v2.png": [
+  152,
+  100,
+  "decor/kaya_2_v2.webp",
+  "b950e620fc9051440fe4d5913b62c1ab"
+ ],
+ "decor/kristal_kaf_v2.png": [
+  240,
+  240,
+  "decor/kristal_kaf_v2.webp",
+  "fc21fe1546ed4cec7a53f515b981be74"
+ ],
+ "decor/kule_bag_bozkir_v2.png": [
+  44,
+  36,
+  "decor/kule_bag_bozkir_v2.webp",
+  "a02989755e8bc8a12c887575e5f00f86"
+ ],
+ "decor/kule_bag_kaf_v2.png": [
+  44,
+  36,
+  "decor/kule_bag_kaf_v2.webp",
+  "b3784bebd79eaa540aa9805636553bc7"
+ ],
+ "decor/kule_bag_sahmeran_v2.png": [
+  52,
+  24,
+  "decor/kule_bag_sahmeran_v2.webp",
+  "ae64b91be458edfd4831bd44bb4c5967"
+ ],
+ "decor/kule_bag_tamu_v2.png": [
+  56,
+  28,
+  "decor/kule_bag_tamu_v2.webp",
+  "7692c5a0e78cd1cdc45a386bf3ac1c79"
+ ],
+ "decor/kule_bag_v2.png": [
+  44,
+  36,
+  "decor/kule_bag_v2.webp",
+  "4b6faed271c806ca88094c5760832d34"
+ ],
+ "decor/kule_capraz_bozkir_v2.png": [
+  512,
+  28,
+  "decor/kule_capraz_bozkir_v2.webp",
+  "0e61ee204e05cd2608eb6148e4a1477f"
+ ],
+ "decor/kule_capraz_kaf_v2.png": [
+  512,
+  32,
+  "decor/kule_capraz_kaf_v2.webp",
+  "563a9ae9cb7722593f68a78fdf5ff7fe"
+ ],
+ "decor/kule_capraz_tamu_v2.png": [
+  512,
+  32,
+  "decor/kule_capraz_tamu_v2.webp",
+  "0e53f728e4cd2b4f5925a6f638ad7de2"
+ ],
+ "decor/kule_capraz_v2.png": [
+  512,
+  28,
+  "decor/kule_capraz_v2.webp",
+  "8186ab54b11a22f01d2c06ede0ecd965"
+ ],
+ "decor/kule_dikme_bozkir_v2.png": [
+  32,
+  512,
+  "decor/kule_dikme_bozkir_v2.webp",
+  "6b3ff1fad0c0d235b17925d37b9c9a5e"
+ ],
+ "decor/kule_dikme_kaf_v2.png": [
+  32,
+  512,
+  "decor/kule_dikme_kaf_v2.webp",
+  "d84b2feb7f603a3708f6b86cd3f4fa8c"
+ ],
+ "decor/kule_dikme_sahmeran_v2.png": [
+  60,
+  512,
+  "decor/kule_dikme_sahmeran_v2.webp",
+  "6b12f8d5fc6e52ccee80922a848bb4cd"
+ ],
+ "decor/kule_dikme_tamu_v2.png": [
+  60,
+  512,
+  "decor/kule_dikme_tamu_v2.webp",
+  "b5625ee56a389be375cf52449e9138af"
+ ],
+ "decor/kule_dikme_v2.png": [
+  32,
+  512,
+  "decor/kule_dikme_v2.webp",
+  "869ff250ce1b4127638121d7dfa4aa2e"
+ ],
+ "decor/kut_kapi_arka_v2.png": [
+  392,
+  416,
+  "decor/kut_kapi_arka_v2.webp",
+  "4a7efeabb2106dafdea9943c4219da1b"
+ ],
+ "decor/kut_kapi_girdap_v2.png": [
+  208,
+  208,
+  "decor/kut_kapi_girdap_v2.webp",
+  "5d325d33de10501d4a90d6a6f9aa35f6"
+ ],
+ "decor/kut_kapi_v2.png": [
+  392,
+  416,
+  "decor/kut_kapi_v2.webp",
+  "8a62fc746582b81d7bc0c57e93b723dc"
+ ],
+ "decor/ladin_kaf_v2.png": [
+  320,
+  428,
+  "decor/ladin_kaf_v2.webp",
+  "32de568be31d415185c51ad8f05374d1"
+ ],
+ "decor/mantar_1_sahmeran_v2.png": [
+  180,
+  152,
+  "decor/mantar_1_sahmeran_v2.webp",
+  "571f07a6cd76ede7824338c3645c5de0"
+ ],
+ "decor/mantar_1_tamu_v2.png": [
+  180,
+  152,
+  "decor/mantar_1_tamu_v2.webp",
+  "fc7b63af85315b8586b25fdb316ca597"
+ ],
+ "decor/mantar_1_v2.png": [
+  180,
+  140,
+  "decor/mantar_1_v2.webp",
+  "be8fc6d3dc00ad987a2d0fb4d22869b3"
+ ],
+ "decor/mantar_2_sahmeran_v2.png": [
+  180,
+  152,
+  "decor/mantar_2_sahmeran_v2.webp",
+  "e358d95d82a7a82b90f5dbba54717871"
+ ],
+ "decor/mantar_2_tamu_v2.png": [
+  180,
+  152,
+  "decor/mantar_2_tamu_v2.webp",
+  "2721129404e95ed083ac4703a5cb7a89"
+ ],
+ "decor/mantar_2_v2.png": [
+  180,
+  140,
+  "decor/mantar_2_v2.webp",
+  "85d4a7012151d12436c8ec93810bbd7d"
+ ],
+ "decor/obo_bozkir_v2.png": [
+  300,
+  220,
+  "decor/obo_bozkir_v2.webp",
+  "b343e8e795634e01dd405965d6078550"
+ ],
+ "decor/ruh_tasi_v2.png": [
+  320,
+  120,
+  "decor/ruh_tasi_v2.webp",
+  "5cd16a6be765248cd5bbca2a53f17b02"
+ ],
+ "decor/sunak_v2.png": [
+  304,
+  336,
+  "decor/sunak_v2.webp",
+  "22a6c0961a4c1a77692b393b3315228d"
+ ],
+ "decor/totem_tuy_v2.png": [
+  80,
+  80,
+  "decor/totem_tuy_v2.webp",
+  "74b4447b37c85328c54fb6a4f3d9589e"
+ ],
+ "decor/totem_v2.png": [
+  136,
+  216,
+  "decor/totem_v2.webp",
+  "0cb2b344ae3452c667c5ec0cab0fd04a"
+ ],
+ "decor/yh_at_v2.png": [
+  464,
+  352,
+  "decor/yh_at_v2.webp",
+  "5a6fc25f96e08d9a614fb1daabe90a9d"
+ ],
+ "decor/yh_balbal_1_v2.png": [
+  128,
+  256,
+  "decor/yh_balbal_1_v2.webp",
+  "5a552e5f7a96b32dccf233126a188689"
+ ],
+ "decor/yh_balbal_2_v2.png": [
+  128,
+  256,
+  "decor/yh_balbal_2_v2.webp",
+  "c9f095f51772c8a77d3cba8737fdb34f"
+ ],
+ "decor/yh_cadir_v2.png": [
+  600,
+  496,
+  "decor/yh_cadir_v2.webp",
+  "5dff06320ab785f3b26d0c20e9875b4e"
+ ],
+ "decor/yh_demirhane_v2.png": [
+  656,
+  512,
+  "decor/yh_demirhane_v2.webp",
+  "0d2a1742ae813a03f2848a1f21a2c86b"
+ ],
+ "decor/yh_fener_v2.png": [
+  176,
+  432,
+  "decor/yh_fener_v2.webp",
+  "c4486277ad1e13745092582d741c5dac"
+ ],
+ "decor/yh_hali_1_v2.png": [
+  400,
+  40,
+  "decor/yh_hali_1_v2.webp",
+  "111d5d8da2dfc8c1eb11556b54669c58"
+ ],
+ "decor/yh_hali_2_v2.png": [
+  400,
+  40,
+  "decor/yh_hali_2_v2.webp",
+  "f07d28b6fc67aeb5550e0b923a4214f6"
+ ],
+ "decor/yh_hali_sergi_v2.png": [
+  536,
+  392,
+  "decor/yh_hali_sergi_v2.webp",
+  "066f2d89a4f761eb9b4b51acdf196bfc"
+ ],
+ "decor/yh_kandil_v2.png": [
+  128,
+  416,
+  "decor/yh_kandil_v2.webp",
+  "00e7cf3802aef7d29cc0bee9b3f0587c"
+ ],
+ "decor/yh_kapi_v2.png": [
+  704,
+  728,
+  "decor/yh_kapi_v2.webp",
+  "ad5f2260745af6544f0f227fbb95012b"
+ ],
+ "decor/yh_kartal_v2.png": [
+  232,
+  392,
+  "decor/yh_kartal_v2.webp",
+  "934839145c98502a3cf664fca25645d1"
+ ],
+ "decor/yh_kayin_v2.png": [
+  816,
+  960,
+  "decor/yh_kayin_v2.webp",
+  "2eeeb7c7b59d0e8e1de135b2b0bc86fe"
+ ],
+ "decor/yh_kazan_v2.png": [
+  240,
+  280,
+  "decor/yh_kazan_v2.webp",
+  "ea6742c267f08987c26c4a6c388b4ad2"
+ ],
+ "decor/yh_kurgan_v2.png": [
+  496,
+  280,
+  "decor/yh_kurgan_v2.webp",
+  "ef77034c638ec2f09b9269d8b59f30eb"
+ ],
+ "decor/yh_mangal_v2.png": [
+  160,
+  240,
+  "decor/yh_mangal_v2.webp",
+  "c9bed08a8f49bd1c98607fce1d15d990"
+ ],
+ "decor/yh_ors_v2.png": [
+  208,
+  168,
+  "decor/yh_ors_v2.webp",
+  "3278816c781d6400a5cdba827dc08e47"
+ ],
+ "decor/yh_otag_v2.png": [
+  848,
+  744,
+  "decor/yh_otag_v2.webp",
+  "fc66b3e10700092cc76a2b6a444a2d59"
+ ],
+ "decor/yh_pinar_v2.png": [
+  536,
+  488,
+  "decor/yh_pinar_v2.webp",
+  "4c0bfee459aa1c748eae5dfdf8290071"
+ ],
+ "decor/yh_seki_v2.png": [
+  144,
+  124,
+  "decor/yh_seki_v2.webp",
+  "06dae9dc4cd4e76507b60e0b089a8c8d"
+ ],
+ "decor/yh_sunak_v2.png": [
+  360,
+  424,
+  "decor/yh_sunak_v2.webp",
+  "456227e0a0898fc476bdbcff417bafa1"
+ ],
+ "decor/yh_tug_k_v2.png": [
+  240,
+  696,
+  "decor/yh_tug_k_v2.webp",
+  "215694c44d150428f17471a7460b742d"
+ ],
+ "decor/yh_tug_m_v2.png": [
+  240,
+  696,
+  "decor/yh_tug_m_v2.webp",
+  "c21d9a74ef0dccbedcfd9e0c1eaf74d3"
+ ],
+ "decor/yh_yol_1_v2.png": [
+  312,
+  56,
+  "decor/yh_yol_1_v2.webp",
+  "a159b6b64a39593e5c3973ef3844f14f"
+ ],
+ "decor/yh_yol_2_v2.png": [
+  312,
+  56,
+  "decor/yh_yol_2_v2.webp",
+  "0da9a24a7c193e6f7c461ffac27c7cd5"
+ ],
+ "decor/yh_yol_3_v2.png": [
+  312,
+  56,
+  "decor/yh_yol_3_v2.webp",
+  "74eaa951a63c9a562c320d3c1098cdfd"
+ ],
+ "fx/anim/focus_charge_v2.png": [
+  3072,
+  768,
+  "fx/anim/focus_charge_v2.webp",
+  "2145a906ae55d9cd423caed1f9406e49"
+ ],
+ "fx/anim/hush_lock_v2.png": [
+  3072,
+  1920,
+  "fx/anim/hush_lock_v2.webp",
+  "c7cf8617f8737918d7786c36b8440f22"
+ ],
+ "fx/anim/landing_dust_v2.png": [
+  3072,
+  768,
+  "fx/anim/landing_dust_v2.webp",
+  "a2e3e9ce7acf3987ed8ca39aa5df923f"
+ ],
+ "fx/anim/radiant_heal_v2.png": [
+  3072,
+  768,
+  "fx/anim/radiant_heal_v2.webp",
+  "1aa82a44793d2f5c8cd87f61c0a58a9a"
+ ],
+ "fx/anim/smoke_puff_v2.png": [
+  3072,
+  768,
+  "fx/anim/smoke_puff_v2.webp",
+  "22575ec1c3029c0daab94d4f1cdbe139"
+ ],
+ "fx/anim/splash_crown_v2.png": [
+  3072,
+  768,
+  "fx/anim/splash_crown_v2.webp",
+  "6b1ab4cba07d5e2854cb54ca3f83238e"
+ ],
+ "fx/ink/bristle.png": [
+  512,
+  128,
+  "fx/ink/bristle.webp",
+  "8351052221193f3a1337ee74555484d0"
+ ],
+ "fx/ink/ink_fx.png": [
+  1024,
+  1024,
+  "fx/ink/ink_fx.webp",
+  "63d3b1f9d5dd47d36e37cf319841b8e0"
+ ],
+ "fx/ink/sanat_firca.png": [
+  1024,
+  512,
+  "fx/ink/sanat_firca.webp",
+  "b892d3c65a61047285bafd32b7ecc64f"
+ ],
+ "fx/ink/sanat_fx.png": [
+  1024,
+  1024,
+  "fx/ink/sanat_fx.webp",
+  "aa571c4e64baff478faf15ca168dc241"
+ ],
+ "fx/ink/sus_v2.png": [
+  1024,
+  228,
+  "fx/ink/sus_v2.webp",
+  "eb0bcc45c14960500d0db8d2011453c8"
+ ],
+ "sprites/agac_iyesi_v2.png": [
+  5632,
+  4032,
+  "sprites/agac_iyesi_v2.webp",
+  "900a7b00dcdf90dc2e3935480e66acbf"
+ ],
+ "sprites/agac_iyesi_v2_p1.png": [
+  5632,
+  2688,
+  "sprites/agac_iyesi_v2_p1.webp",
+  "0e78e16f6d12e0895feb3cb108f51aa8"
+ ],
+ "sprites/arcura_v2.png": [
+  2432,
+  4032,
+  "sprites/arcura_v2.webp",
+  "b833143f072b3bcc9aa922b1cbc5d722"
+ ],
+ "sprites/arcura_v2_p1.png": [
+  2432,
+  1440,
+  "sprites/arcura_v2_p1.webp",
+  "1ad5e31d036dace338dbfa0c93b406d0"
+ ],
+ "sprites/balbal_v2.png": [
+  3520,
+  3840,
+  "sprites/balbal_v2.webp",
+  "6aa046f15979226fdf3e7aac6e76f90f"
+ ],
+ "sprites/balbal_v2_p1.png": [
+  3520,
+  960,
+  "sprites/balbal_v2_p1.webp",
+  "82c25e80cfde7b39ce3c985ff6051972"
+ ],
+ "sprites/bekci_v2.png": [
+  3456,
+  3744,
+  "sprites/bekci_v2.webp",
+  "e9247526afe726dfae455e34204a3441"
+ ],
+ "sprites/bekci_v2_p1.png": [
+  3456,
+  3744,
+  "sprites/bekci_v2_p1.webp",
+  "cf68b43ea4b37aedc545abeba183a21a"
+ ],
+ "sprites/bekci_v2_p2.png": [
+  3456,
+  832,
+  "sprites/bekci_v2_p2.webp",
+  "d6778f39562d3eefd0dab1ab00302be0"
+ ],
+ "sprites/bengu_kol_v2.png": [
+  336,
+  136,
+  "sprites/bengu_kol_v2.webp",
+  "83d01d78f389af3825c4b5ce3446ef8d"
+ ],
+ "sprites/bengu_kurt_v2.png": [
+  5120,
+  2880,
+  "sprites/bengu_kurt_v2.webp",
+  "9569f42e92b791031e8b81554840f4f8"
+ ],
+ "sprites/bengu_v2.png": [
+  3840,
+  3840,
+  "sprites/bengu_v2.webp",
+  "544fa7779eb279a887bfaeeb78a532e4"
+ ],
+ "sprites/bengu_v2_p1.png": [
+  3840,
+  3840,
+  "sprites/bengu_v2_p1.webp",
+  "800ef4268d537f87b593417ca91b414c"
+ ],
+ "sprites/bengu_v2_p2.png": [
+  3840,
+  3840,
+  "sprites/bengu_v2_p2.webp",
+  "cae213973fc6dc22c3d1233766bb7f69"
+ ],
+ "sprites/bengu_v2_p3.png": [
+  3840,
+  2880,
+  "sprites/bengu_v2_p3.webp",
+  "37f387c88ac417a5c78d0c887e73c58c"
+ ],
+ "sprites/buz_balbali_v2.png": [
+  3520,
+  3840,
+  "sprites/buz_balbali_v2.webp",
+  "8c39b3afefccd624533ba1511dec8a60"
+ ],
+ "sprites/buz_balbali_v2_p1.png": [
+  3520,
+  960,
+  "sprites/buz_balbali_v2_p1.webp",
+  "a456d06afe4a6e7f631f0f0ec1da7ece"
+ ],
+ "sprites/cor_v2.png": [
+  3456,
+  3872,
+  "sprites/cor_v2.webp",
+  "7c3d2c6534dd33b0c414b5602f4b2522"
+ ],
+ "sprites/demir_gaga_v2.png": [
+  3840,
+  3872,
+  "sprites/demir_gaga_v2.webp",
+  "603017a95e83f45383493b62ea28e04f"
+ ],
+ "sprites/dev_cocugu_v2.png": [
+  5632,
+  4032,
+  "sprites/dev_cocugu_v2.webp",
+  "3e14c2681975eff7f90b81e9940348bf"
+ ],
+ "sprites/dev_cocugu_v2_p1.png": [
+  5632,
+  2688,
+  "sprites/dev_cocugu_v2_p1.webp",
+  "02d6552d874c3eb24ea254bbe3852f68"
+ ],
+ "sprites/erlik_han_v2.png": [
+  4096,
+  3200,
+  "sprites/erlik_han_v2.webp",
+  "34609885ab1ee38e04e8bfebd574cfec"
+ ],
+ "sprites/erlik_han_v2_p1.png": [
+  4096,
+  4000,
+  "sprites/erlik_han_v2_p1.webp",
+  "5c68c8870467d8da299d6ce1def88dfd"
+ ],
+ "sprites/erlik_han_v2_p2.png": [
+  4096,
+  4000,
+  "sprites/erlik_han_v2_p2.webp",
+  "21a213fb32994c4d4235d6ec4a408189"
+ ],
+ "sprites/erlik_han_v2_p3.png": [
+  4096,
+  4000,
+  "sprites/erlik_han_v2_p3.webp",
+  "4f7f56d4699d536ca575175421a48073"
+ ],
+ "sprites/erlik_han_v2_p4.png": [
+  4096,
+  3200,
+  "sprites/erlik_han_v2_p4.webp",
+  "87b291a6efde631316b662b544c9be52"
+ ],
+ "sprites/erlik_han_v2_p5.png": [
+  4096,
+  4000,
+  "sprites/erlik_han_v2_p5.webp",
+  "9da626453a2dff3d96437f3af62d7f98"
+ ],
+ "sprites/erlik_han_v2_p6.png": [
+  4096,
+  3200,
+  "sprites/erlik_han_v2_p6.webp",
+  "6ef9aa90bb3e0e44f129887fb140f04f"
+ ],
+ "sprites/erlik_han_v2_p7.png": [
+  4096,
+  2400,
+  "sprites/erlik_han_v2_p7.webp",
+  "04f74068b73f9de65e43d2532f5f76a6"
+ ],
+ "sprites/erlik_kizi_v2.png": [
+  2432,
+  4032,
+  "sprites/erlik_kizi_v2.webp",
+  "d059c974c58752a2a5f5acc62216b529"
+ ],
+ "sprites/erlik_kizi_v2_p1.png": [
+  2432,
+  1440,
+  "sprites/erlik_kizi_v2_p1.webp",
+  "a206fa31d1506bbf84b1dc2f73a11d32"
+ ],
+ "sprites/isilti_bocegi_v2.png": [
+  3520,
+  2880,
+  "sprites/isilti_bocegi_v2.webp",
+  "5dd8446ecea4de8a81f9e8ea981df542"
+ ],
+ "sprites/kaf_kartali_v2.png": [
+  3840,
+  3872,
+  "sprites/kaf_kartali_v2.webp",
+  "ac4f8b799ebbfcbaf0e37c441cba060f"
+ ],
+ "sprites/kan_yarasasi_v2.png": [
+  3456,
+  3520,
+  "sprites/kan_yarasasi_v2.webp",
+  "cef6fb03b4c096cdfe848a0846602884"
+ ],
+ "sprites/kara_boru_han_v2.png": [
+  3584,
+  3456,
+  "sprites/kara_boru_han_v2.webp",
+  "594169836e731752389716647df977ad"
+ ],
+ "sprites/kara_boru_han_v2_p1.png": [
+  3584,
+  4032,
+  "sprites/kara_boru_han_v2_p1.webp",
+  "45d70f592ce90fe063f9e04a6f775f46"
+ ],
+ "sprites/kara_boru_han_v2_p2.png": [
+  3584,
+  4032,
+  "sprites/kara_boru_han_v2_p2.webp",
+  "ac020368c7249278288621e409502e9d"
+ ],
+ "sprites/kara_boru_han_v2_p3.png": [
+  3584,
+  4032,
+  "sprites/kara_boru_han_v2_p3.webp",
+  "5c07f6d449a67bddb226b16a1cec676a"
+ ],
+ "sprites/kara_boru_han_v2_p4.png": [
+  3584,
+  1728,
+  "sprites/kara_boru_han_v2_p4.webp",
+  "ef957c60e6f84f3ea2b6118a442defe4"
+ ],
+ "sprites/kara_boru_v2.png": [
+  3840,
+  4032,
+  "sprites/kara_boru_v2.webp",
+  "d47402a4e4fc202b7cdab3f17b75cdc2"
+ ],
+ "sprites/kara_kus_yavrusu_v2.png": [
+  3840,
+  3872,
+  "sprites/kara_kus_yavrusu_v2.webp",
+  "594b8960e51b73498f4baaecb10ed5f4"
+ ],
+ "sprites/kayip_ruh_v2.png": [
+  3456,
+  3520,
+  "sprites/kayip_ruh_v2.webp",
+  "91dfad8ffac919afba3993e20f5ef723"
+ ],
+ "sprites/kurgan_okcusu_v2.png": [
+  2432,
+  4032,
+  "sprites/kurgan_okcusu_v2.webp",
+  "4a363c16be12982754a76977d37697e9"
+ ],
+ "sprites/kurgan_okcusu_v2_p1.png": [
+  2432,
+  1440,
+  "sprites/kurgan_okcusu_v2_p1.webp",
+  "b0f72c09b678503f9e441bc73074b473"
+ ],
+ "sprites/npc_demirci_v2.png": [
+  1920,
+  832,
+  "sprites/npc_demirci_v2.webp",
+  "21d7537014b72f2ec79be19f0a1a3ec6"
+ ],
+ "sprites/npc_ozan_v2.png": [
+  1920,
+  832,
+  "sprites/npc_ozan_v2.webp",
+  "bb72ba654a7ef37e627bde7ecc5ca2d9"
+ ],
+ "sprites/npc_tuccar_v2.png": [
+  1920,
+  832,
+  "sprites/npc_tuccar_v2.webp",
+  "b536a25d3debf7a08bc8bd18688a4365"
+ ],
+ "sprites/npc_umay_v2.png": [
+  1920,
+  832,
+  "sprites/npc_umay_v2.webp",
+  "67277a5df4de3a304c1918f834253270"
+ ],
+ "sprites/od_iyesi_v2.png": [
+  4096,
+  4032,
+  "sprites/od_iyesi_v2.webp",
+  "af336d512e5357ab6adce9e9681a7f5c"
+ ],
+ "sprites/od_iyesi_v2_p1.png": [
+  4096,
+  1344,
+  "sprites/od_iyesi_v2_p1.webp",
+  "9ca935a46da0d33f5c758bc78acd7d96"
+ ],
+ "sprites/sahmeran_ana_v2.png": [
+  4096,
+  2816,
+  "sprites/sahmeran_ana_v2.webp",
+  "a5dfee3910021e05d7170f0128432ac1"
+ ],
+ "sprites/sahmeran_ana_v2_p1.png": [
+  4096,
+  2816,
+  "sprites/sahmeran_ana_v2_p1.webp",
+  "4aff8c944efd414f67f1e333c9e2acc5"
+ ],
+ "sprites/sahmeran_ana_v2_p2.png": [
+  4096,
+  3520,
+  "sprites/sahmeran_ana_v2_p2.webp",
+  "b3c9a52166983cd1c75156881b12579f"
+ ],
+ "sprites/sahmeran_ana_v2_p3.png": [
+  4096,
+  2816,
+  "sprites/sahmeran_ana_v2_p3.webp",
+  "b7994a77ba0beb16bcfe39556f7434eb"
+ ],
+ "sprites/sahmeran_ana_v2_p4.png": [
+  4096,
+  3520,
+  "sprites/sahmeran_ana_v2_p4.webp",
+  "186412524ce9a2d81b177e2fdfdb0f27"
+ ],
+ "sprites/sahmeran_ana_v2_p5.png": [
+  4096,
+  3520,
+  "sprites/sahmeran_ana_v2_p5.webp",
+  "a046d0ad1975689e5648225ad753616b"
+ ],
+ "sprites/su_iyesi_v2.png": [
+  4096,
+  4032,
+  "sprites/su_iyesi_v2.webp",
+  "db115fe73d2d01f0ce0245beeb0949b8"
+ ],
+ "sprites/su_iyesi_v2_p1.png": [
+  4096,
+  1344,
+  "sprites/su_iyesi_v2_p1.webp",
+  "93c78109ade57ea65ca1190441e33621"
+ ],
+ "sprites/surale_v2.png": [
+  4096,
+  3840,
+  "sprites/surale_v2.webp",
+  "b05a1648e248b4651ae3b58b9d206304"
+ ],
+ "sprites/surale_v2_p1.png": [
+  4096,
+  3840,
+  "sprites/surale_v2_p1.webp",
+  "58522655f5677e1540a5db600e215b08"
+ ],
+ "sprites/surale_v2_p2.png": [
+  4096,
+  1440,
+  "sprites/surale_v2_p2.webp",
+  "6c843120376d30156cef621d6ca1bc15"
+ ],
+ "sprites/tepegoz_v2.png": [
+  4096,
+  3200,
+  "sprites/tepegoz_v2.webp",
+  "fdd49af5dd0d7988f890a923cb494bcb"
+ ],
+ "sprites/tepegoz_v2_p1.png": [
+  4096,
+  4000,
+  "sprites/tepegoz_v2_p1.webp",
+  "acbda8e2f0bc55730519353594f80bd0"
+ ],
+ "sprites/tepegoz_v2_p2.png": [
+  4096,
+  2400,
+  "sprites/tepegoz_v2_p2.webp",
+  "5879561d2ce7d9389bde6e6b196dc6f6"
+ ],
+ "sprites/tepegoz_v2_p3.png": [
+  4096,
+  4000,
+  "sprites/tepegoz_v2_p3.webp",
+  "b1e14ac3063eac018a03d0559150ae54"
+ ],
+ "sprites/tepegoz_v2_p4.png": [
+  4096,
+  3200,
+  "sprites/tepegoz_v2_p4.webp",
+  "86ad25fcc4bd3cdc294803f08444dad7"
+ ],
+ "sprites/tepegoz_v2_p5.png": [
+  4096,
+  3200,
+  "sprites/tepegoz_v2_p5.webp",
+  "fbdf226cbc904909465ac85cb8416d72"
+ ],
+ "sprites/tepegoz_v2_p6.png": [
+  4096,
+  4000,
+  "sprites/tepegoz_v2_p6.webp",
+  "34b3af0e187bc9dd1defe812760cdc66"
+ ],
+ "sprites/tosbaga_v2.png": [
+  3744,
+  4032,
+  "sprites/tosbaga_v2.webp",
+  "f7834175e6d9d13065f459ce89236bc2"
+ ],
+ "sprites/tozkoparan_v2.png": [
+  4096,
+  4032,
+  "sprites/tozkoparan_v2.webp",
+  "73f57e763bce65510555447bd7c17aca"
+ ],
+ "sprites/tozkoparan_v2_p1.png": [
+  4096,
+  1344,
+  "sprites/tozkoparan_v2_p1.webp",
+  "92dbc3dd157470871db4329173d9201b"
+ ],
+ "sprites/yelbegen_v2.png": [
+  4096,
+  3328,
+  "sprites/yelbegen_v2.webp",
+  "d7ff7fb2ca4fe5f5084a79c43ffd8204"
+ ],
+ "sprites/yelbegen_v2_p1.png": [
+  4096,
+  2496,
+  "sprites/yelbegen_v2_p1.webp",
+  "4463b0ff5b2eaa8d2965e7f7d02249e4"
+ ],
+ "sprites/yelbegen_v2_p2.png": [
+  4096,
+  1664,
+  "sprites/yelbegen_v2_p2.webp",
+  "074d77a20e48f843cdbe779608f324a0"
+ ],
+ "sprites/yelbegen_v2_p3.png": [
+  4096,
+  2496,
+  "sprites/yelbegen_v2_p3.webp",
+  "db92713bb3c3c41bd02e046d93a876d9"
+ ],
+ "sprites/yelbegen_v2_p4.png": [
+  4096,
+  3328,
+  "sprites/yelbegen_v2_p4.webp",
+  "bac34f57a823d1979c3f955a326eeb9f"
+ ],
+ "sprites/yelbegen_v2_p5.png": [
+  4096,
+  3328,
+  "sprites/yelbegen_v2_p5.webp",
+  "e9fa2a41c6392b79b7e1d4348ce39946"
+ ],
+ "sprites/yelbegen_v2_p6.png": [
+  4096,
+  2496,
+  "sprites/yelbegen_v2_p6.webp",
+  "8a0a5470f8e2693dde7525f0c5c793fd"
+ ],
+ "sprites/yelbegen_v2_p7.png": [
+  4096,
+  1664,
+  "sprites/yelbegen_v2_p7.webp",
+  "20e67e6935283f774ebb55200a5c28e6"
+ ],
+ "sprites/yelbegen_v2_p8.png": [
+  4096,
+  2496,
+  "sprites/yelbegen_v2_p8.webp",
+  "fb861d6bd8785818b9976766202cef91"
+ ],
+ "tiles/bozkir_v2.png": [
+  1536,
+  480,
+  "tiles/bozkir_v2.webp",
+  "801e9c00286f6217212fcc72fa3d7f6a"
+ ],
+ "tiles/bozkir_v2_mask.png": [
+  1536,
+  480,
+  "tiles/bozkir_v2_mask.webp",
+  "cf7f3de96b29256d9f33fb3cb6f1e23f"
+ ],
+ "tiles/bozkir_v2_meadow.png": [
+  1024,
+  1024,
+  "tiles/bozkir_v2_meadow.webp",
+  "7eb2ad66b0c9b244220dc9f8bcb0bb52"
+ ],
+ "tiles/bozkir_v2_soil.png": [
+  2048,
+  2048,
+  "tiles/bozkir_v2_soil.webp",
+  "540ff9e2d677c3dfb90e38f9e9a8a8d6"
+ ],
+ "tiles/hazard_lav_v2.png": [
+  256,
+  256,
+  "tiles/hazard_lav_v2.webp",
+  "188be48fbb73652adf2ef244fc32a99c"
+ ],
+ "tiles/hazard_zehir_v2.png": [
+  256,
+  256,
+  "tiles/hazard_zehir_v2.webp",
+  "e36f100a65239bf2dc67f2e2a4422f24"
+ ],
+ "tiles/hazards_bozkir_v2.png": [
+  192,
+  384,
+  "tiles/hazards_bozkir_v2.webp",
+  "884b432b1d37d53ed5ab7c678223680f"
+ ],
+ "tiles/hazards_kaf_v2.png": [
+  192,
+  384,
+  "tiles/hazards_kaf_v2.webp",
+  "cd62aff8e3bbc52899d1c15eea62342a"
+ ],
+ "tiles/hazards_v2.png": [
+  192,
+  384,
+  "tiles/hazards_v2.webp",
+  "0f9752a58dc85fff612fdcbd2e4c3a6d"
+ ],
+ "tiles/kaf_v2.png": [
+  1536,
+  480,
+  "tiles/kaf_v2.webp",
+  "ac54c9d596e7829b2943527fbdbf8287"
+ ],
+ "tiles/kaf_v2_mask.png": [
+  1536,
+  480,
+  "tiles/kaf_v2_mask.webp",
+  "cf7f3de96b29256d9f33fb3cb6f1e23f"
+ ],
+ "tiles/kaf_v2_meadow.png": [
+  1024,
+  1024,
+  "tiles/kaf_v2_meadow.webp",
+  "3650835ffdc52b450f6333cfc6ff4a93"
+ ],
+ "tiles/kaf_v2_soil.png": [
+  2048,
+  2048,
+  "tiles/kaf_v2_soil.webp",
+  "dbe116dd3a353cdde90034b29810c24e"
+ ],
+ "tiles/otuken_v2.png": [
+  1536,
+  480,
+  "tiles/otuken_v2.webp",
+  "588001a8207e61e3ff70b3d336f95318"
+ ],
+ "tiles/otuken_v2_mask.png": [
+  1536,
+  480,
+  "tiles/otuken_v2_mask.webp",
+  "cf7f3de96b29256d9f33fb3cb6f1e23f"
+ ],
+ "tiles/otuken_v2_meadow.png": [
+  1024,
+  1024,
+  "tiles/otuken_v2_meadow.webp",
+  "b95f6a0ca2439ca4d4892ba5eba6f172"
+ ],
+ "tiles/otuken_v2_soil.png": [
+  2048,
+  2048,
+  "tiles/otuken_v2_soil.webp",
+  "5a17c0acab40ff2951443ce69ccd654d"
+ ],
+ "tiles/sahmeran_v2.png": [
+  1536,
+  480,
+  "tiles/sahmeran_v2.webp",
+  "40288410dd6143112ddd472f3508e0ed"
+ ],
+ "tiles/sahmeran_v2_e.png": [
+  1536,
+  480,
+  "tiles/sahmeran_v2_e.webp",
+  "0e686b30e09032480b5561547c50bac4"
+ ],
+ "tiles/sahmeran_v2_mask.png": [
+  1536,
+  480,
+  "tiles/sahmeran_v2_mask.webp",
+  "59dc5d78f7c1f9c3bda2bb73df511297"
+ ],
+ "tiles/sahmeran_v2_meadow.png": [
+  1024,
+  1024,
+  "tiles/sahmeran_v2_meadow.webp",
+  "a1a07ff0a5c3f4cfe080d5479ff45e26"
+ ],
+ "tiles/sahmeran_v2_soil.png": [
+  2048,
+  2048,
+  "tiles/sahmeran_v2_soil.webp",
+  "4cb15cb8b8a0437d10c8e779bc0a7a39"
+ ],
+ "tiles/tamu_v2.png": [
+  1536,
+  480,
+  "tiles/tamu_v2.webp",
+  "f83d196f1941e90ed98698eaf394aee6"
+ ],
+ "tiles/tamu_v2_e.png": [
+  1536,
+  480,
+  "tiles/tamu_v2_e.webp",
+  "7def5b534eff0fd29e6e1a736036be83"
+ ],
+ "tiles/tamu_v2_mask.png": [
+  1536,
+  480,
+  "tiles/tamu_v2_mask.webp",
+  "9279d2aa6fe16e71a0fdfc1eb51d8e51"
+ ],
+ "tiles/tamu_v2_meadow.png": [
+  1024,
+  1024,
+  "tiles/tamu_v2_meadow.webp",
+  "3d4c20638bcc48b66b7eadf6e58e7249"
+ ],
+ "tiles/tamu_v2_soil.png": [
+  2048,
+  2048,
+  "tiles/tamu_v2_soil.webp",
+  "1f4ea73e20e2820904121cf758865edc"
+ ],
+ "ui/ink/band.png": [
+  1024,
+  192,
+  "ui/ink/band.webp",
+  "14f26807e90a644a445da72131799878"
+ ],
+ "ui/ink/enso.png": [
+  256,
+  256,
+  "ui/ink/enso.webp",
+  "3de08676b5ce3ab1c527c9e64625eb2e"
+ ],
+ "ui/ink/fill.png": [
+  512,
+  256,
+  "ui/ink/fill.webp",
+  "9f1ed0f3323112aeb23062fbb481d401"
+ ],
+ "ui/ink/frame_ink.png": [
+  1024,
+  512,
+  "ui/ink/frame_ink.webp",
+  "991b3318bfc96cf7712dd6f88f262508"
+ ],
+ "ui/ink/frame_line.png": [
+  1024,
+  512,
+  "ui/ink/frame_line.webp",
+  "1f3a48f827d3fa671ee0d7f0afd7dec7"
+ ],
+ "ui/ink/horn.png": [
+  256,
+  256,
+  "ui/ink/horn.webp",
+  "907089fab9c111349033da34edb9f783"
+ ],
+ "ui/ink/icons.png": [
+  1792,
+  128,
+  "ui/ink/icons.webp",
+  "4155eddd60e283979dfb7158b0c9b5b2"
+ ],
+ "ui/ink/paper.png": [
+  1024,
+  768,
+  "ui/ink/paper.webp",
+  "6a88d00d5b5f6be91a0294a593d0a18f"
+ ],
+ "ui/ink/seal.png": [
+  160,
+  160,
+  "ui/ink/seal.webp",
+  "ba36e7bbf6d01127261f2a95ad15e9c1"
+ ],
+ "ui/ink/splat.png": [
+  512,
+  512,
+  "ui/ink/splat.webp",
+  "fdd562905326be364b4421ff4af100f7"
+ ],
+ "ui/ink/stroke.png": [
+  1024,
+  96,
+  "ui/ink/stroke.webp",
+  "e862560003bf29b75e171db9c7602d3f"
+ ],
+ "ui/ink/swash.png": [
+  512,
+  96,
+  "ui/ink/swash.webp",
+  "9bf607ccf43e84b20417aef207f4ea7a"
+ ],
+ "ui/ink/tamga.png": [
+  512,
+  128,
+  "ui/ink/tamga.webp",
+  "c9c717c7cbe7a6261214c26813296262"
+ ],
+ "ui/ink/vignette.png": [
+  512,
+  288,
+  "ui/ink/vignette.webp",
+  "70078a99ff900a62ed36f2ca8733d503"
+ ],
+ "weapons/weapons_v2_0.png": [
+  4096,
+  2248,
+  "weapons/weapons_v2_0.webp",
+  "4f0ea86bbb92939dd0d530f76b7f72f9"
+ ]
+}

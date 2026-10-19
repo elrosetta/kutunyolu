@@ -1,0 +1,69 @@
+{
+ "cell": [
+  72,
+  72
+ ],
+ "origin": [
+  30,
+  68
+ ],
+ "anims": {
+  "idle": {
+   "row": 0,
+   "frames": 2,
+   "fps": 8,
+   "loop": true,
+   "data": [
+    {},
+    {}
+   ],
+   "arm": true
+  },
+  "dormant": {
+   "row": 1,
+   "frames": 1,
+   "fps": 1,
+   "loop": false,
+   "data": [
+    {}
+   ],
+   "arm": true
+  },
+  "hop": {
+   "row": 2,
+   "frames": 4,
+   "fps": 10,
+   "loop": false,
+   "data": [
+    {},
+    {},
+    {},
+    {}
+   ],
+   "arm": true
+  },
+  "windup": {
+   "row": 3,
+   "frames": 2,
+   "fps": 8,
+   "loop": false,
+   "data": [
+    {},
+    {}
+   ],
+   "arm": true
+  },
+  "strike": {
+   "row": 4,
+   "frames": 2,
+   "fps": 10,
+   "loop": false,
+   "data": [
+    {},
+    {}
+   ],
+   "arm": true
+  }
+ },
+ "glow": true
+}

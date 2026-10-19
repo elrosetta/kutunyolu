@@ -1,0 +1,1440 @@
+{
+ "acilis": {
+  "loop": false,
+  "len": 2.4,
+  "hedef_db": -13.0
+ },
+ "adim_1": {
+  "loop": false,
+  "len": 0.25,
+  "hedef_db": -20.0
+ },
+ "adim_2": {
+  "loop": false,
+  "len": 0.25,
+  "hedef_db": -20.0
+ },
+ "adim_cim_1": {
+  "loop": false,
+  "len": 0.25,
+  "hedef_db": -20.0
+ },
+ "adim_cim_2": {
+  "loop": false,
+  "len": 0.25,
+  "hedef_db": -20.0
+ },
+ "adim_cim_3": {
+  "loop": false,
+  "len": 0.25,
+  "hedef_db": -20.0
+ },
+ "adim_cim_4": {
+  "loop": false,
+  "len": 0.25,
+  "hedef_db": -20.0
+ },
+ "adim_cim_5": {
+  "loop": false,
+  "len": 0.25,
+  "hedef_db": -20.0
+ },
+ "adim_kar_1": {
+  "loop": false,
+  "len": 0.25,
+  "hedef_db": -20.0
+ },
+ "adim_kar_2": {
+  "loop": false,
+  "len": 0.25,
+  "hedef_db": -20.0
+ },
+ "adim_kar_3": {
+  "loop": false,
+  "len": 0.25,
+  "hedef_db": -20.0
+ },
+ "adim_kar_4": {
+  "loop": false,
+  "len": 0.25,
+  "hedef_db": -20.0
+ },
+ "adim_kar_5": {
+  "loop": false,
+  "len": 0.25,
+  "hedef_db": -20.0
+ },
+ "adim_tahta_1": {
+  "loop": false,
+  "len": 0.25,
+  "hedef_db": -20.0
+ },
+ "adim_tahta_2": {
+  "loop": false,
+  "len": 0.25,
+  "hedef_db": -20.0
+ },
+ "adim_tahta_3": {
+  "loop": false,
+  "len": 0.25,
+  "hedef_db": -20.0
+ },
+ "adim_tahta_4": {
+  "loop": false,
+  "len": 0.25,
+  "hedef_db": -20.0
+ },
+ "adim_tahta_5": {
+  "loop": false,
+  "len": 0.248,
+  "hedef_db": -20.0
+ },
+ "adim_tas_1": {
+  "loop": false,
+  "len": 0.106,
+  "hedef_db": -20.0
+ },
+ "adim_tas_2": {
+  "loop": false,
+  "len": 0.108,
+  "hedef_db": -20.0
+ },
+ "adim_tas_3": {
+  "loop": false,
+  "len": 0.113,
+  "hedef_db": -20.0
+ },
+ "adim_tas_4": {
+  "loop": false,
+  "len": 0.11,
+  "hedef_db": -20.0
+ },
+ "adim_tas_5": {
+  "loop": false,
+  "len": 0.114,
+  "hedef_db": -20.0
+ },
+ "agac_can_1": {
+  "loop": false,
+  "len": 0.7,
+  "hedef_db": -12.0
+ },
+ "agac_can_2": {
+  "loop": false,
+  "len": 0.7,
+  "hedef_db": -12.0
+ },
+ "agac_can_3": {
+  "loop": false,
+  "len": 0.7,
+  "hedef_db": -12.0
+ },
+ "agac_inilti_1": {
+  "loop": false,
+  "len": 0.9,
+  "hedef_db": -13.0
+ },
+ "agac_inilti_2": {
+  "loop": false,
+  "len": 0.9,
+  "hedef_db": -13.0
+ },
+ "agac_olum": {
+  "loop": false,
+  "len": 2.965,
+  "hedef_db": -10.0
+ },
+ "agir_birak": {
+  "loop": false,
+  "len": 0.6,
+  "hedef_db": -12.0
+ },
+ "altin": {
+  "loop": false,
+  "len": 0.3,
+  "hedef_db": -16.0
+ },
+ "altin_1": {
+  "loop": false,
+  "len": 0.3,
+  "hedef_db": -16.0
+ },
+ "altin_2": {
+  "loop": false,
+  "len": 0.3,
+  "hedef_db": -16.0
+ },
+ "altin_3": {
+  "loop": false,
+  "len": 0.292,
+  "hedef_db": -16.0
+ },
+ "ates_dongu": {
+  "loop": true,
+  "len": 1.5,
+  "hedef_db": -17.0
+ },
+ "bengu_can": {
+  "loop": false,
+  "len": 0.25,
+  "hedef_db": -12.0
+ },
+ "bengu_olum": {
+  "loop": false,
+  "len": 1.967,
+  "hedef_db": -10.0
+ },
+ "buyu": {
+  "loop": false,
+  "len": 1.369,
+  "hedef_db": -12.0
+ },
+ "cor_can_1": {
+  "loop": false,
+  "len": 1.279,
+  "hedef_db": -12.0
+ },
+ "cor_can_2": {
+  "loop": false,
+  "len": 1.295,
+  "hedef_db": -12.0
+ },
+ "cor_can_3": {
+  "loop": false,
+  "len": 1.253,
+  "hedef_db": -12.0
+ },
+ "cor_fisilti_1": {
+  "loop": false,
+  "len": 1.604,
+  "hedef_db": -13.0
+ },
+ "cor_fisilti_2": {
+  "loop": false,
+  "len": 1.572,
+  "hedef_db": -13.0
+ },
+ "cor_olum": {
+  "loop": false,
+  "len": 3.2,
+  "hedef_db": -10.0
+ },
+ "darbe_agir": {
+  "loop": false,
+  "len": 0.261,
+  "hedef_db": -9.5,
+  "onset": 0.036
+ },
+ "darbe_balta_1": {
+  "loop": false,
+  "len": 0.35,
+  "hedef_db": -10.0
+ },
+ "darbe_balta_2": {
+  "loop": false,
+  "len": 0.35,
+  "hedef_db": -10.0
+ },
+ "darbe_balta_3": {
+  "loop": false,
+  "len": 0.35,
+  "hedef_db": -10.0
+ },
+ "darbe_cekic_1": {
+  "loop": false,
+  "len": 1.55,
+  "hedef_db": -9.0
+ },
+ "darbe_cekic_2": {
+  "loop": false,
+  "len": 1.55,
+  "hedef_db": -9.0
+ },
+ "darbe_cekic_3": {
+  "loop": false,
+  "len": 1.55,
+  "hedef_db": -9.0
+ },
+ "darbe_delme_1": {
+  "loop": false,
+  "len": 0.22,
+  "hedef_db": -10.0
+ },
+ "darbe_delme_2": {
+  "loop": false,
+  "len": 0.22,
+  "hedef_db": -10.0
+ },
+ "darbe_delme_3": {
+  "loop": false,
+  "len": 0.22,
+  "hedef_db": -10.0
+ },
+ "darbe_et_1": {
+  "loop": false,
+  "len": 0.22,
+  "hedef_db": -10.0
+ },
+ "darbe_et_2": {
+  "loop": false,
+  "len": 0.22,
+  "hedef_db": -10.0
+ },
+ "darbe_et_3": {
+  "loop": false,
+  "len": 0.22,
+  "hedef_db": -10.0
+ },
+ "darbe_kesik_1": {
+  "loop": false,
+  "len": 0.28,
+  "hedef_db": -10.0
+ },
+ "darbe_kesik_2": {
+  "loop": false,
+  "len": 0.28,
+  "hedef_db": -10.0
+ },
+ "darbe_kesik_3": {
+  "loop": false,
+  "len": 0.28,
+  "hedef_db": -10.0
+ },
+ "darbe_kesik_4": {
+  "loop": false,
+  "len": 0.28,
+  "hedef_db": -10.0
+ },
+ "darbe_kesik_agir_1": {
+  "loop": false,
+  "len": 1.05,
+  "hedef_db": -10.0
+ },
+ "darbe_kesik_agir_2": {
+  "loop": false,
+  "len": 1.05,
+  "hedef_db": -10.0
+ },
+ "darbe_kesik_agir_3": {
+  "loop": false,
+  "len": 1.05,
+  "hedef_db": -10.0
+ },
+ "darbe_kirbac_1": {
+  "loop": false,
+  "len": 0.18,
+  "hedef_db": -10.0
+ },
+ "darbe_kirbac_2": {
+  "loop": false,
+  "len": 0.18,
+  "hedef_db": -10.0
+ },
+ "darbe_kritik": {
+  "loop": false,
+  "len": 0.52,
+  "hedef_db": -6.5
+ },
+ "darbe_kritik_1": {
+  "loop": false,
+  "len": 0.52,
+  "hedef_db": -6.5
+ },
+ "darbe_kritik_2": {
+  "loop": false,
+  "len": 0.52,
+  "hedef_db": -6.5
+ },
+ "darbe_kritik_3": {
+  "loop": false,
+  "len": 0.52,
+  "hedef_db": -6.5
+ },
+ "darbe_kunt": {
+  "loop": false,
+  "len": 0.4,
+  "hedef_db": -10.0
+ },
+ "darbe_kunt_1": {
+  "loop": false,
+  "len": 0.4,
+  "hedef_db": -10.0
+ },
+ "darbe_kunt_2": {
+  "loop": false,
+  "len": 0.4,
+  "hedef_db": -10.0
+ },
+ "darbe_kunt_3": {
+  "loop": false,
+  "len": 0.4,
+  "hedef_db": -10.0
+ },
+ "darbe_metal_1": {
+  "loop": false,
+  "len": 0.5,
+  "hedef_db": -10.0
+ },
+ "darbe_metal_2": {
+  "loop": false,
+  "len": 0.5,
+  "hedef_db": -10.0
+ },
+ "darbe_metal_3": {
+  "loop": false,
+  "len": 0.5,
+  "hedef_db": -10.0
+ },
+ "darbe_tas": {
+  "loop": false,
+  "len": 0.37,
+  "hedef_db": -10.0
+ },
+ "darbe_tas_1": {
+  "loop": false,
+  "len": 0.37,
+  "hedef_db": -10.0
+ },
+ "darbe_tas_2": {
+  "loop": false,
+  "len": 0.37,
+  "hedef_db": -10.0
+ },
+ "darbe_tas_3": {
+  "loop": false,
+  "len": 0.37,
+  "hedef_db": -10.0
+ },
+ "donma": {
+  "loop": false,
+  "len": 0.6,
+  "hedef_db": -12.0
+ },
+ "dusman_hazirlik": {
+  "loop": false,
+  "len": 0.4,
+  "hedef_db": -13.0
+ },
+ "esya": {
+  "loop": false,
+  "len": 0.9,
+  "hedef_db": -13.0
+ },
+ "esya_degis": {
+  "loop": false,
+  "len": 0.4,
+  "hedef_db": -15.0
+ },
+ "esya_kusan": {
+  "loop": false,
+  "len": 1.301,
+  "hedef_db": -15.0
+ },
+ "hayalet_can_1": {
+  "loop": false,
+  "len": 0.7,
+  "hedef_db": -12.0
+ },
+ "hayalet_can_2": {
+  "loop": false,
+  "len": 0.7,
+  "hedef_db": -12.0
+ },
+ "hayalet_can_3": {
+  "loop": false,
+  "len": 0.7,
+  "hedef_db": -12.0
+ },
+ "hayalet_olum": {
+  "loop": false,
+  "len": 2.667,
+  "hedef_db": -10.0
+ },
+ "hazirlik_agac_iyesi_1": {
+  "loop": false,
+  "len": 0.9,
+  "hedef_db": -13.0
+ },
+ "hazirlik_agac_iyesi_2": {
+  "loop": false,
+  "len": 0.9,
+  "hedef_db": -13.0
+ },
+ "hazirlik_arcura_1": {
+  "loop": false,
+  "len": 1.65,
+  "hedef_db": -13.0
+ },
+ "hazirlik_arcura_2": {
+  "loop": false,
+  "len": 1.65,
+  "hedef_db": -13.0
+ },
+ "hazirlik_balbal_1": {
+  "loop": false,
+  "len": 0.7,
+  "hedef_db": -13.0
+ },
+ "hazirlik_balbal_2": {
+  "loop": false,
+  "len": 0.7,
+  "hedef_db": -13.0
+ },
+ "hazirlik_cor_1": {
+  "loop": false,
+  "len": 1.604,
+  "hedef_db": -13.0
+ },
+ "hazirlik_cor_2": {
+  "loop": false,
+  "len": 1.572,
+  "hedef_db": -13.0
+ },
+ "hazirlik_kara_boru_1": {
+  "loop": false,
+  "len": 0.6,
+  "hedef_db": -13.0
+ },
+ "hazirlik_kara_boru_2": {
+  "loop": false,
+  "len": 0.6,
+  "hedef_db": -13.0
+ },
+ "hazirlik_surale_1": {
+  "loop": false,
+  "len": 0.711,
+  "hedef_db": -13.0
+ },
+ "hazirlik_surale_2": {
+  "loop": false,
+  "len": 0.711,
+  "hedef_db": -13.0
+ },
+ "inis_1": {
+  "loop": false,
+  "len": 0.25,
+  "hedef_db": -15.0
+ },
+ "inis_2": {
+  "loop": false,
+  "len": 0.35,
+  "hedef_db": -15.0
+ },
+ "isirik_1": {
+  "loop": false,
+  "len": 0.35,
+  "hedef_db": -11.0
+ },
+ "isirik_2": {
+  "loop": false,
+  "len": 0.35,
+  "hedef_db": -11.0
+ },
+ "kalp_dongu": {
+  "loop": true,
+  "len": 1.0,
+  "hedef_db": -13.0
+ },
+ "kam_davul_1": {
+  "loop": false,
+  "len": 1.55,
+  "hedef_db": -13.0
+ },
+ "kam_davul_2": {
+  "loop": false,
+  "len": 1.55,
+  "hedef_db": -13.0
+ },
+ "kam_ilahi_1": {
+  "loop": false,
+  "len": 2.3,
+  "hedef_db": -13.0
+ },
+ "kam_ilahi_2": {
+  "loop": false,
+  "len": 2.3,
+  "hedef_db": -13.0
+ },
+ "kam_kahkaha_1": {
+  "loop": false,
+  "len": 1.394,
+  "hedef_db": -13.0
+ },
+ "kam_kahkaha_2": {
+  "loop": false,
+  "len": 1.486,
+  "hedef_db": -13.0
+ },
+ "kapi": {
+  "loop": false,
+  "len": 2.927,
+  "hedef_db": -13.0
+ },
+ "kurt_can_1": {
+  "loop": false,
+  "len": 0.313,
+  "hedef_db": -12.0
+ },
+ "kurt_can_2": {
+  "loop": false,
+  "len": 0.3,
+  "hedef_db": -12.0
+ },
+ "kurt_can_3": {
+  "loop": false,
+  "len": 0.372,
+  "hedef_db": -12.0
+ },
+ "kurt_can_4": {
+  "loop": false,
+  "len": 0.291,
+  "hedef_db": -12.0
+ },
+ "kurt_hirlama_1": {
+  "loop": false,
+  "len": 0.6,
+  "hedef_db": -13.0
+ },
+ "kurt_hirlama_2": {
+  "loop": false,
+  "len": 0.6,
+  "hedef_db": -13.0
+ },
+ "kurt_olum": {
+  "loop": false,
+  "len": 1.836,
+  "hedef_db": -10.0
+ },
+ "kut_banka": {
+  "loop": false,
+  "len": 2.401,
+  "hedef_db": -13.0
+ },
+ "kut_donusum": {
+  "loop": false,
+  "len": 2.531,
+  "hedef_db": -9.0
+ },
+ "kut_tane": {
+  "loop": false,
+  "len": 0.95,
+  "hedef_db": -16.0
+ },
+ "npc_1": {
+  "loop": false,
+  "len": 0.18,
+  "hedef_db": -19.0
+ },
+ "npc_2": {
+  "loop": false,
+  "len": 0.18,
+  "hedef_db": -19.0
+ },
+ "npc_3": {
+  "loop": false,
+  "len": 0.18,
+  "hedef_db": -19.0
+ },
+ "ok_ucus_1": {
+  "loop": false,
+  "len": 0.318,
+  "hedef_db": -17.0
+ },
+ "ok_ucus_2": {
+  "loop": false,
+  "len": 0.318,
+  "hedef_db": -17.0
+ },
+ "ok_ucus_3": {
+  "loop": false,
+  "len": 0.318,
+  "hedef_db": -17.0
+ },
+ "ok_vurus": {
+  "loop": false,
+  "len": 0.2,
+  "hedef_db": -11.0
+ },
+ "ok_vurus_1": {
+  "loop": false,
+  "len": 0.2,
+  "hedef_db": -11.0
+ },
+ "ok_vurus_2": {
+  "loop": false,
+  "len": 0.2,
+  "hedef_db": -11.0
+ },
+ "ok_vurus_3": {
+  "loop": false,
+  "len": 0.2,
+  "hedef_db": -11.0
+ },
+ "ok_vurus_tahta_1": {
+  "loop": false,
+  "len": 0.56,
+  "hedef_db": -11.0
+ },
+ "ok_vurus_tahta_2": {
+  "loop": false,
+  "len": 0.56,
+  "hedef_db": -11.0
+ },
+ "ok_vurus_tas_1": {
+  "loop": false,
+  "len": 0.32,
+  "hedef_db": -11.0
+ },
+ "ok_vurus_tas_2": {
+  "loop": false,
+  "len": 0.32,
+  "hedef_db": -11.0
+ },
+ "ors": {
+  "loop": false,
+  "len": 0.6,
+  "hedef_db": -13.0
+ },
+ "patlama": {
+  "loop": false,
+  "len": 1.05,
+  "hedef_db": -7.0
+ },
+ "sapla": {
+  "loop": false,
+  "len": 0.16,
+  "hedef_db": -13.0
+ },
+ "sarj_dolu": {
+  "loop": false,
+  "len": 0.5,
+  "hedef_db": -12.0
+ },
+ "sarj_dongu": {
+  "loop": true,
+  "len": 1.0,
+  "hedef_db": -17.0
+ },
+ "sarsinti": {
+  "loop": false,
+  "len": 0.6,
+  "hedef_db": -8.0
+ },
+ "savur_agir_1": {
+  "loop": false,
+  "len": 0.65,
+  "hedef_db": -12.0
+ },
+ "savur_agir_2": {
+  "loop": false,
+  "len": 0.6,
+  "hedef_db": -12.0
+ },
+ "savur_balta_1": {
+  "loop": false,
+  "len": 0.45,
+  "hedef_db": -13.0
+ },
+ "savur_balta_2": {
+  "loop": false,
+  "len": 0.45,
+  "hedef_db": -13.0
+ },
+ "savur_balta_3": {
+  "loop": false,
+  "len": 0.45,
+  "hedef_db": -13.0
+ },
+ "savur_bicak_1": {
+  "loop": false,
+  "len": 0.15,
+  "hedef_db": -13.0
+ },
+ "savur_bicak_2": {
+  "loop": false,
+  "len": 0.15,
+  "hedef_db": -13.0
+ },
+ "savur_bicak_3": {
+  "loop": false,
+  "len": 0.15,
+  "hedef_db": -13.0
+ },
+ "savur_bicak_4": {
+  "loop": false,
+  "len": 0.15,
+  "hedef_db": -13.0
+ },
+ "savur_cekic_1": {
+  "loop": false,
+  "len": 0.65,
+  "hedef_db": -12.0
+ },
+ "savur_cekic_2": {
+  "loop": false,
+  "len": 0.65,
+  "hedef_db": -12.0
+ },
+ "savur_cekic_3": {
+  "loop": false,
+  "len": 0.65,
+  "hedef_db": -12.0
+ },
+ "savur_dev": {
+  "loop": false,
+  "len": 0.6,
+  "hedef_db": -12.0
+ },
+ "savur_dev_1": {
+  "loop": false,
+  "len": 0.6,
+  "hedef_db": -12.0
+ },
+ "savur_dev_2": {
+  "loop": false,
+  "len": 0.6,
+  "hedef_db": -12.0
+ },
+ "savur_dev_3": {
+  "loop": false,
+  "len": 0.6,
+  "hedef_db": -12.0
+ },
+ "savur_hafif_1": {
+  "loop": false,
+  "len": 0.259,
+  "hedef_db": -13.0
+ },
+ "savur_hafif_2": {
+  "loop": false,
+  "len": 0.27,
+  "hedef_db": -13.0
+ },
+ "savur_hafif_3": {
+  "loop": false,
+  "len": 0.27,
+  "hedef_db": -13.0
+ },
+ "savur_katana_1": {
+  "loop": false,
+  "len": 0.48,
+  "hedef_db": -13.0
+ },
+ "savur_katana_2": {
+  "loop": false,
+  "len": 0.48,
+  "hedef_db": -13.0
+ },
+ "savur_katana_3": {
+  "loop": false,
+  "len": 0.48,
+  "hedef_db": -13.0
+ },
+ "savur_kilic_1": {
+  "loop": false,
+  "len": 0.259,
+  "hedef_db": -13.0
+ },
+ "savur_kilic_2": {
+  "loop": false,
+  "len": 0.27,
+  "hedef_db": -13.0
+ },
+ "savur_kilic_3": {
+  "loop": false,
+  "len": 0.27,
+  "hedef_db": -13.0
+ },
+ "savur_kilic_4": {
+  "loop": false,
+  "len": 0.26,
+  "hedef_db": -13.0
+ },
+ "savur_kirbac_1": {
+  "loop": false,
+  "len": 0.25,
+  "hedef_db": -13.0
+ },
+ "savur_kirbac_2": {
+  "loop": false,
+  "len": 0.25,
+  "hedef_db": -13.0
+ },
+ "savur_kirbac_3": {
+  "loop": false,
+  "len": 0.25,
+  "hedef_db": -13.0
+ },
+ "savur_ruh_1": {
+  "loop": false,
+  "len": 1.048,
+  "hedef_db": -13.0
+ },
+ "savur_ruh_2": {
+  "loop": false,
+  "len": 1.03,
+  "hedef_db": -13.0
+ },
+ "savur_ruh_3": {
+  "loop": false,
+  "len": 1.037,
+  "hedef_db": -13.0
+ },
+ "savur_sirik_1": {
+  "loop": false,
+  "len": 0.16,
+  "hedef_db": -13.0
+ },
+ "savur_sirik_2": {
+  "loop": false,
+  "len": 0.16,
+  "hedef_db": -13.0
+ },
+ "savur_sirik_3": {
+  "loop": false,
+  "len": 0.16,
+  "hedef_db": -13.0
+ },
+ "seviye": {
+  "loop": false,
+  "len": 3.15,
+  "hedef_db": -12.0
+ },
+ "sicrayis": {
+  "loop": false,
+  "len": 0.35,
+  "hedef_db": -11.0
+ },
+ "sise": {
+  "loop": false,
+  "len": 0.45,
+  "hedef_db": -13.0
+ },
+ "surale_can_1": {
+  "loop": false,
+  "len": 0.283,
+  "hedef_db": -12.0
+ },
+ "surale_can_2": {
+  "loop": false,
+  "len": 0.319,
+  "hedef_db": -12.0
+ },
+ "surale_can_3": {
+  "loop": false,
+  "len": 0.319,
+  "hedef_db": -12.0
+ },
+ "surale_ciglik_1": {
+  "loop": false,
+  "len": 0.711,
+  "hedef_db": -13.0
+ },
+ "surale_ciglik_2": {
+  "loop": false,
+  "len": 0.711,
+  "hedef_db": -13.0
+ },
+ "surale_olum": {
+  "loop": false,
+  "len": 2.618,
+  "hedef_db": -10.0
+ },
+ "tas_can_1": {
+  "loop": false,
+  "len": 0.42,
+  "hedef_db": -12.0
+ },
+ "tas_can_2": {
+  "loop": false,
+  "len": 0.42,
+  "hedef_db": -12.0
+ },
+ "tas_can_3": {
+  "loop": false,
+  "len": 0.42,
+  "hedef_db": -12.0
+ },
+ "tas_olum": {
+  "loop": false,
+  "len": 3.0,
+  "hedef_db": -10.0
+ },
+ "tas_surtunme_1": {
+  "loop": false,
+  "len": 0.7,
+  "hedef_db": -13.0
+ },
+ "tas_surtunme_2": {
+  "loop": false,
+  "len": 0.7,
+  "hedef_db": -13.0
+ },
+ "tilsim": {
+  "loop": false,
+  "len": 2.1,
+  "hedef_db": -13.0
+ },
+ "tilsim_sec": {
+  "loop": false,
+  "len": 2.67,
+  "hedef_db": -12.0
+ },
+ "ui_ac": {
+  "loop": false,
+  "len": 0.53,
+  "hedef_db": -17.0
+ },
+ "ui_gez_1": {
+  "loop": false,
+  "len": 0.12,
+  "hedef_db": -21.0
+ },
+ "ui_gez_2": {
+  "loop": false,
+  "len": 0.12,
+  "hedef_db": -21.0
+ },
+ "ui_gez_3": {
+  "loop": false,
+  "len": 0.12,
+  "hedef_db": -21.0
+ },
+ "ui_iptal": {
+  "loop": false,
+  "len": 0.42,
+  "hedef_db": -17.0
+ },
+ "ui_kapa": {
+  "loop": false,
+  "len": 0.4,
+  "hedef_db": -17.0
+ },
+ "ui_onay": {
+  "loop": false,
+  "len": 0.57,
+  "hedef_db": -17.0
+ },
+ "ui_sec": {
+  "loop": false,
+  "len": 0.12,
+  "hedef_db": -21.0
+ },
+ "ui_sec_1": {
+  "loop": false,
+  "len": 0.12,
+  "hedef_db": -21.0
+ },
+ "ui_sec_2": {
+  "loop": false,
+  "len": 0.12,
+  "hedef_db": -21.0
+ },
+ "ui_sec_3": {
+  "loop": false,
+  "len": 0.12,
+  "hedef_db": -21.0
+ },
+ "uluma": {
+  "loop": false,
+  "len": 3.109,
+  "hedef_db": -11.0
+ },
+ "yay_birak": {
+  "loop": false,
+  "len": 0.5,
+  "hedef_db": -12.0
+ },
+ "yay_birak_1": {
+  "loop": false,
+  "len": 0.5,
+  "hedef_db": -12.0
+ },
+ "yay_birak_2": {
+  "loop": false,
+  "len": 0.5,
+  "hedef_db": -12.0
+ },
+ "yay_birak_3": {
+  "loop": false,
+  "len": 0.5,
+  "hedef_db": -12.0
+ },
+ "yay_birak_tam": {
+  "loop": false,
+  "len": 0.5,
+  "hedef_db": -12.0
+ },
+ "yay_dolu": {
+  "loop": false,
+  "len": 0.25,
+  "hedef_db": -15.0
+ },
+ "yay_ger": {
+  "loop": false,
+  "len": 0.38,
+  "hedef_db": -16.0
+ },
+ "yay_ger_1": {
+  "loop": false,
+  "len": 0.38,
+  "hedef_db": -16.0
+ },
+ "yay_ger_2": {
+  "loop": false,
+  "len": 0.38,
+  "hedef_db": -16.0
+ },
+ "yay_ger_3": {
+  "loop": false,
+  "len": 0.38,
+  "hedef_db": -16.0
+ },
+ "yildirim": {
+  "loop": false,
+  "len": 1.6,
+  "hedef_db": -9.0
+ },
+ "yuvarlan": {
+  "loop": false,
+  "len": 0.38,
+  "hedef_db": -16.0
+ },
+ "zehir": {
+  "loop": false,
+  "len": 0.6,
+  "hedef_db": -12.0
+ },
+ "zipla": {
+  "loop": false,
+  "len": 0.15,
+  "hedef_db": -16.0
+ },
+ "ortam_bozkir_dongu": {
+  "loop": true,
+  "len": 12.0,
+  "hedef_db": -21.0
+ },
+ "ortam_kaf_dongu": {
+  "loop": true,
+  "len": 12.0,
+  "hedef_db": -21.0
+ },
+ "ortam_otuken_dongu": {
+  "loop": true,
+  "len": 12.0,
+  "hedef_db": -21.0
+ },
+ "ortam_sahmeran_dongu": {
+  "loop": true,
+  "len": 12.0,
+  "hedef_db": -21.0
+ },
+ "ortam_tamu_dongu": {
+  "loop": true,
+  "len": 12.0,
+  "hedef_db": -21.0
+ },
+ "ortam_yurt_dongu": {
+  "loop": true,
+  "len": 12.0,
+  "hedef_db": -21.0
+ },
+ "ad_toren": {
+  "loop": false,
+  "len": 5.2,
+  "hedef_db": -12.0
+ },
+ "destan": {
+  "loop": false,
+  "len": 1.3,
+  "hedef_db": -12.0
+ },
+ "don_al": {
+  "loop": false,
+  "len": 2.22,
+  "hedef_db": -12.0
+ },
+ "don_bitis": {
+  "loop": false,
+  "len": 0.4,
+  "hedef_db": -12.0
+ },
+ "don_donus": {
+  "loop": false,
+  "len": 2.5,
+  "hedef_db": -12.0
+ },
+ "ruh_kusu": {
+  "loop": false,
+  "len": 0.5,
+  "hedef_db": -16.0
+ },
+ "ruh_tasi": {
+  "loop": false,
+  "len": 2.4,
+  "hedef_db": -12.0
+ },
+ "usul_dum": {
+  "loop": false,
+  "len": 0.6,
+  "hedef_db": -14.0
+ },
+ "usul_seri": {
+  "loop": false,
+  "len": 1.4,
+  "hedef_db": -14.0
+ },
+ "usul_vurus": {
+  "loop": false,
+  "len": 0.35,
+  "hedef_db": -17.0
+ },
+ "darbe_agir_1": {
+  "loop": false,
+  "len": 0.261,
+  "hedef_db": -9.5,
+  "onset": 0.036
+ },
+ "darbe_agir_2": {
+  "loop": false,
+  "len": 0.261,
+  "hedef_db": -9.5,
+  "onset": 0.036
+ },
+ "darbe_agir_3": {
+  "loop": false,
+  "len": 0.261,
+  "hedef_db": -9.5,
+  "onset": 0.036
+ },
+ "darbe_donuk_1": {
+  "loop": false,
+  "len": 0.2,
+  "hedef_db": -11.0
+ },
+ "darbe_donuk_2": {
+  "loop": false,
+  "len": 0.2,
+  "hedef_db": -11.0
+ },
+ "darbe_hafif_1": {
+  "loop": false,
+  "len": 0.09,
+  "hedef_db": -10.5
+ },
+ "darbe_hafif_2": {
+  "loop": false,
+  "len": 0.09,
+  "hedef_db": -10.5
+ },
+ "darbe_hafif_3": {
+  "loop": false,
+  "len": 0.09,
+  "hedef_db": -10.5
+ },
+ "gok_gurleme_1": {
+  "loop": false,
+  "len": 2.4,
+  "hedef_db": -10.0
+ },
+ "gok_gurleme_2": {
+  "loop": false,
+  "len": 2.9,
+  "hedef_db": -10.0
+ },
+ "olum_vurus_1": {
+  "loop": false,
+  "len": 0.6,
+  "hedef_db": -7.5,
+  "onset": 0.03
+ },
+ "olum_vurus_2": {
+  "loop": false,
+  "len": 0.6,
+  "hedef_db": -7.5,
+  "onset": 0.03
+ },
+ "patlama_1": {
+  "loop": false,
+  "len": 1.05,
+  "hedef_db": -7.0
+ },
+ "patlama_2": {
+  "loop": false,
+  "len": 1.05,
+  "hedef_db": -7.0
+ },
+ "patlama_3": {
+  "loop": false,
+  "len": 1.05,
+  "hedef_db": -7.0
+ },
+ "patlama_buyuk": {
+  "loop": false,
+  "len": 1.4,
+  "hedef_db": -6.5
+ },
+ "patlama_uzak": {
+  "loop": false,
+  "len": 1.3,
+  "hedef_db": -15.0
+ },
+ "sarsinti_buyuk": {
+  "loop": false,
+  "len": 1.1,
+  "hedef_db": -7.5
+ },
+ "savur_hazirlik_1": {
+  "loop": false,
+  "len": 0.12,
+  "hedef_db": -24.0
+ },
+ "savur_hazirlik_2": {
+  "loop": false,
+  "len": 0.12,
+  "hedef_db": -24.0
+ },
+ "simsek_catirti_1": {
+  "loop": false,
+  "len": 0.16,
+  "hedef_db": -8.5,
+  "onset": 0.03
+ },
+ "simsek_catirti_2": {
+  "loop": false,
+  "len": 0.16,
+  "hedef_db": -8.5,
+  "onset": 0.03
+ },
+ "simsek_sizirti_dongu": {
+  "loop": true,
+  "len": 2.2,
+  "hedef_db": -27.0
+ },
+ "darbe_kritik_4": {
+  "loop": false,
+  "len": 0.52,
+  "hedef_db": -6.5
+ },
+ "darbe_kritik_kunt_1": {
+  "loop": false,
+  "len": 0.6,
+  "hedef_db": -6.5
+ },
+ "darbe_kritik_kunt_2": {
+  "loop": false,
+  "len": 0.6,
+  "hedef_db": -6.5
+ },
+ "darbe_kritik_kunt_3": {
+  "loop": false,
+  "len": 0.6,
+  "hedef_db": -6.5
+ },
+ "tamu_seli": {
+  "loop": false,
+  "len": 4.0,
+  "hedef_db": -12.0
+ },
+ "kuzgu_isin_dongu": {
+  "loop": true,
+  "len": 1.2,
+  "hedef_db": -19.0
+ },
+ "tatar_kurma": {
+  "loop": false,
+  "len": 0.19,
+  "hedef_db": -15.0
+ },
+ "albasti_goc": {
+  "loop": false,
+  "len": 0.55,
+  "hedef_db": -13.0
+ },
+ "bag_zincir": {
+  "loop": false,
+  "len": 0.7,
+  "hedef_db": -13.0
+ },
+ "tatar_atis_1": {
+  "loop": false,
+  "len": 0.45,
+  "hedef_db": -11.0
+ },
+ "tatar_atis_2": {
+  "loop": false,
+  "len": 0.45,
+  "hedef_db": -11.0
+ },
+ "darbe_kritik_5": {
+  "loop": false,
+  "len": 0.52,
+  "hedef_db": -6.5
+ },
+ "darbe_kritik_kunt_4": {
+  "loop": false,
+  "len": 0.6,
+  "hedef_db": -6.5
+ },
+ "kin_kapa": {
+  "loop": false,
+  "len": 0.146,
+  "hedef_db": -18.0
+ },
+ "sanat_baslat": {
+  "loop": false,
+  "len": 1.4,
+  "hedef_db": -10.0
+ },
+ "sanat_hazir": {
+  "loop": false,
+  "len": 0.878,
+  "hedef_db": -15.0
+ },
+ "sanat_kasirga": {
+  "loop": false,
+  "len": 0.62,
+  "hedef_db": -12.0
+ },
+ "sanat_hilal": {
+  "loop": false,
+  "len": 1.179,
+  "hedef_db": -11.0
+ },
+ "sanat_cekis": {
+  "loop": false,
+  "len": 1.85,
+  "hedef_db": -7.5
+ },
+ "sanat_yuksel": {
+  "loop": false,
+  "len": 0.45,
+  "hedef_db": -12.0
+ },
+ "sanat_atilis": {
+  "loop": false,
+  "len": 0.34,
+  "hedef_db": -12.0
+ },
+ "sanat_kin": {
+  "loop": false,
+  "len": 1.15,
+  "hedef_db": -9.5
+ },
+ "sanat_kam": {
+  "loop": false,
+  "len": 1.6,
+  "hedef_db": -10.0
+ },
+ "sanat_ors": {
+  "loop": false,
+  "len": 1.6,
+  "hedef_db": -9.0
+ },
+ "sanat_gum": {
+  "loop": false,
+  "len": 2.25,
+  "hedef_db": -6.5
+ }
+}

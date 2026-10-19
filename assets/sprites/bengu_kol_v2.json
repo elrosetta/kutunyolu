@@ -1,0 +1,27 @@
+{
+ "cell": [
+  56,
+  68
+ ],
+ "pivot": [
+  28,
+  14
+ ],
+ "fist_pivot": [
+  28,
+  34
+ ],
+ "texel": 4.0,
+ "filter": "linear",
+ "upper_len": 10.0,
+ "fore_len": 9.4,
+ "alt_row": 1,
+ "parts": [
+  "upper",
+  "fore",
+  "fist",
+  "upper_b",
+  "fore_b",
+  "fist_b"
+ ]
+}

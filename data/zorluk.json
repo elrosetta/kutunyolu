@@ -1,0 +1,95 @@
+{
+	"_not": "v22/v23 zorluk: tek ayar dosyası (scripts/core/Zorluk.gd okur). 'genel' bütün oyunu birden çevirir. Derinlik dizileri 1. derinlikten başlar; dizinin sonundan derine son değer kullanılır. Düşman tabanları (data/world.json hp / dmg) taban değerdir; derinlik çarpanları beklenen oyuncu gücüne göre (tools/tests/denge_testi.gd: 'tomar' bölümündeki beklenen tomar sayısı, o kademenin Nadir silahı) çıkarıldı. v23: güç tomarlardan gelir (eşya kademesi az ölçekler). Ölçüm: -- --denge",
+	"genel": {
+		"can": 0.65,
+		"hasar": 1.0,
+		"saldirganlik": 1.0,
+		"sifa": 1.0
+	},
+	"derinlik": {
+		"_not": "can: düşman canı çarpanı · hasar: düşman vuruşu çarpanı · saldirganlik: saldırı bekleme süresinin sönme hızı · hazirlik: hazırlık (uyarı) süresinin kısalması · yogunluk: düşmanlar arası boşluktan düşülen karo · seckin: bölümdeki en çok seçkin · suru: ikinci sürü üyesi olasılığı",
+		"can": [1.53, 2.49, 2.92, 3.48, 4.75, 5.65, 5.82, 6.75, 7.5, 8.75],
+		"hasar": [1.0, 1.27, 1.84, 2.25, 2.9, 3.95, 5.25, 6.45, 8.8, 10.4],
+		"saldirganlik": [1.15, 1.2, 1.28, 1.34, 1.4, 1.46, 1.52, 1.58, 1.64, 1.7],
+		"hazirlik": [1.0, 1.0, 1.03, 1.05, 1.07, 1.09, 1.11, 1.13, 1.15, 1.15],
+		"yogunluk": [0, 1, 1, 2, 2, 3, 3, 4, 4, 4],
+		"seckin": [1, 1, 1, 1, 2, 2, 2, 2, 3, 3],
+		"suru": [0.0, 0.1, 0.15, 0.2, 0.25, 0.3, 0.35, 0.4, 0.45, 0.45]
+	},
+	"yz": {
+		"_not": "v26 yapay zekâ baskısı (Enemy.gd), derinlik dizileri · tepki_azalt: tepki eşiğinden (TEPKI: kaç vuruşta geri sıçrar / ışınlanır / zırhlı karşılık verir) düşülen, en az 2 · tepki_bekleme: iki tepki arası (sn; seçkinde ×0,75) · jeton: oyuncunun çevresinde aynı anda saldıran en çok yakın dövüşçü · bekleme: hamle sonrası bekleme çarpanı · sarsilmaz: hafif vuruşla sarsılan yaratığın yeniden sarsılmadığı süre (sn) · diretme: diretmeye (sarsılmadan dayanma) kadar sarsılma sayısı · baski: son vuruştan bu kadar sn içinde başlayan hazırlık zırhlı '!!' olur. 1. derinlik v25'e yakın (öğrenilir)",
+		"tepki_azalt": [0, 1, 1, 1, 1, 1, 2, 2, 2, 2],
+		"tepki_bekleme": [2.0, 1.7, 1.55, 1.45, 1.4, 1.35, 1.3, 1.25, 1.2, 1.2],
+		"jeton": [1, 2, 2, 2, 2, 3, 3, 3, 3, 3],
+		"bekleme": [0.92, 0.84, 0.8, 0.76, 0.72, 0.7, 0.68, 0.66, 0.64, 0.62],
+		"sarsilmaz": [0.38, 0.44, 0.48, 0.5, 0.52, 0.54, 0.55, 0.56, 0.58, 0.6],
+		"diretme": [4, 3, 3, 3, 3, 3, 3, 2, 2, 2],
+		"baski": [0.9, 1.1, 1.2, 1.25, 1.3, 1.35, 1.4, 1.4, 1.45, 1.5]
+	},
+	"rol_can": {
+		"_not": "v26: yapay zekâ rolüne göre can çarpanı (derinlik eğrisinin üstüne). Ağır yakın dövüşçüler ve tosbağa 1; tazılar / pusucular (hızlı, 3-5 vuruşta ölüyordu) daha çok; uzak / uçan / sürü daha az (zaten kovalanıyor)",
+		"lunger": 1.2, "pouncer": 1.2, "crawler": 1.2, "stalker": 1.2,
+		"flyer_ranged": 0.8, "archer": 0.8, "caster": 0.85, "swarm": 0.8, "diver": 0.85, "kamikaze": 0.85, "charmer": 0.85, "illusionist": 0.85
+	},
+	"seckin": {
+		"can": 2.2,
+		"hasar": 1.3
+	},
+	"esya": {
+		"_not": "v23 · kademe: eşya kademesinin hasar çarpanı (kademe = derinlik - 1, en çok 8; az ölçekler, güç tomarlardan) · nadirlik: Sıradan / Nadir / Destansı / Efsanevi hasar çarpanı · taban: bütün silah hasarı ve teçhizat gücü çarpanı (v22 = 1)",
+		"kademe": [1.0, 1.06, 1.12, 1.18, 1.24, 1.3, 1.36, 1.42, 1.48],
+		"nadirlik": [1.0, 1.08, 1.16, 1.25],
+		"taban": 0.7
+	},
+	"tomar": {
+		"_not": "v23 tomar ekonomisi (Dead Cells 'Scroll of Power'): her tomar Kurt / Kartal / Ayı statlarından birini +1 yapar. Eşya bir ya da iki stat rengiyle ölçeklenir (yüksek olanla). kazanc: n. tomarın hasar kazancı (dizinin sonundan sonrası son değer; azalan getiri), çarpan = 1 + toplam · can: tomar başına azami can payı (bileşik) · iyilesme: okununca ek iyileşme · ayi_zirh: Ayı seviyesi başına alınan hasar azalması (en çok ayi_zirh_en_cok) · derinlik / boss / pay: beklenen oyuncu modeli (denge testi ve --bot_gercek): derinlik başına tomar, geçilen boss başına tomar, statlara dağılım",
+		"kazanc": [0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.15, 0.15, 0.15, 0.15, 0.15, 0.15, 0.1],
+		"can": {"kurt": 0.06, "kartal": 0.06, "ayi": 0.15},
+		"iyilesme": 0.1,
+		"ayi_zirh": 0.03,
+		"ayi_zirh_en_cok": 0.3,
+		"derinlik": 2.5,
+		"boss": 1,
+		"pay": {"kurt": 0.6, "ayi": 0.25, "kartal": 0.15}
+	},
+	"kritik": {
+		"_not": "v23 · kosul_bekleme: durum koşullu silah kritiği (kanayan / yanan / sersem / havadaki hedef, arkadan, uçtan, tam ivme...) aynı düşmanda en çok bu sıklıkta (sn) ve kosul_vurus isabette bir · bitiris: zincir bitirişi (Alp'in üçüncü vuruşu, bitiriş kritiği, Ay Dansı son vuruşu, Yatağan geri sıçrayışı) ritimsiz basışta kritik değil bu hasar çarpanı; Kut Yankısı ya da usul vuruşuyla gelirse kritik · ay_ata / segrek: Ay Ata lütfu ve Segrek adının kritik şansı (yüzde)",
+		"kosul_bekleme": 2.5,
+		"kosul_vurus": 6,
+		"bitiris": 1.3,
+		"ay_ata": 4,
+		"segrek": 3
+	},
+	"boss": {
+		"_not": "can: boss canı (mühürsüz; derinliği sabit: Game.BOSS_AFTER) · hasar çarpanı derinlik dizisinden boss derinliğiyle",
+		"kara_boru_han": {"can": 2050},
+		"tepegoz": {"can": 3600},
+		"albasti_ana": {"can": 4500},
+		"sahmeran": {"can": 5500},
+		"yelbegen": {"can": 7300},
+		"erlik_han": {"can": 9700}
+	},
+	"sifa": {
+		"_not": "sise: şişe başına azami canın payı · ot: şifa otu · derinlik: Kut Kapısı'ndan geçince · dusme: sıradan düşmandan şifa otu olasılığı",
+		"sise": 0.45,
+		"ot": 0.25,
+		"derinlik": 0.15,
+		"dusme": 0.04
+	},
+	"muhurler": [
+		{"ad": "Mühürsüz", "desc": "Kut'un ilk yolu.", "can": 1.0, "hasar": 1.0, "saldirganlik": 1.0, "yogunluk": 0, "seckin": 0, "sise": 0, "sifa": 1.0, "ofkeli": 0.0},
+		{"ad": "Birinci Mühür", "desc": "Düşmanlar daha dayanıklı ve daha sık saldırır.", "can": 1.1, "hasar": 1.1, "saldirganlik": 1.1, "yogunluk": 1, "seckin": 0, "sise": 0, "sifa": 1.0, "ofkeli": 0.0},
+		{"ad": "İkinci Mühür", "desc": "Bölümde bir seçkin daha; şişe bir eksik.", "can": 1.2, "hasar": 1.2, "saldirganlik": 1.18, "yogunluk": 1, "seckin": 1, "sise": -1, "sifa": 0.85, "ofkeli": 0.0},
+		{"ad": "Üçüncü Mühür", "desc": "Öfkeli yaratıklar belirir: hızlı, sert, sabırsız.", "can": 1.35, "hasar": 1.3, "saldirganlik": 1.26, "yogunluk": 2, "seckin": 1, "sise": -1, "sifa": 0.75, "ofkeli": 0.15},
+		{"ad": "Dördüncü Mühür", "desc": "Şifa kıt, öfkeliler çoğalır.", "can": 1.5, "hasar": 1.42, "saldirganlik": 1.34, "yogunluk": 2, "seckin": 2, "sise": -1, "sifa": 0.6, "ofkeli": 0.25},
+		{"ad": "Beşinci Mühür", "desc": "Erlik'in tam gücü: tek şişe, kalabalık sürüler.", "can": 1.65, "hasar": 1.55, "saldirganlik": 1.42, "yogunluk": 3, "seckin": 2, "sise": -2, "sifa": 0.5, "ofkeli": 0.35}
+	],
+	"ofkeli": {
+		"_not": "Üçüncü mühürden sonra bazı yaratıklar öfkeli doğar",
+		"can": 1.3,
+		"hasar": 1.15,
+		"hiz": 1.2,
+		"hazirlik": 1.2,
+		"saldirganlik": 1.25
+	}
+}

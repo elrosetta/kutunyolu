@@ -1,0 +1,548 @@
+{
+ "cell": [
+  352,
+  320
+ ],
+ "origin": [
+  144,
+  296
+ ],
+ "texel": 4.0,
+ "filter": "linear",
+ "anims": {
+  "dormant": {
+   "row": 0,
+   "frames": 1,
+   "fps": 1,
+   "loop": false,
+   "data": [
+    {}
+   ],
+   "arm": false,
+   "ts": [
+    0.0
+   ]
+  },
+  "wake": {
+   "row": 1,
+   "frames": 6,
+   "fps": 12,
+   "loop": false,
+   "data": [
+    {},
+    {},
+    {},
+    {},
+    {},
+    {}
+   ],
+   "arm": false,
+   "seg": {
+    "wake": [
+     0,
+     6
+    ]
+   },
+   "ts": [
+    0.0,
+    0.14,
+    0.3,
+    0.5,
+    0.68,
+    0.86
+   ]
+  },
+  "idle": {
+   "row": 2,
+   "frames": 8,
+   "fps": 7,
+   "loop": true,
+   "data": [
+    {},
+    {},
+    {},
+    {},
+    {},
+    {},
+    {},
+    {}
+   ],
+   "arm": false
+  },
+  "guard": {
+   "row": 3,
+   "frames": 3,
+   "fps": 10,
+   "loop": false,
+   "data": [
+    {},
+    {},
+    {}
+   ],
+   "arm": false,
+   "ts": [
+    0.0,
+    0.2,
+    0.55
+   ]
+  },
+  "hop": {
+   "row": 4,
+   "frames": 5,
+   "fps": 10,
+   "loop": false,
+   "data": [
+    {},
+    {},
+    {},
+    {},
+    {}
+   ],
+   "arm": false,
+   "seg": {
+    "air": [
+     0,
+     5
+    ]
+   },
+   "ts": [
+    0.0,
+    0.18,
+    0.4,
+    0.6,
+    0.85
+   ]
+  },
+  "cut": {
+   "row": 5,
+   "frames": 9,
+   "fps": 10,
+   "loop": false,
+   "data": [
+    {},
+    {},
+    {},
+    {},
+    {},
+    {},
+    {},
+    {},
+    {}
+   ],
+   "arm": false,
+   "seg": {
+    "windup": [
+     0,
+     4
+    ],
+    "strike": [
+     4,
+     6
+    ],
+    "recover": [
+     6,
+     9
+    ]
+   },
+   "ts": [
+    0.0,
+    0.22,
+    0.45,
+    0.0,
+    0.0,
+    0.4,
+    0.0,
+    0.35,
+    0.72
+   ],
+   "lead": {
+    "windup": 0.05
+   }
+  },
+  "rev": {
+   "row": 6,
+   "frames": 7,
+   "fps": 10,
+   "loop": false,
+   "data": [
+    {},
+    {},
+    {},
+    {},
+    {},
+    {},
+    {}
+   ],
+   "arm": false,
+   "seg": {
+    "windup": [
+     0,
+     3
+    ],
+    "strike": [
+     3,
+     5
+    ],
+    "recover": [
+     5,
+     7
+    ]
+   },
+   "ts": [
+    0.0,
+    0.25,
+    0.0,
+    0.0,
+    0.4,
+    0.0,
+    0.55
+   ],
+   "lead": {
+    "windup": 0.05
+   }
+  },
+  "leap": {
+   "row": 7,
+   "frames": 10,
+   "fps": 10,
+   "loop": false,
+   "data": [
+    {},
+    {},
+    {},
+    {},
+    {},
+    {},
+    {},
+    {},
+    {},
+    {}
+   ],
+   "arm": false,
+   "seg": {
+    "windup": [
+     0,
+     3
+    ],
+    "air": [
+     3,
+     6
+    ],
+    "strike": [
+     6,
+     8
+    ],
+    "recover": [
+     8,
+     10
+    ]
+   },
+   "ts": [
+    0.0,
+    0.3,
+    0.0,
+    0.0,
+    0.35,
+    0.62,
+    0.0,
+    0.45,
+    0.0,
+    0.5
+   ],
+   "lead": {
+    "windup": 0.05
+   }
+  },
+  "turn": {
+   "row": 8,
+   "frames": 3,
+   "fps": 12,
+   "loop": false,
+   "data": [
+    {},
+    {},
+    {}
+   ],
+   "arm": false,
+   "ts": [
+    0.0,
+    0.35,
+    0.7
+   ]
+  },
+  "hurt": {
+   "row": 9,
+   "frames": 3,
+   "fps": 12,
+   "loop": false,
+   "data": [
+    {},
+    {},
+    {}
+   ],
+   "arm": false,
+   "ts": [
+    0.0,
+    0.35,
+    0.7
+   ]
+  },
+  "hurt_big": {
+   "row": 10,
+   "frames": 4,
+   "fps": 10,
+   "loop": false,
+   "data": [
+    {},
+    {},
+    {},
+    {}
+   ],
+   "arm": false,
+   "ts": [
+    0.0,
+    0.25,
+    0.55,
+    0.8
+   ]
+  },
+  "stun": {
+   "row": 11,
+   "frames": 6,
+   "fps": 6,
+   "loop": true,
+   "data": [
+    {},
+    {},
+    {},
+    {},
+    {},
+    {}
+   ],
+   "arm": false
+  },
+  "launch": {
+   "row": 12,
+   "frames": 4,
+   "fps": 10,
+   "loop": false,
+   "data": [
+    {},
+    {},
+    {},
+    {}
+   ],
+   "arm": false,
+   "seg": {
+    "air": [
+     0,
+     4
+    ]
+   },
+   "ts": [
+    0.0,
+    0.25,
+    0.55,
+    0.82
+   ]
+  },
+  "death": {
+   "row": 13,
+   "frames": 8,
+   "fps": 10,
+   "loop": false,
+   "data": [
+    {},
+    {},
+    {},
+    {},
+    {},
+    {},
+    {},
+    {}
+   ],
+   "arm": false,
+   "ts": [
+    0.0,
+    0.1,
+    0.22,
+    0.34,
+    0.46,
+    0.58,
+    0.72,
+    0.88
+   ]
+  },
+  "roar": {
+   "row": 14,
+   "frames": 5,
+   "fps": 8,
+   "loop": false,
+   "data": [
+    {},
+    {},
+    {},
+    {},
+    {}
+   ],
+   "arm": false,
+   "ts": [
+    0.0,
+    0.2,
+    0.4,
+    0.6,
+    0.8
+   ]
+  }
+ },
+ "v29": 1,
+ "durum": {
+  "_hurt": {
+   "a": "hurt",
+   "u": "up",
+   "d": 0.22
+  },
+  "_hurt_big": {
+   "a": "hurt_big",
+   "u": "up",
+   "d": 0.45
+  },
+  "_break": {
+   "a": "stun",
+   "u": "loop"
+  },
+  "_launch": {
+   "a": "launch",
+   "u": "vy"
+  },
+  "_death": {
+   "a": "death",
+   "u": "up",
+   "d": 0.9
+  },
+  "_turn": {
+   "a": "turn",
+   "u": "up",
+   "d": 0.2
+  },
+  "_roar": {
+   "a": "roar",
+   "u": "up",
+   "d": 0.8
+  },
+  "_guard": {
+   "a": "guard",
+   "u": "up",
+   "d": 0.5
+  },
+  "dormant": {
+   "a": "dormant",
+   "u": "loop"
+  },
+  "dormant>recover": {
+   "a": "wake",
+   "u": "st"
+  },
+  "idle": {
+   "a": "idle",
+   "u": "loop"
+  },
+  "chase": {
+   "a": "idle",
+   "u": "loop"
+  },
+  "hop": {
+   "a": "hop",
+   "u": "vy"
+  },
+  "windup/cut": {
+   "a": "cut",
+   "s": "windup",
+   "u": "st"
+  },
+  "windup/cut!!": {
+   "a": "rev",
+   "s": "windup",
+   "u": "st"
+  },
+  "strike/cut": {
+   "a": "cut",
+   "s": "strike",
+   "u": "st"
+  },
+  "recover/cut": {
+   "a": "cut",
+   "s": "recover",
+   "u": "st"
+  },
+  "rev/cut": {
+   "a": "rev",
+   "s": "strike",
+   "u": "st"
+  },
+  "rev": {
+   "a": "rev",
+   "s": "strike",
+   "u": "st"
+  },
+  "rev>recover": {
+   "a": "rev",
+   "s": "recover",
+   "u": "st"
+  },
+  "windup/leap!!": {
+   "a": "leap",
+   "s": "windup",
+   "u": "st"
+  },
+  "windup/leap": {
+   "a": "leap",
+   "s": "windup",
+   "u": "st"
+  },
+  "leap/leap": {
+   "a": "leap",
+   "s": "air",
+   "u": "vy"
+  },
+  "leap": {
+   "a": "leap",
+   "s": "air",
+   "u": "vy"
+  },
+  "strike/leap": {
+   "a": "leap",
+   "s": "strike",
+   "u": "st"
+  },
+  "recover/leap": {
+   "a": "leap",
+   "s": "recover",
+   "u": "st"
+  },
+  "windup": {
+   "a": "cut",
+   "s": "windup",
+   "u": "st"
+  },
+  "windup!!": {
+   "a": "rev",
+   "s": "windup",
+   "u": "st"
+  },
+  "strike": {
+   "a": "cut",
+   "s": "strike",
+   "u": "st"
+  },
+  "recover": {
+   "a": "cut",
+   "s": "recover",
+   "u": "st"
+  }
+ },
+ "glow": true,
+ "page_rows": 12,
+ "pages": 2,
+ "glow_scale": 2
+}

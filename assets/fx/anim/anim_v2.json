@@ -1,0 +1,74 @@
+{
+ "smoke_puff": {
+  "frames": 14,
+  "cols": 8,
+  "cell": 384,
+  "fps": 20,
+  "pivot": [
+   192.0,
+   192.0
+  ],
+  "loop": false,
+  "texel": 4.0
+ },
+ "radiant_heal": {
+  "frames": 14,
+  "cols": 8,
+  "cell": 384,
+  "fps": 20,
+  "pivot": [
+   192.0,
+   268.0
+  ],
+  "loop": false,
+  "texel": 4.0
+ },
+ "hush_lock": {
+  "frames": 35,
+  "cols": 8,
+  "cell": 384,
+  "fps": 20,
+  "pivot": [
+   192.0,
+   192.0
+  ],
+  "loop": false,
+  "texel": 4.0
+ },
+ "focus_charge": {
+  "frames": 13,
+  "cols": 8,
+  "cell": 384,
+  "fps": 20,
+  "pivot": [
+   192.0,
+   192.0
+  ],
+  "loop": false,
+  "texel": 4.0
+ },
+ "splash_crown": {
+  "frames": 11,
+  "cols": 8,
+  "cell": 384,
+  "fps": 20,
+  "pivot": [
+   192.0,
+   280.0
+  ],
+  "loop": false,
+  "texel": 4.0
+ },
+ "landing_dust": {
+  "frames": 14,
+  "cols": 8,
+  "cell": 384,
+  "fps": 20,
+  "pivot": [
+   192.0,
+   280.0
+  ],
+  "loop": false,
+  "texel": 4.0
+ }
+}

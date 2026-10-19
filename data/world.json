@@ -1,0 +1,1373 @@
+{
+ "biomes": [
+  {
+   "id": "otuken",
+   "name": "Kararan Ötüken",
+   "sub": "Kut'un ilk yurdu; güneş artık doğmuyor, orman ay ışığında çürüyor",
+   "palette": "kurşuni mavi gece, solgun ay gümüşü, kararmış yeşil, kurumuş kan kili; sıcak renk yalnızca ocak ateşi",
+   "tier": 0,
+   "boss": "kara_boru_han",
+   "impl": true,
+   "art": {
+    "ambient": [
+     0.5,
+     0.54,
+     0.72
+    ],
+    "sun": [
+     0.62,
+     0.72,
+     1.0
+    ],
+    "sun_energy": 0.38,
+    "sun_rot": 40,
+    "saturation": 0.94,
+    "contrast": 1.06,
+    "particles": "ruh",
+    "fog": true,
+    "rays": [
+     0.62,
+     0.8,
+     1.0,
+     0.07
+    ],
+    "decor": [
+     "dilek_agaci",
+     "kam_diregi",
+     "mantar",
+     "cicek",
+     "kaya",
+     "cira"
+    ],
+    "decor_tint": [
+     0.66,
+     0.68,
+     0.78
+    ],
+    "torch_col": [
+     1.0,
+     0.58,
+     0.26
+    ],
+    "deep_color": [
+     0.04,
+     0.03,
+     0.06
+    ],
+    "gate_col": [
+     0.45,
+     0.9,
+     1.0
+    ],
+    "styles": [
+     "orman",
+     "magara",
+     "ucurum",
+     "harabe"
+    ],
+    "sky_scale": 1,
+    "bg": [
+     "otuken_0_sky",
+     "otuken_1_mountains",
+     "otuken_2_far",
+     "otuken_3_mid",
+     "otuken_4_near",
+     "otuken_5_fog"
+    ],
+    "bg_fx": [
+     [
+      0.0,
+      0.0,
+      0.0
+     ],
+     [
+      0.05,
+      0.03,
+      0.0
+     ],
+     [
+      0.16,
+      0.08,
+      0.0
+     ],
+     [
+      0.38,
+      0.16,
+      0.0
+     ],
+     [
+      0.62,
+      0.28,
+      0.0
+     ],
+     [
+      0.5,
+      0.22,
+      9.0
+     ]
+    ],
+    "deep_amount": 0.8
+   },
+   "depths": [
+    1,
+    2
+   ]
+  },
+  {
+   "id": "bozkir",
+   "name": "Bozkır Kurganları",
+   "sub": "Ölülerin dinlenemediği uçsuz otlak",
+   "palette": "mor gök, yanık turuncu, altın ot",
+   "tier": 1,
+   "boss": "tepegoz",
+   "impl": true,
+   "art": {
+    "ambient": [
+     0.8,
+     0.76,
+     0.7
+    ],
+    "sun": [
+     1.0,
+     0.88,
+     0.7
+    ],
+    "sun_energy": 0.34,
+    "sun_rot": 55,
+    "saturation": 0.95,
+    "contrast": 1.04,
+    "particles": "polen",
+    "fog": false,
+    "rays": [
+     1.0,
+     0.88,
+     0.62,
+     0.035
+    ],
+    "decor": [
+     "kam_diregi",
+     "kaya",
+     "cira",
+     "cicek"
+    ],
+    "decor_tint": [
+     0.86,
+     0.82,
+     0.76
+    ],
+    "torch_col": [
+     1.0,
+     0.6,
+     0.3
+    ],
+    "deep_color": [
+     0.1,
+     0.075,
+     0.06
+    ],
+    "gate_col": [
+     1.0,
+     0.85,
+     0.5
+    ],
+    "styles": [
+     "bozkir",
+     "bozkir",
+     "orman",
+     "harabe"
+    ],
+    "sky_scale": 1,
+    "bg": [
+     "bozkir_0_sky",
+     "bozkir_1_far",
+     "bozkir_2_mid",
+     "bozkir_3_near",
+     "bozkir_4_fog"
+    ],
+    "bg_fx": [
+     [
+      0.0,
+      0.0,
+      0.0
+     ],
+     [
+      0.08,
+      0.04,
+      0.0
+     ],
+     [
+      0.3,
+      0.14,
+      0.0
+     ],
+     [
+      0.62,
+      0.28,
+      0.0
+     ],
+     [
+      0.5,
+      0.22,
+      8.0
+     ]
+    ],
+    "deep_amount": 0.8,
+    "glow": 0.45,
+    "glow_threshold": 1.25
+   },
+   "depths": [
+    3,
+    4
+   ]
+  },
+  {
+   "id": "cini_saray",
+   "name": "Çini Saray Harabesi",
+   "sub": "Hanların unuttuğu turkuaz saray",
+   "palette": "kobalt, turkuaz, mercan, altın",
+   "tier": 2,
+   "boss": "albasti_ana",
+   "impl": false,
+   "depths": [
+    0,
+    0
+   ]
+  },
+  {
+   "id": "sahmeran",
+   "name": "Şahmeran'ın Mağarası",
+   "sub": "Yılanların kraliçesinin ışıldayan yurdu",
+   "palette": "ışıldayan yeşil, mor, kehribar",
+   "tier": 3,
+   "boss": "sahmeran",
+   "impl": true,
+   "art": {
+    "ambient": [
+     0.42,
+     0.5,
+     0.52
+    ],
+    "sun": [
+     0.5,
+     0.95,
+     0.75
+    ],
+    "sun_energy": 0.3,
+    "sun_rot": 70,
+    "saturation": 1.04,
+    "contrast": 1.06,
+    "particles": "spor",
+    "fog": true,
+    "rays": [
+     0.5,
+     1.0,
+     0.7,
+     0.05
+    ],
+    "decor": [
+     "mantar",
+     "kaya"
+    ],
+    "decor_tint": [
+     0.75,
+     0.95,
+     0.9
+    ],
+    "torch_col": [
+     0.5,
+     1.0,
+     0.7
+    ],
+    "deep_color": [
+     0.03,
+     0.06,
+     0.05
+    ],
+    "gate_col": [
+     0.7,
+     1.0,
+     0.6
+    ],
+    "styles": [
+     "magara",
+     "kuyu",
+     "kuyu",
+     "harabe"
+    ],
+    "sky_scale": 1,
+    "bg": [
+     "sahmeran_0_sky",
+     "sahmeran_1_far",
+     "sahmeran_2_mid",
+     "sahmeran_3_near",
+     "sahmeran_4_fog"
+    ],
+    "bg_fx": [
+     [
+      0.0,
+      0.0,
+      0.0
+     ],
+     [
+      0.08,
+      0.04,
+      0.0
+     ],
+     [
+      0.3,
+      0.14,
+      0.0
+     ],
+     [
+      0.62,
+      0.28,
+      0.0
+     ],
+     [
+      0.5,
+      0.22,
+      8.0
+     ]
+    ],
+    "deep_amount": 0.8
+   },
+   "depths": [
+    5,
+    6
+   ]
+  },
+  {
+   "id": "kaf",
+   "name": "Kaf Dağı Yamaçları",
+   "sub": "Dünyanın kıyısındaki buzlu dağ",
+   "palette": "buz mavisi, pembe şafak, beyaz",
+   "tier": 4,
+   "boss": "yelbegen",
+   "impl": true,
+   "art": {
+    "ambient": [
+     0.68,
+     0.7,
+     0.84
+    ],
+    "sun": [
+     1.0,
+     0.78,
+     0.82
+    ],
+    "sun_energy": 0.3,
+    "sun_rot": 25,
+    "saturation": 0.9,
+    "contrast": 1.02,
+    "particles": "kar",
+    "fog": true,
+    "rays": [
+     1.0,
+     0.8,
+     0.85,
+     0.045
+    ],
+    "decor": [
+     "kaya",
+     "cira",
+     "kam_diregi"
+    ],
+    "decor_tint": [
+     0.78,
+     0.8,
+     0.92
+    ],
+    "torch_col": [
+     1.0,
+     0.65,
+     0.35
+    ],
+    "deep_color": [
+     0.06,
+     0.06,
+     0.11
+    ],
+    "gate_col": [
+     0.8,
+     0.9,
+     1.0
+    ],
+    "styles": [
+     "ucurum",
+     "ucurum",
+     "orman",
+     "kuyu"
+    ],
+    "sky_scale": 1,
+    "bg": [
+     "kaf_0_sky",
+     "kaf_1_far",
+     "kaf_2_mid",
+     "kaf_3_near",
+     "kaf_4_fog"
+    ],
+    "bg_fx": [
+     [
+      0.0,
+      0.0,
+      0.0
+     ],
+     [
+      0.08,
+      0.04,
+      0.0
+     ],
+     [
+      0.3,
+      0.14,
+      0.0
+     ],
+     [
+      0.62,
+      0.28,
+      0.0
+     ],
+     [
+      0.5,
+      0.22,
+      8.0
+     ]
+    ],
+    "deep_amount": 0.85,
+    "glow": 0.55,
+    "glow_threshold": 1.2
+   },
+   "depths": [
+    7,
+    8
+   ]
+  },
+  {
+   "id": "tamu",
+   "name": "Erlik'in Ülkesi",
+   "sub": "Kara Tamu, kökün dibindeki zindan",
+   "palette": "mor ateş, kızıl lav, kara demir",
+   "tier": 5,
+   "boss": "erlik_han",
+   "impl": true,
+   "art": {
+    "ambient": [
+     0.66,
+     0.46,
+     0.44
+    ],
+    "sun": [
+     1.0,
+     0.45,
+     0.2
+    ],
+    "sun_energy": 0.36,
+    "sun_rot": 120,
+    "saturation": 1.04,
+    "contrast": 1.08,
+    "particles": "kor",
+    "fog": true,
+    "rays": [
+     1.0,
+     0.4,
+     0.2,
+     0.05
+    ],
+    "decor": [
+     "kaya",
+     "cira",
+     "kam_diregi"
+    ],
+    "decor_tint": [
+     0.6,
+     0.45,
+     0.45
+    ],
+    "torch_col": [
+     1.0,
+     0.45,
+     0.15
+    ],
+    "deep_color": [
+     0.08,
+     0.02,
+     0.02
+    ],
+    "gate_col": [
+     1.0,
+     0.5,
+     0.3
+    ],
+    "styles": [
+     "harabe",
+     "kuyu",
+     "magara",
+     "ucurum"
+    ],
+    "sky_scale": 1,
+    "bg": [
+     "tamu_0_sky",
+     "tamu_1_far",
+     "tamu_2_mid",
+     "tamu_3_near",
+     "tamu_4_fog"
+    ],
+    "bg_fx": [
+     [
+      0.0,
+      0.0,
+      0.0
+     ],
+     [
+      0.08,
+      0.04,
+      0.0
+     ],
+     [
+      0.3,
+      0.14,
+      0.0
+     ],
+     [
+      0.62,
+      0.28,
+      0.0
+     ],
+     [
+      0.5,
+      0.22,
+      8.0
+     ]
+    ],
+    "deep_amount": 0.8
+   },
+   "depths": [
+    9,
+    99
+   ]
+  }
+ ],
+ "enemies": [
+  {
+   "id": "kara_boru",
+   "name": "Erlik Tazısı",
+   "biome": "otuken",
+   "hp": 60,
+   "dmg": 18,
+   "speed": 95,
+   "ai": "lunger",
+   "impl": true,
+   "desc": "Yeraltının sıska kara tazısı. Gözleri ve ağzı kor gibi yanar; kırık zinciriyle sürüyle avlanır, atılarak ısırır."
+  },
+  {
+   "id": "cor",
+   "name": "Çor Ruhu",
+   "biome": "otuken",
+   "hp": 40,
+   "dmg": 14,
+   "speed": 55,
+   "ai": "flyer_ranged",
+   "impl": true,
+   "desc": "Salgın getiren kefenli ruh. Zincirde sallanan buhurdanından zehirli spor savurur."
+  },
+  {
+   "id": "agac_iyesi",
+   "name": "Kara İye",
+   "biome": "otuken",
+   "hp": 150,
+   "dmg": 24,
+   "speed": 30,
+   "ai": "brute",
+   "impl": true,
+   "desc": "Ormanın geyik kafatası koruyucusuydu; Erlik'in çatlakları göğsünü yarınca öfkeye kapıldı. Ağır yumruğuyla yeri döver, kök fışkırtır."
+  },
+  {
+   "id": "balbal",
+   "name": "Balbal",
+   "biome": "otuken",
+   "hp": 90,
+   "dmg": 20,
+   "speed": 45,
+   "ai": "hopper",
+   "impl": true,
+   "desc": "Bir Göktürk alpının taş heykeli. Erlik'in sesiyle Orhun runaları yandı; elinde kadeh, taş kılıcını savurur."
+  },
+  {
+   "id": "arcura",
+   "name": "Kara Kam",
+   "biome": "otuken",
+   "hp": 55,
+   "dmg": 16,
+   "speed": 70,
+   "ai": "illusionist",
+   "impl": true,
+   "desc": "Erlik'e kul olmuş maskeli kam. Davulunu döverek kendi hayaletlerini çağırır, arkana geçip lanet savurur."
+  },
+  {
+   "id": "surale",
+   "name": "Gulyabani",
+   "biome": "otuken",
+   "hp": 75,
+   "dmg": 12,
+   "speed": 80,
+   "ai": "grabber",
+   "impl": true,
+   "desc": "Kefenli, kambur, solgun gul. Yere değen uzun kollarıyla yakalar, sersemletip fırlatır."
+  },
+  {
+   "id": "kurgan_bekcisi",
+   "name": "Kurgan Bekçisi",
+   "biome": "bozkir",
+   "hp": 95,
+   "dmg": 20,
+   "speed": 50,
+   "ai": "shield",
+   "impl": true,
+   "desc": "Kurganında dinlenemeyen kadim savaşçı. Uzun mızrağıyla dürter.",
+   "sprite": "bekci",
+   "tint": [
+    1.1,
+    1.0,
+    0.8
+   ]
+  },
+  {
+   "id": "kara_kus_yavrusu",
+   "name": "Kurgan Ruhu",
+   "biome": "bozkir",
+   "hp": 45,
+   "dmg": 18,
+   "speed": 120,
+   "ai": "diver",
+   "impl": true,
+   "desc": "Kurgandan kalkan kefenli ruh. Gökten pike yapar.",
+   "sprite": "cor",
+   "tint": [
+    1.1,
+    0.8,
+    0.5
+   ]
+  },
+  {
+   "id": "yek",
+   "name": "Yek",
+   "biome": "bozkir",
+   "hp": 55,
+   "dmg": 20,
+   "speed": 90,
+   "ai": "stalker",
+   "impl": true,
+   "desc": "Görünmez kötü ruh. Yaklaşınca belirir ve boğar.",
+   "sprite": "kara_boru",
+   "tint": [
+    1.3,
+    1.1,
+    0.7
+   ]
+  },
+  {
+   "id": "tozkoparan",
+   "name": "Tozkoparan",
+   "biome": "bozkir",
+   "hp": 110,
+   "dmg": 18,
+   "speed": 110,
+   "ai": "tornado",
+   "impl": true,
+   "desc": "Bozkırın hortum iyesi. İçine çektiğini savurur.",
+   "sprite": "agac_iyesi",
+   "tint": [
+    1.2,
+    1.0,
+    0.7
+   ]
+  },
+  {
+   "id": "kurgan_okcusu",
+   "name": "Kurgan Kamı",
+   "biome": "bozkir",
+   "hp": 50,
+   "dmg": 16,
+   "speed": 40,
+   "ai": "archer",
+   "impl": true,
+   "desc": "Ölüleri kurganlarından kaldıran kam. Geri çekilerek lanet atar.",
+   "sprite": "arcura",
+   "tint": [
+    1.1,
+    0.9,
+    0.7
+   ]
+  },
+  {
+   "id": "al_atli",
+   "name": "Kızıl Gul",
+   "biome": "bozkir",
+   "hp": 105,
+   "dmg": 24,
+   "speed": 150,
+   "ai": "charger",
+   "impl": true,
+   "desc": "Kurganları eşen kızıl derili gul. Bozkırı yararak saldırır.",
+   "sprite": "bekci",
+   "tint": [
+    1.2,
+    0.6,
+    0.5
+   ]
+  },
+  {
+   "id": "cin",
+   "name": "Cin",
+   "biome": "cini_saray",
+   "hp": 45,
+   "dmg": 14,
+   "speed": 80,
+   "ai": "teleporter",
+   "impl": false,
+   "desc": "Sarayın boş odalarına yerleşen ateşten varlık."
+  },
+  {
+   "id": "cini_golemi",
+   "name": "Çini Golemi",
+   "biome": "cini_saray",
+   "hp": 120,
+   "dmg": 20,
+   "speed": 35,
+   "ai": "brute",
+   "impl": false,
+   "desc": "Kırık çinilerden örülmüş dev. Yıkılınca parçaları saçılır."
+  },
+  {
+   "id": "lanetli_muhafiz",
+   "name": "Lanetli Muhafız",
+   "biome": "cini_saray",
+   "hp": 85,
+   "dmg": 18,
+   "speed": 45,
+   "ai": "shield",
+   "impl": false,
+   "desc": "Hanına sadakatini ölümde bile bırakmayan teberli muhafız."
+  },
+  {
+   "id": "albasti",
+   "name": "Albastı",
+   "biome": "cini_saray",
+   "hp": 50,
+   "dmg": 15,
+   "speed": 85,
+   "ai": "stalker",
+   "impl": false,
+   "desc": "Kızıl saçlı kötü ruh. Görünmez yaklaşır, nefesini çalar."
+  },
+  {
+   "id": "gulyabani",
+   "name": "Gulyabani",
+   "biome": "cini_saray",
+   "hp": 100,
+   "dmg": 22,
+   "speed": 60,
+   "ai": "grabber",
+   "impl": false,
+   "desc": "Harabelerde dolaşan kıllı dev. Yakaladığını yere çarpar."
+  },
+  {
+   "id": "sihirli_kandil",
+   "name": "Kandil İyesi",
+   "biome": "cini_saray",
+   "hp": 25,
+   "dmg": 10,
+   "speed": 50,
+   "ai": "flyer_ranged",
+   "impl": false,
+   "desc": "Sönmemiş kandillerin alevi. Ateş topu savurur."
+  },
+  {
+   "id": "yilan_muhafiz",
+   "name": "Yılan Muhafız",
+   "biome": "sahmeran",
+   "hp": 95,
+   "dmg": 20,
+   "speed": 70,
+   "ai": "shield",
+   "impl": true,
+   "desc": "Şahmeran'ın yarı yılan bekçisi. Zehirli mızrak taşır.",
+   "sprite": "bekci",
+   "tint": [
+    0.6,
+    1.1,
+    0.8
+   ]
+  },
+  {
+   "id": "kirkayak",
+   "name": "Mağara Tazısı",
+   "biome": "sahmeran",
+   "hp": 55,
+   "dmg": 17,
+   "speed": 130,
+   "ai": "crawler",
+   "impl": true,
+   "desc": "Kristal mağaranın kör tazısı. Zehirli dişleriyle atılır.",
+   "sprite": "kara_boru",
+   "tint": [
+    0.6,
+    1.2,
+    0.8
+   ]
+  },
+  {
+   "id": "kan_yarasasi",
+   "name": "Kan Çoru",
+   "biome": "sahmeran",
+   "hp": 30,
+   "dmg": 11,
+   "speed": 140,
+   "ai": "swarm",
+   "impl": true,
+   "desc": "Can emen kefenli ruhlar; sürüyle gelir.",
+   "sprite": "cor",
+   "tint": [
+    1.2,
+    0.5,
+    0.6
+   ]
+  },
+  {
+   "id": "su_iyesi",
+   "name": "Su İyesi",
+   "biome": "sahmeran",
+   "hp": 120,
+   "dmg": 20,
+   "speed": 60,
+   "ai": "caster",
+   "impl": true,
+   "desc": "Yeraltı gölünün ruhu. Su fışkırtır, ıslattığını yavaşlatır.",
+   "sprite": "agac_iyesi",
+   "tint": [
+    0.5,
+    0.9,
+    1.2
+   ]
+  },
+  {
+   "id": "isilti_bocegi",
+   "name": "Işıltı Kamı",
+   "biome": "sahmeran",
+   "hp": 45,
+   "dmg": 24,
+   "speed": 75,
+   "ai": "kamikaze",
+   "impl": true,
+   "desc": "Kristallerin ışığıyla büyü yapan kör kam.",
+   "sprite": "arcura",
+   "tint": [
+    0.7,
+    1.3,
+    0.9
+   ]
+  },
+  {
+   "id": "tas_kertenkele",
+   "name": "Taş Gulü",
+   "biome": "sahmeran",
+   "hp": 85,
+   "dmg": 18,
+   "speed": 90,
+   "ai": "turtle",
+   "impl": true,
+   "desc": "Taşa bürünüp pusu kuran gul. Uzun kollarıyla yakalar.",
+   "sprite": "tosbaga",
+   "tint": [
+    0.7,
+    0.9,
+    0.7
+   ]
+  },
+  {
+   "id": "karakoncolos",
+   "name": "Karakoncolos",
+   "biome": "kaf",
+   "hp": 80,
+   "dmg": 14,
+   "speed": 95,
+   "ai": "mimic",
+   "impl": true,
+   "desc": "Zemheri gecelerinin cini. Tanıdık seslerle çağırır, arkadan saldırır.",
+   "sprite": "surale",
+   "tint": [
+    0.8,
+    0.85,
+    1.1
+   ]
+  },
+  {
+   "id": "ayaz_kurdu",
+   "name": "Ayaz Tazısı",
+   "biome": "kaf",
+   "hp": 62,
+   "dmg": 19,
+   "speed": 110,
+   "ai": "lunger",
+   "impl": true,
+   "desc": "Buz nefesli Erlik tazısı. Isırığı dondurur.",
+   "sprite": "kara_boru",
+   "tint": [
+    0.8,
+    0.95,
+    1.3
+   ]
+  },
+  {
+   "id": "dev_cocugu",
+   "name": "Dev Çocuğu",
+   "biome": "kaf",
+   "hp": 185,
+   "dmg": 27,
+   "speed": 40,
+   "ai": "brute",
+   "impl": true,
+   "desc": "Yelbegen'in soyundan. Kaya fırlatır, yeri titretir.",
+   "sprite": "agac_iyesi",
+   "tint": [
+    0.85,
+    0.9,
+    1.2
+   ]
+  },
+  {
+   "id": "kaf_kartali",
+   "name": "Ayaz Çoru",
+   "biome": "kaf",
+   "hp": 48,
+   "dmg": 19,
+   "speed": 140,
+   "ai": "diver",
+   "impl": true,
+   "desc": "Kaf Dağı'nın fırtınasında donmuş kefenli ruh. Tepeden süzülür.",
+   "sprite": "cor",
+   "tint": [
+    0.9,
+    0.95,
+    1.2
+   ]
+  },
+  {
+   "id": "buz_balbali",
+   "name": "Buz Balbalı",
+   "biome": "kaf",
+   "hp": 95,
+   "dmg": 21,
+   "speed": 40,
+   "ai": "hopper",
+   "impl": true,
+   "desc": "Buzla kaplanmış balbal. Vurulunca buz kıymıkları saçar.",
+   "sprite": "balbal",
+   "tint": [
+    0.8,
+    0.9,
+    1.3
+   ]
+  },
+  {
+   "id": "simurg_muhafizi",
+   "name": "Simurg Kamı",
+   "biome": "kaf",
+   "hp": 100,
+   "dmg": 21,
+   "speed": 70,
+   "ai": "shield",
+   "impl": true,
+   "desc": "Simurg tüyleri takınmış sapkın kam. Büyüsüyle okları savurur.",
+   "sprite": "bekci",
+   "tint": [
+    1.0,
+    0.85,
+    1.1
+   ]
+  },
+  {
+   "id": "erlik_kizi",
+   "name": "Erlik'in Kızı",
+   "biome": "tamu",
+   "hp": 65,
+   "dmg": 18,
+   "speed": 75,
+   "ai": "charmer",
+   "impl": true,
+   "desc": "Kamları baştan çıkaran kara güzellik. Büyüsü kontrolleri ters çevirir.",
+   "sprite": "arcura",
+   "tint": [
+    1.1,
+    0.6,
+    1.1
+   ]
+  },
+  {
+   "id": "tamu_bekcisi",
+   "name": "Kara Tamu Bekçisi",
+   "biome": "tamu",
+   "hp": 110,
+   "dmg": 22,
+   "speed": 45,
+   "ai": "shield",
+   "impl": true,
+   "desc": "Erlik'in zindanının zincirli bekçisi.",
+   "sprite": "bekci",
+   "tint": [
+    0.9,
+    0.5,
+    0.5
+   ]
+  },
+  {
+   "id": "kayip_ruh",
+   "name": "Kayıp Ruh",
+   "biome": "tamu",
+   "hp": 30,
+   "dmg": 11,
+   "speed": 100,
+   "ai": "swarm",
+   "impl": true,
+   "desc": "Dinlenemeyen ölülerin ruhları; sürüyle gelir.",
+   "sprite": "cor",
+   "tint": [
+    0.9,
+    0.6,
+    1.2
+   ]
+  },
+  {
+   "id": "demir_gaga",
+   "name": "Demir Dişli Tazı",
+   "biome": "tamu",
+   "hp": 48,
+   "dmg": 19,
+   "speed": 130,
+   "ai": "diver",
+   "impl": true,
+   "desc": "Erlik'in demir dişli tazısı. Zırhı deler.",
+   "sprite": "cor",
+   "tint": [
+    1.2,
+    0.5,
+    0.4
+   ]
+  },
+  {
+   "id": "od_iyesi",
+   "name": "Od İyesi",
+   "biome": "tamu",
+   "hp": 120,
+   "dmg": 21,
+   "speed": 65,
+   "ai": "caster",
+   "impl": true,
+   "desc": "Lavın ruhu. Yere ateş halkaları bırakır.",
+   "sprite": "agac_iyesi",
+   "tint": [
+    1.3,
+    0.6,
+    0.4
+   ]
+  },
+  {
+   "id": "kara_atli",
+   "name": "Kor Gulyabani",
+   "biome": "tamu",
+   "hp": 115,
+   "dmg": 25,
+   "speed": 160,
+   "ai": "charger",
+   "impl": true,
+   "desc": "Erlik'in ülkesinde kül içinde dolaşan gul. Ardında ateş izi bırakır.",
+   "sprite": "bekci",
+   "tint": [
+    0.7,
+    0.5,
+    0.6
+   ]
+  },
+  {
+   "id": "bekci",
+   "name": "Kurgan Bekçisi",
+   "biome": "bozkir",
+   "hp": 95,
+   "dmg": 20,
+   "speed": 55,
+   "ai": "shield",
+   "impl": true,
+   "desc": "Kalkanını önüne alır; önden vurulmaz. Arkasından ya da ağır vuruşla."
+  },
+  {
+   "id": "tosbaga",
+   "name": "Taş Tosbağa",
+   "biome": "sahmeran",
+   "hp": 90,
+   "dmg": 18,
+   "speed": 40,
+   "ai": "turtle",
+   "impl": true,
+   "desc": "Vurulunca kabuğuna çekilir, sonra kabuğuyla yuvarlanarak ezer."
+  },
+  {
+   "id": "kara_boru_han",
+   "name": "Kara Börü Han",
+   "biome": "otuken",
+   "hp": 3300,
+   "dmg": 20,
+   "speed": 120,
+   "ai": "boss_kbh",
+   "impl": true,
+   "desc": "Asena'nın unutulmuş kardeşi."
+  },
+  {
+   "id": "sicrayan_tazi",
+   "name": "Pusu Tazısı",
+   "biome": "otuken",
+   "hp": 55,
+   "dmg": 18,
+   "speed": 110,
+   "ai": "pouncer",
+   "impl": true,
+   "sprite": "kara_boru",
+   "tint": [
+    0.8,
+    0.9,
+    1.2
+   ],
+   "desc": "Yüksekten üstüne atlar."
+  },
+  {
+   "id": "kurgan_atlisi",
+   "name": "Kurgan Akıncısı",
+   "biome": "bozkir",
+   "hp": 100,
+   "dmg": 23,
+   "speed": 60,
+   "ai": "charger",
+   "impl": true,
+   "sprite": "bekci",
+   "tint": [
+    1.2,
+    0.8,
+    0.7
+   ],
+   "desc": "Kalkanıyla bozkırı yararak üstüne koşar."
+  },
+  {
+   "id": "buz_tosbagasi",
+   "name": "Buz Tosbağası",
+   "biome": "kaf",
+   "hp": 95,
+   "dmg": 19,
+   "speed": 40,
+   "ai": "turtle",
+   "impl": true,
+   "sprite": "tosbaga",
+   "tint": [
+    0.8,
+    0.95,
+    1.25
+   ],
+   "desc": "Kabuğu buz; yuvarlanınca kayar."
+  },
+  {
+   "id": "tamu_muhafizi",
+   "name": "Tamu Muhafızı",
+   "biome": "tamu",
+   "hp": 110,
+   "dmg": 22,
+   "speed": 55,
+   "ai": "shield",
+   "impl": true,
+   "sprite": "bekci",
+   "tint": [
+    1.1,
+    0.6,
+    0.6
+   ],
+   "desc": "Kor kalkanlı bekçi."
+  },
+  {
+   "id": "kaf_bekcisi",
+   "name": "Kaf Bekçisi",
+   "biome": "kaf",
+   "hp": 100,
+   "dmg": 21,
+   "speed": 55,
+   "ai": "shield",
+   "impl": true,
+   "sprite": "bekci",
+   "tint": [
+    0.85,
+    0.95,
+    1.25
+   ],
+   "desc": "Buz kalkanlı dağ bekçisi."
+  },
+  {
+   "id": "magara_pususu",
+   "name": "Mağara Pususu",
+   "biome": "sahmeran",
+   "hp": 55,
+   "dmg": 18,
+   "speed": 110,
+   "ai": "pouncer",
+   "impl": true,
+   "sprite": "kara_boru",
+   "tint": [
+    0.7,
+    1.1,
+    0.9
+   ],
+   "desc": "Tavandan atlar."
+  },
+  {
+   "id": "kor_pususu",
+   "name": "Kor Pususu",
+   "biome": "tamu",
+   "hp": 58,
+   "dmg": 19,
+   "speed": 120,
+   "ai": "pouncer",
+   "impl": true,
+   "sprite": "kara_boru",
+   "tint": [
+    1.3,
+    0.7,
+    0.6
+   ],
+   "desc": "Kor çukurlarından fırlar."
+  },
+  {
+   "id": "tepegoz",
+   "name": "Tepegöz",
+   "biome": "bozkir",
+   "hp": 7000,
+   "dmg": 20,
+   "speed": 70,
+   "ai": "boss_gen",
+   "impl": true,
+   "desc": "Tek gözlü dev"
+  },
+  {
+   "id": "sahmeran_ana",
+   "name": "Şahmeran Ana",
+   "biome": "sahmeran",
+   "hp": 13000,
+   "dmg": 18,
+   "speed": 90,
+   "ai": "boss_gen",
+   "impl": true,
+   "desc": "Yılanların kraliçesi"
+  },
+  {
+   "id": "yelbegen",
+   "name": "Yelbegen",
+   "biome": "kaf",
+   "hp": 20000,
+   "dmg": 17,
+   "speed": 70,
+   "ai": "boss_gen",
+   "impl": true,
+   "desc": "Üç başlı buz devi"
+  },
+  {
+   "id": "erlik_han",
+   "name": "Erlik Han",
+   "biome": "tamu",
+   "hp": 30000,
+   "dmg": 18,
+   "speed": 75,
+   "ai": "boss_gen",
+   "impl": true,
+   "desc": "Yeraltının hükümdarı"
+  }
+ ],
+ "bosses": [
+  {
+   "id": "kara_boru_han",
+   "name": "KARA BÖRÜ HAN",
+   "sub": "Asena'nın unutulmuş kardeşi",
+   "biome": "otuken",
+   "hp": 3300,
+   "impl": true,
+   "phases": [
+    "Sürü çağırır, ulumasıyla sersemletir",
+    "Bozgun kristalleri sırtından fırlar, ağaçlardan atlar",
+    "Gölgesi ayrılır: iki kurt birden"
+   ],
+   "enemy": "kara_boru_han"
+  },
+  {
+   "id": "tepegoz",
+   "name": "TEPEGÖZ",
+   "sub": "Dede Korkut'un anlattığı tek gözlü dev",
+   "biome": "bozkir",
+   "hp": 7000,
+   "impl": true,
+   "phases": [
+    "Kaya fırlatır, yere vurur",
+    "Gözü kızarır: göz ışını süpürür",
+    "Kör edilince sesi takip eder: sessiz ol"
+   ],
+   "enemy": "tepegoz"
+  },
+  {
+   "id": "albasti_ana",
+   "name": "ALBASTI ANA",
+   "sub": "Kızıl saçlı lohusa cinlerinin anası",
+   "biome": "cini_saray",
+   "hp": 10000,
+   "impl": false,
+   "phases": [
+    "Görünmez saldırılar, ayna kopyaları",
+    "Saçlarıyla odayı örer",
+    "Nefes çalma: canını emerek iyileşir"
+   ]
+  },
+  {
+   "id": "sahmeran",
+   "name": "ŞAHMERAN",
+   "sub": "Yılanların kraliçesi, sırların bekçisi",
+   "biome": "sahmeran",
+   "hp": 13000,
+   "impl": true,
+   "phases": [
+    "Yılan sürüleri, zehir göletleri",
+    "Kuyruğuyla mağarayı yıkar",
+    "Erlik'in zinciri kopar: gerçek yüzü ve bir seçim"
+   ],
+   "enemy": "sahmeran_ana"
+  },
+  {
+   "id": "yelbegen",
+   "name": "YELBEGEN",
+   "sub": "Yedi başlı dev",
+   "biome": "kaf",
+   "hp": 20000,
+   "impl": true,
+   "phases": [
+    "Her baş ayrı bir saldırı yapar",
+    "Kesilen başlar yeniden çıkar: hepsini aynı anda düşür",
+    "Son baş: buz fırtınası"
+   ],
+   "enemy": "yelbegen"
+  },
+  {
+   "id": "erlik_han",
+   "name": "ERLİK HAN",
+   "sub": "Yeraltının efendisi",
+   "biome": "tamu",
+   "hp": 30000,
+   "impl": true,
+   "phases": [
+    "Kara zincirler ve ateş dalgaları",
+    "Ulu Kayın'ın köklerini kurutur: arena daralır",
+    "Gök ile yeraltı yer değiştirir: ters yerçekimi"
+   ],
+   "enemy": "erlik_han"
+  }
+ ]
+}
