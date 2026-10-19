@@ -744,20 +744,24 @@ func _glint(_it: Dictionary) -> void:
 	if not p._bow_nock_ok:
 		return
 	var tip := p.arm_root.to_global(p._bow_nock + Vector2(p.facing * 20, 0))
-	var n := InkFX.spawn(9, tip, 60)
+	# v31: ok ucunda altın iğne yıldızı + daralan ince kuru halka (silah atlası)
+	var n := InkFX.spawn(9, tip, 60, true)
 	if n:
-		n.el("shard", Vector2.ZERO, randf_range(-0.2, 0.2), Vector2.ONE * 16.0, InkFX.V_CUT, 0.0, 0.025, 0.05, 0.16)
-		n.el("ring", Vector2.ZERO, randf() * TAU, Vector2.ONE * 14.0, InkFX.V_DRY, 0.0, 0.05, 0.0, 0.16)
+		n.el("glint", Vector2.ZERO, randf_range(-0.15, 0.15), Vector2(18.0, 12.0), InkFX.V_CUT, 0.0, 0.02, 0.05, 0.16)
+		n.el("ring_thin", Vector2.ZERO, randf() * TAU, Vector2.ONE * 15.0, InkFX.V_DRY, 0.0, 0.05, 0.0, 0.16)
 
 
 func _muzzle_fx(at: Vector2, dir: Vector2, pal: int, charge: float, perfect: bool, n: int) -> void:
-	# v2: atış yönünde kısa fırça vuruşu (kesik) + yönlü küçük sıçrantı; yelpazede geniş, tam gerilmede uzun
-	var fx := InkFX.spawn(9 if perfect else pal, at + dir * 4.0, 57)
+	# v31 bırakış patlaması (silah atlası): tek karelik iğne parlaması + öne açılan kısa fırça telleri yelpazesi (kiriş
+	# şaklamasının mürekkebi, soluk ve çok kısa); yelpazede geniş, tam gerilmede uzun
+	var fx := InkFX.spawn(9 if perfect else pal, at + dir * 4.0, 57, true)
 	if fx == null:
 		return
 	var L := 22.0 + 18.0 * charge + (6.0 if n > 1 else 0.0)
-	fx.el("cut_b", dir * L * 0.35, dir.angle(), Vector2(L, L * (0.2 if n == 1 else 0.34)), InkFX.V_CUT, 0.0, 0.025, 0.03, 0.13)
-	fx.el("burst_dir", Vector2.ZERO, dir.angle(), Vector2.ONE * (9.0 + 7.0 * charge + (5.0 if n > 1 else 0.0)), InkFX.V_SPLASH, 0.0, 0.03, 0.02, 0.15)
+	var fl := 1.0 if randf() < 0.5 else -1.0
+	fx.el("flash", dir * 3.0, dir.angle(), Vector2(L * 0.9, L * 0.42), InkFX.V_CUT, 0.0, 0.001, 0.03, 0.06)
+	fx.el("cut_thin", dir * L * 0.4, dir.angle(), Vector2(L, L * (0.07 if n == 1 else 0.12) * fl), InkFX.V_CUT, 0.0, 0.025, 0.03, 0.13)
+	fx.el("release", dir * 2.0, dir.angle(), Vector2(1.0, (0.8 if n == 1 else 1.2) * fl) * (11.0 + 7.0 * charge + (4.0 if n > 1 else 0.0)), InkFX.V_DRY, 0.0, 0.02, 0.02, 0.11)
 
 
 func _perfect_fx(at: Vector2, face: int) -> void:

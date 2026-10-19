@@ -6,6 +6,9 @@
 //   UV.x   iz boyunca dünya uzunluğu / 40 (bristle.png boyuna sarar)
 //   UV.y   enine 0..1 (0,5 orta çizgi)
 //   COLOR.rgb  çekirdek rengi (HDR olabilir), COLOR.a  0 baş (ok) .. 1 kuyruk / yaşlanmış
+// v31: UV.y >= 2 -> ok ucu parıltısı dörtgeni (UV.x 0..1, UV.y 2..3; COLOR.a şiddet): ince yatay + kısa dik iğne
+// yıldız + yumuşak öz, toplamalı (alfa 0). Ana iz başa yakın bir tık dolgun (ok gövdesinden çıkan basınç), kuyrukta
+// kuru kıllara ayrılır.
 shader_type canvas_item;
 render_mode blend_premul_alpha, unshaded;
 
@@ -15,6 +18,16 @@ uniform float hot_gain = 1.35;    // HDR: başa yakın çekirdek parlar (ışım
 uniform float rim = 0.3;          // kenarın mürekkep payı (0: düz renk)
 
 void fragment() {
+	if (UV.y > 1.5) {
+		vec2 p = vec2(UV.x * 2.0 - 1.0, (UV.y - 2.0) * 2.0 - 1.0);
+		float ax = abs(p.x);
+		float ay = abs(p.y);
+		float d = max(0.11 * (1.0 - ax) - ay, 0.085 * (1.0 - ay * 1.6) - ax);
+		d = max(d, 0.14 - length(p));
+		float aa = fwidth(d) + 0.002;
+		float g = smoothstep(-aa, aa, d) + 0.4 * exp(-dot(p, p) * 7.0);
+		COLOR = vec4(COLOR.rgb * g * COLOR.a, 0.0);
+	} else {
 	float u = clamp(COLOR.a, 0.0, 1.0);
 	float yy = UV.y * 2.0 - 1.0;
 	float y = abs(yy);
@@ -34,4 +47,5 @@ void fragment() {
 	vec3 cc = COLOR.rgb * mix(hot_gain, 1.0, smoothstep(0.0, 0.5, u));
 	vec3 col = mix(mix(c_ink, COLOR.rgb, 0.18), cc, core);
 	COLOR = vec4(col * a, a);
+	}
 }

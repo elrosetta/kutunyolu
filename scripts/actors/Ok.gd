@@ -127,9 +127,12 @@ func _hit_wall() -> void:
 	queue_redraw()
 	if not harmless:
 		Ses.play_at("ok_vurus_tahta" if randf() < 0.6 else "ok_vurus_tas", global_position, -7.0)
-		var n := InkFX.spawn(7, global_position - hd * 2.0, 40)
+		# v31: saplanma — geri sıçrayan küçük sumi patlaması + tek karelik parlama + geri yöne birkaç damla
+		var n := InkFX.spawn(7, global_position - hd * 2.0, 40, true)
 		if n:
-			n.el("burst_dir", Vector2.ZERO, (-hd).angle(), Vector2.ONE * 12.0, InkFX.V_DRY, 0.0, 0.04, 0.03, 0.22)
+			n.el("flash", Vector2.ZERO, hd.angle(), Vector2(16.0, 8.0), InkFX.V_CUT, 0.0, 0.001, 0.025, 0.05)
+			n.el("burst_ink", Vector2.ZERO, hd.angle(), Vector2.ONE * 13.0, InkFX.V_DRY, 0.0, 0.04, 0.04, 0.24)
+			n.el("drops_dir", Vector2.ZERO, (-hd).angle() + randf_range(-0.3, 0.3), Vector2(14.0, 10.0), InkFX.V_STAMP, 0.01, 0.05, 0.05, 0.3)
 	if not collect or okc == null:
 		_wall_t = WALL_LIFE - 1.0
 

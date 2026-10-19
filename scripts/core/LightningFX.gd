@@ -8,6 +8,10 @@ extends Node2D
 ## Çizim yalnızca evre değişince yenilenir (piksel kümeleri önbelleklenir).
 ## Stil v2 (ink): aynı kanal ve dallar piksel kümesine dökülmez; incelen şerit fırça çizgileri (InkDraw.line)
 ## olarak çizilir: geniş soluk yıkama + renkli fırça + beyaz kılcal çekirdek, dal uçları incelir.
+## v31 (hat sanatı şimşeği): kanal yassı uçlu fırça gibi kalın-ince ritimle (SilahCizim.kalem: kırık yönüne göre
+## kalınlaşıp incelir, baş basılı, uç kıl inceliğinde) iki düğümde çizilir — altta NORMAL karışımlı koyu lacivert sumi
+## hattı (ışığın iki yanında kontur gibi taşar; ışık söndükten sonra 0,16 sn kuru bir iz olarak incelip erir), üstte
+## toplamalı geniş yumuşak hale + renkli gövde + ak-sıcak kılcal çekirdek. Dallar ince ve kısa, dalcıklar kıl gibi.
 
 var a := Vector2.ZERO
 var b := Vector2(60, 0)
@@ -26,6 +30,9 @@ var _lines: Array = []   # v2: [çoklu nokta, kalınlık çarpanı] (ana kanal 1
 
 const PHASES := [0.0, 0.3, 0.55, 0.8, 0.9]
 const INTENS := [1.0, 0.6, 0.85, 0.45, 0.2]
+const INK_HOLD := 0.16          # v31: ışık söndükten sonra sumi izinin eridiği süre
+const NIB := 0.65               # v31: hat kaleminin uç açısı (rad)
+var _ink: Node2D                # v31: alttaki sumi hattı (normal karışım)
 
 
 func _ready() -> void:
@@ -38,6 +45,15 @@ func _ready() -> void:
 	InkDraw.prep(self)
 	_main = _bolt(a, b, 0.24, _depth(a.distance_to(b)))
 	_rebuild_branches()
+	_ink = Node2D.new()
+	_ink.top_level = true
+	_ink.z_as_relative = false
+	_ink.z_index = z_index - 1
+	var mi := CanvasItemMaterial.new()
+	mi.light_mode = CanvasItemMaterial.LIGHT_MODE_UNSHADED
+	_ink.material = mi
+	_ink.draw.connect(_sumi_draw)
+	add_child(_ink)
 
 
 static func _depth(len_px: float) -> int:
@@ -103,8 +119,15 @@ func _rebuild_branches() -> void:
 
 func _process(delta: float) -> void:
 	_t += delta
-	if _t >= life:
+	if _t >= life + INK_HOLD:
 		queue_free()
+		return
+	if _ink:
+		_ink.queue_redraw()
+	if _t >= life:
+		if _phase != 99:
+			_phase = 99
+			queue_redraw()
 		return
 	var k := _t / life
 	var ph := 0
@@ -123,12 +146,40 @@ func _draw() -> void:
 
 
 func _ink_draw() -> void:
-	var I: float = INTENS[maxi(0, _phase)]
+	if _phase == 99:
+		return
+	var I: float = INTENS[maxi(0, _phase)] * col.a
 	var w := float(width)
 	for L in _lines:
 		var pts: PackedVector2Array = L[0]
 		var k: float = L[1]
-		# geniş soluk yıkama, renkli fırça, beyaz kılcal çekirdek (dal uçları incelir)
-		InkDraw.line(self, pts, 9.0 * w * k, 3.0 * w * k, Color(col.r * 0.3 * I, col.g * 0.3 * I, col.b * 0.4 * I, 1.0))
-		InkDraw.line(self, pts, 4.2 * w * k, 1.0 * w * k, Color(col.r * 1.1 * I, col.g * 1.1 * I, col.b * 1.2 * I, 1.0))
-		InkDraw.line(self, pts, 1.8 * w * k, 0.5, Color(1.3 * I, 1.3 * I, 1.35 * I, 1.0))
+		var ws := SilahCizim.kalem(pts, 1.0, NIB, 0.1 if k >= 1.0 else 0.0, 0.4 if k >= 1.0 else 0.75, 0.32)
+		# toplamalı: geniş yumuşak hale (yıkama), renkli gövde, ak-sıcak kılcal çekirdek; hepsi hat kalınlığını izler
+		SilahCizim.serit(self, pts, _mul(ws, 4.6 * w * k + 1.2), Color(col.r * 0.22 * I, col.g * 0.24 * I, col.b * 0.34 * I, 1.0))
+		SilahCizim.serit(self, pts, _mul(ws, 1.55 * w * k), Color(col.r * 0.62 * I, col.g * 0.78 * I, col.b * 1.15 * I, 1.0))
+		SilahCizim.serit(self, pts, _mul(ws, 0.62 * w * k), Color(1.45 * I, 1.45 * I, 1.5 * I, 1.0))
+
+
+static func _mul(ws: PackedFloat32Array, k: float) -> PackedFloat32Array:
+	var o := ws.duplicate()
+	for i in o.size():
+		o[i] *= k
+	return o
+
+
+func _sumi_draw() -> void:
+	## Alttaki sumi hattı: ışık sürerken gövdenin iki yanından taşan koyu kontur; söndükten sonra kuyruktan başa
+	## incelip eriyen kuru iz (dallar daha önce erir)
+	var fade := 1.0 - clampf((_t - life) / INK_HOLD, 0.0, 1.0)
+	if fade <= 0.0:
+		return
+	var w := float(width)
+	var ink := Color(0.025, 0.03, 0.07, 0.9 * fade * col.a)
+	for L in _lines:
+		var pts: PackedVector2Array = L[0]
+		var k: float = L[1]
+		var kf := fade if k >= 1.0 else fade * fade
+		if kf <= 0.02:
+			continue
+		var ws := SilahCizim.kalem(pts, 1.0, NIB, 0.1 if k >= 1.0 else 0.0, 0.4 if k >= 1.0 else 0.75, 0.32)
+		SilahCizim.serit(_ink, pts, _mul(ws, (2.35 * w * k + 0.5) * (0.45 + 0.55 * kf)), Color(ink.r, ink.g, ink.b, ink.a * (0.6 + 0.4 * kf)))

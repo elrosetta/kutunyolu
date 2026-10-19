@@ -4840,3 +4840,185 @@ Aynı takım silme sonrasında yeniden (73 koşu, `--verbose`; ayrıca son düze
 * GroundSlamFX'in görünmez piksel benzetimi (v2'de `visible = false`) rastgele sayı akışını değiştirmemek için duruyor.
 * `data/world.json` biyom `art` girdilerinde v1 değerleri (ör. `rays`, `bg`) stil_v2.json tarafından eziliyor; veri
   olarak bırakıldı.
+
+## v31: profesyonel silah mürekkebi
+
+Geri bildirim: "Silahların, okların ve diğer silahların animasyonu ve MÜREKKEBİ çok, çok, ÇOK daha profesyonel olmalı."
+
+### Referanslar ve hedefler
+
+İncelenen yön: Shinobi: Art of Vengeance (cel + mürekkep kesik), Dead Cells (perspektif hilali, 1-2 karelik doruk), Hades
+(kalın kontur + parlak çekirdekli kesik, kısa ömür), Hollow Knight (iğne gibi tek karelik darbe parlaması), Ghost of
+Tsushima / Sekiro sumi-e efektleri (kuru fırça, "uçan ak"), Ōkami (kalın-ince hat fırçası), gerçek zamanlı VFX
+anlatımları (realtimevfx.com "Sword Slash help": aynı renkte farklı doygunlukta 3-4 katman, eğriyle incelen kısa ömürlü
+şerit; itch.io "Slash shape fundamentals": kesik animasyonun doruğu, 1-2 kare, hilal, kuyruk başa göre ince). Somut
+hedefler:
+
+1. Kesik = katmanlar: bıçak ağzında kıl inceliğinde ak-sıcak hat · hemen içinde parlak çekirdek · paletin renginde
+   kıl damarlı gövde · iç yarıda sumi siyahı kıl çizgileri · iç kenarda kıl uçlarına ayrılan kuru fırça · ardında daha
+   uzun yaşayan gri sulu yıkama (duman).
+2. Yumuşak "hava fırçası" geçişi yok: renk basamakları cel gibi keskin, basamak sınırları kıl kimliğiyle pürüzlü.
+3. Zaman: 1-2. kare ak-sıcak, 3-4. kare renkli, sonra mürekkebe kuruyup kıl tellerine kopar (v22 ömürleri aynı).
+4. Uç ve kuyruk: baş bıçağın hemen arkasında dolgun, sivri / kıvrık uç; kuyruk kuru kıllara ayrılır.
+5. Darbe: tek karelik iğne parlaması + türüne göre imza + vuruş yönünde fırça sıçrantısı; boylar ölçülü (v22).
+6. Uzak: ok izi iğne gibi ince, başta basınç, uçta parıltı; şimşek hat fırçası gibi kalın-ince; ışın, zincir ve
+   dönen fırlatmalar dokusuz düz çizgi değil fırça hattı.
+
+### Hilal fırçası (`shaders/ink_brush.gdshader` "v31", `scripts/core/InkTrail.gd` `_draw31`)
+
+* **Yeni doku** `assets/fx/ink/silah_firca.png` (1024x512 + HD x2 WebP; `tools/artgen/silah_fx_ink.py`): 8 satır
+  İKİ YANLI hilal fırçası — v = 1 bıçak ağzı keskin ve dolu, v = 0 iç kenar kıl uçlarına ayrılır, kuyrukta (u → 1) kıllar
+  kimlik sırasıyla kopar. R yük, G sumi (iç yarıda kıl çizgileri + baş havuzu), B kıl kimliği, A kâğıt tanesi.
+  Satırlar: 0 kılıç, 1 hançer, 2 ağır (kalın kuru, yarılan), 3 mızrak, 4 kırbaç (kurdele), 5 uzun sap, 6 yıkama, 7 hız
+  telleri. Sanat fırçası (`sanat_firca.png`, v28) aynı kodlamanın hilal için yeniden tasarımı.
+* **Köşe verisi:** oyuncu izinde UV.x = u (0 bıçağın taze ucu .. 1 kuyruk) + 2 x satır (eski dünya uzunluğu yerine:
+  doku darbe boyunca bir kez gerilir, baş ıslak, kuyruk kuru). Düşman / boss yayları (`auto_arc`) ve izsiz unsur
+  efektleri (`burst`) eski yolda (v31 kapalı).
+* **Gölgelendirici katmanları** (dıştan içe, taze → yaşlı): ak-sıcak bıçak ağzı hattı (HDR) → ak-sıcak çekirdek
+  basamağı → turuncu kenar tonu basamağı → gövde (iç kenarda çekirdek tonu, bıçağa doğru paletin gövdesi, kıl
+  damarlı) → iç yarıda sumi kıl çizgileri + iç kenarda koyu birikim. Basamaklar `fwidth` ile kenar yumuşatmalı ama
+  keskin, sınırları kıl kimliği ve kâğıt tanesiyle pürüzlü. Tazelik kare cinsinden (`lead`: ~2 kare, `fresh`: ~4 kare);
+  yaşlanınca renk koyu mürekkebe kurur, eşik kıl kimliği sırasıyla yükselir (kıl telleri kalır), kâğıt tanesi örtüyü
+  hafifçe kırar. Dış ışıma çok ince ve yalnız en taze karede.
+* **Arka yıkama** (katman 1, satır 6): hilalin kabza yanına kayık ve savuruşun gerisinde kalan, hafifçe yükselen yansız
+  gri-siyah sulu mürekkep; ömrü hilalin 1,9 katı (`WASH_K`), örtüsü 0,24-0,34. Ağırda ayrıca koyu kuru sürüntü
+  (satır 2).
+* **Hız telleri** (katman 5, satır 7): hilalin dışında, bıçak ağzının hemen ötesinde kıl inceliğinde kuru çizgiler.
+* **Yay sonu fiskeleri** (`_flick31`): iz bitince bıçak ucundan savuruş yönünde fırlayan damlalar (önde iri, yarısı
+  sumi, yarısı palet). Hilal boyunca serpilen damlalar seyreldi (×0,5; ağır ×0,3).
+* **Katlanma düzeltmesi:** bıçak ucu yerinde dönüyorsa (yere değip `_ground_clamp` ile yaslanan bıçak) örnek alınmaz;
+  hilal ucun çevresinde yelpaze gibi katlanıp düz kenarlı "bayrak" çizmiyor. Bıçak yönü ucun yol aldığından hızlı dönüyorsa
+  (bilekten / yere yaslanarak) o örneklerde hilal eni "ucun yolu / dönüş açısı" ile sınırlanır: iç kenar geriye
+  süpürülüp sivri bir "gaga" çizmiyor (Ulu Kılıç, Dağ Çekici yere inişi). Ağırda kanca kapalı, sıcak basamaklar bıçak
+  ağzına sıkışık (`band_in` 0,76 / `core_in` 0,93): geniş hilal ak bir levhaya dönmüyor.
+
+| Aile | İmza |
+|---|---|
+| Kılıç | temiz hat hilali, yıkama, tek hız teli, 3 fiske |
+| Hançer | ince hızlı ikiz fiske (içte ikinci ince hilal), yıkamasız, 2 fiske, ağız hattı daha parlak |
+| Ağır | kalın kuru yarılan fırça + koyu sürüntü + yıkama, 7 fiske + v20 uç sıçrantısı, dar sıcak bant |
+| Mızrak | uzun basılı darbe; saplamada (yol izi) yolun iki yanında iki hız teli + bitince uçta yandan görülen ince halka çifti ve iğne parıltısı (`_ring31`) |
+| Kırbaç | kurdele satırı (iki kenar düzgün), kıvrılan hat |
+| Uzun sap | geniş sulu süpürme, içte soluk yıkama yayı, tel |
+
+Unsur katmanları (v20 / v25) aynen üstte: od hilali kendi alev dalında (satır dokusu kıl verisi olarak), Yer-Su yaprak
+damarları v31 hilalinde de, ayaz / yıldırım / kam zerreleri ve tayfsı ard görüntü aynı çizim çağrısında.
+
+### Vuruş mürekkebi (`scripts/core/InkFX.gd`, yeni atlas `assets/fx/ink/silah_fx.png`)
+
+17 şekil (aynı veri kodlaması: R işaretli uzaklık, G koyu / sıcak, B çizim sırası, A erime): yönlü fırça sıçrantısı
+(kökte sumi göl, öne fırlayan basılı fırça dili + yan diller + koni içinde uzamış damlalar), küt ezik leke, damla
+konisi, iğne kesik + yarık kesik, tek karelik darbe parlaması, ikiz fiske, kritik mührü (hanko: pürüzlü kare, oyulmuş
+tamga), ince kuru halka, kıvrık fiske, sulu buğu, küçük sumi patlaması, ok ucu parıltısı, yay bırakışı yelpazesi.
+
+* `InkFX.hit`: her vuruş üç parça — tek karelik iğne parlaması (uzun ekseni savuruş yönünde, boyu en çok 24 birim
+  tabanla sınırlı) · türün imzası (kesik: iğne / yarık kesik; küt: ezik leke + ince halka; saplama: yarık kesik + yandan
+  görülen saplama halkası; hançer: ikiz fiske; büyü: ince halka + sumi patlaması) · vuruş yönünde fırça sıçrantısı;
+  kademe 2'de damla konisi. Eski yıldız patlamaları (çizgi roman ışınları) yok.
+* `InkFX.stamp` (kritik): büyük parlama + yarık kesik + sıçrantı + vermilyon mühür (ayrı düğüm, palet 0, biraz gecikip
+  daha uzun kalır). `InkFX.kill`: ezik sumi lekesi + iki yana damla konisi.
+* Oyuncu vuruşundaki kıvılcım kıymıkları yarıya indi (parlama ve sıçrantı vuruşu taşıyor). Soluk gök mavisi renkler
+  (şimşek) artık kızıl paletine düşmüyor (`pal_from_color` → 5).
+
+### Uzak silahlar
+
+* **Ok izi** (`OkIz.gd`, `ok_iz.gdshader`): başın hemen arkasında basınç şişkinliği, güçlü atışta (tam gerilme / unsur)
+  izin iki yanında kuyruğa doğru açılan kıl inceliğinde hava telleri, ok ve cirit ucunda titreşen küçük iğne yıldızı
+  (unsur renginde; unsursuzda soluk çelik). Tek çizim çağrısı korunur.
+* **Yay**: kiriş gerildikçe incelir ve ışır, gezde mürekkep düğümü, gerginlikte iki yanda titreşen soluk gerilim telleri
+  (`BowString.pull`). Bırakış: tek karelik iğne parlaması + ince kesik + soluk kısa fırça teli yelpazesi (eski altın
+  sıçrantı lekesi yerine). Dolma parıltısı: altın iğne yıldızı + ince halka. Duvara saplanma: parlama + küçük sumi
+  patlaması + geri yöne damlalar.
+* **Gök Asası şimşeği** (`LightningFX.gd`, `SilahCizim`): kanal yassı uçlu hat kalemi gibi kalın-ince (kırık yönüne
+  göre), baş basılı, uç kıl inceliğinde; altta normal karışımlı koyu lacivert sumi hattı (ışığın iki yanından kontur
+  gibi taşar, ışık söndükten sonra 0,16 sn kuru iz olarak erir), üstte toplamalı yıkama + mavi gövde + ak kılcal
+  çekirdek. Gök gürlemesi aynı sınıfı kullanır.
+* **Kam Küzgüsü ışını** (`Silah27._beam31`): aynadan basılarak çıkan fırça hattı (sumi kontur, ışın boyunca akan enerji
+  nabızları, çevresine sarılan iki ince güneş teli, ak çekirdek), uçta dönen kısa yanma dilleri.
+* **Tengri Bağı** (`Silah27._chain31`): gerçek zincir — halkalar sırayla yüzden (elips) ve yandan (çubuk), mürekkep
+  kontur + gök mavisi + ak parıltı, içinden ince ak şimşek kılı; bağlının çevresinde hat fırçası ensō'su.
+* **Dönen fırlatmalar** (`Projectile._spin_smear`): balta, sapan ve mancınık taşının arkasında dönüşün ardında kalan iki
+  karşılıklı mürekkep hilali (hareket bulanıklığı yerine). Cirit ve Tatar oku yeni ok izini kullanır.
+* `scripts/core/SilahCizim.gd` (yeni): dokusuz, köşe renkli, kenarı yarım piksel yumuşatılmış değişken genişlikli şerit
+  (`serit`), hat kalemi profili (`kalem`), yay noktaları.
+
+### Kalabalık sahne: çok düşmanlı büyük vuruşlar (lider notu)
+
+Geri bildirim: savaş sanatları, kombo bitirişleri ve çevre hasarında beyaz darbe karesi, düşman vurulma flaşları,
+hasar sayıları ve mürekkep sıçrantıları üst üste biniyordu. Genel FX katmanında çözüldü (sanat kodu dokunulmadı):
+
+* **Ortak darbe karesi** (`ImpactFrame.play`): açık bir kare varken 0,15 sn içinde gelen istekler yeni kare açmaz,
+  hedeflerini açık karenin silüetlerine ekler (en çok 6 silüet; 4. silüetten sonra karartma 0,42'ye hafifler); zorunlu
+  kare (seçkin / boss ölümü, infaz) bir kareden sonraki 0,6 sn içinde açılmaz. Olağan 1,2 sn bekleme aynen.
+* **Paylaşılan vurulma flaşı** (`SpriteAnim.set_flash`): aynı 0,15 sn içinde başlayan flaşlar sırayla ×1 / ×0,7 / ×0,5 /
+  ×0,35 (v22'nin tek düşmandaki art arda sönümünün üstüne): çok düşman bembeyaz silüet yığınına dönmüyor.
+* **Hasar sayıları** (`FX._ink_number`): v22 birleştirmesi (aynı düşman, 0,3 sn, kritik olmayan) aynen; yeni olarak
+  her sayının doğuş yeri canlı sayılara (0,45 sn) çok yakınsa yukarı ve dönüşümlü yana kaydırılır (en çok 4 basamak):
+  yan yana düşmanların ve kritik + sıradan sayıların rakamları üst üste binmiyor. `FX.text`'in v27 tekrar / kaydırma
+  mantığı ayrı yol olarak aynen.
+* **Sıçrantı bütçesi** (`InkFX._kalabalik`, gerçek zaman): 0,1 sn içinde ilk 2 vuruş tam sıçrantı; 3-5. en hafif
+  kademe ve ×0,75 boy; sonrakiler yalnızca küçük tek karelik parlama. Kritik damgası pencerede 3.'den sonra yalnızca
+  parlama + kesik (sıçrantı ve mühür yok). Vitrin ızgarası bütçeyi `InkFX.butce = false` ile kapatır.
+* **Darbe karesi silüetleri:** ilk iki silüet (vuran + asıl hedef) bembeyaz, sonrakiler yarı beyaz (`flash` 0,5).
+
+Ölçüm (beyaz = en koyu kanalı 0,86'dan açık piksel, kızıl = doygun kızıl mürekkep; arayüz kenarları dışarıda):
+
+| Sahne | beyaz ort / en çok | kızıl ort |
+|---|---|---|
+| `--sanat --boss --muhur=0 --sanat_kare` (586 kare) önce | %1,22 / %19,8 | %1,29 |
+| sonra | %1,13 / %16,6 | %1,59 (v31 sanat izleri renkli hilal) |
+| `--dovus --boss --klip22` (36 kare, 3 düşman) önce | %0,14 / %0,44 | %0,45 |
+| sonra | %0,13 / %0,55 | %0,39 |
+
+Sanat çekiminde en beyaz kareler Bir Çekiş / Demir Duruş karşılığı / Göğe Yükseliş darbe kareleri: 3. ve sonraki
+silüetler artık gri (`docs/v31/kalabalik.jpg`). Sayı yığınları (Kasırga'da "9 9 9 10" iç içe) kaydırılarak okunur.
+
+### Silah sprite'ları
+
+Silah atlası zaten HD x2 (`assets_hd/x2/weapons`) ve kenar yumuşatmalı gölgelendiriciyle çiziliyor; 2560x1440 `--doku=2`
+çekimlerinde keskin. Hızlı dönüşte v27 leke kareleri (iki soluk kopya) yerinde; ek leke karesi eklenmedi.
+
+### Ölçüm ve test
+
+* Başarım (`--unsur --boss --unsur_yalniz --unsur_cekim=olcum`, 2560x1440, `--doku=2`; GPU bu makinede ~33 ms dikey
+  eşitlemeye bağlı): 
+
+  | | GPU (ms) | CPU iz + zerre (ms) |
+  |---|---|---|
+  | önce (v30), 12 silah × unsur | 32,6-33,7 | 0,69-0,90 |
+  | sonra (v31) | 32,2-33,2 | 0,63-0,84 |
+
+  Fark ölçüm gürültüsünün içinde (GPU dikey eşitlemeye bağlı; CPU tarafında hilal katmanları tek çizim çağrısında,
+  ek yük ölçülemeyecek kadar küçük). Yeni şerit / ışın / zincir çizimleri tek `canvas_item_add_triangle_array`.
+* Kare şeritleri: `--fixed-fps 60 -- --firca=<silahlar> --firca_kombo --anlik=<klasör>` (yeni: her kare için
+  `[firca] iz <silah> <kare> <örnek>` satırı: kontak sayfası izli kareleri seçer); `--firca_uzak`; vuruş ızgarası
+  `--fx_vitrin=<klasör>` (yeni D paneli: 9 vuruş türü x 4 palet, 1. / 3. / 9. kare); `--silah27 --boss
+  --silah27_goruntu=<klasör>`.
+* Gerileme: `--dovus --boss` TAKILMA=0, KONTROL basılmamış=0 oto_dönüş=0 oto_hamle=0 istenmeyen_ağır=0; `--dovus --boss
+  --kontrol` aynı; `--yay --boss` TAKILMA=0 CEPHANE_HATA=0; `--unsur --boss` HATA=0; `--tomar --boss` GECTI; `--sanat
+  --boss --muhur=0` SONUC GECTI hata=0 TAKILMA=0; `--silah27 --boss` SONUC GECTI HATA=0; `--otomatik --derinlik=1
+  --muhur=0`, `--mekanik --muhur=0` (BITTI): betik hatası 0; `--piksel_tara` TOPLAM 0. Bütün koşularda SCRIPT ERROR 0.
+  Eski olduğu bilinen motor uyarıları aynen: `SanatUI._nisan_pips` "Invalid polygon data" (HUD), çıkışta sızıntı
+  uyarıları, `--tomar` sırasında bir kez "Lambda capture ... freed". `InkAksanFX` bitiriş fırçasında iki noktadan kısa
+  yolda `draw_polyline` hatası (`--dovus` 116 kez) giderildi.
+
+### Görseller (`docs/v31/`)
+
+* `aile_kilic.jpg`, `aile_hancer.jpg`, `aile_agir.jpg`, `aile_mizrak.jpg`, `aile_kirbac.jpg`, `aile_uzun.jpg`,
+  `aile_unsur_palet.jpg`: her aile önce (v30) / sonra (v31), izin göründüğü art arda 7 kare (1080p, kırpık)
+* `hd_1440.jpg`: 2560x1440 `--doku=2`, 1:1 kırpık (Alp Kılıcı, Dağ Çekici)
+* `uzak_yay_firlatma.jpg`: yay bırakışı, ok izi, cirit, sapan, mancınık, Gök Asası şimşeği önce / sonra
+* `silah27_uzak.jpg`: Kam Küzgüsü ışını, Tengri Bağı zinciri, Tatar Yayı önce / sonra
+* `vurus_izgarasi.jpg`: 9 vuruş türü × 4 palet, 1. / 3. / ~9. kare önce / sonra
+* `kalabalik.jpg`: çok düşmanlı sanat ve klip22 sahneleri önce / sonra
+* `dokular.jpg`: yeni atlas ve hilal fırçası (kızıl önizleme)
+
+### Bilinen
+
+* Hilal dokusu u boyunca darbe başına bir kez gerildiğinden iz büyürken kıl çizgileri boyuna çok az kayar (2-4 karelik
+  ömürde seçilmiyor).
+* Kesik / kırbaç yol izinde "bıçak ağzı" yolun bir yanında (enine payın %77'si): parlak hat iz çizgisinin hemen önünde.
+* Ağır silahın yere inen ucunda hilal ucu yerde fırça kuyruğu gibi kıvrılır (katlanma yok ama düz bir yer sürüntüsü).
+* `hd_paket.py --kontrol` yeni iki doku için de diğer fx veri dokuları gibi UYARI (gürültü kanalları HD'de ince
+  ayrıntı kazanıyor); manifest md5 güncel.
+* `SanatUI._nisan_pips` "Invalid polygon data" hatası (HUD, bu işten önce de var; paralel sanat dalının alanı).

@@ -170,6 +170,8 @@ func _glow_k() -> float:
 
 
 var _flash_on := false
+static var _ortak_t := -9.0   # v31: ortak flaş penceresinin başı
+static var _ortak_n := 0      # v31: pencerede başlayan flaş sayısı
 var _flash_k := 1.0
 var _flash_at := -9.0
 
@@ -182,6 +184,13 @@ func set_flash(v: float) -> void:
 		var now := Time.get_ticks_msec() / 1000.0
 		_flash_k = maxf(0.2, _flash_k * 0.55) if now - _flash_at < 0.4 else 0.45
 		_flash_at = now
+		# v31 çok hedef: aynı 0,15 sn içinde başlayan flaşlar paylaşılır — 2. düşman ×0,7, 3. ×0,5, sonrakiler ×0,35
+		# (savaş sanatı / bitiriş birden çok düşmana değince ekran beyaz silüet yığınına dönmesin)
+		if now - _ortak_t > 0.15:
+			_ortak_t = now
+			_ortak_n = 0
+		_ortak_n += 1
+		_flash_k *= 1.0 if _ortak_n <= 1 else (0.7 if _ortak_n == 2 else (0.5 if _ortak_n == 3 else 0.35))
 	_flash_on = v > 0.05
 	mat.set_shader_parameter("flash", v * _flash_k)
 

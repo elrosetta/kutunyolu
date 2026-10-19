@@ -23,6 +23,7 @@ static var root: Node2D
 static var hit_k := 1.0
 static var in_hit := false
 static var _nums: Array = []       # v22: birleşen hasar sayıları [düğüm, etiket, değer, doğuş, konum]
+static var _num_yer: Array = []    # v31: canlı sayıların doğuş yerleri [düğüm, doğuş, konum] (üst üste binmesin)
 static var _ghost_t: Dictionary = {}  # v22: kaynak sprite -> son hayaletin anı (aynı karede üst üste binmesin)
 static var dust_col := Color(0.62, 0.58, 0.6, 0.55)  # v11: biyom zemin tozu (Level ayarlar)
 static var level: Node
@@ -195,10 +196,28 @@ static func _ink_number(pos: Vector2, value: float, crit: bool, col: Color) -> v
 				var tw2 := nn.create_tween()
 				tw2.tween_property(nn, "scale", Vector2.ONE, 0.08)
 				return
+	# v31 çok hedef: aynı anda çıkan sayılar (yan yana düşmanlar, kritik + sıradan) üst üste binmez — doğuş yeri
+	# canlı bir sayıya çok yakınsa yukarı ve dönüşümlü yana kaydırılır (en çok 4 basamak)
+	var np := pos + Vector2(randf_range(-6, 6), -14)
+	for i in range(_num_yer.size() - 1, -1, -1):
+		var q: Array = _num_yer[i]
+		if not is_instance_valid(q[0]) or now - float(q[1]) > 0.45:
+			_num_yer.remove_at(i)
+	for k in 4:
+		var hit := false
+		for q in _num_yer:
+			var qp: Vector2 = q[2]
+			if absf(qp.x - np.x) < (22.0 if crit else 18.0) and absf(qp.y - np.y) < 11.0:
+				hit = true
+				break
+		if not hit:
+			break
+		np += Vector2(5.0 if k % 2 == 0 else -5.0, -12.0)
 	var n := Node2D.new()
 	n.z_index = 100
 	n.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
-	n.position = pos + Vector2(randf_range(-6, 6), -14)
+	n.position = np
+	_num_yer.append([n, now, np])
 	if crit:
 		# kritik: arkada mürekkep sıçrantısı, sağ üstte eğik kızıl mühür damgası
 		var sp := Sprite2D.new()
