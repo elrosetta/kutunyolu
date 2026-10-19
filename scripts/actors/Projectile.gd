@@ -382,6 +382,32 @@ func _draw() -> void:
 			prev2 = cur2
 	if ink_spr == null and spr == null:
 		_ink_body()
+	if team == "p" and SPIN_R.has(kind) and iz_flying():
+		_spin_smear()
+
+
+## v31 dönen fırlatmanın leke yayı (balta, sapan / mancınık taşı): sprite'ın arkasında, dönüşün ardında kalan iki
+## karşılıklı hilal (hareket bulanıklığı yerine mürekkep: kalın baş, kuru incelen kuyruk; koyu kontur + açık metal öz).
+## Düğümle birlikte döner (yerel uzay), sprite çocuk olduğundan onun altında çizilir.
+const SPIN_R := {"axe": 12.0, "stone": 5.5, "stone_big": 13.0}
+
+
+func _spin_smear() -> void:
+	var R := float(SPIN_R[kind])
+	var sg := signf(velocity.x) if absf(velocity.x) > 1.0 else 1.0
+	var span := 1.5 if kind == "axe" else 1.1
+	for h in 2:
+		var a0 := float(h) * PI
+		var pts := SilahCizim.yay(Vector2.ZERO, Vector2(R, R), a0, a0 - sg * span, 10)
+		var ws := PackedFloat32Array()
+		for i in pts.size():
+			var k := float(i) / float(pts.size() - 1)
+			ws.append(R * (0.32 if kind == "axe" else 0.4) * pow(1.0 - k, 1.3) + 0.05)
+		SilahCizim.serit(self, pts, ws, Color(0.05, 0.04, 0.06, 0.55), Color(0.05, 0.04, 0.06, 0.0))
+		var wc := PackedFloat32Array()
+		for v in ws:
+			wc.append(v * 0.4)
+		SilahCizim.serit(self, pts, wc, Color(0.92, 0.9, 0.86, 0.55), Color(0.92, 0.9, 0.86, 0.0))
 
 
 func _ink_body() -> void:

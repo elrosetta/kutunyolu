@@ -36,6 +36,17 @@ uniform float core_gain = 1.0;     // v23: hilalin taze (ön) kısmında parlak 
 uniform float er_delay = 0.0;      // v23: erime gecikmesi (yaş oranı): kısa ömürlü hilal ilk karelerinde dolu kalsın
 uniform int unsur_id = 0;          // v25: 0 sade / diğer, 1 od (alev gövdeli hilal), 2 Yer-Su (yaprak hilali)
 uniform float ink_w = 0.83;        // v25: mürekkep dış kenarının enine v'si (od hilalinde dış alev saçağı için geniş şerit)
+// v31 profesyonel hilal (yalnızca oyuncu izi): silah_firca.png (tools/artgen/silah_fx_ink.py) 8 satır hilal fırçası.
+// Şerit köşelerinde UV.x = u (0 bıçağın taze ucu .. 1 kuyruk) + 2 x satır; katman 1 arka yıkama / kuru sürüntü,
+// 2 yankı, 5 hız telleri. Katmanlar (dıştan içe): bıçak ağzında ince ak-sıcak hat, hemen içinde parlak çekirdek bandı,
+// paletin renginde kıl damarlı gövde, iç yarıda sumi siyahı kıl çizgileri, iç kenarda kıl uçlarına ayrılan kuru fırça;
+// yaşlandıkça renk mürekkebe kurur ve kıllar kimlik sırasıyla kopar; ardında daha uzun yaşayan gri sulu yıkama.
+uniform int v31 = 0;
+uniform sampler2D firca : filter_linear_mipmap, repeat_disable;
+uniform float edge_gain = 1.0;     // v31: bıçak ağzı hattının parlaklığı (aile)
+uniform float wash_a = 0.34;       // v31: arka yıkamanın örtüsü
+uniform float band_in = 0.62;      // v31: turuncu kenar tonu basamağının başladığı enine v (geniş hilalde dışa kayar)
+uniform float core_in = 0.86;      // v31: ak-sıcak çekirdek basamağı
 
 varying vec2 wpos;                 // v25: dünya konumu (iz düğümü top_level, kökte: yerel = dünya) -> alev gürültüsü
 
@@ -255,11 +266,109 @@ vec4 vine(float s, float v, float kind, float age) {
 	return vec4(c * a, a);
 }
 
+vec4 firca31(float u, float vi, float row) {
+	// v31 hilal fırçası örneği: mip düzeyi yalnızca enine türevden (kıllar boyuna; hızlı süpürmede boyuna sıkışma dokuyu
+	// enine bulanıklaştırmasın), satırlar arası taşma olmasın diye v kenardan uzak tutulur
+	vec2 t = vec2(clamp(u, 0.002, 0.998), (row + clamp(vi, 0.03, 0.97)) / 8.0);
+	return textureGrad(firca, t, dFdx(t) * vec2(0.1, 1.0), dFdy(t) * vec2(0.1, 1.0));
+}
+
+vec4 hilal31(float u, float vi, float row, float layer, float age) {
+	// Dönen: önçarpılmış renk + alfa (alfa 0 kısım toplamalı ışıma)
+	vec4 d = firca31(u, vi, row);
+	float ea = clamp((age - er_delay) / (1.0 - er_delay), 0.0, 1.0);
+	// tazelik kare cinsinden: hilal ~5 karede söner (yaş 0,2 ≈ 1 kare); en taze 2 kare ak-sıcak, 3-4. kare renkli
+	float fresh = 1.0 - smoothstep(0.38, 0.8, age);
+	float lead = 1.0 - smoothstep(0.24, 0.55, age);
+	vec3 sumi = mix(vec3(0.004, 0.0035, 0.005), c_ink, 0.4);
+	float grain = mix(1.0, 0.74 + 0.4 * d.a, 0.5);
+	if (layer > 4.5) {
+		// hız telleri: yalnız kıllar, bıçak renginde doğar, mürekkebe kurur
+		float th = 0.5 + ea * (0.2 + 0.4 * d.b);
+		float w = fwidth(d.r) * 0.8 + 0.01;
+		float a = smoothstep(th - w, th + w, d.r) * (1.0 - smoothstep(0.7, 1.0, age)) * 0.85;
+		vec3 c = mix(mix(c_rim, c_hot, 0.4) * (1.0 + 0.8 * lead), mix(c_core, sumi, 0.5), smoothstep(0.15, 0.7, age));
+		return vec4(c * a, a);
+	}
+	if (layer > 0.5 && layer < 1.5) {
+		if (row > 5.5) {
+			// arka sulu yıkama (duman): yumuşak eşik, yansız gri-siyah su mürekkebi, kenarında kuruma halkası
+			float th = 0.5 + age * (0.12 + 0.35 * d.b);
+			float a = smoothstep(th - 0.22, th + 0.08, d.r) * (wash_a + 0.16 * d.a) * (1.0 - smoothstep(0.55, 1.0, age));
+			vec3 c = mix(c_ink * 1.5 + c_core * 0.3, c_body * 0.6, 0.12 + 0.12 * fresh);
+			c = mix(c, sumi, d.g * 0.6);
+			return vec4(c * a, a);
+		}
+		// ağır: arkada koyu kuru sürüntü (kalın kuru fırça)
+		float th = 0.53 + ea * (0.2 + 0.45 * d.b);
+		float w = fwidth(d.r) * 0.8 + 0.01;
+		float a = smoothstep(th - w, th + w, d.r) * grain * 0.9 * (1.0 - smoothstep(0.8, 1.0, age));
+		vec3 c = mix(mix(c_core, sumi, 0.55), sumi, d.g);
+		return vec4(c * a, a);
+	}
+	// ---- ana hilal (katman 0) ve yankı (2)
+	float echo = step(1.5, layer);
+	// eşik: taze kıllar dolu (ıslak uç bir tık kalın), yaşla kıl kimliği sırasıyla kopar (kuyruk ve iç kenar önce)
+	float th = 0.5 - 0.05 * lead + ea * (0.12 + 0.55 * d.b) + echo * 0.06;
+	float w = fwidth(d.r) * 0.75 + 0.008;
+	float a = smoothstep(th - w, th + w, d.r);
+	a *= grain * (1.0 - smoothstep(0.82, 1.0, age));
+	// renk: güçlü değer geçişi — iç kenarda koyu çekirdek tonu, bıçağa doğru paletin gövdesi (kıl damarlı); iç
+	// yarıda sumi kıl çizgileri ve iç kenarda koyu mürekkep birikimi
+	vec3 col = mix(c_core * 0.85, c_body, smoothstep(0.12, 0.72, vi));
+	col = mix(col, c_core, clamp(d.g * 0.5 + (1.0 - d.r) * 0.3, 0.0, 0.6));
+	col = mix(col, c_body * 1.18, smoothstep(0.62, 0.9, d.r) * smoothstep(0.4, 0.8, vi) * 0.3);
+	float ink_side = 1.0 - smoothstep(0.3, 0.58, vi);
+	col = mix(col, sumi, clamp(d.g * 1.9 * ink_side + (1.0 - smoothstep(0.0, 0.16, vi)) * 0.7, 0.0, 0.94));
+	// parlak çekirdek bandı (bıçak ağzının hemen içi), en taze kısımda geniş; ön uçta ak-sıcak
+	float near = 1.0 - smoothstep(0.0, 0.45, u);
+	// cel basamakları (yumuşak hava fırçası değil): gövde -> kenar tonu (turuncu) -> ak-sıcak çekirdek; basamak
+	// sınırları kıl kimliğiyle pürüzlü (fırça kılı gibi), kenar yumuşatma piksel genişliğinden
+	float fv = fwidth(vi) * 0.8 + 0.004;
+	float jag = (d.b - 0.5) * 0.16 + (d.a - 0.5) * 0.06;
+	float wide = 0.1 * lead + 0.05 * near;
+	float st1 = smoothstep(-fv, fv, vi - (band_in - wide) + jag) * fresh;
+	float st2 = smoothstep(-fv, fv, vi - (core_in - wide * 0.7) + jag) * max(lead, fresh * 0.35) * (0.35 + 0.65 * near);
+	float cg = core_gain * (1.0 - echo);
+	col = mix(col, c_rim * (1.0 + 0.25 * lead), clamp(st1 * cg * 0.85, 0.0, 1.0));
+	col = mix(col, mix(c_rim, c_hot, 0.55 + 0.4 * lead) * (1.0 + 1.0 * lead), clamp(st2 * cg, 0.0, 1.0));
+	// bıçak ağzı hattı: ince ak-sıcak çizgi (HDR), kuyruğa ve yaşla söner
+	float edge = smoothstep(0.93 - fv, 0.93 + fv, vi) * (1.0 - smoothstep(0.985, 1.0, vi)) * max(lead, fresh * 0.5) * (1.0 - 0.7 * u) * edge_gain * (1.0 - echo);
+	col = mix(col, c_hot * hot_gain, clamp(edge, 0.0, 1.0));
+	// kuruma: yaşlanan mürekkep paletin renginden koyu mürekkebe çekilir (kurumuş sumi kıl telleri kalır)
+	col = mix(col, mix(c_core, sumi, 0.55), smoothstep(0.25, 0.85, age) * 0.75);
+	if (echo > 0.5) {
+		col = mix(col, c_rim, 0.25);
+		a *= 0.42 * (1.0 - age * 0.5);
+	}
+	// dış ışıma: bıçak ağzının ötesinde ince, toplamalı, yalnız taze
+	float halo = smoothstep(0.97, 1.01, vi) * (1.0 - smoothstep(1.01, 1.12, vi));
+	vec3 add = mix(c_rim, c_hot, 0.4) * glow_gain * 0.45 * halo * lead * (1.0 - echo) * (0.4 + 0.6 * near);
+	return vec4(col * a + add * (1.0 - a), a);
+}
+
 void fragment() {
 	float layer = floor(UV.y * 0.5);
 	float v = UV.y - layer * 2.0;
 	float age = clamp(COLOR.a, 0.0, 1.0);
-	if (layer > 3.5) {
+	if (v31 == 1 && layer > 4.5) {
+		float row5 = floor(UV.x * 0.5);
+		COLOR = hilal31(UV.x - row5 * 2.0, v / ink_w, row5, layer, age);
+	} else if (v31 == 1 && layer < 2.5 && unsur_id != 1) {
+		float row = floor(UV.x * 0.5);
+		float u = UV.x - row * 2.0;
+		vec4 h = hilal31(u, v / ink_w, row, layer, age);
+		if (unsur_id == 2 && layer < 0.5) {
+			// v25 Yer-Su yaprak damarları v31 hilalinde de: altın orta damar + eğik yan damarlar (u boyunca)
+			float vi2 = v / ink_w;
+			float mid = 1.0 - smoothstep(0.0, 0.045 + fwidth(vi2) * 1.5, abs(vi2 - 0.6));
+			float sv = abs(fract(u * 9.0 + vi2 * 0.9) - 0.5);
+			float side = (1.0 - smoothstep(0.0, 0.05 + fwidth(u * 9.0 + vi2 * 0.9) * 1.5, sv)) * smoothstep(0.2, 0.55, vi2) * (1.0 - smoothstep(0.8, 0.95, vi2));
+			vec3 vc = mix(c_rim, c_hot, 0.35) * 1.15 * h.a;
+			h.rgb = mix(h.rgb, vc, clamp(mid * 0.8 + side * 0.4, 0.0, 1.0) * (1.0 - age));
+		}
+		COLOR = h;
+	} else if (layer > 3.5) {
 		float kind = floor(UV.x * 0.5);
 		COLOR = vine(UV.x - kind * 2.0, v, kind, age);
 	} else if (layer > 2.5) {

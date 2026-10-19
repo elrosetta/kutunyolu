@@ -30,8 +30,21 @@ extends WeaponTrail
 
 enum { SWEEP, PATH }
 
+## v31 (geri bildirim: "silahların animasyonu ve MÜREKKEBİ çok çok daha profesyonel olmalı"): oyuncu hilali katmanlı
+## (bıçak ağzında ak-sıcak hat + parlak çekirdek bandı + paletin renginde kıl damarlı gövde + iç yarıda sumi kıl çizgileri
+## + iç kenarda uçan ak kuru fırça) ve ardında daha uzun yaşayan gri sulu yıkama; aileye özgü fırça satırı
+## (silah_firca.png, tools/artgen/silah_fx_ink.py), hız telleri, yay sonunda mürekkep fiskeleri. Ayrıntı:
+## docs/TASARIM.md "v31: profesyonel silah mürekkebi".
+
 const SHADER: Shader = preload("res://shaders/ink_brush.gdshader")
 const BRISTLE: Texture2D = preload("res://assets/fx/ink/bristle.png")
+const FIRCA31 := "res://assets/fx/ink/silah_firca.png"
+## v31 fırça satırı (silah_firca.png): 0 kılıç, 1 hançer, 2 ağır, 3 mızrak, 4 kırbaç, 5 uzun sap, 6 yıkama, 7 teller
+const ROW31 := {"kilic": 0, "hancer": 1, "agir": 2, "mizrak": 3, "kirbac": 4, "uzun": 5}
+const R_WASH := 6
+const R_TEL := 7
+## v31 arka yıkamanın (duman) ömrü ana hilalin bu katı: hilal 2-4 karede kurur, yıkama birkaç kare daha soluk kalır
+const WASH_K := 1.9
 
 static var _pool: Array = []
 static var _mats: Dictionary = {}
@@ -57,6 +70,11 @@ var inner_arc := false      # v20 uzun sap: içte soluk ikinci yay
 var twist := false          # v20 kırbaç: genişlik boyunca kıvrılan kurdele
 var _bl_max := 0.0          # v23: izdeki en uzun bıçak izdüşümü (önkısalmada en korunur)
 var er_delay := 0.3         # v23: erime gecikmesi (yaş oranı; kısa ömürlü hilal ilk karelerde dolu, sonra hızla erir)
+var v31 := false            # v31: katmanlı profesyonel hilal (yalnızca oyuncu / sanat izi; setup açar)
+var wash := false           # v31: arkada uzun yaşayan sulu yıkama (duman)
+var tels := 0               # v31: hilalin dışında ince hız teli sayısı
+var flick_n := 0            # v31: yay bitince uçtan savrulan mürekkep fiskesi / damla sayısı
+var ring31 := false         # v31: saplama bitince uçta basınç halkası
 var _elem: Array = []       # v20 unsur zerreleri [konum, hız, ömür, yaş, boy, tür, açı, açısal hız]
 var _vines: Array = []      # v25 Yer-Su filiz / kök şeritleri [dip, açı, kıvrım, boy, yarı en, tür, yaş, ömür, büyüme]
 var _u_acc := 0.0
@@ -127,6 +145,11 @@ func _reset() -> void:
 	inner_arc = false
 	twist = false
 	er_delay = 0.3
+	v31 = false
+	wash = false
+	tels = 0
+	flick_n = 0
+	ring31 = false
 	_bl_max = 0.0
 	_elem.clear()
 	_vines.clear()
@@ -259,6 +282,38 @@ func setup(it: Dictionary, atk: Dictionary, weight: float) -> void:
 	# v22 Kut Yankısı: yankılı savuruşun kendi izi altın mürekkeple (eski ayrı, gecikmeli "yankı kesiği" yerine)
 	if int(atk.get("yanki", 0)) > 0:
 		pal = 9
+	# v31 aile imzası: kılıç temiz hat + yıkama + tek hız teli · hançer ince çift fiske (yıkamasız) · ağır kalın kuru
+	# fırça + koyu sürüntü + yıkama + bol sıçrantı · mızrak uzun basılı darbe + iki tel (+ saplamada halka) · kırbaç
+	# kurdele · uzun sap geniş sulu süpürme
+	v31 = true
+	# v31: hilal boyunca serpilen damlalar seyrek (çekirdeği karpuz çekirdeği gibi kirletmesin); asıl sıçrantı yay sonunda
+	fleck_k *= 0.3 if style == "agir" else 0.5
+	match style:
+		"kilic":
+			wash = true
+			tels = 1
+			flick_n = 3
+		"hancer":
+			flick_n = 2
+		"agir":
+			wash = true
+			flick_n = 7
+		"mizrak":
+			wash = true
+			tels = 2
+			flick_n = 2
+		"kirbac":
+			flick_n = 2
+		"uzun":
+			wash = true
+			tels = 1
+			flick_n = 3
+	if mode == PATH and echoes > 0:
+		tels = 2
+		wash = false
+		ring31 = true
+	if layered >= 1:
+		wash = true
 	active = self
 	_apply_mat()
 
@@ -270,7 +325,7 @@ const OUT_EXT := {"od": 0.62}
 
 
 func _apply_mat() -> void:
-	var key := "%d_%s_%d_%.2f_%.2f_%s" % [pal, style, layered, u_scale, er_delay, unsur]
+	var key := "%d_%s_%d_%.2f_%.2f_%s_%d" % [pal, style, layered, u_scale, er_delay, unsur, int(v31)]
 	if not _mats.has(key):
 		var m := ShaderMaterial.new()
 		m.shader = SHADER
@@ -290,6 +345,14 @@ func _apply_mat() -> void:
 		m.set_shader_parameter("core_gain", 1.0 if er_delay > 0.0 else 0.0)
 		m.set_shader_parameter("unsur_id", int(U_SHADER.get(unsur, 0)))
 		m.set_shader_parameter("ink_w", 0.83 * 1.3 / (1.0 + float(OUT_EXT.get(unsur, 0.3))))
+		if v31:
+			m.set_shader_parameter("v31", 1)
+			m.set_shader_parameter("firca", Data.tex_full(FIRCA31))   # HD paketi varsa 2 kat
+			m.set_shader_parameter("edge_gain", 0.75 if style == "agir" else (1.15 if style in ["hancer", "mizrak"] else 1.0))
+			m.set_shader_parameter("wash_a", 0.34 if style == "agir" else (0.24 if style == "uzun" else 0.26))
+			# geniş hilalde (ağır) sıcak basamaklar bıçak ağzına sıkışır: hilal ak bir levhaya dönmesin
+			m.set_shader_parameter("band_in", 0.76 if style == "agir" else 0.62)
+			m.set_shader_parameter("core_in", 0.93 if style == "agir" else 0.86)
 		_mats[key] = m
 	material = _mats[key]
 
@@ -304,6 +367,15 @@ func add(base: Vector2, tip: Vector2) -> void:
 		var last: Array = _s[_s.size() - 1]
 		if (last[1] as Vector2).distance_to(tip) < 0.35:
 			return
+		if v31 and mode == SWEEP:
+			# v31: bıçak ucu neredeyse yerinde dönüyorsa (yere değip yaslanan bıçak: Player._ground_clamp) örnek alınmaz;
+			# yoksa hilal ucun çevresinde yelpaze gibi katlanıp düz kenarlı bir "bayrak" çiziyordu
+			var lv0: Vector2 = (last[1] as Vector2) - (last[0] as Vector2)
+			var nv0: Vector2 = tip - base
+			if lv0.length() > 1.0 and nv0.length() > 1.0:
+				var mv := (last[1] as Vector2).distance_to(tip)
+				if mv < maxf(1.5, nv0.length() * 0.09) and absf(wrapf(nv0.angle() - lv0.angle(), -PI, PI)) > 0.1:
+					return
 		if mode == SWEEP:
 			# hızlı savuruşta kabza çevresinde açıyla ara örnek (WeaponTrail ile aynı: "V" yok)
 			var lb: Vector2 = last[0]
@@ -380,8 +452,14 @@ func _process(delta: float) -> void:
 		_batch = 0
 	_prev_t = _t
 	_t += delta
-	while _s.size() > 0 and _t - float(_s[0][2]) > life:
+	var keep := life * (WASH_K if (v31 and wash) else 1.0)
+	while _s.size() > 0 and _t - float(_s[0][2]) > keep:
 		_s.pop_front()
+	if done and flick_n > 0 and _s.size() > 2:
+		_flick31()
+	if done and ring31 and _s.size() > 2:
+		ring31 = false
+		_ring31()
 	for f in _flecks:
 		f[3] += delta
 		f[1] = (f[1] as Vector2) * maxf(0.0, 1.0 - 3.2 * delta) + Vector2(0, 420.0 * delta)
@@ -470,13 +548,14 @@ func _vert(p: Vector2, u: float, v: float, age: float) -> void:
 	_vcol.append(Color(1, 1, 1, age))
 
 
-func _ribbon(layer: int, wmul: float, shift: float, u_shift: float, age_add: float, offs: Vector2 = Vector2.ZERO) -> void:
+func _ribbon(layer: int, wmul: float, shift: float, u_shift: float, age_add: float, offs: Vector2 = Vector2.ZERO, row := 0, lmul := 1.0) -> void:
 	## Bir fırça şeridi: her örnekte iç kenar, mürekkep dış kenarı ötesinde ışıma kenarı (v 0 .. 1).
+	## v31: row = silah_firca.png satırı (UV.x = u + 2 x satır, u 0 taze uç .. 1 kuyruk), lmul = ömür katı (yıkama)
 	var n := _s.size()
 	if n < 2:
 		return
 	if mode == PATH:
-		_ribbon_path(layer, wmul, u_shift, age_add, offs)
+		_ribbon_path(layer, wmul, u_shift, age_add, offs, row, lmul)
 		return
 	var start := _vp.size()
 	var lv := float(layer) * 2.0
@@ -493,9 +572,29 @@ func _ribbon(layer: int, wmul: float, shift: float, u_shift: float, age_add: flo
 	var w_last := 0.0
 	var age_last := 1.0
 	var ext := float(OUT_EXT.get(unsur, 0.3))   # v25: od hilalinde dış alev saçağı için geniş dış pay
+	# v31 katlanma sınırı: bıçak yönü, ucun yol aldığından hızlı dönüyorsa (yere yaslanan / bilekten dönen bıçak) iç
+	# kenar geriye süpürülür ve hilal kendi üstüne katlanıp sivri bir "gaga" çizerdi; o örneklerde genişlik ucun yolu /
+	# dönüş açısı ile sınırlanır (iki yandan yumuşatılarak)
+	var cap := PackedFloat32Array()
+	if v31 and mode == SWEEP:
+		cap.resize(n)
+		for i in n:
+			cap[i] = 1.0e9
+		for i in range(1, n):
+			var d0: Vector2 = (_s[i - 1][1] as Vector2) - (_s[i - 1][0] as Vector2)
+			var d1: Vector2 = (_s[i][1] as Vector2) - (_s[i][0] as Vector2)
+			var da := absf(wrapf(d1.angle() - d0.angle(), -PI, PI))
+			if da > 0.02:
+				var mv := (_s[i][1] as Vector2).distance_to(_s[i - 1][1] as Vector2)
+				cap[i] = minf(cap[i], mv * 0.95 / da)
+		for k in 2:
+			for i in n:
+				var lo := cap[maxi(0, i - 1)]
+				var hi := cap[mini(n - 1, i + 1)]
+				cap[i] = minf(cap[i], (lo + hi) * 0.5 + 0.5)
 	for i in n:
 		var s: Array = _s[i]
-		var age := clampf((_t - float(s[2])) / life + age_add, 0.0, 1.0)
+		var age := clampf((_t - float(s[2])) / (life * lmul) + age_add, 0.0, 1.0)
 		var base: Vector2 = s[0]
 		var tip: Vector2 = s[1]
 		var shrink := 1.0 - 0.6 * pow(clampf((age - er_delay) / (1.0 - er_delay), 0.0, 1.0), 1.4)
@@ -530,6 +629,8 @@ func _ribbon(layer: int, wmul: float, shift: float, u_shift: float, age_add: flo
 				prof *= lerpf(1.0, maxf(_bl_max, bl) / maxf(bl, 0.5), FORESHORT_KEEP)
 				prof *= lerpf(0.2, 1.0, smoothstep(0.0, lt, a1 - float(s[4])))
 			var w := maxf(w_frac * bl, min_w) * press * shrink * wmul * wk * lerpf(0.12, 1.0, tail) * prof
+			if not cap.is_empty():
+				w = minf(w, maxf(cap[i], min_w * 0.3) * wmul)
 			var c := tip + across * shift * bl + offs * (0.4 + 0.6 * age)
 			inner = c - across * w
 			outer = c + across * w * ext
@@ -549,12 +650,14 @@ func _ribbon(layer: int, wmul: float, shift: float, u_shift: float, age_add: flo
 			inner = c - nrm * hw
 			outer = c + nrm * hw * 1.4
 		var u := (float(s[4]) / 40.0) + _u_off + u_shift
+		if v31:
+			u = clampf((a1 - float(s[4])) / span, 0.0, 1.0) + 2.0 * float(row)
 		_vert(inner, u, lv + 0.0, age)
 		_vert(outer, u, lv + 1.0, age)
 		count += 1
 	# v23 kanca: uç, bıçağın kabza çevresindeki son dönüşünü kısa bir yay boyunca sürdürüp sivri bir noktada kapanır
 	# (Dead Cells hilalinin kıvrık ucu). Bıçak durunca (taze örnek yok) kanca söner.
-	if mode == SWEEP and n >= 3 and w_last > 0.0 and er_delay > 0.0:
+	if mode == SWEEP and n >= 3 and w_last > 0.0 and er_delay > 0.0 and not (v31 and style == "agir"):
 		var sl: Array = _s[n - 1]
 		var bn: Vector2 = sl[0]
 		var tn: Vector2 = sl[1]
@@ -576,15 +679,16 @@ func _ribbon(layer: int, wmul: float, shift: float, u_shift: float, age_add: flo
 					var dir := vv.normalized()
 					var pc := bn + vv + dir * shift * vn.length() / 0.65 + offs * (0.4 + 0.6 * age_last)
 					var hw := w_last * pow(1.0 - t, 1.4) + 0.1
-					_vert(pc - dir * hw, u0 + t * 0.05, lv + 0.0, age_last)
-					_vert(pc + dir * hw * ext, u0 + t * 0.05, lv + 1.0, age_last)
+					var uh := (2.0 * float(row)) if v31 else (u0 + t * 0.05)
+					_vert(pc - dir * hw, uh, lv + 0.0, age_last)
+					_vert(pc + dir * hw * ext, uh, lv + 1.0, age_last)
 					count += 1
 	for i in range(count - 1):
 		var a := start + i * 2
 		_vidx.append_array([a, a + 1, a + 2, a + 1, a + 3, a + 2])
 
 
-func _ribbon_path(layer: int, wmul: float, u_shift: float, age_add: float, offs: Vector2) -> void:
+func _ribbon_path(layer: int, wmul: float, u_shift: float, age_add: float, offs: Vector2, row := 0, lmul := 1.0) -> void:
 	## YOL şeridi (saplama, kırbaç): uç yolu Catmull-Rom ile yumuşatılır (seyrek örnekte köşe olmasın),
 	## enine yön yol normali; kırbaçta baş (en taze uç) iğne gibi incelir.
 	var n := _s.size()
@@ -606,9 +710,11 @@ func _ribbon_path(layer: int, wmul: float, u_shift: float, age_add: float, offs:
 	var m := P.size()
 	var start := _vp.size()
 	var lv := float(layer) * 2.0
+	var pa0 := float(P[0][3])
+	var pspan := maxf(float(P[m - 1][3]) - pa0, 0.001)
 	for i in m:
 		var e: Array = P[i]
-		var age := clampf((_t - float(e[1])) / life + age_add, 0.0, 1.0)
+		var age := clampf((_t - float(e[1])) / (life * lmul) + age_add, 0.0, 1.0)
 		var a: Vector2 = P[maxi(0, i - 1)][0]
 		var b: Vector2 = P[mini(m - 1, i + 1)][0]
 		var tan := (b - a).normalized() if a.distance_to(b) > 0.01 else _last_dir
@@ -624,6 +730,8 @@ func _ribbon_path(layer: int, wmul: float, u_shift: float, age_add: float, offs:
 		if wiggle > 0.0:
 			c += nrm * sin(float(e[3]) * 0.32 + _t * 26.0) * wiggle * (1.0 - age) * smoothstep(0.0, 0.4, float(i) / float(m))
 		var u := (float(e[3]) / 40.0) + _u_off + u_shift
+		if v31:
+			u = clampf(1.0 - (float(e[3]) - pa0) / pspan, 0.0, 1.0) + 2.0 * float(row)
 		_vert(c - nrm * hw, u, lv + 0.0, age)
 		_vert(c + nrm * hw * 1.4, u, lv + 1.0, age)
 	for i in range(m - 1):
@@ -636,7 +744,9 @@ func _draw() -> void:
 	_vuv.clear()
 	_vcol.clear()
 	_vidx.clear()
-	if _s.size() >= 2:
+	if _s.size() >= 2 and v31:
+		_draw31()
+	elif _s.size() >= 2:
 		if layered >= 1:
 			_ribbon(1, 1.35, 0.04, 0.31, 0.05)
 		_ribbon(0, 1.0, 0.0, 0.0, 0.0)
@@ -687,6 +797,73 @@ func _draw() -> void:
 	if _vidx.is_empty():
 		return
 	RenderingServer.canvas_item_add_triangle_array(get_canvas_item(), _vidx, _vp, _vcol, _vuv)
+
+
+func _flick31() -> void:
+	## v31 yay sonu: bıçak ucundan savuruş yönünde fırlayan mürekkep fiskeleri (önde iri damla, ardında küçükler;
+	## yarısı paletin renginde, yarısı sumi). Ağırda daha çok ve iri.
+	var n := _s.size()
+	var last: Array = _s[n - 1]
+	var tip: Vector2 = last[1]
+	var prev: Vector2 = _s[maxi(0, n - 4)][1]
+	var tan := (tip - prev).normalized() if prev.distance_to(tip) > 0.5 else _last_dir
+	var out := ((last[1] as Vector2) - (last[0] as Vector2)).normalized()
+	var big := 1.5 if style == "agir" else (0.75 if style == "hancer" else 1.0)
+	for k in flick_n:
+		var sp := _rng.randf_range(90.0, 230.0) * (1.0 - 0.08 * k)
+		var vel := tan.rotated(_rng.randf_range(-0.35, 0.35)) * sp + out * _rng.randf_range(10.0, 60.0) + Vector2(0, -30)
+		var sz := _rng.randf_range(0.9, 1.7) * big * (1.4 if k == 0 else 1.0)
+		_flecks.append([tip - out * _rng.randf_range(0.0, 4.0), vel, _rng.randf_range(0.22, 0.4), 0.0, sz, 0 if k % 2 == 0 else 1])
+	flick_n = 0
+
+
+func _ring31() -> void:
+	## v31 saplama halkası: mızrak ucunun çevresinde, saplama eksenine dik (yandan görülen) ince kuru elips + iğne parıltı
+	var n := _s.size()
+	var tip: Vector2 = _s[n - 1][1]
+	var a: Vector2 = _s[0][1]
+	var d := (tip - a).normalized() if a.distance_to(tip) > 1.0 else Vector2.RIGHT
+	var fx := InkFX.spawn(pal, tip - d * 3.0, 57, true)
+	if fx:
+		var big := 1.25 if style in ["mizrak", "uzun"] else 1.0
+		fx.el("ring_thin", Vector2.ZERO, d.angle(), Vector2(7.0, 22.0) * big, InkFX.V_DRY, 0.0, 0.05, 0.02, 0.2)
+		fx.el("ring_thin", -d * 7.0, d.angle() + 0.4, Vector2(5.0, 15.0) * big, InkFX.V_DRY, 0.03, 0.05, 0.02, 0.18)
+		fx.el("glint", d * 2.0, d.angle(), Vector2(16.0, 9.0) * big, InkFX.V_CUT, 0.0, 0.001, 0.03, 0.07)
+
+
+func _draw31() -> void:
+	## v31 katman düzeni (arkadan öne): sulu yıkama (duman, uzun ömür, hafif yükselir) → ağırda koyu kuru sürüntü →
+	## yankılar / iç yay → ana hilal → hançerin ikinci fiskesi → hız telleri. Hepsi aynı üçgen dizisinde.
+	var row := int(ROW31.get(style, 0))
+	var n := _s.size()
+	var ga: Vector2 = _s[0][1]
+	var gb: Vector2 = _s[n - 1][1]
+	var gd := (gb - ga).normalized() if ga.distance_to(gb) > 1.0 else Vector2.RIGHT
+	if wash:
+		# yıkama hilalin içine (kabza yanına) kayık ve savuruşun gerisinde kalır: hale gibi çevrelemez, iz bırakır
+		_ribbon(1, 1.08 if style != "agir" else 1.12, -0.16, 0.0, 0.0, Vector2(0, -6.0) - gd * 7.0, R_WASH, WASH_K)
+	if style == "agir":
+		_ribbon(1, 1.12, 0.03, 0.0, 0.15, Vector2.ZERO, 2)
+	if layered >= 2 and mode == SWEEP:
+		_ribbon(2, 0.34, 0.34, 0.0, 0.16, Vector2.ZERO, row)
+	if inner_arc and mode == SWEEP:
+		_ribbon(2, 0.5, -0.5, 0.0, 0.1, Vector2.ZERO, R_WASH)
+	if ghost:
+		_ribbon(2, 1.15, 0.0, 0.0, 0.1, -gd * 14.0 + Vector2(0, -9.0), row)
+	if echoes > 0 and mode == PATH:
+		for k in echoes:
+			_ribbon(2, 0.7 - 0.22 * k, 0.0, 0.0, 0.1 * (k + 1), -gd * (9.0 + 9.0 * k) + gd.orthogonal() * (3.5 * (k + 1) * (1 if k % 2 == 0 else -1)), row)
+	_ribbon(0, 1.0, 0.0, 0.0, 0.0, Vector2.ZERO, row)
+	if double and mode == SWEEP:
+		_ribbon(0, 0.42, -0.62, 0.0, 0.2, Vector2.ZERO, row)
+	elif double and mode == PATH:
+		_ribbon(0, 0.6, 0.0, 0.0, 0.18, gd.orthogonal() * 5.0 - gd * 2.0, row)
+	# hız telleri: hilalin dışında (bıçak ağzının biraz ötesinde) kıl inceliğinde kuru çizgiler; saplamada yolun iki yanında
+	for k in tels:
+		if mode == SWEEP:
+			_ribbon(5, 0.07, 0.06 + 0.07 * k, 0.0, 0.05 + 0.08 * k, Vector2.ZERO, R_TEL)
+		else:
+			_ribbon(5, 0.2, 0.0, 0.0, 0.05 * k, gd.orthogonal() * (6.0 if k % 2 == 0 else -6.0) - gd * 4.0, R_TEL)
 
 
 # ------------------------------------------------------------------ v20 unsur zerreleri

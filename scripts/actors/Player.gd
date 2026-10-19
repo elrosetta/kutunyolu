@@ -959,13 +959,26 @@ class BowString extends Node2D:
 	var perfect := false      # pencere açık: parıltı
 	var variant := "normal"
 	var tilt := 0.0           # v2: hedef yardımı eğimi (yay ve ok bu açıyla döner)
+	var pull := 0.0           # v31: gerilme (0..1): kiriş incelir, parlar, iki yanında titreşen gerilim telleri
 	var _ink_arrow: Sprite2D
 	var _ink_var := ""
 
 	func _draw_ink() -> void:
 		var pts := PackedVector2Array([top, nock, bot])
-		draw_polyline(pts, Color(0.05, 0.035, 0.04, 0.95), 0.95, true)
-		draw_polyline(pts, str_col, 0.38, true)
+		# v31 gerilim: kiriş gerildikçe incelir ve ışır; gezde küçük mürekkep düğümü; tam gerilmede iki yanında hafifçe
+		# titreşen soluk gerilim telleri (kirişin titreşimi)
+		var tens := clampf(pull, 0.0, 1.0)
+		var inkc := Color(0.05, 0.035, 0.04, 0.95)
+		if tens > 0.3:
+			var tt := Time.get_ticks_msec() / 1000.0
+			for sg: float in [-1.0, 1.0]:
+				var o := Vector2(0, sg * (0.55 + 0.35 * sin(tt * 95.0 + sg))) * tens
+				var tp := PackedVector2Array([top, nock + o, bot])
+				draw_polyline(tp, Color(str_col.r, str_col.g, str_col.b, 0.22 * tens), 0.3, true)
+		draw_polyline(pts, inkc, 0.95 - 0.2 * tens, true)
+		draw_polyline(pts, str_col.lerp(Color(1.2, 1.12, 0.95), 0.55 * tens), 0.38 + 0.06 * tens, true)
+		if tens > 0.05:
+			draw_circle(nock, 0.7 + 0.5 * tens, inkc)
 		# yaydaki ok: uçuştaki okla aynı mürekkep sprite'ı (gövdesi 24 birim), kuyruğu gezde
 		if arrow_on:
 			if _ink_arrow == null or _ink_var != variant:
@@ -4340,7 +4353,8 @@ func _melee_hits() -> void:
 			if first_hit and not lite:
 				SanatAnim.vurus(self, it, hp, hdir)   # v27: pençe izleri
 			if not lite:
-				FX.sparks(hp, hdir, wcol.lerp(Color.WHITE, 0.3), maxi(2, int(feel[3]) - 2), 150.0 + 60.0 * tier)
+				# v31: darbe parlaması ve yönlü sıçrantı vuruşu taşıdığından kıvılcım kıymıkları yarıya indi (okunurluk)
+				FX.sparks(hp, hdir, wcol.lerp(Color.WHITE, 0.3), maxi(1, int(feel[3]) / 2 - 1), 150.0 + 60.0 * tier)
 			if it.get("material", "") == "od_tasi" and not lite:
 				FX.fire(hp, 2 + tier, 0.28)
 			elif it.get("material", "") == "ayaz" and tier >= 1 and not lite:
@@ -5464,6 +5478,7 @@ func _update_bow(it: Dictionary, h: Vector2) -> void:
 	bow_str.ring = okc.ring_k()
 	bow_str.perfect = okc.in_perfect()
 	bow_str.tilt = tilt
+	bow_str.pull = pull if aim_t >= 0.0 else 0.0
 	bow_str.str_col = Color(0.95, 0.9, 0.78) if not bow_str.perfect else Color(1.0, 0.9, 0.55)
 	match String(it["id"]):
 		"akinci_yayi":

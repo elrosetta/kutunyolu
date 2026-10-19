@@ -14,6 +14,10 @@ extends Node2D
 
 const SHADER: Shader = preload("res://shaders/ink_fx.gdshader")
 const ATLAS: Texture2D = preload("res://assets/fx/ink/ink_fx.png")
+## v31 silah atlası (tools/artgen/silah_fx_ink.py; aynı kodlama): yönlü fırça sıçrantısı, tek karelik darbe parlaması,
+## iğne kesik, küt ezik, kritik hat darbesi + mühür, saplama halkası, ok saplanma / yay bırakışı / ok ucu parıltısı
+const ATLAS31 := "res://assets/fx/ink/silah_fx.png"
+const ATLAS31_JSON := "res://assets/fx/ink/silah_fx.json"
 
 ## Paletler (sRGB): mürekkep, çekirdek, gövde, kenar, sıcak
 const PALETTES := [
@@ -39,6 +43,10 @@ static var _pal_cache: Dictionary = {}
 static var _mats: Dictionary = {}
 static var _shapes: Dictionary = {}
 static var _atlas_size := Vector2(1024, 1024)
+static var _shapes31: Dictionary = {}
+static var _yuk_t := -9.0   # v31 kalabalık: vuruş sıçrantısı penceresinin başı (gerçek zaman)
+static var _yuk_n := 0      # v31: pencerede istenen vuruş sıçrantısı sayısı
+static var butce := true    # v31: kalabalık bütçesi (vitrin / test ızgarası kapatır)
 
 
 static func palette(i: int) -> Array:
@@ -65,7 +73,8 @@ static func weapon_pal(it: Dictionary) -> int:
 static func pal_from_color(c: Color) -> int:
 	## Eski çağrıların silah/efekt renginden palet: doygun olmayan (beyaz, metal) renkler kızıl mürekkep.
 	if c.s < 0.295:
-		return 0
+		# v31: soluk gök mavisi (şimşek, buz ışığı) kızıl mürekkebe düşmesin
+		return 5 if (c.b > c.r + 0.18 and c.v > 0.6) else 0
 	var h := c.h
 	if h < 0.04 or h > 0.94:
 		return 0
@@ -84,19 +93,20 @@ static func pal_from_color(c: Color) -> int:
 	return 6
 
 
-static func _mat(p: int) -> ShaderMaterial:
-	if not _mats.has(p):
+static func _mat(p: int, a31 := false) -> ShaderMaterial:
+	var key: int = p + (1000 if a31 else 0)
+	if not _mats.has(key):
 		var m := ShaderMaterial.new()
 		m.shader = SHADER
-		m.set_shader_parameter("atlas", Data.tex_full(ATLAS.resource_path))   # HD paketi varsa 2 kat (UV ile örneklenir)
+		m.set_shader_parameter("atlas", Data.tex_full(ATLAS31 if a31 else ATLAS.resource_path))   # HD paketi varsa 2 kat (UV ile örneklenir)
 		var pc: Array = palette(p)
 		m.set_shader_parameter("c_ink", pc[0])
 		m.set_shader_parameter("c_core", pc[1])
 		m.set_shader_parameter("c_body", pc[2])
 		m.set_shader_parameter("c_rim", pc[3])
 		m.set_shader_parameter("c_hot", pc[4])
-		_mats[p] = m
-	return _mats[p]
+		_mats[key] = m
+	return _mats[key]
 
 
 static func _shape(n: String) -> Rect2:
@@ -109,6 +119,15 @@ static func _shape(n: String) -> Rect2:
 	return _shapes.get(n, Rect2(0, 0, 256, 256))
 
 
+static func _shape31(n: String) -> Rect2:
+	if _shapes31.is_empty():
+		var j: Dictionary = Data.load_json(ATLAS31_JSON)
+		for k in j.get("shapes", {}):
+			var r: Array = j["shapes"][k]
+			_shapes31[k] = Rect2(float(r[0]), float(r[1]), float(r[2]), float(r[3]))
+	return _shapes31.get(n, Rect2(0, 0, 256, 256))
+
+
 # ------------------------------------------------------------------ düğüm
 enum { V_SPLASH, V_STAMP, V_CUT, V_DRY }
 const R0 := 0.62   # ilk karedeki açılış payı
@@ -119,13 +138,15 @@ var auto_pal := false      # paleti ilk karelerde oyuncunun (aynı karede başla
 var _auto_n := 0
 var follow: Node2D
 var _follow_off := Vector2.ZERO
+var a31 := false           # v31: silah atlası (silah_fx.png)
 
 
-static func spawn(p: int, pos: Vector2, z := 58) -> InkFX:
+static func spawn(p: int, pos: Vector2, z := 58, atlas31 := false) -> InkFX:
 	if FX.root == null:
 		return null
 	var n := InkFX.new()
-	n.material = _mat(p)
+	n.a31 = atlas31
+	n.material = _mat(p, atlas31)
 	n.position = pos
 	n.z_index = z
 	FX.root.add_child(n)
@@ -142,7 +163,7 @@ func _process(delta: float) -> void:
 		_auto_n += 1
 		var t := InkTrail.active
 		if t != null and is_instance_valid(t) and t._s.size() > 0 and (t._s[t._s.size() - 1][1] as Vector2).distance_to(global_position) < 90.0:
-			material = _mat(t.pal)
+			material = _mat(t.pal, a31)
 			auto_pal = false
 		elif _auto_n > 12:
 			auto_pal = false
@@ -178,7 +199,7 @@ func _draw() -> void:
 		var ds := clampf((t - t1) / maxf(L - t1, 0.001), 0.0, 1.0)
 		ds = ds * (0.6 + 0.4 * ds)
 		var sz: Vector2 = e["z"] * (0.82 + 0.18 * rv + 0.05 * ds)
-		var r := _shape(String(e["s"]))
+		var r := _shape31(String(e["s"])) if a31 else _shape(String(e["s"]))
 		var an: Vector2 = e["a"]
 		var rot := float(e["r"])
 		var off: Vector2 = e["o"]
@@ -216,71 +237,103 @@ static func _near_player_swing(pos: Vector2) -> bool:
 
 
 static func hit(kind: String, pos: Vector2, dir: Vector2, p: int, tier := 1, size := 1.0) -> InkFX:
-	## Vuruş sıçrantısı. tier 0 hafif (küçük yıldız + ince kesik), 1 orta, 2 büyük (+ arkaya sıçrantı, damlalar).
+	## Vuruş sıçrantısı. tier 0 hafif, 1 orta, 2 büyük. v31 (silah atlası): her vuruş üç parça —
+	##   1) TEK KARELİK darbe parlaması (ak-sıcak iğne yıldızı, uzun ekseni savuruş yönünde; ~1 kare + hitstop),
+	##   2) türün imzası: kesikte iğne uçlu ince kesik, küt'te ezik sumi lekesi, saplamada yarık kesik + saplama halkası,
+	##      hançerde ikiz fiske, büyüde ince halka,
+	##   3) vuruş yönünde fırlayan yönlü fırça sıçrantısı (kökte sumi, öne fırça dili + damlalar); kademe 2'de ek damla
+	##      konisi. Boylar v22 okunurluğuna göre ölçülü (düşmanın gövdesini örtmez).
 	var near := _near_player_swing(pos)
 	if near:
 		p = InkTrail.active.pal
 		if kind in ["cut", "spark"] and InkTrail.active.style == "hancer":
 			kind = "claw"
-	var n := spawn(p, pos)
+	var n := spawn(p, pos, 58, true)
 	if n == null:
 		return null
 	n.auto_pal = not near
 	var hd := dir.normalized() if dir.length() > 0.01 else Vector2.RIGHT
-	# v22: sıçrantılar ~%15 küçük; hızlı ardışık vuruşta (FX.hit_k < 1) en hafif kademe ve daha da küçük
+	# v22: hızlı ardışık vuruşta (FX.hit_k < 1) en hafif kademe ve daha küçük
 	if FX.in_hit and FX.hit_k < 0.99:
 		tier = 0
 		size *= lerpf(0.55, 1.0, FX.hit_k)
-	var base := 19.0 * size * (1.0 + 0.24 * float(tier))
-	var rng := randf() * TAU
+	# v31 kalabalık sahne: 0,1 sn içinde ilk 2 sıçrantı tam; 3-5. en hafif kademe ve küçük; sonrakiler yalnız küçük
+	# parlama (çok düşmanlı sanat / bitiriş / alan hasarında ekran mürekkep yığınına dönmesin)
+	var c := _kalabalik()
+	if c > 5:
+		var fl := minf(17.0 * size, 20.0)
+		n.el("flash", Vector2.ZERO, hd.angle(), Vector2(fl * 1.4, fl * 0.6), V_CUT, 0.0, 0.001, 0.02, 0.05)
+		return n
+	if c > 2:
+		tier = 0
+		size *= 0.75
+	var base := 17.0 * size * (1.0 + 0.2 * float(tier))
+	var sd := _swing_dir(pos, hd)
+	var flip := 1.0 if randf() < 0.5 else -1.0
+	var sp := "splash_a" if randf() < 0.5 else "splash_b"
+	# 1) darbe parlaması: tek kare tam, ikinci karede biter (zaman ölçekli: vuruş duraklamasında donmuş karede okunur)
+	var fa := sd.angle() if kind in ["cut", "spark", "claw"] else hd.angle()
+	var fk := minf(base, 24.0)   # parlama boyu sınırlı (ağır kritikte ekranı kaplamasın)
+	n.el("flash", Vector2.ZERO, fa, Vector2(fk * 2.0, fk * (0.95 if kind != "pierce" else 0.7)), V_CUT, 0.0, 0.001, 0.03, 0.06)
 	match kind:
 		"blunt":
-			# v22: küt darbe yıldızı ve halkası küçüldü (1,35 / 1,9 → 1,15 / 1,6), koyu damla lekesi yalnızca büyük vuruşta
-			n.el("burst_a", Vector2.ZERO, rng, Vector2.ONE * base * 1.15, V_SPLASH, 0.0, 0.05, 0.05, 0.3)
-			n.el("ring", Vector2.ZERO, rng, Vector2(base * 1.6, base * 1.6), V_DRY, 0.01, 0.07, 0.0, 0.22)
-			if tier >= 2:
-				n.el("drops", hd * base * 0.3, hd.angle(), Vector2.ONE * base * 1.3, V_STAMP, 0.02, 0.08, 0.06, 0.4)
+			n.el("blunt", -hd * base * 0.15, hd.angle(), Vector2(base * 1.45, base * 1.45 * flip), V_SPLASH, 0.0, 0.05, 0.05, 0.3)
+			n.el("ring_thin", Vector2.ZERO, randf() * TAU, Vector2.ONE * base * 1.5, V_DRY, 0.015, 0.06, 0.0, 0.2)
 		"pierce":
-			n.el("cut_b", hd * base * 0.2, hd.angle(), Vector2(base * 2.6, base * 0.65), V_CUT, 0.0, 0.035, 0.06, 0.24)
-			n.el("burst_dir", hd * base * 0.15, hd.angle(), Vector2.ONE * base * 1.1, V_SPLASH, 0.01, 0.05, 0.05, 0.32)
+			n.el("cut_split", -hd * base * 0.4, hd.angle(), Vector2(base * 3.0, base * 0.42 * flip), V_CUT, 0.0, 0.03, 0.05, 0.22)
+			n.el(sp, Vector2.ZERO, hd.angle(), Vector2(base * 1.45, base * 1.2 * flip), V_SPLASH, 0.01, 0.05, 0.05, 0.3)
+			if tier >= 1:
+				# saplama halkası: vuruş eksenine dik, yandan görülen elips (mızrak ucunun çevresinde açılan basınç halkası)
+				n.el("ring_thin", hd * base * 0.15, hd.angle(), Vector2(base * 0.55, base * 1.7), V_DRY, 0.0, 0.05, 0.02, 0.2)
 		"magic":
-			n.el("burst_b", Vector2.ZERO, rng, Vector2.ONE * base * 1.3, V_SPLASH, 0.0, 0.05, 0.05, 0.32)
-			n.el("ring", Vector2.ZERO, rng, Vector2.ONE * base * 1.7, V_SPLASH, 0.0, 0.08, 0.0, 0.26)
-			n.el("shard", Vector2.ZERO, rng * 0.2, Vector2.ONE * base * 1.0, V_CUT, 0.0, 0.03, 0.03, 0.16)
+			n.el("ring_thin", Vector2.ZERO, randf() * TAU, Vector2.ONE * base * 1.8, V_SPLASH, 0.0, 0.08, 0.0, 0.26)
+			n.el("burst_ink", Vector2.ZERO, randf() * TAU, Vector2.ONE * base * 1.1, V_SPLASH, 0.0, 0.04, 0.05, 0.28)
 		"claw":
-			var sd := _swing_dir(pos, hd)
-			n.el("burst_b", Vector2.ZERO, rng, Vector2.ONE * base * 0.9, V_SPLASH, 0.0, 0.04, 0.04, 0.26)
-			n.el("claw", Vector2.ZERO, sd.angle() + PI * 0.25, Vector2.ONE * base * 1.5, V_CUT, 0.0, 0.03, 0.06, 0.22)
+			n.el("twin_cut", Vector2.ZERO, sd.angle(), Vector2(base * 1.7, base * 1.5 * flip), V_CUT, 0.0, 0.025, 0.05, 0.2)
+			n.el(sp, Vector2.ZERO, hd.angle(), Vector2(base * 1.1, base * 0.9 * flip), V_SPLASH, 0.01, 0.04, 0.04, 0.24)
 		_:
-			# cut / spark: savuruş yönünde kesik izi + yönlü yıldız
-			var sd := _swing_dir(pos, hd)
-			var cl := base * (1.9 if tier == 0 else 2.2)
-			n.el("burst_dir", hd * base * 0.15, hd.angle(), Vector2.ONE * base * (0.9 if tier == 0 else 1.05), V_SPLASH, 0.0, 0.045, 0.05, 0.28 + 0.04 * tier)
-			n.el("cut_a" if tier > 0 else "cut_b", Vector2.ZERO, sd.angle(), Vector2(cl, cl * 0.25), V_CUT, 0.0, 0.03, 0.06 + 0.02 * tier, 0.22 + 0.05 * tier)
-	if tier >= 1 and kind != "blunt":
-		var a := hd.angle()
-		var sg := 1.0 if randf() < 0.5 else -1.0
-		n.el("dab_a" if sg > 0.0 else "dab_b", hd.rotated(0.9 * sg) * base * 0.35, a + 0.9 * sg + randf_range(-0.3, 0.3), Vector2.ONE * base * 0.7, V_SPLASH, 0.02, 0.05, 0.05, 0.3)
+			# cut / spark: savuruş yönünde iğne kesik + vuruş yönünde fırça sıçrantısı
+			var cl := base * (1.9 if tier == 0 else 2.3)
+			n.el("cut_thin" if tier == 0 else "cut_split", Vector2.ZERO, sd.angle(), Vector2(cl, cl * 0.13 * flip), V_CUT, 0.0, 0.025, 0.05 + 0.02 * tier, 0.2 + 0.04 * tier)
+			n.el(sp, -hd * base * 0.1, hd.angle() + randf_range(-0.15, 0.15), Vector2(base * (1.25 if tier == 0 else 1.55), base * (1.0 if tier == 0 else 1.25) * flip), V_SPLASH, 0.0, 0.045, 0.05, 0.27 + 0.04 * tier)
 	if tier >= 2:
-		n.el("spray", hd * base * 0.55, hd.angle(), Vector2.ONE * base * 1.4, V_SPLASH, 0.01, 0.07, 0.08, 0.38)
+		n.el("drops_dir", hd * base * 0.2, hd.angle() + randf_range(-0.2, 0.2), Vector2(base * 1.8, base * 1.4 * flip), V_STAMP, 0.015, 0.07, 0.07, 0.38)
 	return n
 
 
+static func _kalabalik() -> int:
+	## v31: son 0,1 sn'de (gerçek zaman) istenen vuruş / kritik mürekkebi sayısı (bu istek dahil)
+	if not butce:
+		return 1
+	var now := Time.get_ticks_msec() / 1000.0
+	if now - _yuk_t > 0.1:
+		_yuk_t = now
+		_yuk_n = 0
+	_yuk_n += 1
+	return _yuk_n
+
+
 static func stamp(pos: Vector2, p: int = -1) -> InkFX:
-	## Kritik: kızıl patlama + siyah mürekkep damgası + beyaz-sıcak kesik (darbe karesinde de okunur).
+	## Kritik (v31): tek karelik büyük parlama + savuruş yönünde kalın sumi hat darbesi (basılmış baş, kuru kuyruk) +
+	## köşede küçük kızıl mühür (oyulmuş tamga). Hepsi ölçülü boyda; mühür biraz daha uzun kalır.
 	var near := _near_player_swing(pos)
 	if p < 0:
 		p = InkTrail.active.pal if near else player_pal
-	var n := spawn(p, pos, 59)
+	var n := spawn(p, pos, 59, true)
 	if n == null:
 		return null
 	n.auto_pal = not near
-	var rng := randf() * TAU
 	var sd := _swing_dir(pos, Vector2.RIGHT)
-	# v22: kritik damgası bir tık küçük ve kısa (44/30/66 → 36/26/56)
-	n.el("burst_b", Vector2.ZERO, rng, Vector2.ONE * 36.0, V_SPLASH, 0.0, 0.05, 0.07, 0.32)
-	n.el("stamp", Vector2.ZERO, rng + 1.3, Vector2.ONE * 26.0, V_STAMP, 0.0, 0.035, 0.12, 0.38)
-	n.el("cut_a", Vector2.ZERO, sd.angle(), Vector2(56.0, 14.0), V_CUT, 0.0, 0.03, 0.08, 0.26)
+	var a := sd.angle()
+	n.el("flash", Vector2.ZERO, a, Vector2(54.0, 26.0), V_CUT, 0.0, 0.001, 0.035, 0.07)
+	n.el("cut_split", Vector2.ZERO, a, Vector2(62.0, 8.0), V_CUT, 0.0, 0.02, 0.07, 0.22)
+	if _kalabalik() > 2:
+		return n   # v31 kalabalık: aynı anda çok kritikte yalnız parlama + kesik (sıçrantı ve mühür yok)
+	n.el("splash_b", -sd * 3.0, a + 0.25, Vector2(34.0, 28.0), V_SPLASH, 0.01, 0.04, 0.06, 0.32)
+	# mühür: vermilyon (palet 0) ayrı düğümde, darbenin üstünde-yanında; hafif eğik, sonradan basılır
+	var s := spawn(0, pos + sd.orthogonal() * -14.0 + Vector2(0, -10), 60, true)
+	if s:
+		s.el("seal", Vector2.ZERO, randf_range(-0.25, 0.25), Vector2.ONE * 15.0, V_SPLASH, 0.05, 0.03, 0.22, 0.42)
 	return n
 
 
@@ -324,11 +377,14 @@ static func ring(pos: Vector2, radius: float, p: int, life := 0.3, aspect := 1.0
 
 
 static func kill(pos: Vector2, big := false) -> InkFX:
-	## Öldürücü vuruş: siyah mürekkep patlaması + damlalar (kill_flash yerine).
-	var n := spawn(player_pal, pos, 58)
+	## Öldürücü vuruş (v31 silah atlası): ezik sumi lekesi + vuruş yönsüz damla konisi (iki yana) + tek karelik parlama.
+	var n := spawn(player_pal, pos, 58, true)
 	if n == null:
 		return null
 	var s := 1.4 if big else 1.0
-	n.el("burst_a", Vector2.ZERO, randf() * TAU, Vector2.ONE * 46.0 * s, V_STAMP, 0.0, 0.05, 0.1, 0.45)
-	n.el("drops", Vector2.ZERO, randf() * TAU, Vector2.ONE * 64.0 * s, V_STAMP, 0.02, 0.1, 0.1, 0.55)
+	var a := randf() * TAU
+	n.el("flash", Vector2.ZERO, a, Vector2(46.0, 24.0) * s, V_CUT, 0.0, 0.001, 0.03, 0.06)
+	n.el("blunt", Vector2.ZERO, a, Vector2.ONE * 40.0 * s, V_STAMP, 0.0, 0.05, 0.1, 0.42)
+	n.el("drops_dir", Vector2.ZERO, a + PI * 0.5, Vector2(44.0, 34.0) * s, V_STAMP, 0.02, 0.08, 0.1, 0.5)
+	n.el("drops_dir", Vector2.ZERO, a - PI * 0.5, Vector2(40.0, -30.0) * s, V_SPLASH, 0.03, 0.08, 0.1, 0.46)
 	return n

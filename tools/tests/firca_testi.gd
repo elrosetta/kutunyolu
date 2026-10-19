@@ -107,6 +107,9 @@ func _kombo() -> void:
 				var ph := String(SanatAnim._phase(pl)[0]) if pl.atk.has("art") else String(pl.atk.get("phase", ""))
 				print("[firca] faz %s %d %d %s %s" % [id, n, swings, ph, String(pl.atk["c"].get("s", ""))])
 			await _crop_snap(pl, "%s/%s_%03d.png" % [snap_dir, id, n])
+			# v31: izin görünür örnek sayısı (kontak sayfası izli kareleri seçer)
+			var tr := InkTrail.active
+			print("[firca] iz %s %d %d" % [id, n, tr._s.size() if tr != null and is_instance_valid(tr) and tr.visible else 0])
 			if swings >= want and pl.atk.is_empty():
 				break
 		Input.action_release("saldiri1")

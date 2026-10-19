@@ -235,8 +235,9 @@ func _draw() -> void:
 						hair2.append(q - nn * w * 0.5)
 					draw_polyline(hair, Color(INK, 0.45 * f), 0.7, true)
 					draw_polyline(hair2, Color(INK, 0.35 * f), 0.6, true)
-				# iç kenarda silah renginde ince ışık
-				draw_polyline(b, Color(col.lightened(0.3), 0.4 * f), 0.8, true)
+				# iç kenarda silah renginde ince ışık (v31: iki noktadan kısa yolda çizilmez)
+				if b.size() >= 2:
+					draw_polyline(b, Color(col.lightened(0.3), 0.4 * f), 0.8, true)
 		"pence":
 			for e in els:
 				if _t < float(e["d"]):

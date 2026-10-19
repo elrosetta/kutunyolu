@@ -8,6 +8,9 @@ extends Node2D
 ## İz ayrı bir düğümdür (FX.root altında): ok saplanınca / düşmana değip yok olunca iz bir anda kaybolmaz, kalan
 ## noktalar yaşlanıp kuyruktan başa doğru incelerek erir (eskiden iz okla birlikte siliniyordu, hızlı okta
 ## neredeyse hiç görünmüyordu). Çizim tek üçgen şeridi + shaders/ok_iz.gdshader (kenar yumuşatma piksel genişliğinden).
+## v31: iz başın hemen arkasında bir tık dolgun (basınç) sonra kıl inceliğine iner; güçlü atışta (tam gerilme, unsur)
+## izin iki yanında hafifçe açılan iki kıl inceliğinde hava teli; ok ucunda titreşen küçük iğne yıldızı (unsur renginde
+## parıltı, unsursuzda soluk çelik) — hepsi aynı çizim çağrısında.
 
 const AGE := 0.07                 # bir nokta bu kadar yaşayınca düşer (iz boyu ~ hız x AGE)
 const IZ_SHADER: Shader = preload("res://shaders/ok_iz.gdshader")
@@ -137,7 +140,7 @@ func _draw() -> void:
 		var nrm := Vector2(-d.y, d.x)
 		var age := clampf((_t - float(_pts[i][1])) / AGE, 0.0, 1.0)
 		var u := maxf(age, float(i) / float(m - 1) * 0.35)
-		var hw := w * (1.0 - 0.8 * u)
+		var hw := w * (1.0 - 0.8 * u) * (1.0 + 0.35 * (1.0 - smoothstep(0.0, 0.22, u)) * smoothstep(0.0, 0.05, u))
 		var gj := g + nrm * float(_jit[i]) * crackle * (1.0 - u * 0.5) if i > 0 else g
 		pts.append(gj + nrm * hw)
 		pts.append(gj - nrm * hw)
@@ -150,4 +153,40 @@ func _draw() -> void:
 			var s := (i - 1) * 2
 			idx.append_array([s, s + 1, s + 2, s + 1, s + 3, s + 2])
 		prev = g
+	# hava telleri (güçlü atış): izin iki yanında kuyruğa doğru açılan kıl inceliğinde çizgiler
+	if w >= 0.42 or unsur != "":
+		for sgn: float in [-1.0, 1.0]:
+			var st := pts.size()
+			var cnt := 0
+			for i in range(0, m, 2):
+				var g2: Vector2 = _pts[i][0]
+				var age2 := clampf((_t - float(_pts[i][1])) / AGE, 0.0, 1.0)
+				var u2 := maxf(age2, float(i) / float(m - 1) * 0.35)
+				var off := Vector2(-_dir.y, _dir.x) * sgn * (w * 2.2 + u2 * 3.0)
+				var hw2 := 0.16 * (1.0 - u2)
+				var nr2 := Vector2(-_dir.y, _dir.x)
+				pts.append(g2 + off + nr2 * hw2)
+				pts.append(g2 + off - nr2 * hw2)
+				uvs.append(Vector2(float(i) * 0.37, 0.0))
+				uvs.append(Vector2(float(i) * 0.37, 1.0))
+				var c2 := Color(col.r, col.g, col.b, clampf(0.25 + u2 * 1.2, 0.0, 1.0))
+				cols.append(c2)
+				cols.append(c2)
+				cnt += 1
+			for j in cnt - 1:
+				var q := st + j * 2
+				idx.append_array([q, q + 1, q + 2, q + 1, q + 3, q + 2])
+	# ok ucu parıltısı (yalnızca uçarken)
+	if not _stopped and head_back >= 6.0 and host != null and is_instance_valid(host):
+		var tipp: Vector2 = host.global_position + _dir * (5.0 + head_back * 0.8)
+		var gs := 3.6 * (0.85 + 0.25 * sin(_t * 47.0)) * (1.25 if (w >= 0.42 or unsur != "") else 0.9)
+		var gx := _dir * gs * 1.6
+		var gy := Vector2(-_dir.y, _dir.x) * gs
+		var gk := 0.55 if unsur == "" else 1.1
+		var gc := Color(col.r * 1.6, col.g * 1.6, col.b * 1.6, gk) if unsur != "" else Color(1.2, 1.15, 1.05, gk)
+		var st2 := pts.size()
+		pts.append_array([tipp - gx - gy, tipp + gx - gy, tipp - gx + gy, tipp + gx + gy])
+		uvs.append_array([Vector2(0, 2), Vector2(1, 2), Vector2(0, 3), Vector2(1, 3)])
+		cols.append_array([gc, gc, gc, gc])
+		idx.append_array([st2, st2 + 1, st2 + 2, st2 + 1, st2 + 3, st2 + 2])
 	RenderingServer.canvas_item_add_triangle_array(get_canvas_item(), idx, pts, cols, uvs)

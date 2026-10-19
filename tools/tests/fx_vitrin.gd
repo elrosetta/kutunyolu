@@ -131,5 +131,29 @@ func _run() -> void:
 	await _snap("c_1")
 	await _wait(0.6)
 	await _snap("c_2")
+	# --- D (v31): vuruş mürekkebi ızgarası — satır: kesik k0 / k1 / k2, küt, saplama, hançer, büyü, kritik, öldürüş;
+	# sütun: palet 0 kızıl, 2 ayaz, 5 yıldırım, 1 od. 1. kare (tek karelik parlama), 4. kare ve 10. kare çekilir.
+	await _wait(1.6)
+	InkFX.butce = false   # ızgara 36 vuruşu aynı karede ister: kalabalık bütçesi kapalı (her türün tam görünüşü)
+	var kinds := [["cut", 0], ["cut", 1], ["cut", 2], ["blunt", 1], ["pierce", 1], ["claw", 1], ["magic", 1], ["stamp", 0], ["kill", 0]]
+	var pals := [0, 2, 5, 1]
+	for i in kinds.size():
+		for j in pals.size():
+			var p := c + Vector2(-210.0 + 52.0 * float(i), -150.0 + 46.0 * float(j))
+			var kd: Array = kinds[i]
+			if kd[0] == "stamp":
+				InkFX.stamp(p, pals[j])
+			elif kd[0] == "kill":
+				InkFX.player_pal = pals[j]
+				InkFX.kill(p, false)
+			else:
+				InkFX.hit(String(kd[0]), p, Vector2(1, -0.25), pals[j], int(kd[1]), 1.0)
+	await get_tree().process_frame
+	await _snap("d_0")
+	await get_tree().process_frame
+	await get_tree().process_frame
+	await _snap("d_1")
+	await _wait(0.1)
+	await _snap("d_2")
 	print("[vitrin] bitti")
 	get_tree().quit()

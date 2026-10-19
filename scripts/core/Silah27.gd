@@ -1242,13 +1242,14 @@ func _draw() -> void:
 			if not is_instance_valid(o):
 				continue
 			var c: Vector2 = o.center()
-			draw_arc(c, 7.0 + 1.5 * sin(_t * 8.0 + i), _t * 4.0, _t * 4.0 + TAU * 0.8, 14, Color(INK, 0.8 * fade), 3.2, true)
-			draw_arc(c, 7.0 + 1.5 * sin(_t * 8.0 + i), _t * 4.0, _t * 4.0 + TAU * 0.8, 14, Color(0.6, 0.72, 1.0, fade), 1.5, true)
+			# v31: bağlının çevresinde dönen hat fırçası ensō'su (kalın-ince, baş basılı, kuyruk kuru)
+			var er := 7.0 + 1.5 * sin(_t * 8.0 + i)
+			var ep := SilahCizim.yay(c, Vector2(er, er * 0.82), _t * 4.0, _t * 4.0 + TAU * 0.8, 18)
+			var ew := SilahCizim.kalem(ep, 1.0, 0.4, 0.15, 0.5, 0.35)
+			SilahCizim.serit(self, ep, _wmul(ew, 2.1), Color(INK, 0.85 * fade))
+			SilahCizim.serit(self, ep, _wmul(ew, 1.0), Color(0.62, 0.74, 1.0, fade), Color(0.95, 0.97, 1.2, fade))
 			if i > 0 and is_instance_valid(m[0]):
-				var j := _jag(m[0].center(), c, 9, 3.0, float(i))
-				draw_polyline(j, Color(INK, 0.85 * fade), 3.0, true)
-				draw_polyline(j, Color(0.62, 0.74, 1.0, fade), 1.4, true)
-				draw_polyline(_jag(m[0].center(), c, 9, 1.2, float(i) + 4.0), Color(0.95, 0.97, 1.0, 0.7 * fade), 0.6, true)
+				_chain31(m[0].center(), c, float(i), fade)
 	# Kam Küzgüsü: gün ışını (koyu mürekkep kenar, altın gövde, beyaz çekirdek; ısındıkça kızarır)
 	if k_on:
 		var heat := clampf(k_heat / 100.0, 0.0, 1.0)
@@ -1257,23 +1258,7 @@ func _draw() -> void:
 		var w := 3.0 + 3.2 * rk
 		var a := k_from
 		var b := k_end
-		var d := b - a
-		var nrm := Vector2(-d.y, d.x).normalized()
-		var n := maxi(4, int(d.length() / 14.0))
-		var edge := PackedVector2Array()
-		var core := PackedVector2Array()
-		for i in n + 1:
-			var k := float(i) / float(n)
-			var wob := sin(k * 18.0 - _t * 40.0) * (0.6 + 1.2 * rk) * (1.0 - absf(k - 0.5))
-			edge.append(a + d * k + nrm * wob)
-			core.append(a + d * k + nrm * wob * 0.5)
-		draw_polyline(edge, INK, w + 3.2, true)
-		draw_polyline(edge, body, w, true)
-		draw_polyline(core, Color(1.0, 0.98, 0.9), maxf(1.0, w * 0.35), true)
-		draw_circle(b, w * 1.3 + 2.0 * sin(_t * 30.0), INK)
-		draw_circle(b, w * 1.1, body)
-		draw_circle(b, w * 0.5, Color(1.0, 0.98, 0.9))
-		draw_circle(a, 3.0 + 1.0 * rk, Color(1.0, 0.95, 0.75, 0.9))
+		_beam31(a, b, w, rk, heat, body)
 	# Küzgü ısı göstergesi / Tatar kurma çubuğu (başın üstünde)
 	var sec := pl.slot(pl.sec_slot) if pl.sec_slot != "" else {}
 	var sid := String(sec.get("id", ""))
@@ -1295,6 +1280,105 @@ func _draw() -> void:
 		draw_line(gp + Vector2(w0 * q2, -2.5), gp + Vector2(w0 * q2, 5.5), Color(1, 1, 1), 1.2, true)
 	if t_flash > 0.0 and sid == "tatar_yayi":
 		draw_arc(gp + Vector2(14, 1.5), 10.0 + (1.0 - t_flash) * 10.0, 0.0, TAU, 20, Color(t_flash_col, t_flash), 1.6, true)
+
+
+## v31 Kam Küzgüsü ışını: aynadan basılarak çıkan fırça hattı. Koyu sumi kontur (aynada kalın, uca doğru incelir)
+## + ışın boyunca akan enerji nabızları (gövde kalınlaşıp incelir) + ışının çevresine sarılan iki ince güneş teli
+## (sarmal) + ak-sıcak çekirdek; uçta dönen, boyu titreyen kısa fırça dilleri (yanma) ve aynada parlak öz.
+func _beam31(a: Vector2, b: Vector2, w: float, rk: float, heat: float, body: Color) -> void:
+	var d := b - a
+	var L := d.length()
+	if L < 2.0:
+		return
+	var nrm := Vector2(-d.y, d.x) / L
+	var n := maxi(12, int(L / 3.5))
+	var mid := PackedVector2Array()
+	var wi := PackedFloat32Array()
+	var wb := PackedFloat32Array()
+	var wc := PackedFloat32Array()
+	for i in n + 1:
+		var k := float(i) / float(n)
+		var wob := sin(k * 8.0 - _t * 26.0) * (0.4 + 0.8 * rk) * (1.0 - absf(k - 0.5))
+		mid.append(a + d * k + nrm * wob)
+		var pulse := 1.0 + 0.22 * sin(k * L * 0.16 - _t * 34.0)
+		var press := 1.0 + 0.45 * (1.0 - smoothstep(0.0, 0.12, k))     # aynada basılı baş
+		var tip := 1.0 - 0.25 * smoothstep(0.75, 1.0, k)
+		wi.append((w * 0.5 + 1.5) * press * tip * pulse)
+		wb.append(w * 0.5 * press * tip * pulse)
+		wc.append(maxf(0.45, w * 0.17) * pulse)
+	SilahCizim.serit(self, mid, wi, INK)
+	SilahCizim.serit(self, mid, wb, body, body.lerp(Color(1.0, 0.95, 0.8), 0.25))
+	for h in 2:
+		var hp := PackedVector2Array()
+		var hw := PackedFloat32Array()
+		for i in n + 1:
+			var k := float(i) / float(n)
+			var ph := k * L * 0.09 - _t * 22.0 + float(h) * PI
+			hp.append(mid[i] + nrm * sin(ph) * (w * 0.62 + 0.8))
+			hw.append(0.62 * (0.5 + 0.5 * cos(ph)) * (1.0 - smoothstep(0.85, 1.0, k)))
+		SilahCizim.serit(self, hp, hw, Color(1.0, 0.92, 0.6, 0.9).lerp(Color(1.0, 0.55, 0.3, 0.9), heat))
+	SilahCizim.serit(self, mid, wc, Color(1.25, 1.2, 1.05))
+	# uç: dönen kısa fırça dilleri (yanma) + parlak öz
+	for j in 7:
+		var ang := float(j) / 7.0 * TAU + _t * 6.0 + sin(_t * 23.0 + j) * 0.3
+		var fl := (w * 0.9 + 3.0) * (0.7 + 0.5 * absf(sin(_t * 31.0 + j * 1.7)))
+		var p0 := b + Vector2.from_angle(ang) * w * 0.4
+		var p1 := b + Vector2.from_angle(ang + 0.25) * fl
+		var fp := PackedVector2Array([p0, p0.lerp(p1, 0.5) + Vector2.from_angle(ang + 1.6) * 0.8, p1])
+		SilahCizim.serit(self, fp, PackedFloat32Array([w * 0.32 + 0.6, w * 0.22 + 0.4, 0.05]), INK)
+		SilahCizim.serit(self, fp, PackedFloat32Array([w * 0.2 + 0.3, w * 0.12 + 0.2, 0.02]), body)
+	draw_circle(b, w * 0.95 + 0.8 * sin(_t * 30.0), INK)
+	draw_circle(b, w * 0.75, body)
+	draw_circle(b, w * 0.38, Color(1.25, 1.2, 1.05))
+	draw_circle(a, 3.0 + 1.0 * rk, Color(1.0, 0.95, 0.75, 0.9))
+
+
+## v31 Tengri Bağı zinciri: iki bağlı arasındaki titreyen yol boyunca gerçek zincir — halkalar sırayla yüzden (yassı
+## elips halka) ve yandan (kısa kalın çubuk) görünür; mürekkep kontur + gök mavisi metal + ak parıltı; içinden geçen
+## ince ak şimşek kılı.
+func _chain31(p0: Vector2, p1: Vector2, seed_v: float, fade: float) -> void:
+	var path := _jag(p0, p1, 9, 2.6, seed_v)
+	var tot := 0.0
+	for i in range(1, path.size()):
+		tot += path[i].distance_to(path[i - 1])
+	var step := 6.0
+	var count := int(tot / step)
+	var acc := 0.0
+	var si := 1
+	var segl := path[1].distance_to(path[0])
+	var pos := path[0]
+	for k in count + 1:
+		var want := float(k) * step
+		while si < path.size() - 1 and acc + segl < want:
+			acc += segl
+			si += 1
+			segl = path[si].distance_to(path[si - 1])
+		var f := clampf((want - acc) / maxf(segl, 0.001), 0.0, 1.0)
+		pos = path[si - 1].lerp(path[si], f)
+		var dir := (path[si] - path[si - 1]).normalized()
+		if k % 2 == 0:
+			var ring := PackedVector2Array()
+			for q in 13:
+				var a := float(q) / 12.0 * TAU
+				ring.append(pos + dir * cos(a) * 3.6 + dir.orthogonal() * sin(a) * 2.1)
+			draw_polyline(ring, Color(INK, 0.9 * fade), 2.2, true)
+			draw_polyline(ring, Color(0.55, 0.68, 1.0, fade), 1.0, true)
+			draw_line(pos + dir * 1.4 - dir.orthogonal() * 1.6, pos + dir * 2.6 - dir.orthogonal() * 0.6, Color(0.95, 0.97, 1.2, 0.85 * fade), 0.6, true)
+		else:
+			draw_line(pos - dir * 3.4, pos + dir * 3.4, Color(INK, 0.9 * fade), 2.9, true)
+			draw_line(pos - dir * 3.0, pos + dir * 3.0, Color(0.5, 0.62, 0.95, fade), 1.3, true)
+	var hair := _jag(p0, p1, 14, 1.3, seed_v + 4.0)
+	var hw := PackedFloat32Array()
+	for i in hair.size():
+		hw.append(0.35 + 0.25 * absf(sin(float(i) * 1.7 + _t * 40.0)))
+	SilahCizim.serit(self, hair, hw, Color(1.1, 1.15, 1.35, 0.8 * fade))
+
+
+static func _wmul(ws: PackedFloat32Array, k: float) -> PackedFloat32Array:
+	var o := ws.duplicate()
+	for i in o.size():
+		o[i] *= k
+	return o
 
 
 func _bar(p: Vector2, w: float, q: float, col: Color) -> void:
