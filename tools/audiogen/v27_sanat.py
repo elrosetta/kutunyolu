@@ -11,6 +11,18 @@
   sanat_ors      Demir Duruş: örs çınlaması (inharmonik çelik kısmiler, uzun) + vuruş tıkı
   sanat_gum      v28 Göğe Yükseliş çakılışı ("GÜM!"): iki katlı dev gövde vuruşu (taiko + alt bas düşüşü), toprak
                  ezilmesi, taş çatırtısı ve saçılan döküntü, ıslak mürekkep şaplağı, kısa altın çınlama, uzun gürleme
+v31 kombo sanatları:
+  sanat_dans     Kurt Dansı atılışı: kısa keskin "fışt" (dar bant süpürme) + ince çelik sürtme
+  sanat_cit      Kurt Dansı "ÇIT!": kına giriş tıkı, kısa sessizlik, ardından birden patlayan kesik çatırtıları ve çelik şingi
+  sanat_evren    Evren Kuyruğu hazırlık / süpürme: alçak toprak süpürmesi + boğuk ejder hırıltısı
+  sanat_kut      Evren Kuyruğu "KÜT!": tok gövde vuruşu, yerden sekme (ikinci küçük vuruş), toprak, kısa gürleme
+  sanat_tengri   Tengri Çarkı girdabı: içe çeken dönen bant (hızlanan salınım) + yükselen gök uğultusu
+  sanat_vus      Tengri Çarkı "VUŞ!": dışa patlayan hava, gök gürültüsü çatırtısı, açılan süpürme
+  sanat_yarik    Yer Yarığı dövüşü: kaya gövde vuruşu + toprak ezilmesi
+  sanat_cat      Yer Yarığı "ÇAT!": taş yarılması (keskin çatırtı) + ilerleyip azalan kırılma tıkırtıları ve gürleme
+  sanat_akin     Akıncı Akını yelpazesi: art arda beş kiriş tıngısı ve ok vızıltıları
+  sanat_viz      Akıncı Akını delen ok "VIZ!": derin kiriş, ıslıklı uzun vızıltı (inen perde), hava yırtılması
+  sanat_tam      ritim TAM: parlak tahta tok + iki notalı kısa çan
 Yeniden üretim: python tools/audiogen/v27_sanat.py [ses adları...]   (ad verilirse yalnız onlar; ya da export_audio.py --sfx sanat_...; hedef yükseklik aşağıda)"""
 import os
 import sys
@@ -24,7 +36,9 @@ from v25 import chime, air, steel
 
 TARGET = {"sanat_baslat": -10.0, "sanat_hazir": -15.0, "sanat_kasirga": -12.0, "sanat_hilal": -11.0, "sanat_cekis": -7.5,
           "sanat_yuksel": -12.0, "sanat_atilis": -12.0, "sanat_kin": -9.5, "sanat_kam": -10.0, "sanat_ors": -9.0,
-          "sanat_gum": -6.5}
+          "sanat_gum": -6.5, "sanat_dans": -13.0, "sanat_cit": -8.5, "sanat_evren": -11.0, "sanat_kut": -7.0,
+          "sanat_tengri": -11.0, "sanat_vus": -7.5, "sanat_yarik": -8.0, "sanat_cat": -7.0, "sanat_akin": -11.0,
+          "sanat_viz": -8.5, "sanat_tam": -12.0}
 
 
 def _mix(parts, dur):
@@ -143,10 +157,122 @@ def gum():
     ], dur), 0.7, 0.22), 1.5)
 
 
+# ------------------------------------------------------------------ v31 kombo sanatları
+def dans():
+    dur = 0.3
+    return _mix([(whoosh(0.16, 1500, 9500, 0.3, seed=320, q=0.6, k_up=2.5), 0.0, 1.0),
+                 (air(0.18, 5000, 11000, 321, 14.0), 0.0, 0.5),
+                 (steel(4200.0, 0.05, 80.0, seed=322), 0.07, 0.25)], dur)
+
+
+def cit():
+    dur = 0.75
+    parts = [(click(0.01, 2500, 10000, 323), 0.0, 1.0), (steel(3600.0, 0.05, 90.0, seed=324), 0.0, 0.5),
+             (metal_ring(3300, 0.25, 18, seed=325), 0.0, 0.2)]
+    # kısa sessizlik; sonra izler birden patlar
+    for j in range(5):
+        parts.append((crunch(0.06, 326 + j, 700, 7500, 5.5, 150.0), 0.1 + 0.018 * j, 0.6))
+        parts.append((shing(0.16, 4500, 11000, seed=331 + j, g=0.7, ring_f=4200.0 + 250 * j), 0.1 + 0.018 * j, 0.3))
+    parts.append((boom_sub(90.0, 50.0, 0.12, 0.35, 7.0, 0.003, 1.6), 0.1, 0.6))
+    return room(_mix(parts, dur), 0.4, 0.18)
+
+
+def evren():
+    dur = 0.6
+    growl = voice(62.0, 0.5, vowels=('o', 'u'), size=1.6, breath=0.5, grit=0.6, seed=340, sub=0.5) * exp_env(0.5, 4.5) * 0.45
+    return room(_mix([(whoosh(0.42, 180, 2600, 0.55, seed=341, q=1.3, k_up=1.2), 0.0, 1.0),
+                      (lp(noise(0.3, seed=342), 900) * exp_env(0.3, 9.0), 0.04, 0.5),
+                      (growl, 0.02, 1.0)], dur), 0.45, 0.18)
+
+
+def kut():
+    dur = 1.0
+    return glue(room(_mix([
+        (click(0.01, 1200, 7000, 345), 0.0, 0.8),
+        (thump(130, 40, 0.42, 9, 2.0), 0.0, 1.1),
+        (boom_sub(70.0, 38.0, 0.18, 0.7, 4.0, 0.003, 2.0), 0.0, 1.0),
+        (crunch(0.16, 346, 180, 2400, 6.0, 80.0), 0.0, 0.8),
+        (thump(170, 70, 0.18, 14, 1.6), 0.21, 0.45),                     # yerden sekme
+        (crunch(0.06, 347, 300, 3000, 5.0, 120.0), 0.21, 0.35),
+        (rumble(0.8, 150, 3.2, 348), 0.03, 0.6),
+    ], dur), 0.6, 0.2), 1.4)
+
+
+def tengri():
+    dur = 0.75
+    t = t_axis(dur)
+    n = noise(dur, seed=350)
+    lfo = 0.5 + 0.5 * np.sin(2 * np.pi * (3.0 + 5.0 * t / dur) * t)
+    swirl = bp(n, 500, 3500) * (0.3 + 0.7 * lfo) * np.minimum(1.0, t / 0.4) ** 1.5 * np.exp(-np.maximum(0.0, t - 0.6) * 18.0)
+    hum = sweep(90, 180, dur, curve=1.4) * 0.15 * np.minimum(1.0, t / 0.3)
+    body = fade((swirl + hum) * 0.9, 0.01, 0.06)
+    return room(_mix([(body, 0.0, 1.0), (whoosh(0.5, 300, 5000, 0.85, seed=351, q=1.0, k_up=1.0), 0.15, 0.5)], dur), 0.5, 0.2)
+
+
+def vus():
+    dur = 1.0
+    return glue(room(_mix([
+        (lp(noise(0.08, seed=355), 2500) * exp_env(0.08, 30.0), 0.0, 1.0),
+        (boom_sub(80.0, 42.0, 0.15, 0.6, 4.5, 0.002, 2.0), 0.0, 1.0),
+        (whoosh(0.35, 3000, 400, 0.15, seed=356, q=0.8, k_up=3.0), 0.0, 0.9),
+        (crackle(0.4, 40, 357, 1500, 9000), 0.02, 0.5),
+        (rumble(0.9, 220, 3.0, 358), 0.05, 0.55),
+        (shing(0.3, 4000, 10000, seed=359, g=0.6, ring_f=3500.0), 0.0, 0.2),
+    ], dur), 0.65, 0.22), 1.4)
+
+
+def yarik():
+    dur = 0.7
+    return glue(room(_mix([(click(0.01, 1500, 8000, 360), 0.0, 0.8), (thump(110, 42, 0.4, 10, 2.2), 0.0, 1.0),
+                           (crunch(0.18, 361, 200, 2800, 6.5, 75.0), 0.0, 0.9), (rumble(0.6, 170, 4.0, 362), 0.02, 0.5)], dur), 0.5, 0.18), 1.3)
+
+
+def cat():
+    dur = 1.2
+    parts = [(click(0.008, 2000, 11000, 365), 0.0, 1.0), (crunch(0.1, 366, 600, 6000, 7.0, 140.0), 0.0, 1.0),
+             (boom_sub(66.0, 34.0, 0.2, 0.9, 3.6, 0.003, 2.2), 0.0, 1.1), (thump(140, 40, 0.5, 8, 2.0), 0.0, 0.8),
+             (rumble(1.1, 150, 2.6, 367), 0.04, 0.8)]
+    # yarık ilerler: azalan kırılma tıkırtıları
+    for j in range(8):
+        parts.append((crunch(0.04, 368 + j, 500, 5000, 5.0, 160.0), 0.08 + 0.045 * j, 0.5 * (1.0 - j / 10.0)))
+    return glue(room(_mix(parts, dur), 0.6, 0.2), 1.5)
+
+
+def akin():
+    dur = 0.7
+    parts = []
+    for j in range(5):
+        tw = sweep(190 + 12 * j, 150, 0.12, curve=0.5) * exp_env(0.12, 30.0) * 0.5
+        parts.append((click(0.006, 1500, 6000, 380 + j), 0.035 * j, 0.6))
+        parts.append((tw, 0.035 * j, 0.7))
+        parts.append((whoosh(0.22, 2500, 8000, 0.25, seed=386 + j, q=0.6, k_up=2.0), 0.035 * j + 0.02, 0.35))
+    return room(_mix(parts, dur), 0.35, 0.14)
+
+
+def viz():
+    dur = 1.0
+    t = t_axis(0.7)
+    f = 2600 * np.exp(-t * 1.4) + 900
+    whistle = np.sin(2 * np.pi * np.cumsum(f) / SR) * exp_env(0.7, 3.5) * np.minimum(1.0, t / 0.03) * 0.35
+    return room(_mix([(thump(95, 60, 0.2, 18, 1.3), 0.0, 0.8), (click(0.006, 1500, 7000, 390), 0.0, 0.8),
+                      (sweep(160, 110, 0.18, curve=0.5) * exp_env(0.18, 18.0) * 0.6, 0.0, 0.9),
+                      (whistle, 0.02, 1.0), (whoosh(0.5, 6000, 1200, 0.1, seed=391, q=0.7, k_up=3.0), 0.02, 0.8),
+                      (air(0.4, 5000, 11000, 392, 6.0), 0.03, 0.3)], dur), 0.4, 0.16)
+
+
+def tam():
+    dur = 0.6
+    wood = bp(noise(0.05, seed=395), 900, 3200) * exp_env(0.05, 60.0)
+    return room(_mix([(wood, 0.0, 1.0), (click(0.006, 2500, 9000, 396), 0.0, 0.5),
+                      (chime(note('E6'), 0.4, 9.0, 5.0), 0.01, 0.5), (chime(note('B6'), 0.35, 10.0, 6.0), 0.06, 0.35)], dur), 0.35, 0.15)
+
+
 def build_all():
     return {"sanat_baslat": baslat(), "sanat_hazir": hazir(), "sanat_kasirga": kasirga(), "sanat_hilal": hilal(),
             "sanat_cekis": cekis(), "sanat_yuksel": yuksel(), "sanat_atilis": atilis(), "sanat_kin": kin(),
-            "sanat_kam": kam(), "sanat_ors": ors(), "sanat_gum": gum()}
+            "sanat_kam": kam(), "sanat_ors": ors(), "sanat_gum": gum(), "sanat_dans": dans(), "sanat_cit": cit(),
+            "sanat_evren": evren(), "sanat_kut": kut(), "sanat_tengri": tengri(), "sanat_vus": vus(), "sanat_yarik": yarik(),
+            "sanat_cat": cat(), "sanat_akin": akin(), "sanat_viz": viz(), "sanat_tam": tam()}
 
 
 if __name__ == '__main__':

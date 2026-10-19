@@ -11,7 +11,8 @@ assets/fx/ink/sanat_firca.png  1024x512: 8 satır x 64 px fırça darbesi (u yat
 assets/fx/ink/sanat_fx.png  1024x1024 atlas (sanat_fx.json), InkFX atlas kodlamasıyla aynı (ink_fx.gdshader):
     R işaretli uzaklık (0,5 kenar)  G koyu mürekkep  B çizim sırası  A erime gürültüsü
     Şekiller: splat_a, splat_b (büyük sıçrantı), wash (mürekkep yıkaması), gum ("GÜM!" fırça yazısı), varak (altın
-    varak pulları), crack (yer yarığı, taban y = 0,8h), seal (mühür)
+    varak pulları), crack (yer yarığı, taban y = 0,8h); v31 yansıma sözcükleri (256x128, aynı fırça yazısı): cit "ÇIT!",
+    kut "KÜT!", vus "VUŞ!", cat "ÇAT!", viz "VIZ!", tam "TAM!" (eski kullanılmayan seal hücresi ve iki boş hücre)
 
 Kullanım: cd tools/artgen && python sanat_fx_ink.py [--onizleme out.png]
 HD (2 kat): KY_HD=2 python sanat_fx_ink.py  ardından  python hd_paket.py --paketle
@@ -217,6 +218,91 @@ def _letters_gum(c, w, h, rng, dark):
         drop(c, x, y, h * rng.uniform(0.006, 0.02), rng.uniform(-0.5, 0.5), rng.uniform(1.0, 2.0))
 
 
+# v31 kombo sanatlarının yansıma sözcükleri: harf başına fırça darbeleri (birim kutu: x 0..gen, y 0 üst .. 1 taban)
+# [noktalar, w0, w1, wmid]; ("nokta", x, y, r): yuvarlak damla (Ü noktaları, ünlem)
+_HARF = {
+    'I': (0.42, [([(0.5, 0.0), (0.49, 0.55), (0.47, 1.0)], 1.2, 0.6, 1.25)]),
+    'T': (0.82, [([(0.0, 0.04), (0.5, -0.01), (1.0, 0.02)], 0.62, 0.42, 0.95),
+                 ([(0.52, 0.02), (0.5, 0.55), (0.47, 1.0)], 1.05, 0.45, 1.1)]),
+    '!': (0.36, [([(0.52, -0.04), (0.47, 0.7)], 1.3, 0.22, None), ('nokta', 0.44, 0.95, 0.52)]),
+    'Ç': (0.9, [('yay', 0.55, 0.5, 0.5, -0.75, -0.75 - 4.75, 0.45, 0.7, 1.15),
+                ([(0.52, 1.0), (0.62, 1.1), (0.44, 1.2)], 0.55, 0.2, 0.6)]),
+    'K': (0.86, [([(0.16, 0.0), (0.14, 0.55), (0.12, 1.0)], 0.75, 1.05, 1.0),
+                 ([(0.88, 0.02), (0.5, 0.3), (0.2, 0.56)], 0.9, 0.5, 0.75),
+                 ([(0.36, 0.44), (0.66, 0.72), (0.95, 1.0)], 0.6, 0.95, 0.85)]),
+    'Ü': (0.9, [([(0.05, 0.03), (0.0, 0.7), (0.5, 1.0), (0.95, 0.72), (0.98, 0.04)], 1.0, 0.5, 1.1),
+                ('nokta', 0.22, -0.2, 0.45), ('nokta', 0.75, -0.2, 0.45)]),
+    'U': (0.9, [([(0.05, 0.03), (0.0, 0.7), (0.5, 1.0), (0.95, 0.72), (0.98, 0.04)], 1.0, 0.5, 1.1)]),
+    'V': (0.92, [([(0.0, 0.0), (0.26, 0.5), (0.5, 1.0)], 1.05, 0.4, 1.0),
+                 ([(0.5, 1.0), (0.75, 0.5), (1.0, 0.0)], 0.4, 0.95, 0.75)]),
+    'Ş': (0.84, [([(0.9, 0.14), (0.55, 0.0), (0.14, 0.16), (0.24, 0.42), (0.7, 0.56), (0.9, 0.8), (0.55, 1.0), (0.08, 0.86)], 0.5, 0.75, 1.1),
+                 ([(0.5, 1.0), (0.6, 1.1), (0.42, 1.2)], 0.55, 0.2, 0.6)]),
+    'A': (0.96, [([(0.0, 1.0), (0.26, 0.5), (0.5, 0.0)], 0.8, 0.6, 0.9),
+                 ([(0.5, 0.0), (0.76, 0.5), (1.0, 1.0)], 0.6, 1.0, 1.05),
+                 ([(0.2, 0.64), (0.82, 0.6)], 0.7, 0.4, 0.7)]),
+    'Z': (0.86, [([(0.04, 0.03), (0.5, 0.0), (0.96, 0.01)], 0.7, 0.55, 0.9),
+                 ([(0.94, 0.04), (0.5, 0.5), (0.06, 0.98)], 0.6, 0.8, 1.15),
+                 ([(0.05, 1.0), (0.5, 0.99), (1.0, 0.96)], 0.8, 0.4, 1.0)]),
+    'M': (1.12, [([(0.0, 1.0), (0.04, 0.0)], 0.7, 1.05, None), ([(0.04, 0.0), (0.5, 0.62)], 0.9, 0.55, None),
+                 ([(0.5, 0.62), (0.96, 0.0)], 0.55, 0.95, None), ([(0.96, 0.0), (1.06, 1.0)], 1.05, 0.45, None)]),
+}
+
+
+def _letters_word(word, c, w, h, rng, dark):
+    """Sözcüğü GÜM! ile aynı fırça diliyle yazar (hafif eğik, kalın-ince, sıçrantı damlaları)."""
+    sk = 0.18
+    top, base = h * 0.22, h * 0.78
+    L = base - top
+    gap = 0.26
+    tot = sum(_HARF[ch][0] for ch in word) + gap * (len(word) - 1)
+    k = min(L * 0.95, w * 0.8 / tot)
+    x0 = (w - tot * k) * 0.5 - (base - top) * sk * 0.5
+    W = L * 0.31
+    jy = 0.0
+
+    def P(x, y):
+        return (x + (base - y) * sk, y + jy)
+
+    for ch in word:
+        jy = rng.uniform(-0.04, 0.04) * L   # el yazısı: harf başına taban oynar
+        gen, parts = _HARF[ch]
+        for part in parts:
+            if part[0] == 'nokta':
+                _, px, py, r = part
+                q = P(x0 + px * k, top + py * L)
+                blob(c, *q, W * r, rng, jit=0.22)
+                blob(dark[1], *q, W * r * 0.6, rng, jit=0.22)
+            elif part[0] == 'yay':
+                _, cx, cy, rr, a0, a1, w0, w1, wm = part
+                pts = [(x0 + (cx + math.cos(a) * rr * 0.86) * k, top + (cy + math.sin(a) * rr) * L) for a in np.linspace(a0, a1, 16)]
+                q = [P(*pt) for pt in pts]
+                taper(c, q, W * w0, W * w1, wmid=W * wm)
+                taper(dark[1], q, W * w0 * 0.55, W * w1 * 0.4, wmid=W * wm * 0.55)
+            else:
+                pts, w0, w1, wm = part
+                q = [P(x0 + px * k, top + py * L) for px, py in pts]
+                taper(c, q, W * w0, W * w1, wmid=(W * wm) if wm else None)
+                taper(dark[1], q, W * w0 * 0.55, W * w1 * 0.4, wmid=(W * wm * 0.55) if wm else W * w0 * 0.55)
+        x0 += (gen + gap) * k
+    for i in range(16):
+        drop(c, rng.uniform(0.05, 0.95) * w, rng.uniform(0.08, 0.95) * h, h * rng.uniform(0.006, 0.018), rng.uniform(-0.5, 0.5), rng.uniform(1.0, 2.0))
+
+
+def shape_word(word, w, h, seed):
+    rng = np.random.default_rng(seed)
+    s, c = _surface(w, h)
+    dark = _surface(w, h)
+    _letters_word(word, c, w, h, rng, dark)
+    cov = _arr(s)
+    nz = fft_noise(h * SS, w * SS, beta=1.7, seed=seed + 1, fx=0.4, fy=1.0, up=HD)
+    R = field(cov, 3.0, nz, spread=5.0)
+    G = np.clip(down(_arr(dark[0])) * 0.95, 0, 1)
+    ys, xs = grid(h, w)
+    B = np.clip(xs / w * 0.9 + 0.1 * fft_noise(h, w, beta=1.5, seed=seed + 2, up=HD), 0, 1)
+    A = fft_noise(h, w, beta=1.5, seed=seed + 3, up=HD)
+    return np.dstack([R, G, B, A])
+
+
 def shape_gum(w, h, seed):
     rng = np.random.default_rng(seed)
     s, c = _surface(w, h)
@@ -356,7 +442,10 @@ def build_atlas():
     put('wash', shape_wash(C, 223), 2 * C, 0)
     put('varak', shape_varak(C, 227), 3 * C, 0)
     put('gum', shape_gum(2 * C, C, 229), 0, C)
-    put('seal', shape_seal(C, 233), 2 * C, C)
+    # v31: kullanılmayan seal hücresi ve iki boş hücre: yansıma sözcükleri (256x128)
+    for i, (nm, wd) in enumerate([('cit', 'ÇIT!'), ('kut', 'KÜT!'), ('viz', 'VIZ!'), ('tam', 'TAM!'), ('vus', 'VUŞ!'), ('cat', 'ÇAT!')]):
+        cx, cy = [(3 * C, C), (3 * C, C), (2 * C, C), (2 * C, C), (3 * C, 3 * C), (3 * C, 3 * C)][i]
+        put(nm, shape_word(wd, C, C // 2, 271 + 7 * i), cx, cy + (C // 2) * (i % 2))
     put('crack', shape_crack(4 * C, C, 241), 0, 2 * C)
     put('wash_b', shape_wash(C, 251), 0, 3 * C)
     put('varak_b', shape_varak(C, 257, n=34), C, 3 * C)
