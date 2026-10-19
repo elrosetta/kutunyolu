@@ -152,6 +152,18 @@ static func _hasar_metni(d: Dictionary) -> String:
 			hs = "%d ok × yayın ×%s" % [int(d.get("ok", 18)), ItemGen.fmt(float(d["hasar"]))]
 		"demir_durus":
 			hs = "karşılık ×%s (kesin kritik)" % ItemGen.fmt(float(d["hasar"]))
+		"kurt_dansi":
+			hs = "%d kesik × ×%s + patlama ×%s" % [int(d.get("adim", 4)), ItemGen.fmt(float(d["hasar"])), ItemGen.fmt(float(d.get("kin_hasar", 1.3)))]
+		"evren_kuyrugu":
+			hs = "×%s + 3 × ×%s + çakılma ×%s" % [ItemGen.fmt(float(d["hasar"])), ItemGen.fmt(float(d.get("sarmal_hasar", 0.4))), ItemGen.fmt(float(d.get("carpma_hasar", 1.6)))]
+		"tengri_carki":
+			hs = "4 × ×%s + patlama ×%s" % [ItemGen.fmt(float(d["hasar"])), ItemGen.fmt(float(d.get("son_hasar", 1.4)))]
+		"yer_yarigi":
+			hs = "×%s + 2 × ×%s + çakılma ×%s, yarık ×%s" % [ItemGen.fmt(float(d["hasar"])), ItemGen.fmt(float(d.get("x_hasar", 0.5))), ItemGen.fmt(float(d.get("carpma_hasar", 1.6))), ItemGen.fmt(float(d.get("yarik_hasar", 1.0)))]
+		"akinci_akini":
+			hs = "%d + %d ok × ×%s, delen ok ×%s" % [int(d.get("yaylim_ok", 5)), int(d.get("seri_ok", 6)), ItemGen.fmt(float(d.get("seri_hasar", 0.35))), ItemGen.fmt(float(d.get("delis_hasar", 1.6)))]
+	if d.has("ritim_k"):
+		hs += " · TAM ×%s" % ItemGen.fmt(float(d["ritim_k"]))
 	return hs + " · duruş %s · boss ×%s" % [ItemGen.fmt(float(d.get("durus", 1.0))), ItemGen.fmt(float(d.get("boss_k", 0.7)))]
 
 
@@ -172,7 +184,12 @@ static func menu(h: Control, vp: Vector2, sel: int, mentor: bool, t: float, e: f
 	var iw := PixUI.width(info) + 20.0
 	PixUI.panel(h, Rect2((vp.x - iw) / 2.0, 62, iw, 15), PixUI.KUT if mentor else PixUI.GOLD)
 	PixUI.text(h, Vector2(0, 64), info, PixUI.KUT if mentor else PixUI.GOLD, 1, HORIZONTAL_ALIGNMENT_CENTER, vp.x)
-	for i in ids.size():
+	# v31: 13 sanat: liste kayar (en çok 8 satır görünür, seçili ortada); üstte / altta kalan varsa fırça oku
+	var vis := 8
+	var first := clampi(sel - 3, 0, maxi(0, ids.size() - vis))
+	if first > 0:
+		_kaydir_oku(h, Vector2(x0 + lw * 0.5, y - 6.0), -1.0, t)
+	for i in range(first, mini(ids.size(), first + vis)):
 		var id: String = ids[i]
 		var d := SavasSanati.def_of(id)
 		var col := SavasSanati.renk(id)
@@ -200,6 +217,16 @@ static func menu(h: Control, vp: Vector2, sel: int, mentor: bool, t: float, e: f
 			h.draw_rect(Rect2(lk + Vector2(-3.5, -1.0), Vector2(7, 6)), Color(GREY, 0.9))
 			h.draw_arc(lk + Vector2(0, -1.5), 2.6, PI, TAU, 8, Color(GREY, 0.9), 1.2, true)
 		y += 28.0
+	if first + vis < ids.size():
+		_kaydir_oku(h, Vector2(x0 + lw * 0.5, y + 2.0), 1.0, t)
 	card(h, Rect2(x0 + lw + 14.0, 84.0, cw, 222.0), String(ids[clampi(sel, 0, ids.size() - 1)]), t, mentor)
 	if msg_t > 0.0 and msg != "":
 		PixUI.text(h, Vector2(0, vp.y - 42), msg, PixUI.GOLD, 1, HORIZONTAL_ALIGNMENT_CENTER, vp.x, 2)
+
+
+static func _kaydir_oku(h: Control, c: Vector2, dir: float, t: float) -> void:
+	## Listenin kayan ucu: küçük üçgen (dir -1 yukarı, 1 aşağı), hafif nabız
+	var k := 0.7 + 0.3 * sin(t * 5.0)
+	var o := Vector2(0, dir * 1.5 * sin(t * 5.0))
+	var tri := PackedVector2Array([c + o + Vector2(-6, -dir * 2.5), c + o + Vector2(6, -dir * 2.5), c + o + Vector2(0, dir * 3.5)])
+	h.draw_colored_polygon(tri, Color(PixUI.GOLD, k))
