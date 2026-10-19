@@ -18,3 +18,4 @@ motor/*.exe
 
 # Dışa aktarılan oyun (build)
 build/
+motor/
