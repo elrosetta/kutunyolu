@@ -311,10 +311,21 @@ static func _build(rng: RandomNumberGenerator, W: int, H: int, style: String, op
 	# --- kapı yükseklikleri ve iniş sekileri
 	for dr in doors:
 		_door_geometry(rng, rooms, dr)
+	# pazar dikey kapılı odaya düştüyse yan kapılı başka bir ödül odasıyla yer değiştirir (tüccar istendiyse kaybolmasın;
+	# boss öncesi Bezirgân kesin). Yan kapılı ödül odası yoksa kuyulu odada kalır: tezgâh _odul_mid ile kuyudan uzak yana
+	# kurulur (mid-5..mid+4; kuyu bölgesi hx-2..hx+7 dışında).
 	for rm in rooms:
-		# zamanlı kapı yalnızca yan kapılı odada (dikey kuyuya kapı kurulmaz); pazar tezgâhı da düz yan girişli
-		if rm["role"] == "odul" and String(rm.get("_door_side", "sol")) in ["ust", "alt"] and String(rm["odul"]) in ["zamanli", "pazar"]:
-			rm["odul"] = "hazine" if String(rm["odul"]) == "zamanli" else "tomar"
+		if rm["role"] == "odul" and String(rm["odul"]) == "pazar" and String(rm.get("_door_side", "sol")) in ["ust", "alt"]:
+			for rm2 in rooms:
+				if rm2["role"] == "odul" and rm2 != rm and not (String(rm2.get("_door_side", "sol")) in ["ust", "alt"]):
+					rm["odul"] = rm2["odul"]
+					rm2["odul"] = "pazar"
+					break
+			break
+	for rm in rooms:
+		# zamanlı kapı yalnızca yan kapılı odada (dikey kuyuya kapı kurulmaz)
+		if rm["role"] == "odul" and String(rm.get("_door_side", "sol")) in ["ust", "alt"] and String(rm["odul"]) == "zamanli":
+			rm["odul"] = "hazine"
 	# --- oyma
 	for rm in rooms:
 		if rm["role"] != "yok":

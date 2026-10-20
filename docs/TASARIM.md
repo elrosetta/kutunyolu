@@ -5484,3 +5484,29 @@ kipi). `[otomatik] KESIF` satırı: keşif yüzdesi, bulunan taş, ışınlanma,
 * Kuyu basamaklarının altına çizilen kule ayakları (`_place_towers`) uzun kuyularda iskele gibi yükseliyor; görsel.
 * Küçük harita yalnızca bölümde (yurt / boss arenasında kapalı); gizli oda yok (ileride: kırılan duvar).
 * Bot rehberi dallı bölümde yavaş (150 sn'de ~%30 keşif, 2 ödül odası); ölçüm botu `--bot_gercek` aynı rehberi kullanır.
+
+## v32 birleştirme denetimi (gecit + sanat3 + harita2)
+
+Üç dal (`v32-gecit` Konak / Bengisu Usta, `v32-sanat3` savaş sanatları, `v32-harita2` dallı bölümler / Kut Taşı / harita)
+`main`'de birleşti; anlamsal çakışmalar sınandı ve giderildi:
+
+* **Boss öncesi Bezirgân kayboluyordu** (`LevelGen.generate`): pazar ödülü dikey (kuyu) kapılı çıkmaz odaya düşünce
+  tomara çevriliyordu; istenen pazarların yarısı açılmıyordu (`--harita` 46 istekten 24'ü "pazar odası açılmadı", boss
+  öncesi kesin pazar da). Konak testi 2. derinlik boss akışında yakaladı. Şimdi pazar yan kapılı başka bir ödül odasıyla
+  yer değiştirir; yoksa kuyulu odada kalır (`_odul_mid` tezgâhı kuyu bölgesinin dışına koyar). Sonuç: 120 bölümde 0
+  açılmayan pazar, `--tuccar_her` ile 55/55 tezgâh `duvar_ok`.
+* **`bezirgan_gordu` önceki kurulumdan kalıyordu** (`Level.build`): test / çekim akışında aynı derinlik yeniden
+  kurulunca eski bölümün pazarı konağa "pazar vardı" diye taşınıyordu; her bölüm kurulumunda sıfırlanır.
+* **Pazar temizliği çok katlı bölümde** (`Level._place_bezirgan`): tezgâhın yanındaki sıradan yaratıklar yalnız aynı
+  katta (10 karo dikey) kaldırılır; eskiden üst / alt kattakiler de siliniyordu.
+* **İleti ipucu kartının altına iner** (`HUD`): konağa varış iletisi ile "konak" kartı (ve Kut Taşı bulundu iletisi ile
+  "kut_tasi" kartı) aynı anda çıkıp üst üste biniyordu.
+* `--isinlan` `TEST_BAYRAKLARI`'na eklendi (koşu yurtta değil doğrudan bölümde başlar).
+* Denetlenen ve sorunsuz: konakta / yurtta `level.harita` yok (küçük harita çizilmez, M açmaz, `isinlan` reddeder);
+  konak düz 64 karo (H 90'da kamera alt sınırı `heights`'tan, oda yok); dallı bölümün Kut Kapısı katı zeminde ve
+  oyuncu kapıya yürüyerek girince konak kurulur; Usta ekranı ile küçük harita çakışmaz.
+* `--konak` testi genişletildi: AKIS'ta kapı zemini + **yürüyerek kapıdan geçiş**, konakta harita / ışınlanma reddi.
+* Sonuç: `--harita` (20 tohum: 120/120), `--isinlan`, `--konak`, `--sanat --boss`, `--tuccar` GECTI; `--zeka`,
+  `--mekanik` BITTI; `--dovus --boss --kontrol` TAKILMA=0, basılmamış 0; `--boss=tepegoz`, `--yurt --yurt-tur`,
+  `--otomatik --derinlik=1` / `--derinlik=3 --bot_gercek` hatasız (bot dallı bölümde 60 sn'de kapıya varmaz: bilinen);
+  `--piksel_tara` TOPLAM 0. Betik hatası yok (yalnız motorun çıkıştaki RID sızıntısı satırları, eskiden beri).

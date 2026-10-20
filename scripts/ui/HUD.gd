@@ -514,8 +514,12 @@ func _draw_hud(vp: Vector2) -> void:
 	if flash_t > 0.0 and flash_msg != "" and mode == "play":
 		var a := clampf(flash_t, 0.0, 1.0)
 		var fw := PixUI.width(flash_msg) + 16.0
-		PixUI.panel(self, Rect2((vp.x - fw) / 2.0, 72, fw, 15), Color(PixUI.GOLD, a), Color(PixUI.INK, PixUI.INK.a * a))
-		PixUI.text(self, Vector2(0, 73), flash_msg, Color(PixUI.GOLD, a), 1, HORIZONTAL_ALIGNMENT_CENTER, vp.x)
+		# v32: ipucu kartı açıksa ileti kartın altına iner (konak / Kut Taşı kartı iletiyle aynı anda çıkıyor, üst üste biniyordu)
+		var fy := 72.0
+		if _tut_id != "":
+			fy = maxf(fy, 34.0 + 22.0 + _tut_txt.size() * 10.0 + 4.0)
+		PixUI.panel(self, Rect2((vp.x - fw) / 2.0, fy, fw, 15), Color(PixUI.GOLD, a), Color(PixUI.INK, PixUI.INK.a * a))
+		PixUI.text(self, Vector2(0, fy + 1.0), flash_msg, Color(PixUI.GOLD, a), 1, HORIZONTAL_ALIGNMENT_CENTER, vp.x)
 	# ---- yerdeki eşya
 	if mode != "play" or get_tree().paused:
 		return

@@ -91,6 +91,7 @@ func build(seed_value: int) -> void:
 	biome = Game.biome_for_depth(int(Game.run.get("depth", 1)))
 	art = _stil_art(biome.get("art", {}))
 	Game.run["biome"] = biome.get("id", "otuken")
+	Game.run["bezirgan_gordu"] = false   # v32: bu bölümün pazarı (_place_bezirgan) belirler; önceki kurulumdan kalmasın
 	_plan_bezirgan()   # v24 / v32: tüccar bu bölümde çıkacak mı (pazar odası üretici tarafından açılır)
 	_generate()
 	Game.run["bolum_sure"] = 0.0   # v32: zamanlı kapılar için bölüm süresi
@@ -2947,7 +2948,8 @@ func _place_bezirgan() -> void:
 	var temiz := float(Pazar.data().get("yer", {}).get("temiz", 9)) * TS
 	var moved := 0
 	for e in get_tree().get_nodes_in_group("dusman"):
-		if is_instance_valid(e) and not e.elite and absf(e.global_position.x - bezirgan.position.x) < temiz:
+		# v32: çok katlı bölüm: yalnızca tezgâhın katındakiler (üst / alt kattaki yaratıklar kalır)
+		if is_instance_valid(e) and not e.elite and absf(e.global_position.x - bezirgan.position.x) < temiz and absf(e.global_position.y - bezirgan.position.y) < 10.0 * TS:
 			e.queue_free()
 			moved += 1
 	print("[tuccar] derinlik=%d bezirgan=1 x=%d boss_oncesi=%s mal=%d duvar_ok=%s kaldirilan=%d" % [d, tx, str(boss_once), bezirgan.offers.size(), str(bezirgan_ok()), moved])

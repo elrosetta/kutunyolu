@@ -169,7 +169,7 @@ func _ready() -> void:
 var _test_kipi := false
 const TEST_BAYRAKLARI := ["--otomatik", "--sahne", "--savurus", "--ekran=", "--firca", "--fx_vitrin=", "--sus=", "--bengu", "--mekanik",
 	"--dovus", "--yay", "--unsur", "--denge", "--tomar", "--zeka", "--tuccar", "--harita", "--sanat", "--yaratik", "--silah27",
-	"--boss", "--piksel_tara", "--konak", "--arayuz="]
+	"--boss", "--piksel_tara", "--konak", "--isinlan", "--arayuz="]
 
 
 func _test_bayragi() -> bool:

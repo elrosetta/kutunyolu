@@ -89,7 +89,28 @@ func _akis() -> void:
 	Game.run["kut"] = 25
 	var had_bz: bool = lv.bezirgan != null
 	_p("1. derinlik kuruldu; bezirgan=%s can=40 şişe=0 lütuf=1 kut=25" % str(had_bz))
-	await _gecir()
+	# v32 entegrasyon: dallı (256 x 90) bölümün Kut Kapısı katı zeminde; oyuncu kapıya YÜRÜYEREK girer (ışınlanmaz)
+	var ec := Vector2i(int(floor(lv.exit_pos.x / Level.TS)), int(floor(lv.exit_pos.y / Level.TS)))
+	_check(lv.cell(ec.x, ec.y) != 0 and lv.cell(ec.x, ec.y - 1) == 0 and lv.cell(ec.x, ec.y - 3) == 0, "Kut Kapısı katı zeminde, üstü açık (karo %s)" % str(ec))
+	var yon := 1
+	if lv.cell(ec.x - 3, ec.y - 1) != 0 or lv.cell(ec.x - 3, ec.y) == 0:
+		yon = -1   # kapının solu duvar / boşluksa sağından yürü
+	lv.player.global_position = lv.exit_pos + Vector2(-72.0 * yon, -2.0)
+	lv.player.velocity = Vector2.ZERO
+	await _frames(2)
+	var yuruyen := false
+	for i in 120:
+		Input.action_press("sag" if yon == 1 else "sol")
+		await get_tree().physics_frame
+		if main.level != lv:
+			yuruyen = true
+			break
+	Input.action_release("sag")
+	Input.action_release("sol")
+	_check(yuruyen, "oyuncu Kut Kapısı'na yürüyerek girdi (bölüm bitti)")
+	if not yuruyen:
+		await _gecir()
+	await _frames(3)
 	lv = main.level
 	_check(lv.konak and not lv.hub, "kapıdan sonra KONAK kuruldu (yurt değil; konak=%s hub=%s)" % [str(lv.konak), str(lv.hub)])
 	_check(int(Game.run["depth"]) == 2, "derinlik 2 (%d)" % int(Game.run["depth"]))
@@ -107,6 +128,11 @@ func _akis() -> void:
 	_check((lv.bezirgan != null) == (not had_bz), "Bezirgân kuralı: önceki bölümde pazar %s → konakta %s" % ["vardı" if had_bz else "yoktu", "yok" if lv.bezirgan == null else "var"])
 	_check(get_tree().get_nodes_in_group("dusman").is_empty(), "konakta düşman yok")
 	_check(main.hud.mode == "play" and not get_tree().paused, "oyun konakta sürüyor")
+	# v32 entegrasyon: konakta harita / Kut Taşı yok (küçük harita çizilmez, M haritayı açmaz, ışınlanma reddedilir)
+	_check(lv.harita == null and lv.rooms.is_empty(), "konakta harita sisi ve oda çizgesi yok (küçük harita gizli)")
+	main._harita_ac()
+	_check(main.hud.mode == "play" and not get_tree().paused, "konakta M haritayı açmaz")
+	_check(not lv.isinlan(0), "konakta ışınlanma reddedilir")
 
 
 # ------------------------------------------------------------------ ocak: Kut bankaya
