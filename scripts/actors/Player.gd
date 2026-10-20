@@ -4964,11 +4964,11 @@ func _use_gadget(gs: String) -> void:
 			var t := Totem.new()
 			t.level = level
 			t.dmg = 7.0 * power
-			t.position = Vector2(global_position.x + facing * 20, level.surface_y(int(global_position.x / 24.0 + facing)) * 24.0)
+			t.position = Vector2(global_position.x + facing * 20, level.surface_y(int(global_position.x / 24.0 + facing), int(global_position.y / 24.0) - 2) * 24.0)
 			level.actors.add_child(t)
 		"ok_yagmuru":
 			var ox := global_position.x + facing * 90
-			var ground_y: float = level.surface_y(int(ox / 24.0)) * 24.0
+			var ground_y: float = level.surface_y(int(ox / 24.0), int(global_position.y / 24.0) - 2) * 24.0
 			level.telegraph_ground(Vector2(ox, ground_y), 0.5)
 			_arrow_rain(ox, ground_y, 3.0, 4.0 * power, it)
 		"kartal_cagrisi":
@@ -5983,7 +5983,7 @@ func _gok_asasi(it: Dictionary, mv: float) -> void:
 	if hit.is_empty():
 		# hedef yok: önündeki yere iner, dibindekini çarpar
 		var gx := global_position.x + facing * 110.0
-		var gy: float = level.surface_y(int(gx / 24.0)) * 24.0 if level and level.has_method("surface_y") else global_position.y
+		var gy: float = level.surface_y(int(gx / 24.0), int(global_position.y / 24.0) - 2) * 24.0 if level and level.has_method("surface_y") else global_position.y
 		FX.thunder(Vector2(gx, gy), 0.8)
 		for e in get_tree().get_nodes_in_group("dusman"):
 			if is_instance_valid(e) and not e.dead and e.center().distance_to(Vector2(gx, gy - 14.0)) < 34.0:

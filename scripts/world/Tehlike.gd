@@ -50,7 +50,7 @@ static func spawn(lv: Node, k: String, pos: Vector2, half_w: float, dly: float, 
 			t.dmg = 0.0
 	if on_ground and lv:
 		var ty := int(floor(pos.x / Level.TS))
-		t.position = Vector2(pos.x, lv.surface_y(ty) * Level.TS)
+		t.position = Vector2(pos.x, lv.surface_y(ty, int(floor(pos.y / Level.TS)) - 2) * Level.TS)
 	else:
 		t.position = pos
 	lv.add_child(t)

@@ -5127,3 +5127,158 @@ Silah atlası zaten HD x2 (`assets_hd/x2/weapons`) ve kenar yumuşatmalı gölge
 * `hd_paket.py --kontrol` yeni iki doku için de diğer fx veri dokuları gibi UYARI (gürültü kanalları HD'de ince
   ayrıntı kazanıyor); manifest md5 güncel.
 * `SanatUI._nisan_pips` "Invalid polygon data" hatası (HUD, bu işten önce de var; paralel sanat dalının alanı).
+
+
+## v32: Dead Cells tarzı bölüm tasarımı, Kut Taşı ışınlanma ve harita
+
+Geri bildirim: "Bölüm tasarımı düz ve doğrusal OLMAMALI: Dead Cells gibi büyük, derine inen / yukarı çıkan, çıkmazları
+olan bölümler; belli yerlerde hatırladığımız ışınlanma noktaları; keşfederken çıkmaza girince öğrendiğimiz bir ışınlanma
+noktasını seçip haritanın devam ettiği yere ışınlanalım. Sağ altta önce karanlık, keşfettikçe açılan, ışınlanma
+noktalarını gösteren bir harita. Dead Cells'in harita mekaniğini iyice incele."
+
+### Araştırma ve hedefler (Dead Cells)
+
+Kaynaklar: Sébastien Benard, "The level design of Dead Cells: a hybrid approach" (deepnight.net / Gamasutra);
+deadcells.wiki.gg (Biomes, Runes, Forgotten Map). Çıkarılan ilkeler:
+
+* **Sabit çerçeve + rastgele dolgu**: biyomların sırası ve bağlantıları elle; her biyomun **kavram çizgesi** (giriş,
+  çıkış, özel odalar, aradaki dövüş / keşif odaları) tasarımcı tarafından; çizge bölümün uzunluğunu, özel oda sayısını,
+  labirentliğini ve giriş-çıkış arası en az oda sayısını sınırlar (surlar doğrusal, lağımlar dolambaçlı).
+* **Elle yapılmış oda parçaları**: her parça amaçlı (hazine, tüccar, dövüş), giriş / çıkış sayısı belli, biyoma bağlı
+  (hapishane odası lağımda çıkmaz). Üretici her düğüme havuzdan uyan odayı seçer; kapılar eşleşir.
+* **Dallar ve çıkmazlar**: ana yoldan ayrılan dallar ödülle biter (Kut Tomarı = "scroll of power", hazine sandığı,
+  tüccar, lanetli sandık, **zamanlı kapı** (Promenade 2 dk, Ramparts 8 dk), seçkin bekçisi). Düşey: Clock Tower / Ramparts
+  tırmanış, Toxic Sewers / Ossuary iniş; odalar 1-2 ekran.
+* **Işınlanma taşları** (teleportation monoliths, Teleportation Rune): bölümde dağınık; yanından geçince haritaya işlenir,
+  taşın dibinde etkileşim haritayı açar, bulunmuş bir taş seçilince anında oraya gidilir; oyunun iç mantığında "çıkmaza
+  girdin, geri yürüme" sorununu çözer.
+* **Harita**: sağ üstte / tam ekranda; girilen odaların geometrisi sisten açılır; işaretler: çıkışlar, ışınlanma taşları,
+  tüccar, tomarlar, eşyalar, zamanlı kapılar, seçkinler (Explorer's Rune ile %80 keşifte tamamı). Canavar sayısı
+  dövüş karosu uzunluğuyla ölçeklenir.
+
+Hedefler: ana yol en az bir kat iner / çıkar; her bölümde 3-6 dal ve 2+ çıkmaz ödül odası; döngüler; 3-6 Kut Taşı;
+erişim %100 (giriş -> Kut Kapısı ve her ulaşılan hücreden dönüş); v25 kuralları (3 karo baş boşluğu, yuvarlanma geçidi
+yok, geçerli yerleşim, eşya katıda değil, tüccar duvarda değil) korunur; boss arenası ve yurt değişmez.
+
+### Üretici: kesim ızgarası ve oda çizgesi (`scripts/world/LevelGen.gd`, yeniden yazıldı)
+
+Bölüm `Level.W x Level.H = 256 x 90` karo (eskiden 256 x 44); 36 x 22 karolık **kesimlerden** (`SW`, `SH`; iç alan
+32 x 18 ≈ bir ekran) ızgara: stil başına sütun x satır (`STIL`: orman 7x3, uçurum 6x4, mağara 6x4, harabe 6x4, bozkır 7x2,
+kuyu 5x4). Biyom `data/world.json` "level" ile satır sayısını ve **yönü** ezer: Ötüken / Şahmeran / Tamu `inis` (giriş
+üstte, Kut Kapısı altta), Kaf `cikis` (tırmanış), Bozkır `serbest`.
+
+1. **Ana yol** (`_ana_yol`): sol sütundan sağ sütuna rastgele yürüyüş; sağa ağırlık 3, dikey 1-3 (yöne göre); hedef
+   uzunluk sütun + satır (+0-2); art arda iki dikey adım yok, 2 satırda en çok 2 dikey adım (kesimler dallara kalsın).
+2. **Dallar**: 3-6 (`STIL.dal`) kavşaktan boş kesimlere 1-3 odalık yürüyüş (dikey tercih); son oda **çıkmaz ödül odası**.
+   Ödül sırası: tomar, hazine kesin; sunak / seçkin bekçisi / zamanlı kapı karışık; tüccar istenirse (`Level._plan_bezirgan`
+   kararı üretimden ÖNCE) başa "pazar" (boss öncesi bölümde çıkışa en yakın kavşaktan). Giriş ve çıkış odası yedek kavşak.
+3. **Döngüler**: kapısız komşu odalar arasında `STIL.dongu` şansıyla ek kapı (ödül odaları tek kapılı kalır).
+4. **Birleşme**: ana yolda yan yana odalar geniş salon (`genis`), üst üste odalar yüksek kuyu / kule (`yuksek`) olur.
+5. **Oda türleri** (`kinds` havuzu): salon (adalar, platformlar, duvar sekileri, çukurcuklar, cepler), teras (7-11 sütunlu
+   ±2-4 basamaklar), harabe (sütunlar, kemerler, kırık taban), mağara (dalgalı tavan, sarkıtlar, kayalar, cepler),
+   çukur (ortada 8-12 karo tehlike çukuru + kırık köprü), köprü (iki yüksek uç, 6 karo derin uçurum, dipten merdiven),
+   kuyu (ortada tabandan tavana zikzak basamak, duvar sekileri), kule (kırık sütun güdüğü + tavandan sarkan baş, yükselen
+   sekiler). Kapısız yanlarda iç alan 0-5 (ödül odasında 2-6) karo daralır; taban 2-4 parçada ±3 oynar (rampalar sütun
+   başına en çok 2 karo); gök açık stillerde üst satır odalarının tavanı yok, aradaki kaya yarı tabandan 10 karo yukarıda biter.
+6. **Kapılar** (`_door_geometry`, `_carve_door`): yan kapı 4 karo duvarda 5 karo yüksek geçit, taban satırı `yd` iki odanın
+   tabanından ya da %30 rastgele yüksekte; iki yanda 4 karo **iniş sekisi** (duvara asılı çıkıntı / tabana oyulmuş cep;
+   taban 4+ karo alçaksa 6 sütunluk zikzak **merdiven**, 2+ karo yüksekse tabana çıkan 2 karolık basamaklar). Dikey kapı:
+   üst odanın tabanından 6 karolık **kuyu**, alt odada tabandan kuyuya 3 satırda bir zikzak basamak. 32 karolık odada iki
+   yan seki + merdiven (10 + 10) ve kuyu ağzı bölgesi (10) çakışmadan sığar.
+7. **Kut Taşları**: giriş odası (girişin 9 karo sağı), her çıkmaz ödül odası (kapı sekisinin iç ucu), dallanma kavşakları;
+   en çok 6. **Eşya kaideleri**: ana yolun 1/4, 2/4, 3/4'ündeki odalar. **Tehlike şeritleri**: dövüş odalarının düz tabanında
+   2-3 karo (%55). Zamanlı kapı sütunu `zamanli` listesinde.
+8. **Denetim ve onarım**: `_open_headroom` (3 karo), `_reach` (giriş -> çıkış), `traps` + `fix_traps` (her ulaşılan hücreden
+   dönüş; tehlike tabanlı hücreler sayılmaz: çukur oyuncuyu kendisi sektirir), geçmezse 12 denemeye dek yeniden üretim.
+   Erişim modeli `_moves` aynı (tek / çift zıplama 4 karo, ±5 sütun, 15 satır düşüş, platform kesmez).
+
+Döndürülenler: `rooms` (iç alan, taban `fl[]`, tavan `ce[]`, rol, ödül), `doors`, `path`, `spawn`, `exit`, `tasi`,
+`zamanli`, `kaide`, `bounds`, `metrics`, `chunks` (ödül işaretleri; `Level._place_rooms`: S sunak, T hazine, E seçkin, M tomar,
+P pazar, Z zamanlı ödül), `heights` (eski `surface_y` için ana yol odasının tabanı). `path_cells` / `stand_cell`: bot rehberi.
+
+`Level.gd`: oyuncu `spawn`, Kut Kapısı `exit`; düşmanlar oda başına (giriş ve ödül odalarında yok; seçkinler ana yolun 3.
+odasından sonra, aralarında 4 yaratık); tomarlar: tomar odaları + ana yol ortası + yüksek çıkıntı (toplam 3); keşif ganimeti
+aynı; tüccar düzleme yok, pazar odasının "P" işaretine kurulur; süsler her odanın tabanı boyunca; kamera sınırları
+`bounds`; `surface_y(x, y_ref)` çok katlı bölümde aktörün kendi katını bulur (Enemy / Boss / Player / Tehlike çağrıları).
+
+### Ölçüm (`--harita`, 6 stil x 20 tohum = 120 bölüm; önce = v25, sonra = v32)
+
+| | v25 | v32 |
+|---|---|---|
+| bölüm | 256 x 44, tek yüzey + 2-3 parça + 1-3 özel oda | 256 x 90, 13-18 oda (ort. 15,3), 15 kapı |
+| ana yol | soldan sağa, düz | ort. 9,6 oda, ort. 3,4 dikey adım (en az 1), 2-3 kesim satırı |
+| dal / çıkmaz | 0 (yan odalar yolun üstünde) | ort. 4,1 dal / 4,1 çıkmaz (en az 2), 0,7 döngü, 0,9 geniş + 0,8 yüksek birleşme |
+| düşey aralık (en yüksek - en alçak taban) | ~12 karo | ort. 46 karo (3-4 satırlı stillerde ~50) |
+| Kut Taşı / zamanlı kapı | — | ort. 6,0 (en az 5) / 0,24 |
+| giriş -> çıkış + dönüş (erişim modeli) | 120 / 120 | 120 / 120 (ilk denemede ~%97; ort. 1,1 çıkmaz onarımı, 2,8 açılan tavan karosu) |
+| ulaşılan ayakta durma hücresi | — | %96,5 (en az %88,8; kalanı yüksek cep / sarkıt üstü) |
+| ana yol en az 3 karo baş boşluğu / yuvarlanma hücresi | 120 / 120, 0 | 120 / 120, 0 |
+| geçersiz düşman yerleşimi / eşya katıda / tüccar duvar | 0 / 1014, 0, duvar_ok | 0 / 1150 (503 taşındı, 0 konmadı), 0, duvar_ok |
+| düşman / bölüm (derinlik 1-9) | ~110-170 / 6 | 132-143 / 6 (oda başına 15-22 karoda bir) |
+| üretim süresi | ~0,3 sn | ~1,2 sn (23 k hücrede BFS denetimleri) |
+
+### Kut Taşı ışınlanması (`scripts/world/KutTasi.gd`, `Level.isinlan`)
+
+* **Keşif**: taşın 84 px yakınından geçince (ölü değilken) mürekkep halkası, Kut zerreleri, ışık flaşı, `ruh_tasi` sesi,
+  HUD iletisi ("Kut Taşı bulundu: ... · M haritadan ışınlan") ve bir kez öğretici kartı; tamga Kut rengine döner, dipte ışık.
+* **Kullanım**: M tam ekran haritayı açar (oyun durur); A/D (W/S) bulunmuş taşlar arasında gezer, Boşluk / Enter seçer,
+  M / Esc kapatır. Taşın dibinde (34 px) W de haritayı açar (hızlı ışınlanma). Bot: `harita_istek`.
+* **Kurallar**: yalnızca bulunmuş taşa; dibinde durulan taşa değil; ölüyken / yakalanmışken / yurtta / boss arenasında
+  olmaz; bedelsiz; **0,9 sn kanal** ("Kut'a bağlanıyor": oyuncunun üstünde dolan halka, gövde incelip uzar, zerreler),
+  bu sırada **hasar alınırsa kanal bozulur** ("Işınlanma bozuldu!"); varışta mürekkep dağılma / toplanma, halka, flaş, taş
+  adı, `kut_donusum` sesi, **0,6 sn dokunulmazlık**, kamera anında oturur (`CameraV2.snap`), hedef çevresi sisten açılır.
+  Keşifler bölüm içinde kalıcı, yeni bölümde sıfırlanır.
+* **Zamanlı kapı** (`scripts/world/ZamanliKapi.gd`): çıkmaz ödül odasının girişinde taş söve + kum saati tamgası + kalan
+  süre çizgisi (bölüm başından 90 sn; son 15 sn kızıl nabız); süre dolunca oyuncu dışarıdaysa geçit katı olur
+  (`Level.set_solid`: ızgara + zemin karo katmanı, demir parmaklık çizimi, toz, `kapi` sesi); süresinde girildiyse
+  "Zamanında yetiştin!" ve kapı hep açık. Ödül: üst kademe eşya + 6 altın.
+
+### Harita (`scripts/world/Harita.gd`, `scripts/ui/HaritaUI.gd`)
+
+* **Sis**: oyuncunun hücresinden katı olmayan karolar boyunca taşan 18 x 11 karolık elips görülmüş sayılır (duvardan
+  geçmez; görülen havanın bitişiğindeki duvar yüzü de görülür); 0,2 sn'de bir ya da hücre değişince. Doku karo başına
+  2 x 2 piksel RGBA: görülmeyen saydam (altındaki parşömen + %80 koyu sis: harita önce karanlık), görülen hava açık parşömen, katı mürekkep,
+  platform kahve çizgi, tehlike kızıl.
+* **Küçük harita** (sağ alt, oyun içi; yurt ve boss arenasında yok): parşömen + mürekkep çerçeve, oyuncu ortada (sınırlara
+  kenetli), kızıl mühür oyuncu + yön çentiği, keşif yüzdesi, "M" tuşu. Ayarlar: **Küçük harita** (Kapalı / Küçük 126x76 /
+  Normal 168x100 / Büyük 228x136 birim; 2,6-3,4 birim/karo) ve **Harita saydamlığı** (Hafif / Orta / Koyu);
+  `user://ayarlar.cfg` "harita". 1080p'de Normal 336x200 px, 1440p'de 448x267 px (HUD ölçeğiyle büyür).
+* **Tam ekran harita** (M): bütün bölüm sınırları parşömene sığdırılır (~2,3 birim/karo), biyom adı, derinlik, keşif
+  yüzdesi, Kut Taşı sayısı, seçili taş adı ve halkası, lejant, tuş satırı.
+* **İşaretler** (karosu görülmüşse): Kut Taşı (bulunmuş: Kut rengi dikilitaş; yalnızca görülmüş: sönük), Kut Kapısı (kemer),
+  Tomar, Eşya kaidesi, Bezirgân, Sunak, Seçkin (kafatası; canlıyken), Zamanlı kapı (kum saati + kalan süre). Taş adları:
+  Yol Başı, N. Kavşak, Tomar / Hazine / Sunak / Pazar / Bekçi / Zaman Taşı, Kapı Taşı.
+
+### Bot rehberi (`scripts/world/Rehber.gd`, `--otomatik`)
+
+Dallı bölümde eski "sağa koş" botu çıkışa varamaz. Rehber: önce en yakın 2-3 ödül odası, sonra Kut Kapısı; `LevelGen.path_cells`
+(hücre yolu) ile yol noktalarına göre yürür, zıplar, çift zıplar, platformdan aşağı iner; 1 sn takılınca yeniden plan;
+hedef 70+ hücre uzaktaysa ve bulunmuş bir taş hedefe daha yakınsa ışınlanır (yarısı harita ekranı üzerinden: Main "harita"
+kipi). `[otomatik] KESIF` satırı: keşif yüzdesi, bulunan taş, ışınlanma, ziyaret edilen ödül odası.
+
+### Test
+
+* `-- --harita [--harita_tohum=20 --harita_bolum=6]`: IZGARA satırlarına çizge ölçümleri eklendi; yeni denetimler: erişim +
+  dönüş 120/120, en az 3 Kut Taşı, en az 2 çıkmaz, en az 1 dikey adım, ulaşım >= %85. Çekimler: `--harita_ekran=genel`
+  (biyom başına bütün bölüm tek karede), `kucuk` (bot gezer, küçük harita boyları, tam ekran harita), `isin` (ışınlanma dizisi).
+* `-- --isinlan --muhur=0` (yeni, `tools/tests/isinlan_testi.gd`): keşif, ikinci taş, dibindeki / bulunmamış taşa ret,
+  harita ekranı (açılır, oyun durur), seçim -> kanal -> varış (uzaklık 0 px, dokunulmazlık, yerde, kamera), darbeyle bozulma,
+  rehber yolu (giriş -> kapı, her ödül odasına), zamanlı kapı (kapanır, karolar katı; içerideyken kazanılır, kapanmaz). GECTI.
+* `godot --headless --path . --script res://tools/tests/harita_dok.gd -- --dok_cikti=K --dok_tohum=N`: üretici dökümü
+  (ızgara PNG'leri: oda çerçeveleri, kapılar, taşlar, ödüller, ulaşılan hücreler) ve ortalamalar.
+* Diğerleri (`--otomatik --derinlik=1/3/5/7/9 --muhur=0` (+`--bot_gercek`), `--tuccar`, `--zeka`, iki boss, `--yurt --yurt-tur` (`--otomatik` olmadan: ikisi birlikte yurt botuyla çekişir),
+  `--dovus --boss`, `--mekanik`, `--piksel_tara`): betik hatasız.
+
+### Görseller (`docs/v32/harita/`)
+
+`genel_*.jpg` (Ötüken orman / harabe, Bozkır, Şahmeran mağara, Kaf kuyu, Tamu uçurum: bütün bölüm tek karede),
+`izgara_*.png` (üretici dökümü), `hud_kucuk_harita*.jpg`, `tam_harita.jpg`, `isin_0..3_*.jpg` (taş, harita seçimi, kanal, varış).
+
+### Bilinen
+
+* Üretim ~1,2 sn (eski 0,3): BFS denetimleri 23 k hücrede; bölüm geçişinde hissedilir, ileride onarım döngüsü
+  seyreltilebilir.
+* Ulaşılamayan %3-5 ayakta durma hücresi: yüksek cep tepeleri, sarkıt üstleri, kuyu dudakları; oyunu etkilemez.
+* Kuyu basamaklarının altına çizilen kule ayakları (`_place_towers`) uzun kuyularda iskele gibi yükseliyor; görsel.
+* Küçük harita yalnızca bölümde (yurt / boss arenasında kapalı); gizli oda yok (ileride: kırılan duvar).
+* Bot rehberi dallı bölümde yavaş (150 sn'de ~%30 keşif, 2 ödül odası); ölçüm botu `--bot_gercek` aynı rehberi kullanır.

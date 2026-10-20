@@ -80,10 +80,10 @@ static func head(g: PackedByteArray, W: int, H: int, x: int, y: int) -> int:
 
 static func reach(g: PackedByteArray, W: int, H: int, heights: Array, min_h: int, want_path := false) -> Dictionary:
 	## Girişten BFS (LevelGen._moves); min_h > 1: yalnızca baş boşluğu >= min_h hücrelerden / hücrelere (yuvarlanmadan).
-	## {ok, seen (PackedByteArray), path (ana yol hücreleri, want_path)}
+	## {ok, seen (PackedByteArray), path (ana yol hücreleri, want_path)}. v32: giriş / çıkış LevelGen._son'dan.
 	var gh := LevelGen._haz_as_air(g)
-	var sx := 5
-	var sy: int = int(heights[sx]) - 1
+	var sx := int(LevelGen._son["sx"])
+	var sy := int(LevelGen._son["sy"])
 	var seen := PackedByteArray()
 	seen.resize(W * H)
 	seen.fill(0)
@@ -101,7 +101,7 @@ static func reach(g: PackedByteArray, W: int, H: int, heights: Array, min_h: int
 		qi += 1
 		var cx := id % W
 		var cy := id / W
-		if cx >= W - 7 and goal < 0:
+		if LevelGen._goal(cx, cy) and goal < 0:
 			goal = id
 			if not want_path:
 				break
@@ -159,21 +159,61 @@ func _izgara(n_seed: int) -> void:
 	var roll_cells := 0
 	var tight_cells := 0
 	var roll_lv := 0
+	# v32 çizge ölçümleri: ana yol odası, dal, çıkmaz, döngü, dikey adım, kesim satırı, Kut Taşı, zamanlı kapı,
+	# ulaşılan hücre oranı (girişten BFS / tüm ayakta durma hücreleri), düşey aralık (en yüksek - en alçak taban)
+	var m_sum := {}
+	var ok_all := 0
+	var reach_min := 1.0
+	var tasi_min := 99
+	var cikmaz_min := 99
+	var dikey_min := 99
 	for style in LevelGen.STYLES:
 		var s_walk := 0
 		var s_ok3 := 0
 		var s_min := 99
 		var s_roll := 0
+		var s_m := {}
 		for k in n_seed:
 			var rng := RandomNumberGenerator.new()
 			rng.seed = 1000 + k * 7919 + style.length() * 31
-			var r := LevelGen.generate(rng, W, H, 3, [style])
+			var r := LevelGen.generate(rng, W, H, 3, [style], {"pazar": k % 3 == 0})
 			var g: PackedByteArray = r["grid"]
 			var hts: Array = r["heights"]
 			tot += 1
 			fixes[0] += int(r.get("carved", 0))
 			fixes[1] += int(r.get("trapfix", 0))
 			fixes[2] += int(r.get("headfix", 0))
+			var m: Dictionary = r["metrics"]
+			if bool(m["ok"]):
+				ok_all += 1
+			var gh := LevelGen._haz_as_air(g)
+			var rs := LevelGen.reach_set(g, W, H, hts)
+			var n_stand := 0
+			var n_reach := 0
+			for i in rs.size():
+				if LevelGen._standable(gh, i % W, i / W, W, H):
+					n_stand += 1
+					if rs[i] == 1:
+						n_reach += 1
+			var rk := float(n_reach) / maxf(1.0, float(n_stand))
+			reach_min = minf(reach_min, rk)
+			var lo := 999
+			var hi := 0
+			for rm in r["rooms"]:
+				if rm["role"] == "yok":
+					continue
+				for v in rm["fl"]:
+					lo = mini(lo, int(v))
+					hi = maxi(hi, int(v))
+			m["ulasim"] = rk
+			m["dusey"] = hi - lo
+			tasi_min = mini(tasi_min, int(m["tasi"]))
+			cikmaz_min = mini(cikmaz_min, int(m["cikmaz"]))
+			dikey_min = mini(dikey_min, int(m["dikey_adim"]))
+			for key in m:
+				if typeof(m[key]) in [TYPE_INT, TYPE_FLOAT, TYPE_BOOL]:
+					m_sum[key] = float(m_sum.get(key, 0.0)) + float(m[key])
+					s_m[key] = float(s_m.get(key, 0.0)) + float(m[key])
 			var any := reach(g, W, H, hts, 1)
 			var walk := reach(g, W, H, hts, 2, true)
 			var w3 := reach(g, W, H, hts, 3)
@@ -216,11 +256,25 @@ func _izgara(n_seed: int) -> void:
 			s_roll += rc
 			if rc > 0:
 				roll_lv += 1
-		_p("IZGARA stil=%s yürüyerek=%d/%d 3karo=%d/%d yol_en_dar=%d yuvarlanma_hücresi=%d" % [style, s_walk, n_seed, s_ok3, n_seed, s_min, s_roll])
+		_p("IZGARA stil=%s yürüyerek=%d/%d 3karo=%d/%d yol_en_dar=%d yuvarlanma_hücresi=%d | oda=%.1f ana=%.1f dal=%.1f çıkmaz=%.1f döngü=%.1f dikey_adım=%.1f satır=%.1f taşı=%.1f zamanlı=%.1f ulaşım=%%%.1f düşey=%.0f karo deneme=%.2f onarım=%.1f" % [
+			style, s_walk, n_seed, s_ok3, n_seed, s_min, s_roll, float(s_m.get("oda", 0)) / n_seed, float(s_m.get("ana", 0)) / n_seed, float(s_m.get("dal", 0)) / n_seed,
+			float(s_m.get("cikmaz", 0)) / n_seed, float(s_m.get("dongu", 0)) / n_seed, float(s_m.get("dikey_adim", 0)) / n_seed, float(s_m.get("satir", 0)) / n_seed,
+			float(s_m.get("tasi", 0)) / n_seed, float(s_m.get("zamanli", 0)) / n_seed, 100.0 * float(s_m.get("ulasim", 0)) / n_seed, float(s_m.get("dusey", 0)) / n_seed,
+			float(s_m.get("attempts", 0)) / n_seed, float(s_m.get("trapfix", 0)) / n_seed])
 	_p("IZGARA TOPLAM bölüm=%d yürüyerek(>=2)=%d 3karo=%d ana_yol_en_dar=%d en_iyi_yol_dağılımı=%s yuvarlanma_hücresi=%d (bölüm %d) 2karo_hücre=%d" % [tot, walk_ok, ok3, min_path_all, str(hist), roll_cells, roll_lv, tight_cells])
 	_p("IZGARA onarım ortalaması: koridor %.2f, çıkmaz %.2f, açılan tavan karosu %.1f" % [float(fixes[0]) / tot, float(fixes[1]) / tot, float(fixes[2]) / tot])
+	_p("IZGARA v32 ÇİZGE ortalama: oda=%.1f ana_yol=%.1f dal=%.2f çıkmaz=%.2f döngü=%.2f geniş=%.2f yüksek=%.2f dikey_adım=%.2f kesim_satırı=%.2f kapı=%.1f Kut_Taşı=%.2f zamanlı=%.2f ulaşım=%%%.1f (en az %%%.1f) düşey_aralık=%.0f karo | en az: taşı=%d çıkmaz=%d dikey=%d | erişim+dönüş=%d/%d" % [
+		float(m_sum.get("oda", 0)) / tot, float(m_sum.get("ana", 0)) / tot, float(m_sum.get("dal", 0)) / tot, float(m_sum.get("cikmaz", 0)) / tot, float(m_sum.get("dongu", 0)) / tot,
+		float(m_sum.get("genis", 0)) / tot, float(m_sum.get("yuksek", 0)) / tot, float(m_sum.get("dikey_adim", 0)) / tot, float(m_sum.get("satir", 0)) / tot, float(m_sum.get("kapi", 0)) / tot,
+		float(m_sum.get("tasi", 0)) / tot, float(m_sum.get("zamanli", 0)) / tot, 100.0 * float(m_sum.get("ulasim", 0)) / tot, 100.0 * reach_min, float(m_sum.get("dusey", 0)) / tot,
+		tasi_min, cikmaz_min, dikey_min, ok_all, tot])
 	_check(walk_ok == tot, "her bölümde ana yol yuvarlanmadan yürünür (%d/%d)" % [walk_ok, tot])
 	_check(roll_cells == 0, "girişten ulaşılan yalnızca-yuvarlanma hücresi yok (%d)" % roll_cells)
+	_check(ok_all == tot, "her bölümde giriş -> Kut Kapısı ve her ulaşılan hücreden dönüş (%d/%d)" % [ok_all, tot])
+	_check(tasi_min >= 3, "her bölümde en az 3 Kut Taşı (en az %d)" % tasi_min)
+	_check(cikmaz_min >= 2, "her bölümde en az 2 çıkmaz ödül odası (en az %d)" % cikmaz_min)
+	_check(dikey_min >= 1, "her bölümde ana yol en az bir kat iner / çıkar (en az %d)" % dikey_min)
+	_check(reach_min >= 0.85, "ayakta durma hücrelerinin en az %%85'i girişten ulaşılır (en az %%%.1f; kalanı yüksek cep / sarkıt üstü)" % (100.0 * reach_min))
 
 
 # ------------------------------------------------------------------ tam bölüm: yerleşim
@@ -372,14 +426,108 @@ func _ekran_kur() -> void:
 			await _ekran_tuzak()
 		"tepegoz":
 			await _ekran_tepegoz()
+		"genel":
+			await _ekran_genel()
+		"kucuk":
+			await _ekran_kucuk()
+		"isin":
+			await _ekran_isin()
 	get_tree().quit()
+
+
+# ------------------------------------------------------------------ v32 çekimleri
+func _genel_kamera(lv: Node) -> Camera2D:
+	## Bütün bölümü tek karede gösteren kamera (sınırlar ekrana sığar); oyuncu kamerası kapatılır
+	var vp := get_viewport().get_visible_rect().size
+	var b: Rect2i = lv.bounds
+	var k := minf(vp.x / float(b.size.x * Level.TS), vp.y / float(b.size.y * Level.TS))
+	var cam := Camera2D.new()
+	cam.position = Vector2(b.get_center()) * Level.TS
+	cam.zoom = Vector2.ONE * k
+	cam.process_mode = Node.PROCESS_MODE_ALWAYS
+	lv.add_child(cam)
+	cam.make_current()
+	return cam
+
+
+func _ekran_genel() -> void:
+	## Her biyomdan (derinlik 1, 3, 5, 7, 9) bütün bölümün genel görünümü: oyun karoları, süsler, ışıklar; HUD gizli
+	var tohum := int(_arg_or("--harita_tohum", "7"))
+	for d in [1, 3, 5, 7, 9]:
+		for k in 2:
+			var lv := _build(d, 3100 + d * 37 + k + tohum)
+			main._start_play()
+			main.hud.visible = false
+			await _phys(3)
+			_clear_foes(lv, Vector2.ZERO, 99999.0)
+			var cam := _genel_kamera(lv)
+			await _phys(20)
+			await _snap("genel_%s_d%d_%s_%d" % [lv.biome.get("id", "?"), d, lv.style, k])
+			cam.queue_free()
+	main.hud.visible = true
+
+
+func _ekran_kucuk() -> void:
+	## Küçük harita: bot rehberi 14 sn gezer (sis açılır, taşlar bulunur), HUD çekilir; sonra tam ekran harita (M) ve
+	## ayarlardaki üç harita boyu
+	var d := int(_arg_or("--harita_derinlik", "1"))
+	var lv := _build(d, 5100 + d)
+	main._start_play()
+	await _phys(3)
+	var pl: Node = lv.player
+	main.rehber.reset(lv)
+	for i in 14 * 60:
+		main.rehber.adim(main, pl, 1.0 / 60.0)
+		await get_tree().physics_frame
+		if i % 240 == 120:
+			await _snap("kucuk_%02d" % (i / 240))
+	for a in main.rehber._basili:
+		Input.action_release(a)
+	await _phys(10)
+	for si in [1, 2, 3]:
+		Ayarlar.harita_i = si
+		await _phys(2)
+		await _snap("kucuk_boy_%d" % si)
+	Ayarlar.harita_i = 2
+	main._harita_ac()
+	await _phys(4)
+	await _snap("tam_harita")
+	_p("küçük: keşif=%%%d taşı=%d/%d ışınlanma=%d" % [int(round(lv.harita.yuzde() * 100.0)), lv.harita.bulunan().size(), lv.harita.tasi.size(), lv.isin_sayi])
+	main._start_play()
+
+
+func _ekran_isin() -> void:
+	## Işınlanma dizisi: iki taş bulunur, harita ekranından seçim, kanal (0,9 sn) ve varış kareleri
+	var lv := _build(int(_arg_or("--harita_derinlik", "1")), 5200)
+	main._start_play()
+	await _phys(3)
+	var pl: Node = lv.player
+	_clear_foes(lv, Vector2.ZERO, 99999.0)
+	var c0: Vector2i = lv.harita.tasi[0]["cell"]
+	var c1: Vector2i = lv.harita.tasi[1]["cell"]
+	pl.global_position = Vector2(c1.x * Level.TS + 12, (c1.y + 1) * Level.TS - 1)
+	pl.velocity = Vector2.ZERO
+	await _phys(8)
+	pl.global_position = Vector2((c0.x - 2) * Level.TS + 12, (c0.y + 1) * Level.TS - 1)
+	pl.velocity = Vector2.ZERO
+	Game.camera.snap()
+	await _phys(30)
+	await _snap("isin_00_tas")
+	main._harita_ac()
+	await _phys(3)
+	await _snap("isin_01_harita")
+	main._harita_sec(lv.harita.bulunan().find(1))
+	for i in 12:
+		await _phys(5)
+		await _snap("isin_%02d" % (2 + i))
+	_p("ışınlanma: sayı=%d bozuk=%d oyuncu=%s hedef=%s" % [lv.isin_sayi, lv.isin_bozuk, str((pl.global_position / Level.TS).floor()), str(c1)])
 
 
 func _ekran_genis() -> void:
 	## Geniş bölüm kesitleri: her stilden bir bölüm; 3 karo yüksek tünel, kule altı, hazine odası, seçkin odası, kurgan,
 	## mağara tavanı / dar boğaz, kuyu önünde kareler
 	var want := ["magara", "harabe", "kuyu", "bozkir", "ucurum", "orman"]
-	var pref := ["tunel", "kule", "hazine", "seckin", "kurgan", "cukur", "merdiven", "sutunlar", "zehir_cukuru"]
+	var pref := ["hazine", "seckin", "tomar", "sunak", "pazar", "zamanli"]
 	var done := {}
 	for d in [1, 2, 3, 4, 5, 6, 7, 8, 9]:
 		for k in 6:

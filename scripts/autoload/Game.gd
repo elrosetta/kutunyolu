@@ -540,3 +540,5 @@ func _setup_input() -> void:
 	_bind("sanat", [KEY_T], -1, [], [[JOY_AXIS_TRIGGER_LEFT, 1.0]])
 	_bind("duraklat", [KEY_ESCAPE, KEY_P], -1, [JOY_BUTTON_START])
 	_bind("ayarlar", [KEY_TAB, KEY_O], -1, [JOY_BUTTON_GUIDE])
+	# v32 harita: M (oyun kolunda sağ çubuk basışı Kut'ta; harita için D-pad aşağı uzun basış yok: yalnızca klavye)
+	_bind("harita", [KEY_M])
