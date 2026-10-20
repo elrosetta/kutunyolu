@@ -15,8 +15,8 @@ signal tasi_bulundu(i: int)   # v32: Kut Taşı keşfedildi
 signal harita_requested       # v32: Kut Taşı'nın dibinde W: harita (hızlı ışınlanma) açılsın
 
 const TS := 24
-const W := 256   # v25: 230'dan genişledi; v32: oda çizgesi 7 x 36 karolık kesim (LevelGen.SW)
-const H := 90    # v32: 44'ten 90'a: 4 satır kesim (LevelGen.SH 22); yurt ve arena üst 30 satırı kullanır
+const W := 172   # v25: 230'dan genişledi; v32: 256 (7 x 36 karolık kesim); v33: 7 x 24 karolık küçük kesim (LevelGen.SW)
+const H := 56    # v32: 44'ten 90'a (4 x 22); v33: 4 satır x 13 karo (LevelGen.SH); yurt / konak / arena üst 30 satırı kullanır
 
 ## v32 oda çizgesi (LevelGen.generate): odalar, kapılar, giriş / çıkış karosu, sınırlar, ölçümler
 var rooms: Array = []
@@ -2132,7 +2132,8 @@ func _place_towers() -> void:
 		y += 1
 
 
-func _ground_below(x: int, y: int, max_d := 14) -> int:
+func _ground_below(x: int, y: int, max_d := 7) -> int:
+	## v33: 14 -> 7: kuyu kapağının / tırmanış basamağının altına uzun iskele ayağı çizilmez
 	## (x, y) altında ilk katı karo satırı; bulunamazsa -1
 	for d in range(1, max_d + 1):
 		if y + d >= H:
@@ -2310,7 +2311,9 @@ func _spawn_player() -> void:
 		deepest = maxi(deepest, int(h))
 	camera.limit_bottom = mini(H, deepest + 4) * TS
 	if not rooms.is_empty():
-		# v32: çok katlı bölüm: sınırlar kesim ızgarasından
+		# v32: çok katlı bölüm: sınırlar kesim ızgarasından; v33: dolu kesimlerin sıkı kutusu (sol / üst de)
+		camera.limit_left = bounds.position.x * TS
+		camera.limit_top = bounds.position.y * TS
 		camera.limit_right = bounds.end.x * TS
 		camera.limit_bottom = bounds.end.y * TS
 	add_child(camera)

@@ -135,6 +135,8 @@ func process(delta: float) -> void:
 	pl.hurt_t -= delta
 	pl.coyote -= delta
 	pl.jump_buf -= delta
+	pl.drop_t -= delta
+	pl.set_collision_mask_value(4, pl.drop_t <= 0.0)   # v33: dönüşmüş biçimde de tek yönlü platformdan inilir
 	if t <= 0.0:
 		pl._end_don()
 		return
@@ -169,6 +171,11 @@ func process(delta: float) -> void:
 				pl.velocity.y = move_toward(pl.velocity.y, -220.0, 1400.0 * delta)
 				if Engine.get_physics_frames() % 6 == 0:
 					FX.dust(pl.global_position + Vector2(0, 4), Vector2(0, 1), 1, 0.2, Color(COL, 0.4))
+		elif pl.jump_buf > 0.0 and fl and Input.is_action_pressed("asagi"):
+			# v33: aşağı + zıpla: tek yönlü platformdan / kuyu kapağından iner
+			pl.drop_t = 0.25
+			pl.jump_buf = 0.0
+			pl.position.y += 2
 		elif pl.jump_buf > 0.0 and (pl.coyote > 0.0 or pl.air_jumps > 0):
 			if pl.coyote <= 0.0:
 				pl.air_jumps -= 1

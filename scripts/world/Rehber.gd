@@ -4,6 +4,8 @@ extends RefCounted
 ## Kut Kapısı), LevelGen._moves modeliyle hücre yolu bulur ve yol noktalarına göre tuşlara basar (yürü, zıpla, çift
 ## zıpla, platformdan aşağı in). Hedef uzaksa ve bulunmuş bir Kut Taşı hedefe daha yakınsa ışınlanır (bazen harita
 ## ekranı üzerinden: Main "harita" kipi). Takılınca yeniden plan yapar.
+## v33: küçük bölümde kuyu kapağından aşağı + zıpla ile iner (aşağı basılı tutulur, Main bu sırada saldırmaz / rastgele
+## zıplamaz), zıplama dokunuşu iki kare basılı kalır; keşif sıçraması yalnızca aynı hedefte 40 sn takılınca.
 
 var level: Node
 var path: Array = []
@@ -20,6 +22,10 @@ var hedef_sayac := 0
 var _jump_cd := 0.0
 var _kesif_t := 0.0
 var _basili: Array = []
+## v33: dokunuş (zıpla) iki fizik karesi basılı kalır: Input.action_press'in "yeni basıldı"sı oyuncuya bir sonraki karede
+## görünür; tek karelik basış ondan önce bırakılıyor, zıplama / kapaktan inme çoğu kez yutuluyordu
+var _dokunus: Dictionary = {}
+var iniyor := false       # v33: tek yönlü kapaktan / platformdan aşağı iniyor (Main saldırı basmasın, takılma sayılmasın)
 
 
 func reset(lv: Node) -> void:
@@ -38,13 +44,16 @@ func _hedef_sec(pl: Node) -> void:
 	## Önce 2 ödül odası (en yakın), sonra çıkış; her 4. hedefte çıkışa gider
 	hedef_tur = "cikis"
 	hedef = level.exit_cell
+	_kesif_t = 0.0   # v33: keşif sıçraması yalnızca aynı hedefte 40 sn ilerleyemeyince (küçük bölümde geri ışınlanmasın)
 	var cands: Array = []
 	for rm in level.rooms:
 		if rm["role"] != "odul" or ziyaret.has(int(rm["id"])):
 			continue
 		var c: Vector2i = LevelGen._floor_spot(level.grid, level.W, level.H, rm, LevelGen._odul_mid(rm))
 		cands.append([int(rm["id"]), c])
-	if not cands.is_empty() and hedef_sayac % 4 != 3 and ziyaret.size() < 3:
+	# v33: can %55'in altındaysa ödül odalarına sapmadan Kut Kapısı'na (dövüşmeyen bot derin bölümde ölmesin)
+	var can_ok: bool = float(Game.run.get("hp", 1.0)) >= 0.55 * float(Game.run.get("max_hp", 1.0))
+	if not cands.is_empty() and hedef_sayac % 4 != 3 and ziyaret.size() < 3 and can_ok:
 		var best: Array = cands[0]
 		var bd := 1e9
 		for cd in cands:
@@ -94,6 +103,11 @@ func adim(main: Node, pl: Node, delta: float) -> void:
 	for a in _basili:
 		Input.action_release(a)
 	_basili.clear()
+	for a in _dokunus.keys():
+		_dokunus[a] = int(_dokunus[a]) - 1
+		if int(_dokunus[a]) <= 0:
+			Input.action_release(a)
+			_dokunus.erase(a)
 	if level == null or level.player == null or bool(pl.get("dead")) or level.hub or level.boss_id != "":
 		if level and level.boss_id != "" and level.boss != null:
 			_press("sag")
@@ -103,7 +117,7 @@ func adim(main: Node, pl: Node, delta: float) -> void:
 	_kesif_t += delta
 	var TS: float = float(level.TS)
 	var feet: Vector2 = pl.global_position
-	# keşif sıçraması: 40 sn'de bir, 2+ taş bulunduysa en uzak bulunmuş taşa ışınlan (haritanın başka ucunu keşfet)
+	# keşif sıçraması: aynı hedefe 40 sn varılamadıysa, 2+ taş bulunduysa en uzak bulunmuş taşa ışınlan
 	if _kesif_t > 40.0 and level.harita and level.isin_t <= 0.0 and level.harita.bulunan().size() >= 2:
 		_kesif_t = 0.0
 		var far := -1
@@ -126,6 +140,8 @@ func adim(main: Node, pl: Node, delta: float) -> void:
 	if hedef_tur.begins_with("odul:") and Vector2(hedef).distance_to(feet / TS) < 6.0:
 		ziyaret[int(hedef_tur.trim_prefix("odul:"))] = true
 		hedef = Vector2i(-1, -1)
+	if hedef_tur.begins_with("odul:") and float(Game.run.get("hp", 1.0)) < 0.55 * float(Game.run.get("max_hp", 1.0)):
+		hedef = Vector2i(-1, -1)   # v33: can azaldı: ödülü bırak, kapıya
 	if hedef.x < 0 or (hedef_tur == "cikis" and ziyaret.size() < 3 and hedef_sayac % 4 == 3 and false):
 		_hedef_sec(pl)
 		path = []
@@ -141,8 +157,8 @@ func adim(main: Node, pl: Node, delta: float) -> void:
 				_tap("zipla")
 				_jump_cd = 0.4
 			return
-	# takılma
-	if absf(feet.x - last_x) < 1.5:
+	# takılma (v33: platformdan inmeye çalışırken sayılmaz)
+	if absf(feet.x - last_x) < 1.5 and not iniyor:
 		stuck_t += delta
 	else:
 		stuck_t = 0.0
@@ -168,6 +184,7 @@ func adim(main: Node, pl: Node, delta: float) -> void:
 	var dx := wp2.x - feet.x
 	var dy := wp2.y - feet.y   # negatif: hedef yukarıda
 	var on_floor: bool = pl.is_on_floor()
+	iniyor = false
 	if absf(dx) > 4.0:
 		_press("sag" if dx > 0.0 else "sol")
 	if dy < -14.0:
@@ -183,10 +200,14 @@ func adim(main: Node, pl: Node, delta: float) -> void:
 		var cx := int(floor(feet.x / TS))
 		var cy := int(floor((feet.y + 4.0) / TS))
 		if level.cell(cx, cy) == 2:
+			# v33: aşağı basılı tutulur, zıplama 0,3 sn'de bir (saldırı tamponu zıplamayı yutmasın: Main saldırmaz)
+			iniyor = true
 			_press("asagi")
-			if _jump_cd <= 0.0:
+			if _jump_cd <= 0.0 and float(pl.get("roll_t")) <= 0.0:
 				_tap("zipla")
 				_jump_cd = 0.3
+		elif absf(dx) > 1.0:
+			_press("sag" if dx > 0.0 else "sol")   # kenara / kapağın üstüne yürü
 	elif absf(dx) > TS * 2.2 and on_floor and _jump_cd <= 0.0:
 		# geniş boşluk: zıplayarak geç
 		var cx := int(floor((feet.x + signf(dx) * TS * 1.2) / TS))
@@ -202,5 +223,7 @@ func _press(a: String) -> void:
 
 
 func _tap(a: String) -> void:
+	if _dokunus.has(a):
+		return
 	Input.action_press(a)
-	_basili.append(a)
+	_dokunus[a] = 2

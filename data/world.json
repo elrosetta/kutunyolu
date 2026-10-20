@@ -115,7 +115,7 @@
    "level": {
     "rows": 3,
     "yon": "inis",
-    "_not": "v32: 3 satır kesim; giriş üstte, Kut Kapısı altta (orman yüzeyden mağaraya iner)"
+    "_not": "v32: 3 satır kesim; giriş üstte, Kut Kapısı altta (orman yüzeyden mağaraya iner). v33: 24 x 13 karoluk küçük kesimler, düşerek iniş"
    }
   },
   {
@@ -227,7 +227,7 @@
    "level": {
     "rows": 2,
     "yon": "serbest",
-    "_not": "v32: geniş ova, 2 satır; kurgan dalları aşağı iner"
+    "_not": "v32: geniş ova, 2 satır; kurgan dalları aşağı iner. v33: küçük kesimler"
    }
   },
   {
@@ -348,7 +348,7 @@
    "level": {
     "rows": 4,
     "yon": "inis",
-    "_not": "v32: 4 satır dar kuyu / mağara; derine iniş"
+    "_not": "v32: 4 satır dar kuyu / mağara; derine iniş. v33: küçük kesimler, düşüş kuyuları"
    }
   },
   {
@@ -457,9 +457,9 @@
     8
    ],
    "level": {
-    "rows": 4,
+    "rows": 3,
     "yon": "cikis",
-    "_not": "v32: Kaf Dağı tırmanışı; giriş altta, Kut Kapısı tepede (uçurum terasları, kule)"
+    "_not": "v32: Kaf Dağı tırmanışı; giriş altta, Kut Kapısı tepede (uçurum terasları, kule). v33: 3 satır: ana yolda en çok iki kısa tırmanış (birkaç tek yönlü basamak)"
    }
   },
   {
@@ -568,7 +568,7 @@
    "level": {
     "rows": 4,
     "yon": "inis",
-    "_not": "v32: Tamu derinlikleri; harabe kuyuları aşağı"
+    "_not": "v32: Tamu derinlikleri; harabe kuyuları aşağı. v33: küçük kesimler, düşüş kuyuları"
    }
   }
  ],

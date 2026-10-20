@@ -8,7 +8,7 @@ const KUT := Color(0.36, 0.86, 0.9)
 const GOLD := Color(1.0, 0.82, 0.38)
 const BONE := Color(0.95, 0.88, 0.74)
 const SIZES := [Vector2.ZERO, Vector2(126, 76), Vector2(168, 100), Vector2(228, 136)]   # Kapalı / Küçük / Normal / Büyük
-const PPT := [0.0, 2.6, 3.0, 3.4]   # birim / karo
+const PPT := [0.0, 2.2, 2.6, 3.0]   # birim / karo (v33: küçük bölümde daha geniş pencere: Normal ~65 x 38 karo, 3-4 oda)
 
 
 # ------------------------------------------------------------------ küçük harita (oyun içi, sağ alt)

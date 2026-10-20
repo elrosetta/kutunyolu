@@ -1381,7 +1381,20 @@ func _physics_process(delta: float) -> void:
 			var found: Array = level.harita.bulunan() if level and level.harita else []
 			var want: int = found.find(level.harita_istek) if level else -1
 			level.harita_istek = -1
-			_harita_sec(want if want >= 0 else randi_range(0, maxi(0, found.size() - 1)))
+			# v33: dibinde durulan taştan başka bulunmuş taş yoksa haritayı kapat (eskiden "Zaten bu taşın dibindesin"
+			# deyip harita açık kalıyor, bot oyunu durdurulmuş ağaçta bekliyordu: giriş taşının dibinde W)
+			var yakin: int = level.tasi_yakin() if level else -1
+			var sec: int = want if want >= 0 else randi_range(0, maxi(0, found.size() - 1))
+			if not found.is_empty() and int(found[clampi(sec, 0, found.size() - 1)]) == yakin:
+				sec = -1
+				for j in found.size():
+					if int(found[j]) != yakin:
+						sec = j
+						break
+			if found.is_empty() or sec < 0:
+				_start_play()
+			else:
+				_harita_sec(sec)
 			return
 		"done":
 			_next_level()
@@ -1428,7 +1441,7 @@ func _physics_process(delta: float) -> void:
 		rehber.adim(self, pl, delta)   # v32: dallı bölümde yol bulma, ödül odaları, Kut Taşı ışınlanması
 		if level.harita_istek >= 0 and hud.mode == "play" and not get_tree().paused:
 			_harita_ac()   # rehber harita ekranından ışınlanmak istedi
-		if int(t * 60.0) % 23 == 0:
+		if int(t * 60.0) % 23 == 0 and not rehber.iniyor:
 			_tap("saldiri1")
 	else:
 		Input.action_press("sag")
@@ -1436,10 +1449,13 @@ func _physics_process(delta: float) -> void:
 			_tap("saldiri1")
 	# v9: koşu (Shift basılı) ve çömelerek saldırı yolları da sınanır
 	var f9 := int(t * 60.0) % 700
-	if f9 >= 200 and f9 < 330:
+	# v33: dallı bölümde rehber yürürken rastgele zıplama / yuvarlanma / çömelme dizileri yolu bozuyordu (kuyu kapağından
+	# inemiyor, düşüş kenarında geri sekiyordu): yalnızca düz alanlarda (boss arenası) ve ölçüm botunda (--bot_gercek) işler
+	var ini: bool = not level.rooms.is_empty() and not level.hub and not _bot_gercek
+	if f9 >= 200 and f9 < 330 and not ini:
 		Input.action_press("yuvarlan")
 		_auto_pressed.append("yuvarlan")
-	if f9 >= 420 and f9 < 470:
+	if f9 >= 420 and f9 < 470 and not ini:
 		Input.action_press("asagi")
 		_auto_pressed.append("asagi")
 		if f9 % 12 == 0:
@@ -1471,15 +1487,15 @@ func _physics_process(delta: float) -> void:
 		_bot_cukur_t = float(pl._haz_last)
 		_bot_cukur += 1
 	_auto_last_x = pl.global_position.x
-	if _auto_stuck > 1.2 and int(t * 60.0) % 20 == 0:
+	if _auto_stuck > 1.2 and int(t * 60.0) % 20 == 0 and not ini:
 		_tap("zipla")
-	if _auto_stuck > 1.2 and int(t * 60.0) % 20 == 12:
+	if _auto_stuck > 1.2 and int(t * 60.0) % 20 == 12 and not ini:
 		_tap("yuvarlan")
-	if int(t * 60.0) % 97 == 0:
+	if int(t * 60.0) % 97 == 0 and not ini:
 		_tap("zipla")
-	if int(t * 60.0) % 101 == 50:
+	if int(t * 60.0) % 101 == 50 and not ini:
 		_tap("zipla")
-	if int(t * 60.0) % 173 == 0:
+	if int(t * 60.0) % 173 == 0 and not ini:
 		_tap("yuvarlan")
 	if int(t * 60.0) % 211 == 0:
 		Input.action_press("saldiri2")

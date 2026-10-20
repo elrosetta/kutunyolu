@@ -123,6 +123,77 @@ static func reach(g: PackedByteArray, W: int, H: int, heights: Array, min_h: int
 	return {"ok": goal >= 0, "seen": seen, "path": path}
 
 
+## v33 yol ölçümü: yürüme 155 px/sn = 6,46 karo/sn (Player.RUN), yerçekimi 1180, zıplama 430 px/sn
+const KOSU_KARO := 6.46
+
+
+static func yol_olcum(path: Array, W: int) -> Dictionary:
+	## Ana yol hücre dizisi (giriş -> çıkış) üzerinden: uzunluk (karo: yatay + dikey), tahmini süre (sn; hamle başına
+	## yatay koşu ile zıplama / düşüş süresinin büyüğü), düşüş (>= 3 karo aşağı), tırmanış (>= 3 karo yukarı), küçük
+	## basamak (1-2 karo), en uzun dikey zincir (aynı yönde art arda dikey hamleler, aralarında en çok 4 karo yürüyüş;
+	## tırmanış basamakları dahil) ve en uzun KÜÇÜK basamak zinciri (yalnızca 1-2 karoluk adımlar: merdiven yorgunluğu)
+	var ln := 0
+	var sure := 0.0
+	var dusus := 0
+	var tirmanis := 0
+	var basamak := 0
+	var zincir := 0
+	var zincir_max := 0
+	var zincir_yon := 0
+	var duz := 0
+	var kz := 0       # küçük basamak (1-2 karo) zinciri: merdiven yorgunluğu
+	var kz_max := 0
+	var kz_yon := 0
+	var kz_duz := 0
+	for i in range(1, path.size()):
+		var a: int = path[i - 1]
+		var b: int = path[i]
+		var dx := absi(b % W - a % W)
+		var dy := b / W - a / W
+		ln += dx + absi(dy)
+		var th := float(dx) / KOSU_KARO
+		var tv := 0.0
+		if dy < 0:
+			tv = 0.36 if dy >= -3 else 0.62
+		elif dy > 0:
+			tv = sqrt(2.0 * dy * 24.0 / 1180.0)
+		elif dx > 1:
+			tv = 0.25
+		sure += maxf(th, tv)
+		if dy == 0 or absi(dy) > 2:
+			kz_duz += dx if dy == 0 else 99
+			if kz_duz > 4:
+				kz = 0
+		else:
+			if kz > 0 and signi(dy) == kz_yon and kz_duz <= 4:
+				kz += 1
+			else:
+				kz = 1
+			kz_yon = signi(dy)
+			kz_duz = 0
+			kz_max = maxi(kz_max, kz)
+		if dy == 0:
+			duz += dx
+			if duz > 4:
+				zincir = 0
+			continue
+		if dy >= 3:
+			dusus += 1
+		elif dy <= -3:
+			tirmanis += 1
+		else:
+			basamak += 1
+		var yon := signi(dy)
+		if zincir > 0 and yon == zincir_yon and duz <= 4:
+			zincir += 1
+		else:
+			zincir = 1
+		zincir_yon = yon
+		duz = 0
+		zincir_max = maxi(zincir_max, zincir)
+	return {"uzunluk": ln, "sure": sure, "dusus": dusus, "tirmanis": tirmanis, "basamak": basamak, "zincir": zincir_max, "basamak_zinciri": kz_max}
+
+
 static func _area(g: PackedByteArray, W: int, H: int, x: int, y: int) -> String:
 	var s := "
 "
@@ -167,6 +238,11 @@ func _izgara(n_seed: int) -> void:
 	var tasi_min := 99
 	var cikmaz_min := 99
 	var dikey_min := 99
+	var zincir_max := 0
+	var kz_max := 0
+	var sure_min := 9999.0
+	var sure_max := 0.0
+	var gen_max := 0.0
 	for style in LevelGen.STYLES:
 		var s_walk := 0
 		var s_ok3 := 0
@@ -176,10 +252,18 @@ func _izgara(n_seed: int) -> void:
 		for k in n_seed:
 			var rng := RandomNumberGenerator.new()
 			rng.seed = 1000 + k * 7919 + style.length() * 31
+			var t0 := Time.get_ticks_usec()
 			var r := LevelGen.generate(rng, W, H, 3, [style], {"pazar": k % 3 == 0})
+			var gen_sn := float(Time.get_ticks_usec() - t0) / 1000000.0
 			var g: PackedByteArray = r["grid"]
 			var hts: Array = r["heights"]
 			tot += 1
+			var bnd: Rect2i = r["bounds"]
+			var hava := 0
+			for yy in range(bnd.position.y, bnd.end.y):
+				for xx in range(bnd.position.x, bnd.end.x):
+					if g[yy * W + xx] != 1:
+						hava += 1
 			fixes[0] += int(r.get("carved", 0))
 			fixes[1] += int(r.get("trapfix", 0))
 			fixes[2] += int(r.get("headfix", 0))
@@ -219,6 +303,19 @@ func _izgara(n_seed: int) -> void:
 			var w3 := reach(g, W, H, hts, 3)
 			var pmin := 99
 			if walk["ok"]:
+				var wp: Array = (walk["path"] as Array).duplicate()
+				wp.reverse()
+				var yo := yol_olcum(wp, W)
+				var ek := {"gen_sn": gen_sn, "alan_w": bnd.size.x, "alan_h": bnd.size.y, "hava": hava, "yol_karo": yo["uzunluk"], "yol_sn": yo["sure"],
+					"dusus": yo["dusus"], "tirmanis": yo["tirmanis"], "basamak": yo["basamak"], "zincir": yo["zincir"], "kzincir": yo["basamak_zinciri"]}
+				for key in ek:
+					m_sum[key] = float(m_sum.get(key, 0.0)) + float(ek[key])
+					s_m[key] = float(s_m.get(key, 0.0)) + float(ek[key])
+				zincir_max = maxi(zincir_max, int(yo["zincir"]))
+				kz_max = maxi(kz_max, int(yo["basamak_zinciri"]))
+				sure_min = minf(sure_min, float(yo["sure"]))
+				sure_max = maxf(sure_max, float(yo["sure"]))
+				gen_max = maxf(gen_max, gen_sn)
 				walk_ok += 1
 				s_walk += 1
 				for id in walk["path"]:
@@ -261,6 +358,10 @@ func _izgara(n_seed: int) -> void:
 			float(s_m.get("cikmaz", 0)) / n_seed, float(s_m.get("dongu", 0)) / n_seed, float(s_m.get("dikey_adim", 0)) / n_seed, float(s_m.get("satir", 0)) / n_seed,
 			float(s_m.get("tasi", 0)) / n_seed, float(s_m.get("zamanli", 0)) / n_seed, 100.0 * float(s_m.get("ulasim", 0)) / n_seed, float(s_m.get("dusey", 0)) / n_seed,
 			float(s_m.get("attempts", 0)) / n_seed, float(s_m.get("trapfix", 0)) / n_seed])
+		_p("OLCUM stil=%s alan=%.0fx%.0f hava=%.0f yol=%.0f karo (/koşu %.1f sn, hamle ~%.1f sn) düşüş=%.1f tırmanış=%.1f basamak=%.1f dikey_zincir=%.1f basamak_zinciri=%.1f üretim=%.2f sn" % [
+			style, float(s_m.get("alan_w", 0)) / n_seed, float(s_m.get("alan_h", 0)) / n_seed, float(s_m.get("hava", 0)) / n_seed, float(s_m.get("yol_karo", 0)) / n_seed,
+			float(s_m.get("yol_karo", 0)) / n_seed / KOSU_KARO, float(s_m.get("yol_sn", 0)) / n_seed, float(s_m.get("dusus", 0)) / n_seed, float(s_m.get("tirmanis", 0)) / n_seed, float(s_m.get("basamak", 0)) / n_seed,
+			float(s_m.get("zincir", 0)) / n_seed, float(s_m.get("kzincir", 0)) / n_seed, float(s_m.get("gen_sn", 0)) / n_seed])
 	_p("IZGARA TOPLAM bölüm=%d yürüyerek(>=2)=%d 3karo=%d ana_yol_en_dar=%d en_iyi_yol_dağılımı=%s yuvarlanma_hücresi=%d (bölüm %d) 2karo_hücre=%d" % [tot, walk_ok, ok3, min_path_all, str(hist), roll_cells, roll_lv, tight_cells])
 	_p("IZGARA onarım ortalaması: koridor %.2f, çıkmaz %.2f, açılan tavan karosu %.1f" % [float(fixes[0]) / tot, float(fixes[1]) / tot, float(fixes[2]) / tot])
 	_p("IZGARA v32 ÇİZGE ortalama: oda=%.1f ana_yol=%.1f dal=%.2f çıkmaz=%.2f döngü=%.2f geniş=%.2f yüksek=%.2f dikey_adım=%.2f kesim_satırı=%.2f kapı=%.1f Kut_Taşı=%.2f zamanlı=%.2f ulaşım=%%%.1f (en az %%%.1f) düşey_aralık=%.0f karo | en az: taşı=%d çıkmaz=%d dikey=%d | erişim+dönüş=%d/%d" % [
@@ -268,6 +369,10 @@ func _izgara(n_seed: int) -> void:
 		float(m_sum.get("genis", 0)) / tot, float(m_sum.get("yuksek", 0)) / tot, float(m_sum.get("dikey_adim", 0)) / tot, float(m_sum.get("satir", 0)) / tot, float(m_sum.get("kapi", 0)) / tot,
 		float(m_sum.get("tasi", 0)) / tot, float(m_sum.get("zamanli", 0)) / tot, 100.0 * float(m_sum.get("ulasim", 0)) / tot, 100.0 * reach_min, float(m_sum.get("dusey", 0)) / tot,
 		tasi_min, cikmaz_min, dikey_min, ok_all, tot])
+	_p("OLCUM TOPLAM alan=%.0fx%.0f (hava %.0f karo) ana_yol=%.0f karo (/koşu %.1f sn; hamle modeli ~%.1f sn, %.1f-%.1f) düşüş=%.2f tırmanış=%.2f küçük_basamak=%.2f dikey_zincir ort=%.2f en_çok=%d basamak_zinciri ort=%.2f en_çok=%d üretim ort=%.2f sn en_çok=%.2f sn" % [
+		float(m_sum.get("alan_w", 0)) / tot, float(m_sum.get("alan_h", 0)) / tot, float(m_sum.get("hava", 0)) / tot, float(m_sum.get("yol_karo", 0)) / tot, float(m_sum.get("yol_karo", 0)) / tot / KOSU_KARO,
+		float(m_sum.get("yol_sn", 0)) / tot, sure_min, sure_max, float(m_sum.get("dusus", 0)) / tot, float(m_sum.get("tirmanis", 0)) / tot, float(m_sum.get("basamak", 0)) / tot,
+		float(m_sum.get("zincir", 0)) / tot, zincir_max, float(m_sum.get("kzincir", 0)) / tot, kz_max, float(m_sum.get("gen_sn", 0)) / tot, gen_max])
 	_check(walk_ok == tot, "her bölümde ana yol yuvarlanmadan yürünür (%d/%d)" % [walk_ok, tot])
 	_check(roll_cells == 0, "girişten ulaşılan yalnızca-yuvarlanma hücresi yok (%d)" % roll_cells)
 	_check(ok_all == tot, "her bölümde giriş -> Kut Kapısı ve her ulaşılan hücreden dönüş (%d/%d)" % [ok_all, tot])
@@ -432,6 +537,10 @@ func _ekran_kur() -> void:
 			await _ekran_kucuk()
 		"isin":
 			await _ekran_isin()
+		"tam":
+			await _ekran_tam()
+		"dusus":
+			await _ekran_dusus()
 	get_tree().quit()
 
 
@@ -494,6 +603,108 @@ func _ekran_kucuk() -> void:
 	await _snap("tam_harita")
 	_p("küçük: keşif=%%%d taşı=%d/%d ışınlanma=%d" % [int(round(lv.harita.yuzde() * 100.0)), lv.harita.bulunan().size(), lv.harita.tasi.size(), lv.isin_sayi])
 	main._start_play()
+
+
+func _ekran_tam() -> void:
+	## v33: biyom başına (derinlik 1, 3, 5, 7, 9) bütünüyle keşfedilmiş tam ekran harita (M): Dead Cells örnek haritasıyla
+	## karşılaştırma (küçük oda / koridor ağı); bütün Kut Taşları bulunmuş
+	for d in [1, 3, 5, 7, 9]:
+		var lv := _build(d, 3300 + d * 41 + int(_arg_or("--harita_tohum", "0")))
+		main._start_play()
+		await _phys(3)
+		_clear_foes(lv, Vector2.ZERO, 99999.0)
+		lv.harita.hepsini_kesfet()
+		for i in lv.harita.tasi.size():
+			lv.harita.tasi_bul(i)
+		main._harita_ac()
+		await _phys(6)
+		await _snap("tam_%s_d%d_%s" % [lv.biome.get("id", "?"), d, lv.style])
+		_p("tam: d=%d stil=%s sınır=%s oda=%d" % [d, lv.style, str(lv.bounds), lv.rooms.size()])
+		main._start_play()
+		await _phys(2)
+
+
+func _ekran_dusus() -> void:
+	## v33: oyun içi çekim: ana yolun açık düşüş kuyusunun kenarı (küçük harita sağ altta, o ana dek gezilmiş odalar
+	## açık) ve düşüş anı; ardından tek yönlü kapaktan (dal kuyusu) aşağı + zıpla ile iniş
+	for d in [1, 5, 3, 9, 7]:
+		var lv := _build(d, 3400 + d * 43)
+		var acik: Dictionary = {}
+		var kapak: Dictionary = {}
+		for dr in lv.doors:
+			if dr["kind"] == "sil" or dr["dir"] != "v":
+				continue
+			if bool(dr.get("acik", false)) and acik.is_empty():
+				acik = dr
+			elif not bool(dr.get("acik", false)) and kapak.is_empty() and dr["kind"] == "dal":
+				kapak = dr
+		if acik.is_empty() or kapak.is_empty():
+			lv.queue_free()
+			main.level = null
+			continue
+		main._start_play()
+		main.hud._card_t = 100.0
+		await _phys(3)
+		var pl: Node = lv.player
+		_clear_foes(lv, Vector2.ZERO, 99999.0)
+		for i in lv.harita.tasi.size():
+			lv.harita.tasi_bul(i)
+		var A: Dictionary = lv.rooms[int(acik["a"])]
+		var ai := int(A.get("ana_i", 0))
+		var sag_uc := int(A["ix1"]) + 2
+		var gezilen := func(x: int, y: int) -> bool:
+			var rm: Dictionary = lv.room_at(x, y)
+			if rm.is_empty():
+				return x <= sag_uc
+			return int(rm.get("ana_i", 99)) >= 0 and int(rm.get("ana_i", 99)) <= ai
+		lv.harita.hepsini_kesfet(gezilen)
+		# 1) açık düşüş deliğinin kenarı (deliğe doğru bakar)
+		var dx0 := int(acik["dus_x"])
+		var fy := int(acik["y"])
+		var kenar := dx0 - 1 if lv.cell(dx0 - 1, fy) == 1 else dx0 + 3
+		var yon := 1 if kenar < dx0 else -1
+		pl.global_position = Vector2(kenar * Level.TS + 12 - yon * 6, fy * Level.TS - 1)
+		pl.velocity = Vector2.ZERO
+		pl.facing = yon
+		Game.camera.snap()
+		await _phys(40)
+		await _snap("dusus_%s_d%d_0_kenar" % [lv.style, d])
+		# 2) düşüş: deliğe yürür, düşerken
+		Input.action_press("sag" if yon > 0 else "sol")
+		var t0 := 0
+		while t0 < 90 and pl.global_position.y < (fy + 4) * Level.TS:
+			await _phys(1)
+			t0 += 1
+		Input.action_release("sag" if yon > 0 else "sol")
+		await _phys(4)
+		await _snap("dusus_%s_d%d_1_dusus" % [lv.style, d])
+		var t1 := 0
+		while t1 < 90 and not pl.is_on_floor():
+			await _phys(1)
+			t1 += 1
+		_p("düşüş: d=%d stil=%s kuyu x=%d %d->%d satır, düşüş %d kare, yerde=%s y=%d" % [d, lv.style, dx0, fy, int(acik.get("y2", 0)), t0 + t1, str(pl.is_on_floor()), int(pl.global_position.y / Level.TS)])
+		# 3) dal kuyusunun kapağı: üstünde dur, aşağı + zıpla
+		var kx := int(kapak["dus_x"]) + 1
+		var ky := int(kapak["y"])
+		pl.global_position = Vector2(kx * Level.TS + 12, ky * Level.TS - 1)
+		pl.velocity = Vector2.ZERO
+		Game.camera.snap()
+		await _phys(30)
+		await _snap("dusus_%s_d%d_2_kapak" % [lv.style, d])
+		Input.action_press("asagi")
+		await _phys(2)
+		Input.action_press("zipla")
+		await _phys(2)
+		Input.action_release("zipla")
+		await _phys(10)
+		Input.action_release("asagi")
+		await _snap("dusus_%s_d%d_3_kapaktan_inis" % [lv.style, d])
+		var t2 := 0
+		while t2 < 90 and not pl.is_on_floor():
+			await _phys(1)
+			t2 += 1
+		_p("kapak: d=%d kuyu x=%d %d->%d, indi=%s y=%d (alt oda tabanı %d)" % [d, kx, ky, int(kapak.get("y2", 0)), str(int(pl.global_position.y / Level.TS) > ky + 2), int(pl.global_position.y / Level.TS), int(kapak.get("y2", 0))])
+		return
 
 
 func _ekran_isin() -> void:

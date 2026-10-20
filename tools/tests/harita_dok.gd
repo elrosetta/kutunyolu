@@ -2,10 +2,11 @@ extends SceneTree
 ## v32 üretici dökümü: her stil × tohum için bölümü üretir, ölçümleri yazar ve genel görünüm PNG'si döker
 ## (4 px / karo; katı kahve, platform sarı, tehlike kızıl, oda çerçeveleri, kapılar, ana yol, Kut Taşları, ödüller).
 ## Kullanım: godot --headless --path . --script res://tools/tests/harita_dok.gd -- [--dok_cikti=KLASÖR] [--dok_tohum=N]
-##          [--dok_stil=orman] [--dok_pazar]
+##          [--dok_stil=orman] [--dok_pazar] [--dok_yanyana=DOSYA.png: üç stil (orman, mağara, kuyu) yan yana tek görüntü]
 
-const W := 256
-const H := 90
+## Level.W x Level.H (v33: 172 x 56; --script kipinde Level sınıfı yüklenmez: otomatik yüklemeler yok)
+const W := 172
+const H := 56
 
 
 func _arg(name: String, def: String) -> String:
@@ -61,7 +62,37 @@ func _init() -> void:
 	for key in ["oda", "ana", "dal", "cikmaz", "dongu", "genis", "yuksek", "dikey_adim", "satir", "kapi", "tasi", "zamanli", "trapfix", "attempts"]:
 		parts.append("%s=%.2f" % [key, float(sums.get(key, 0.0)) / maxf(1.0, tot)])
 	print("[dok] ORTALAMA " + " ".join(parts))
+	var yy := _arg("--dok_yanyana", "")
+	if yy != "":
+		_yanyana(yy, int(_arg("--dok_yy_tohum", "1")))
 	quit()
+
+
+func _yanyana(path: String, k: int) -> void:
+	## Üç stilin (orman, mağara, kuyu) dökümü üst üste değil yan yana: 4 px / karo, aralarında 24 px boşluk
+	var imgs: Array = []
+	for style in ["orman", "magara", "kuyu"]:
+		var rng := RandomNumberGenerator.new()
+		rng.seed = 1000 + k * 7919 + style.length() * 31
+		var r := LevelGen.generate(rng, W, H, 3, [style], {"pazar": true})
+		var tmp := OS.get_user_data_dir().path_join("dok_tmp_%s.png" % style)
+		_dump(r, tmp, LevelGen.reach_set(r["grid"], W, H, r["heights"]))
+		var im := Image.load_from_file(tmp)
+		var b: Rect2i = r["bounds"]
+		imgs.append(im.get_region(Rect2i(b.position * 4, b.size * 4)))
+	var tw := 0
+	var th := 0
+	for im in imgs:
+		tw += im.get_width() + 24
+		th = maxi(th, im.get_height())
+	var out := Image.create(tw - 24, th, false, Image.FORMAT_RGB8)
+	out.fill(Color(0.05, 0.05, 0.07))
+	var x := 0
+	for im in imgs:
+		out.blit_rect(im, Rect2i(Vector2i.ZERO, im.get_size()), Vector2i(x, 0))
+		x += im.get_width() + 24
+	out.save_png(path)
+	print("[dok] yan yana: ", path)
 
 
 func _span(r: Dictionary) -> int:
@@ -113,9 +144,9 @@ func _dump(r: Dictionary, path: String, reach: PackedByteArray) -> void:
 			continue
 		var dc := Color(0.2, 0.9, 1.0) if d["kind"] != "dongu" else Color(1.0, 0.4, 0.9)
 		if d["dir"] == "h":
-			img.fill_rect(Rect2i(int(d["x"]) * S, (int(d["y"]) - 5) * S, 4 * S, 2), dc)
+			img.fill_rect(Rect2i(int(d["x"]) * S, (int(d["y"]) - int(d.get("h", 5))) * S - 2, (int(d.get("x2", int(d["x"]) + 3)) - int(d["x"]) + 1) * S, 2), dc)
 		else:
-			img.fill_rect(Rect2i(int(d["x"]) * S, int(d["y"]) * S, 2, 6 * S), dc)
+			img.fill_rect(Rect2i(int(d["x"]) * S, int(d["y"]) * S - 2, 6 * S, 2), dc if bool(d.get("acik", false)) else Color(1.0, 0.6, 0.2))
 	for t in r["tasi"]:
 		img.fill_rect(Rect2i(int(t.x) * S - 2, int(t.y) * S - 4, S + 4, S + 6), Color(0.3, 1.0, 1.0))
 	for ch in r["chunks"]:

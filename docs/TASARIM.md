@@ -5510,3 +5510,134 @@ kipi). `[otomatik] KESIF` satırı: keşif yüzdesi, bulunan taş, ışınlanma,
   `--mekanik` BITTI; `--dovus --boss --kontrol` TAKILMA=0, basılmamış 0; `--boss=tepegoz`, `--yurt --yurt-tur`,
   `--otomatik --derinlik=1` / `--derinlik=3 --bot_gercek` hatasız (bot dallı bölümde 60 sn'de kapıya varmaz: bilinen);
   `--piksel_tara` TOPLAM 0. Betik hatası yok (yalnız motorun çıkıştaki RID sızıntısı satırları, eskiden beri).
+
+## v33: küçük Dead Cells mağaraları
+
+Geri bildirim (v32'yi oynadıktan sonra): "Harita çoooook büyüdü. Dead Cells tarzı KÜÇÜK mağaralar yap. Oyunu çok
+yavaşlatıyor: merdivenlerden / basamaklardan tek tek inip çıkmak yorucu ve oyundan koparıyor." Örnek olarak bir Dead
+Cells haritası gönderildi (geniş ve sığ, ~4-5:1; çok sayıda KÜÇÜK oda, kısa ve dar koridorlar, çoğunlukla yatay bağlı
+çizge, birkaç odalık kısa düşüşler / tırmanışlar, küçük yan cepler ve çıkmazlar, birkaç döngü; bir iki dakikada geçilir).
+
+### Hedefler
+
+* Ayak izi v32'nin 1/3-1/2'si; oda / koridor ağı biyoma göre (mağara tavanı, açık gök üst satırı).
+* Merdiven yorgunluğu biter: 1-2 karoluk basamak zinciri yok; aşağı iniş TEK DÜŞÜŞ (açık delik ya da tek yönlü kapak:
+  aşağı + zıpla), ana yol aşağı / yana akar; kısa tırmanışlar rahat zıplama aralığında tek yönlü basamaklarla.
+* v32'nin iyi yanları ölçekli kalır: 2-4 dal ve çıkmaz ödül odaları, 3-4 Kut Taşı, sis / küçük harita / tam harita,
+  v25 / v32 kuralları (3 karo baş boşluğu, yuvarlanma geçidi yok, geçerli yerleşim, eşya katıda değil, Bezirgân ve boss
+  öncesi pazar, Kut Kapısı katı zeminde), Konak / boss arenası / yurt değişmez.
+* Üretim ~0,3-0,5 sn; bot (`--otomatik`, 9000 kare) Kut Kapısı'na varır.
+
+### Üretici (`scripts/world/LevelGen.gd`: kesim ızgarası küçüldü, oyma yeniden yazıldı)
+
+Bölüm `Level.W x Level.H = 172 x 56` (v32: 256 x 90); kesim `SW x SH = 24 x 13` (v32: 36 x 22), en çok 7 x 4 kesim
+(`world.json` "level": Ötüken 3, Bozkır 2, Şahmeran 4, Kaf 3 (eskiden 4), Tamu 4 satır). Çizge v32'deki gibi kurulur
+(ana yol, dallar, döngüler, yan yana birleşen geniş salonlar; üst üste birleşme kalktı: dikey geçiş hep kuyu).
+
+1. **Ana yol** (`_ana_yol`): sağa, stilin dikey yönüne (inis yalnız aşağı, cikis yalnız yukarı, serbest çoğunlukla
+   aşağı / en çok bir kat yukarı) ve bir dikey adımdan sonra 1-2 kesim SOLA (yılan); her adımda çıkışa boş kesimlerden
+   varılabildiği denetlenir (`_yol_varir`); hedef uzunluk sütun + satır farkı + 2-4; art arda iki tırmanış yok.
+2. **Dallar** 2-4 (`STIL.dal`), 1-2 odalık; yan dal ağırlıklı (2:1), dikey dal kapaklı düşüşle inilen / birkaç
+   zıplamayla çıkılan ödül. Ödül sırası ve pazar kuralları (boss öncesi çıkışa yakın kavşak, kuyulu odaya düşen pazarın
+   yan kapılı ödülle yer değiştirmesi, zamanlı kapının yalnız yan kapılı odada olması) v32'den aynen.
+3. **Oda kutusu** (`_room_box`, `_profile`): kesimin içinde 12-20 karo geniş (kapısız / kuyusuz yanlardan 0-6 karo
+   daralır; giriş ve iki kuyulu oda tam genişlikte), taban kesim başına `y0+7..y0+10` (komşu kesimlerde en çok 2-3 karo:
+   kapı eşiği tek zıplama), hava yüksekliği türe göre 6-9 karo (`YUK`; koridordan belirgin yüksek). Taban DÜZ (v32'nin
+   ±3 oynayan, sütun başına 2 karoluk rampaları ve teras basamakları kalktı); tavan basamaklı: 4-9 sütunluk parçalar 0-3
+   karo alçalır, %20 parça 3-5 karoluk tavan cebi (Dead Cells odalarının girintili silueti); mağarada ayrıca dalga.
+   Teras türü yalnızca kapısız yanda TEK 2-3 karoluk seki (çıkış odasında yok).
+4. **Yan kapı = dar koridor** (`_door_geometry`, `_carve_door`): A'nın sağ kenarından B'nin sol kenarına 4-16 karo
+   uzun, 4 (%20: 5) karo yüksek tünel; taban iki odanın kapı yanındaki tabanından yüksek olanı (öbür yanda en çok 3
+   karoluk eşik); iki odada 4 sütunluk ağız bölgesi süssüz kalır. v32'nin iniş sekileri, eşik merdivenleri ve 2 karoluk
+   basamakları kalktı.
+5. **Dikey kapı = kuyu** (6 sütun; iki odada kesişen ve başka kuyuya 3 karo yaklaşmayan yer; ödül odasında bir uca
+   yaslı): **düşüş bacası** (3 sütun) üst odanın tabanından alt odanın tabanına boş; ana yol aşağı iniyorsa ağzı açık
+   (yürüyüp düşülür), dal / döngü / tırmanılan ana yolda **tek yönlü kapak** (üstünden yürünür, aşağı + zıpla ile
+   düşülür). **Ara duvar** (1 sütun) üst tabandan alt odanın tabanına 4 karo kalana dek: düşen oyuncu tırmanış
+   basamaklarına takılmaz. **Tırmanış bacası** (2 sütun): tepesi kapaklı, 3 satırda bir tek yönlü basamak (tek zıplama;
+   tabana 4 kalırsa 2'lik ara basamak). 13-15 satırlık kuyu ~0,5 sn düşüş, geri dönüş 4-5 zıplama.
+6. **Süsler** küçük odaya ölçekli (`_features`): tek yönlü platformlar tabandan 3 karo (tek zıplama), 2 karoluk sütunlar,
+   kemer (4 karo yukarıda), 1-2 karoluk sarkıtlar, kayalar, yan cepler (çıkmaz çıkıntılar), çukurcuk, tehlike çukuru
+   (3-4 karo, tek zıplama; geniş odada 5-6 ve ortada basamak), köprü (6-10 karo, 3 karo derin yarık, kırık tahtalar),
+   kuyu türünde 4 karo yukarıda tek yönlü üst güverte. Kut Kapısı önünde 10 sütun süssüz (Konak testi kapıya yürür).
+7. **Kut Taşları** (`_tasi_ekle`, 3-4): giriş (girişin 9 karo sağı), ana yolun ortasına en yakın kavşak (yoksa orta oda),
+   girişten en uzak 1-2 ödül odası (kapı yanı); birbirine 16 karodan yakın taş konmaz. Eşya kaideleri, tehlike şeritleri,
+   heights v32'deki gibi; zamanlı kapı artık koridorun odaya bitişik sütununda (4 karo yüksek geçit kapanır).
+8. **Sınırlar** (`_sinirlar`): katı olmayan karoların sıkı kutusu + 2 karo (kamera sol / üst sınırı da artık buradan;
+   tam ekran harita bölümü parşömene tam sığdırır).
+9. **Erişim modeli düzeltmeleri** (`_moves`): (a) yana düşüşte düşülen sütun kayaysa "komşu karo havaysa geç" kısa yolu
+   kayanın içinden düşmeye izin veriyordu: artık kenardan yürüyüp düşülen komşu sütun ve varış satırı açık olmalı;
+   (b) dikine iniş yalnızca durulan tek yönlü platformdan ve ilk tutunulacak yere dek; (c) düşüş yolundaki tek yönlü
+   platform düşeni tutar (eskiden içinden geçilirdi). Rehber artık kapaktan iner, basamakların içinden "düşmeye" çalışmaz.
+
+### Oyuncu ve bot
+
+* `Player`: yuvarlanırken ve kurt biçiminde (Kut gücü) aşağı + zıpla da tek yönlü platformdan / kapaktan iner (eskiden
+  zıplıyordu; kurt biçiminde kapaklı kuyudan inilemiyordu). `DonForm` aynı. Düşüş hasarı yok (değişmedi).
+* `Rehber` / `Main` bot: (1) `Input.action_press` ile tek karelik zıplama dokunuşu oyuncunun "yeni basıldı" okumasından
+  önce bırakılıyordu (zıplamalar / inişler çoğu kez yutuluyordu): dokunuş iki kare basılı; (2) kapak üstündeyken aşağı
+  basılı, 0,3 sn'de bir zıpla, bu sırada Main saldırmaz; (3) dallı bölümde Main'in rastgele zıplama / yuvarlanma /
+  çömelme dizileri yolu bozuyordu: yalnızca düz alanda ve `--bot_gercek`te; (4) bot giriş taşının dibinde W ile haritayı
+  açınca "Zaten bu taşın dibindesin" deyip harita açık kalıyor, oyun duruyordu: başka bulunmuş taş yoksa harita kapanır;
+  (5) keşif sıçraması yalnızca aynı hedefte 40 sn takılınca (küçük bölümde geri ışınlanmıyor); (6) can %55'in altında
+  ödüle sapmaz, kapıya gider.
+* Küçük harita birim / karo 2,6 / 3,0 / 3,4 -> 2,2 / 2,6 / 3,0 (Normal ~65 x 38 karo: 3-4 oda). `Harita.hepsini_kesfet`
+  (çekim / test: hava ve duvar yüzleri görülür). `Level._ground_below` 14 -> 7: kuyu kapağının altına uzun iskele ayağı
+  çizilmez.
+
+### Ölçüm (`--harita`, 6 stil x 20 tohum = 120 bölüm; önce = v32 üreticisi aynı tohumlarla, aynı ölçüm kodu)
+
+Ana yol: girişten Kut Kapısı'na erişim modelinin en kısa hamle dizisi. "/koşu": yol uzunluğu (yatay + dikey karo) /
+yürüme hızı (Player.RUN 155 px/sn = 6,46 karo/sn). "Hamle modeli": hamle başına yatay koşu ile zıplama / düşüş süresinin
+büyüğü. Dikey zincir: aynı yönde art arda dikey hamleler (aralarında en çok 4 karo yürüyüş; tırmanış basamakları dahil);
+basamak zinciri: yalnızca 1-2 karoluk adımlar. (v32 sütunu v32 erişim modeliyle; v33 düzeltmeleri düşüşleri biraz
+uzatır.)
+
+| | v32 | v33 |
+|---|---|---|
+| ızgara / sınır kutusu | 256 x 90 / ort. 226 x 66 | 172 x 56 / ort. 165 x 46 (%51) |
+| hava karosu (gezilebilir alan) | 7264 | 2275 (%31) |
+| oda / ana yol odası / dal / döngü | 15,3 / 9,6 / 4,1 / 0,7 | 14,1 / 11,4 / 3,0 / 0,7 |
+| ana yol | 331 karo, /koşu 51 sn (hamle ~34 sn) | 224 karo, /koşu 35 sn (hamle ~27 sn, 20-42) |
+| düşüş / tırmanış (>= 3 karo) / küçük basamak | 9,4 / 10,2 / 12,4 | 4,3 / 2,7 / 8,0 |
+| dikey zincir ort. / en çok | 6,3 / 15 | 3,2 / 7 (yalnız tırmanılan kuyu: serbest / cikis) |
+| küçük basamak zinciri ort. / en çok | 1,9 / 4 | 1,3 / 3 |
+| Kut Taşı | 6,0 | 4,0 (en az 3) |
+| erişim + dönüş / ulaşılan ayakta durma hücresi | 120 / 120, %96,5 | 120 / 120, %100 |
+| ana yol 3 karo baş boşluğu / yuvarlanma hücresi | 120 / 120, 0 | 120 / 120, 0 |
+| düşman / bölüm (derinlik 1-9) | ~23 | ~13 (709 / 54; ana yolda ~15 karoda bir: v32 ile aynı sıklık) |
+| geçersiz düşman / eşya katıda / tüccar duvar / açılmayan pazar | 0 / 0 / duvar_ok / 0 | 0 / 0 / duvar_ok / 0 |
+| üretim ort. / en çok | ~1,0 / 9,9 sn | ~0,5 / 0,7 sn |
+
+Bot (`--otomatik`, `--fixed-fps 60 --quit-after 9000`): v32'de dallı bölümde kapıya varamıyordu. v33: 1. derinlikte
+3 ödül odasının hepsini gezip (keşif %87, 4/4 taş) **58-73 sn'de** Kut Kapısı (BOLUM_SONU), sonra konak ve 2. bölüm;
+`--derinlik=3 --bot_gercek` dövüşerek 95-98 sn'de (keşif %100); `--derinlik=5` dört koşunun ikisinde 77-81 sn'de
+BOLUM_SONU, birinde öldü (1. derinlikten yeniden başladı), birinde 120 sn'de kapıya varamadı (dövüşmeyen bot 5.
+derinlikte 300-450 hasar alıyor). İnsan hızı için en iyi ölçü bu:
+saf koşu 35 sn, savaş + 2-3 ödül sapmasıyla 1-1,5 dk.
+
+### Test
+
+* `--harita` (20 tohum): IZGARA ve BOLUM denetimleri GECTI; yeni `OLCUM` satırları (alan, hava, ana yol karo / sn,
+  düşüş / tırmanış / basamak, dikey ve basamak zinciri, üretim süresi). `yol_olcum` başka araçlar için statik.
+* Yeni çekimler: `--harita_ekran=tam` (biyom başına bütünüyle keşfedilmiş tam harita), `--harita_ekran=dusus` (açık
+  düşüş kuyusunun kenarı, düşüş anı, kapaktan aşağı + zıpla). `harita_dok.gd --dok_yanyana=<png>`: üç stil yan yana.
+* `--isinlan`, `--konak`, `--tuccar --muhur=0` GECTI; `--zeka --muhur=0`, `--mekanik --muhur=0` BITTI; `--dovus --boss
+  --kontrol` TAKILMA=0, basılmamış 0; `--piksel_tara --otomatik --derinlik=3` TOPLAM 0; `--yurt --yurt-tur` kapıya
+  varır; bütün koşularda SCRIPT ERROR 0 (yalnız motorun çıkıştaki RID sızıntısı satırları).
+
+### Görseller (`docs/v33/harita/`)
+
+`tam_otuken.jpg`, `tam_sahmeran.jpg`, `tam_tamu.jpg` (bütünüyle keşfedilmiş tam ekran harita: küçük oda / dar koridor
+ağı, kuyular), `dusus_kenar.jpg` (açık düşüş kuyusunun kenarı, sağ altta küçük harita), `dusus_an.jpg` (kuyudan düşüş:
+ara duvar ve yanında tırmanış basamakları), `kapak_inis.jpg` (dal kuyusunun tek yönlü kapağından aşağı + zıpla),
+`izgara_yanyana.png` (üretici dökümü: orman, mağara, kuyu).
+
+### Bilinen
+
+* Kuyuların tırmanış basamakları ince tahta platform olarak çizilir (altına kısa kule ayağı); kendi "merdiven" görseli
+  yok. Kaf (cikis) bölümünde ana yol iki kez kuyudan tırmanır (her biri ~4 zıplama).
+* Açık gök üst satırında (orman, uçurum, bozkır) oda tavanı göğe açık, aradaki kaya sütunları tepeye dek çıkar.
+* Bot dövüşmez (`--bot_gercek` dışında): derin bölümde can azalırsa ödülleri bırakıp kapıya gider, yine de ölebilir.
+* Saf koşu süresi (35 sn) hedeflenen 45-90 sn'nin altında: ayak izi ve yol v32'ye göre küçüldü (oyuncu isteği); gerçek
+  geçiş (savaş + ödül sapmaları) bot ölçümünde 58-98 sn.

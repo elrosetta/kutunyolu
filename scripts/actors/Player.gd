@@ -1763,7 +1763,13 @@ func _physics_process(delta: float) -> void:
 		if jump_buf > 0.0 and coyote > 0.0 and not _head_blocked():
 			roll_t = 0.0
 			_set_crouch(false)
-			_jump(false)
+			if is_on_floor() and Input.is_action_pressed("asagi"):
+				# v33: yuvarlanırken aşağı + zıpla da tek yönlü platformdan / kuyu kapağından iner (zıplamaz)
+				drop_t = 0.25
+				jump_buf = 0.0
+				position.y += 2
+			else:
+				_jump(false)
 		okc.roll_tick()  # v19: Akıncı Yayı yuvarlanırken atar; diğer yaylarda basış yuvarlanma bitince çıkar
 		return
 	if crouched and not crouch_hold:
@@ -5104,6 +5110,8 @@ func _wolf_process(delta: float) -> void:
 	wolf_since += delta
 	coyote -= delta
 	jump_buf -= delta
+	drop_t -= delta
+	set_collision_mask_value(4, drop_t <= 0.0)   # v33: kurt biçiminde de tek yönlü platformdan inilir
 	if wolf_t <= 0.0:
 		_end_wolf()
 		return
@@ -5220,7 +5228,12 @@ func _wolf_process(delta: float) -> void:
 			velocity.x = move_toward(velocity.x, target, acc * delta)
 		if dir != 0 and wolf_atk.is_empty() and hurt_t <= 0.0:
 			facing = int(signf(dir))
-		if jump_buf > 0.0 and (coyote > 0.0 or air_jumps > 0):
+		if jump_buf > 0.0 and is_on_floor() and Input.is_action_pressed("asagi"):
+			# v33: aşağı + zıpla: tek yönlü platformdan / kuyu kapağından iner
+			drop_t = 0.25
+			jump_buf = 0.0
+			position.y += 2
+		elif jump_buf > 0.0 and (coyote > 0.0 or air_jumps > 0):
 			if coyote <= 0.0:
 				air_jumps -= 1
 				FX.ring(global_position, 14, Color(0.6, 0.95, 1.0), 0.2)

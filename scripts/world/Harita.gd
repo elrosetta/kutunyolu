@@ -151,6 +151,22 @@ func hepsini_gor() -> void:
 	_dirty = false
 
 
+func hepsini_kesfet(oda_sec: Callable = Callable()) -> void:
+	## Test / çekim (v33): oyuncunun gezerek göreceği hâl: bütün hava karoları ve bitişik duvar yüzleri görülür
+	## (katı kayanın içi sisli kalır). oda_sec verilirse yalnızca onun true döndürdüğü karolar.
+	var b: Rect2i = level.bounds
+	for y in range(b.position.y, b.end.y):
+		for x in range(b.position.x, b.end.x):
+			if level.cell(x, y) == 1 or (oda_sec.is_valid() and not bool(oda_sec.call(x, y))):
+				continue
+			_see(x, y)
+			for o in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1), Vector2i(1, 1), Vector2i(-1, 1), Vector2i(1, -1), Vector2i(-1, -1)]:
+				if level.cell(x + o.x, y + o.y) == 1:
+					_see(x + o.x, y + o.y)
+	tex.update(img)
+	_dirty = false
+
+
 func isaretler() -> Array:
 	## Çizilecek işaretler: [{tur, cell, ad, i, ek}] (yalnızca karosu görülenler; Kut Taşı bulunduysa "tasi", görüldüyse "tasi_sonuk")
 	var out: Array = []
