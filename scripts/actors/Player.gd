@@ -192,6 +192,13 @@ const TEMPO_V34 := {
 ## sınıflar, sarj_k: items.json'da hasar ~%10-25 indiği için basılı tutulan (şarjlı) ağır vuruşun çarpanı (şarj süresi
 ## kısalmadı; ağır vuruş eski hasarında kalır)
 const V34_AGIR := {"hs": 1.2, "step": 13.0, "sa_wind": ["agir", "dev"], "sarj_k": {"dev": 1.33, "agir": 1.27, "uzun": 1.1}}
+## v35 sanatsal kombolar: tutarlı vuruş duraklaması kademeleri (sn; ağır / dev ×V34_AGIR.hs, öldürüş +0,02, en çok 0,12)
+## hafif ara vuruş · orta (ağır silah ara vuruşu, büyük itiş) · zincir bitirişi · kritik eki. Bitiriş gösterisi
+## (KesikFX hüsnühat kesiği + mürekkep dikenleri, yakınlaşma, yönlü sarsıntı, darbe karesi) yalnızca bitirişte;
+## ara vuruşlar sade ve keskin. Bitiriş izi ×fin_iz, sınıf iz eni (hançer / mızrak izleri okunur olsun).
+const V35 := {"hs_hafif": 0.03, "hs_orta": 0.05, "hs_bitiris": 0.09, "hs_krit": 0.03, "hs_olum": 0.02,
+	"fin_zoom": 0.05, "fin_zoom_agir": 0.025, "fin_sarsinti": 0.32, "fin_itis": 5.0, "fin_firlat": 150.0,
+	"olum_yavas": [0.35, 0.12], "fin_iz": 1.15, "iz_sinif": {"hancer": 1.2, "mizrak": 1.15, "duello": 1.1}}
 
 ## ------------------------------------------------------------------ SALDIRI HIZI (v20)
 ## Oyuncu statı (yüzde): evre sürelerini (hazırlık, süpürme, kilit, toparlanma, tutuş) ve dolayısıyla zincir aralığını
@@ -3366,16 +3373,30 @@ func _v19_after_hit(e: Node, it: Dictionary, c: Dictionary, hp: Vector2, hdir: V
 			InkFX.flourish(hp, "parry", 0)
 			Ses.play("darbe_metal" if Ses.has("darbe_metal") else "darbe_kunt", -6.0, 0.9)
 	if first_hit and c.get("last", false) and not atk.get("pause", false):
-		_finisher_fx(it, hp, hdir)
+		_finisher_fx(it, hp, hdir, e, _killed)
 
 
-func _finisher_fx(it: Dictionary, hp: Vector2, hdir: Vector2) -> void:
-	## Zincir bitirişi (Dead Cells'in son vuruşu gibi): ayrı bir olay olarak okunur — büyük mürekkep sıçrantısı,
-	## kısa yakınlaşma, ek duraklama (HIT_FEEL orta kademesinin üstüne V19.fin_hs)
-	# v22: bitiriş vurgusu kalır ama bir tık küçük (sıçrantı 1,25 → 1,05, halka 22 → 16 + ağırlık)
-	InkFX.hit(_impact_kind(it) if _impact_kind(it) != "magic" else "cut", hp, hdir, InkFX.weapon_pal(it), 2, 1.05 + 0.25 * _weight(it))
-	InkFX.ring(hp, 16.0 + 8.0 * _weight(it), InkFX.weapon_pal(it), 0.2)
-	Game.zoom_punch(0.02 + 0.015 * _weight(it))
+func _finisher_fx(it: Dictionary, hp: Vector2, hdir: Vector2, e: Node = null, killed := false) -> void:
+	## Zincir bitirişi (Dead Cells'in son vuruşu gibi): ayrı bir olay olarak okunur.
+	## v35: hedefin üstüne sınıfa özgü hüsnühat kesiği (KesikFX: kılıç çapraz hilal, hançer çarpı, mızrak deliş hattı,
+	## ağır dik yarma + yer sürüntüsü, uzun sap geniş süpürme, kırbaç S kıvrımı; kızıl / altın vurgu) + ışınsal mürekkep
+	## dikenleri; kısa yakınlaşma, vuruş yönünde sarsıntı ve itiş, öldürüşte kısa ağır çekim. Darbe karesi (ImpactFrame)
+	## eklenmedi: beyaz silüet kesiği örtüyordu (kritik / şarjlı ağır / infaz kendi karesini verir). Eski büyük sıçrantı + halka kesiğe devredildi (üst üste binmesin).
+	var cls := _tempo_class(it)
+	var w := _weight(it)
+	var wf: Dictionary = WFX.get(it.get("id", ""), {})
+	var renk: Color = wf.get("col", Color(0, 0, 0, 0))
+	var at := hp
+	if e != null and is_instance_valid(e) and e.has_method("center"):
+		at = e.center().lerp(hp, 0.4)
+	KesikFX.bitiris(at, facing, cls, 0.6 + 0.6 * w, renk)
+	InkFX.hit(_impact_kind(it) if _impact_kind(it) != "magic" else "cut", hp, hdir, InkFX.weapon_pal(it), 1, 0.8 + 0.2 * w)
+	var agir: bool = cls in V34_AGIR["sa_wind"]
+	Game.zoom_punch(float(V35["fin_zoom_agir"] if agir else V35["fin_zoom"]) + 0.015 * w)
+	Game.shake_dir(float(V35["fin_sarsinti"]) * (0.7 + 0.5 * w), Vector2(facing, 0.5 if agir else 0.2))
+	Game.kick(Vector2(facing, 0.3 if agir else 0.0), float(V35["fin_itis"]) * (0.8 + 0.4 * w))
+	if killed:
+		Game.slowmo(float(V35["olum_yavas"][0]), float(V35["olum_yavas"][1]))
 
 
 func _counter_ok(e: Node) -> bool:
@@ -3879,6 +3900,11 @@ func _update_attack(delta: float) -> void:
 			atk["phase"] = "act"
 			if atk.get("sa_wind", false):
 				atk["super_armor"] = false
+			if c.get("last", false) and not atk.get("pause", false):
+				# v35 bitiriş beklentisi: hazırlığın doruğunda bıçak ucunda tek karelik iğne parıltısı (sınıf vurgusu)
+				var pp := _pose_points(_atk_pose(k))
+				KesikFX.parilti(arm_root.to_global((pp[2] as Vector2) + (pp[3] as Vector2) * _reach(it)),
+					(KesikFX.sinif_of(_tempo_class(it))["vurgu"] as Color).lerp(Color(1.4, 1.3, 1.1), 0.5))
 			_on_strike_start()
 			if atk.is_empty():
 				return
@@ -4010,6 +4036,14 @@ func _sample_trail(it: Dictionary, c: Dictionary, k: float) -> void:
 		if _trail is InkTrail:  # stil v2: silah sınıfına / savuruşa göre mürekkep fırçası tasarımı
 			(_trail as InkTrail).setup(it, atk, _weight(it))
 			Silah27.trail_style(_trail, it, atk)   # v27 yeni silahlar: sınıf ve palet
+			# v35: sınıf iz eni (kısa bıçaklı hançer / mızrak izi okunur) + zincir bitirişinde daha gür fırça
+			var tr35 := _trail as InkTrail
+			var ik := float(V35["iz_sinif"].get(_tempo_class(it), 1.0))
+			if c.get("last", false) and not atk.get("pause", false):
+				ik *= float(V35["fin_iz"])
+				tr35.flick_n += 2
+			tr35.w_frac *= ik
+			tr35.path_w *= ik
 			if String(c["s"]) in UPSWEEP_THIN:
 				# v25: ağır silahın yukarı süpürmesi dar hilal (ağır fırçanın geniş tabanı yükselen yayda düz kenarlı
 				# "levha" / alev duvarı çiziyordu)
@@ -4591,6 +4625,9 @@ func _melee_hits() -> void:
 				opts["stun"] = maxf(float(opts.get("stun", 0.0)), float(c["stun"]) * (1.0 + hold))
 			opts["behind"] = "facing" in e and int(e.facing) == int(signf(float(opts.get("dir", facing))))
 			opts["heavy"] = atk.get("heavy", false)
+			# v35: zincir bitirişi hafif düşmanı havaya savurur (Enemy ağır / uçan / zırhlıyı kendisi eler)
+			if c.get("last", false) and not atk.get("pause", false) and not ("is_boss" in e and e.is_boss):
+				opts["launch"] = maxf(float(opts.get("launch", 0.0)), float(V35["fin_firlat"]))
 			opts["hit_n"] = atk["hit"].size()
 			opts["sfx_done"] = true
 			opts["feel_done"] = true
@@ -4716,18 +4753,20 @@ func _melee_hits() -> void:
 			# v17: hafif vuruşta silah ağırlığıyla ölçeklenir (hançer kısa, kılıç tam); savuruş başına bir kez
 			# v22: kombo uzadıkça duraklama en çok %10 uzar (eski %35: uzun kombolarda oyun sürekli donuyordu)
 			var hs_k := 1.0 + minf(0.1, 0.01 * float(combo_n))
-			var base_hs := float(feel[0])
-			if tier == 0:
-				base_hs *= lerpf(float(FLOW["hs_light_min"]), 1.0, clampf(_weight(it) / 0.45, 0.0, 1.0))
+			# v35 kademeleri (V35): hafif 0,03 (hançerde ×0,75'e iner) · orta 0,05 · bitiriş / büyük 0,09 · kritik +0,03
+			var fin_v35: bool = c.get("last", false) and not atk.get("pause", false)
+			var base_hs := float(V35["hs_hafif"])
+			if fin_v35 or tier == 2:
+				base_hs = float(V35["hs_bitiris"])
 			elif tier == 1:
-				# v18: orta kademe ağırlıkla: kılıç bitirişi 55 ms, dev silah 80 ms (hızlı zincirde hafif silah akışı bozulmasın,
-				# ağır silah "oturarak" vursun)
-				base_hs = lerpf(0.055, 0.08, clampf((_weight(it) - 0.3) / 0.7, 0.0, 1.0))
-			if _tempo_class(it) in V34_AGIR["sa_wind"]:
+				base_hs = float(V35["hs_orta"])
+			else:
+				base_hs *= lerpf(float(FLOW["hs_light_min"]), 1.0, clampf(_weight(it) / 0.45, 0.0, 1.0))
+			if _tempo_class(it) in V34_AGIR["sa_wind"] and not fin_v35:
 				base_hs *= float(V34_AGIR["hs"])   # v34: ağır silahın ağırlığı yavaşlıktan değil darbeden
-			var hs := minf(0.12, (base_hs + (0.03 * hold if atk.get("heavy", false) else 0.0)) * hs_k) + (0.03 if killed else 0.0)
-			if c.get("last", false) and not atk.get("pause", false):
-				hs += float(V19["fin_hs"])   # v19: zincir bitirişi ayrı bir olay
+			if crit_done:
+				base_hs += float(V35["hs_krit"])
+			var hs := minf(0.12, (base_hs + (0.03 * hold if atk.get("heavy", false) else 0.0)) * hs_k + (float(V35["hs_olum"]) if killed else 0.0))
 			if lite:
 				hs *= 0.6   # v22: aynı düşmana hızlı ardışık sıradan vuruş kısa donar
 			if first_hit:
