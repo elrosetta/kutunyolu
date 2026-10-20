@@ -8,6 +8,7 @@ Kullanım:  python export_sus.py                 (hepsi)
            python export_sus.py --tehlike       tehlike karoları            assets/tiles/hazards_v2{,_e}.png
            python export_sus.py --efekt         mürekkep kare animasyonları assets/fx/anim/<ad>_v2.png + anim_v2.json
            python export_sus.py --tuccar        v24 bezirgân kervanı (tezgâh) assets/decor/bezirgan_kervan_v2.png (sus_v2.json)
+           python export_sus.py --usta          v32 konak ateşi + Bengisu'nun tezgâhı assets/decor/{konak_ates,usta_tezgah}_v2.png
 Hepsi yordamsal (skia-python + numpy), dışarıdan doku yok. Her PNG için mipmap'li .import yazılır; oyunda doğrusal süzgeç.
 Süs meta biçimi decor_v2.json ile aynı ("size", "origin" doku pikseli, "texel" doku pikseli / dünya birimi, "glow");
 Level._decor_v2 her iki dosyayı okur (biyom süsleri decor_v2.json'da, bunlar sus_v2.json'da: dosya çakışması olmaz).
@@ -118,6 +119,18 @@ def export_tuccar(only=None):
     write_meta(meta)
 
 
+def export_usta(only=None):
+    """v32 konak süsleri (usta_ink.py): konak ateşi ve Bengisu'nun gezgin tezgâhı (sus_v2.json)."""
+    import usta_ink as U
+    meta = load_meta()
+    for n, fn in U.ALL.items():
+        if only and n not in only:
+            continue
+        put_decor(meta, n, fn())
+        print('   ', n, flush=True)
+    write_meta(meta)
+
+
 def export_atlas():
     import sus_ink as S
     S.export_atlas(save, to8, A)
@@ -151,6 +164,8 @@ def main():
         export_efekt(rest)
     if every or '--tuccar' in args:
         export_tuccar(rest)
+    if every or '--usta' in args:
+        export_usta(rest)
 
 
 if __name__ == '__main__':

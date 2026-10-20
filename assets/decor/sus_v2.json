@@ -55,6 +55,18 @@
   ],
   "texel": 4.0
  },
+ "konak_ates_v2": {
+  "size": [
+   480,
+   280
+  ],
+  "origin": [
+   240,
+   264
+  ],
+  "texel": 4.0,
+  "glow": true
+ },
  "kut_kapi_arka_v2": {
   "size": [
    392,
@@ -135,6 +147,18 @@
    208
   ],
   "texel": 4.0
+ },
+ "usta_tezgah_v2": {
+  "size": [
+   528,
+   368
+  ],
+  "origin": [
+   240,
+   352
+  ],
+  "texel": 4.0,
+  "glow": true
  },
  "yh_at_v2": {
   "size": [

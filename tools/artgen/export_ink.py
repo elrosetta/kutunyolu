@@ -6,6 +6,7 @@ Kullanım:  python export_ink.py               (hepsi)
            python export_ink.py --bengu idle run   yalnızca bu animasyonlar yeniden çizilir (diğer satırlar korunur)
            python export_ink.py --surale | --bekci | --tosbaga | --bengu_kurt | --npc   (yaratık seti B, *_ink.py)
            python export_ink.py --tuccar      v24 Bezirgân Sartak: npc_tuccar_v2 (tuccar_ink.py; düzen npc_demirci.json)
+           python export_ink.py --usta        v32 Bengisu Usta: npc_usta_v2 (usta_ink.py; düzen npc_demirci.json)
            python export_ink.py --alp_ata     v27 savaş sanatları ustası: npc_alp_ata_v2 (alp_ata_ink.py; düzen npc_demirci.json)
 
 Sayfa düzeni (satır sırası, kare sayısı, fps, döngü, kol bayrağı) v1/v2 json'undan alınır: oyun kodu aynı adlarla çalışır.
@@ -287,6 +288,12 @@ def export_alp_ata(only=()):
     export_sheet('npc_alp_ata_v2', 'npc_demirci.json', lambda an, i: t.render_frame(an, i), t.CELL, t.FEET, t.TEX, only)
 
 
+def export_usta(only=()):
+    """npc_usta_v2 (usta_ink.py, v32 Bengisu Usta): yurt NPC'leriyle aynı satır düzeni (idle 6 / talk 4), yüz sola."""
+    import usta_ink as t
+    export_sheet('npc_usta_v2', 'npc_demirci.json', lambda an, i: t.render_frame(an, i), t.CELL, t.FEET, t.TEX, only)
+
+
 def main():
     args = sys.argv[1:]
     flags = [a for a in args if a.startswith('--')]
@@ -305,6 +312,8 @@ def main():
         export_tuccar(only)
     if every or '--alp_ata' in flags:
         export_alp_ata(only)
+    if every or '--usta' in flags:
+        export_usta(only)
 
 
 if __name__ == '__main__':

@@ -27,6 +27,8 @@ do_music = '--music' in args or not any(a.startswith('-') for a in args)
 TARGETS = [
     # v27 savaş sanatları (v27_sanat.TARGET ile aynı)
     (r'^sanat_cekis$', -7.5), (r'^sanat_gum$', -6.5), (r'^sanat_hazir$', -15.0), (r'^sanat_(ors|kin)$', -9.0), (r'^sanat_', -10.5),
+    # v32 Bengisu Usta (v32_usta.TARGET ile aynı)
+    (r'^usta_nakis$', -13.0), (r'^usta_damga$', -12.0), (r'^usta_dovme$', -11.0),
     # v13 darbe hiyerarşisi / kademeli patlama / yıldırım (impact.py): kritik ve öldürücü ağırdan ~2 dB sıcak (v26: kritik
     # -8 → -6,5; kısa ve yoğun olduğundan master sınırına dayanır, ~-7,4 ölçülür),
     # patlama en gür efekt (Master'daki sert sınırlayıcı tavanı tutar), uzak patlama ve cızırtı döngüsü kısık
@@ -80,6 +82,8 @@ if do_sfx:
     allsfx.update(v27.build_all())
     import v27_sanat  # v27: savaş sanatları sesleri (SavasSanati.gd; hedef yükseklik v27_sanat.TARGET)
     allsfx.update(v27_sanat.build_all())
+    import v32_usta  # v32: Bengisu Usta (nakış, damga, dövme)
+    allsfx.update(v32_usta.build_all())
     impact.ONSET['darbe_kritik'] = 0.0
     amb = P.ambience()
     print('üretildi:', len(allsfx) + len(amb), 'ses', round(time.time() - t0, 1), 's')

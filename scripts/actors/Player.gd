@@ -149,7 +149,7 @@ const TEMPO_V26 := {
 ##   silah   yakın silahın kendi "hiz" niteliği (Çevik, +%6-20; yalnız o silah için)
 ##   techizat  kalkan / teçhizat "saldiri_hizi" niteliği (Tez Elli, +%4-10; kuşanılan her eşya toplanır)
 ##   kurt    Kurt ongunu: tılsım seviyesi başına +%2 (koşu içinde kazanılır)
-##   lutuf   Yel Ana'nın Soluğu (tanrı sunağı): +%15, yurda dönene dek
+##   lutuf   Yel Ana'nın Soluğu (tanrı sunağı): +%15, bir sonraki konağa dek (v32; eskiden yurda dönene dek)
 ##   umay    Kam Davulu (Umay Ana, kalıcı): seviye başına +%4
 ## Kalıcı kaynaklar toplamı "cap" ile sınırlı; Kızışma yükleri bunun üstüne eklenir, hepsi "cap_all"da durur. Ağır
 ## silahlarda etkisi azalır ("sinif"); hiçbir evre "min_*" karesinin altına inmez (vuruş okunur kalsın). Yaylarda gerilme,

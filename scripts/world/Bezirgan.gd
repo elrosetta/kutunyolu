@@ -17,6 +17,7 @@ var anim: SpriteAnim
 var near := false
 var talk_t := 0.0
 var offers: Array = []
+var soz := ""        # v32: konakta yakınken başının üstündeki kısa söz (biyoma göre, data/usta.json "sozler")
 var rerolls := 0
 var sold := 0
 var _t := 0.0
@@ -116,3 +117,5 @@ func _draw() -> void:
 	if near:
 		var y := roundf(-116.0 + sin(_t * 5.0) * 2.0)
 		PixUI.key_cap(self, Vector2(-5, y), HUD.KEY_ETKILES)
+		if soz != "":
+			PixUI.text(self, Vector2(-110, y - 14.0), soz, Color(PixUI.TEXT, 0.85), 1, HORIZONTAL_ALIGNMENT_CENTER, 220, 2)

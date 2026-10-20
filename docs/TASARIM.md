@@ -241,6 +241,8 @@ taneler koşu boyunca taşınır ve HUD'da `kut (banka)` olarak görünür. Böl
 - **Demirci Kam Kuzgun** — parşömenleri Kut karşılığı döver (eski Demirci ekranı); v24'ten beri açılan eşyayı hemen verir.
 - **Ozan Bilge Kopuz** — destan satırları ve koşu özeti.
 Yurttaki kapı bir sonraki derinliğe indirir. **Ölünce taşınan Kut yitirilir** (Ruh Düğümü yoksa). Test: `--yurt` yurtta başlatır.
+**v32:** yurt yalnızca koşu başında (ve ölümden sonra) görülür; derinlikler arasında yurda dönülmez, gezgin **Konak** kurulur
+(bkz. "v32: Konak ve silah ustası"). Taşınan Kut konaktaki Umay Ocağı'nda bankaya geçer; harcama (Umay / Demirci / Alp Ata) yurtta kalır.
 
 ## Ses (`tools/audiogen`, `scripts/autoload/Ses.gd`)
 
@@ -5127,3 +5129,97 @@ Silah atlası zaten HD x2 (`assets_hd/x2/weapons`) ve kenar yumuşatmalı gölge
 * `hd_paket.py --kontrol` yeni iki doku için de diğer fx veri dokuları gibi UYARI (gürültü kanalları HD'de ince
   ayrıntı kazanıyor); manifest md5 güncel.
 * `SanatUI._nisan_pips` "Invalid polygon data" hatası (HUD, bu işten önce de var; paralel sanat dalının alanı).
+
+## v32: Konak ve silah ustası
+
+İstek: "Bölümün sonuna bir NPC koyalım; derinlikler arasında yurda dönmeyelim, aşağı inip yurda dönmek mantıksız. Ya da
+NPC'ler temamıza uyup bize gelsin. Eklediğimiz NPC parayla (altın), RNG ile silahlarımıza ek özellik kazandırsın."
+
+### Akış: önce / sonra (`Main.gd`, `Game.gd`)
+
+Önce: koşu doğrudan 1. derinlikte başlıyordu; her Kut Kapısı (ve boss) **Ulu Kayın yurduna** döndürüyor, yurttaki kapı
+derine indiriyordu (`Main._on_finished` → `_build_hub`, `Game.next_depth` yurt kapısında). Yani her derinlikte Ötüken'den
+Ulu Kayın'a çıkılıp yeniden iniliyordu.
+
+Şimdi:
+
+* **Koşu yurtta başlar** (`_new_run` → `_build_hub`; test / çekim bayraklarıyla eskisi gibi doğrudan bölüm: `TEST_BAYRAKLARI`).
+  Umay Ana (Kut bankası, kalıcı armağanlar), Demirci (parşömen), Alp Ata (sanat), Ozan (ad töreni) yurtta kalır; kapı
+  1. derinliğe indirir (derinlik artmaz). Ölümden sonra da yurt (`_after_intro`: bekleyen parşömen varsa hatırlatır).
+* **Kut Kapısı → Konak → sıradaki derinlik** (`_to_konak`): kapıdan geçince `Game.next_depth` (derinlik +1, can +%15
+  `Zorluk.derinlik_sifa`, şişeler dolar) ve bir sonraki derinliğin **biyomunda** gezgin konak kurulur (`Level.build_konak`);
+  konağın sağındaki Kut Kapısı o derinliğin bölümünü kurar. Lütuflar konakta söner (eskiden yurda dönünce).
+* **Boss derinlikleri**: bölüm → boss arenası (boss öncesi Bezirgân bölümde kesin, v24) → **bosstan sonra konak** → derinlik.
+* `--otomatik` botu da konaktan geçer (kapı → konak → Usta'da paranın yettiği ilk hizmet → kapı); `BOLUM_SONU` satırı kapıda
+  yazılır, `[otomatik] USTA ...` satırı hizmeti söyler. `--sahne` için eski "done" ekranı kaldı.
+
+### Konak (`Level.build_konak`, `data/konak.json`)
+
+64 karolu düz, düşmansız alan; biyomun paralaksı, karoları ve ışığı (ambient konak.json'dan hafif sıcak). Soldan sağa taş
+yol, biyoma göre süsler (Ötüken: çadır, kazan, fener, at, balbal · Bozkır: çadır, tuğlar, at · Çini Saray / Şahmeran:
+mağarada çadır kurulmaz; kandil, kilim sergisi, kazan, balbal · Kaf: çadır, mangal, kandil · Tamu: balballar, tuğ, kazan),
+ortada **Umay Ocağı** (konak ateşi, `konak_ates_v2`): yanından geçince taşınan Kut Umay'ın bankasına geçer (yurttaki Umay
+Ana gibi; `Level._konak_tick`), sonra **Bengisu Usta'nın tezgâhı** (`usta_tezgah_v2`: kütükte örs, kor mangalı, alet
+dürüsü, asılı muskalar) ve kendisi, 47. karoda **Bezirgân Sartak** (yalnızca bir önceki bölümde pazar çıkmadıysa:
+`Game.run.bezirgan_gordu`; böylece her derinlikte bir pazar şansı olur, boss öncesi pazar vardıysa bosstan sonraki konakta
+yok), 58. karoda Kut Kapısı. Müzik "yurt" (sakin). Afiş: "KONAK · <biyom>", sağ üst "Konak · <biyom>". İlk konakta
+öğretici kartı ("konak"). NPC'ler "seninle yol alır": Usta'nın ekran sözü ve yakınken başının üstündeki kısa sözü,
+Sartak'ın pazar sözü **biyoma göre** (`usta.json` "sozler").
+
+Kut harcaması (Umay armağanları, parşömen açma, sanat öğrenme) bilerek yurtta bırakıldı: Dead Cells'teki gibi hücreler
+seviyeler arasında bankaya girer, kalıcı güç koşu başında alınır; koşu ortasında kalıcı güç sıçraması olmaz, konak altına
+(Usta, Sartak) odaklanır.
+
+### Bengisu Usta (`scripts/core/Usta.gd`, `data/usta.json`, `HUD._draw_usta`, `Main._usta_*`)
+
+"Bengi su" ölümsüzlük suyudur; Bengisu, Demirci Kam Kuzgun'un kızıdır: babası yurtta ocağında döver, o kervanla yol alır,
+alpların silahına yolda nakış vurur. Görünüş (`tools/artgen/usta_ink.py`, mürekkep-cel, texel 4, `npc_usta_v2` idle 6 /
+talk 4): bakır kızılı tek örgü (demir halkalı), alın bandında firuze boncuk, yeşil kısa kaftan (firuze-altın kenar), is
+lekeli deri önlük (göğüste üç nakış kalemi), kızıl kuşak, sıvalı kollar ve deri bilek koruyucu; ön elinde ucu Kut ışığıyla
+ışıyan nakış kalemi (idle'da ucu nefes alır), arka elde küçük çekiç omuzda. Konuşurken kalemi öne uzatır ("göster
+bakalım"). HD x2: `assets_hd/x2/sprites/npc_usta_v2.webp`, `decor/konak_ates_v2.webp`, `decor/usta_tezgah_v2.webp`
+(denetim TAMAM, ort fark 0,0005 / 0,0015 / 0,0018; manifest). Üretim: `python export_ink.py --usta`, `python
+export_sus.py --usta` (HD: `KY_HD=2` ile, sonra `hd_paket.py --paketle`). Sesler `tools/audiogen/v32_usta.py`: `usta_nakis`
+(kalem tinkleri + Kut çanı), `usta_damga` (ıslak mürekkep şaplağı), `usta_dovme` (küçük örste iki çekiç + kor).
+
+Hizmetler **altınla**, zar konak tohumuyla (`Usta.rng`; `--otomatik` / `--tohum=` ile belirlenimci), yalnızca silahlara
+(yakın / uzak yuva). Fiyat = taban x `Pazar.derinlik_k` (1 + 0,3 x (derinlik - 1); konak sıradaki derinliğin konağıdır)
+x nadirlik_k (Sıradan 1 · Nadir 1,15 · Destansı 1,3 · Efsanevi 1,5), 5'e yuvarlanır:
+
+| hizmet | ne yapar | taban | şans / kural |
+|---|---|---|---|
+| **Nakış** | 3 aday ek özellik yuvarlanır (değerleriyle), biri seçilip işlenir | 45 (nadir ★ x1,5) | yuva = nadirliğin ek özellik sayısı + 1 (+1 gök demiri); nadir nakışlar (Keskin, Ölümcül, Zincirleme, Gürleyen, Yaralı Kurt, Korunaklı, Aç, Çevik) 0,5 ağırlıkla; adaylar konak başına bir kez yuvarlanır |
+| **Yeniden dövme** | bütün ek özelliklerin değerleri yeniden yuvarlanır (kimlikler kalır) | 25 | aynı silahta her dövme +%50 pahalı (`it.usta_dovme`) |
+| **Unsur aşılama** | Od / Ayaz / Yıldırım / Kam / Yer-Su; eskisi silinir | 40 rastgele, x1,75 seçerek | unsur gücü nadirliğe göre (`Unsur.POWER` x 0,92-1,08) |
+| **Kalite** | +5..15 kalite puanı; hasar puan başına x1,003 (100 puan = 0,85 → 1,15 yuvarlama aralığı) | 30 | şans = 0,9 - 0,7 x kalite / 100 (en az 0,2), ekranda görünür; tutmazsa altın gider |
+| **Kut Mührü** | kumar | 15 | nakış %20 · kalite +8 %22 · unsur %14 · kusur silme %10 · **kusur %20** · hiç %14 (uygulanamayan sonuç bir sonrakine kayar) |
+
+2. derinliğin konağında (k = 1,3) Nadir silahta: nakış 70 (nadir 100), dövme 35, unsur 60 / 105, kalite 45, mühür 20.
+v24 ölçümüne göre 1. derinliği temizleyen oyuncu ~80-110 altın toplar: biriktiren oyuncu her konakta 1-2 hizmet alır,
+Sartak'la (bölümlerin ~%80'inde) paylaşır. Altın ölünce yittiği için harcamak teşvik edilir.
+
+Ekran (mürekkep arayüzü, `HUD._draw_usta`): başlıkta Bengisu'nun biyoma göre sözü, altın; adım izi (silah → hizmet →
+seçim → sonuç); solda liste (silahta SnH, nakış n/yuva, kalite; hizmette fiyat ve şans %; seçimde aday / unsur), sağda
+silahın tam kartı. Doğrudan hizmetlerde (dövme / kalite / mühür) Boşluk önce onay sorar. Sonuçta sağda **yeni kart
+eskisiyle karşılaştırmalı** (SnH ▲ / ▼, `ItemGen.dps_oyuncu`), solda ne değişti (SnH, kalite, nakış sayısı, unsur,
+kalan altın) ve kartın üstüne **basılan mürekkep damgası** (NAKIŞLANDI / DÖVÜLDÜ / AŞILANDI / KALİTE +N / MÜHÜRLENDİ;
+tutmayanda soluk TUTMADI, kusurda mor LANETLENDİ): 2,2 kattan küçülerek iner, basılınca sıçrantı; ses + kıvılcım + Usta'nın
+konuşma animasyonu. Esc bir adım geri, Boşluk sonuçtan sonra aynı silahla hizmet listesine döner.
+
+### ItemGen kancaları
+
+`affix_pool(base, cat)` (roll ile aynı süzgeç), `max_affix(it)`, `roll_affix(def, rng)`, `reroll_affixes(it, rng)`;
+`_roll_range` isteğe bağlı zar alır (Usta konak zarıyla yuvarlar, düşüşler eskisi gibi `ItemGen.rng`).
+
+### Test
+
+* `-- --konak` (`tools/tests/konak_testi.gd`, `SONUC GECTI|KALDI`): AKIS (kapı → konak: yurt değil, derinlik 2, can %15,
+  şişeler, lütuf söndü, biyom, Usta / ocak / Bezirgân kuralı, düşman yok), OCAK (Kut bankaya), USTA (ekran oyunun yolundan
+  açılır; aynı tohum aynı 3 aday, aday fiyatı nadirlikle; nakış onay + işleme, altın tam düşer, kartın SnH farkı =
+  `ItemGen.dps_oyuncu`, yuva sınırına dek nakış sonra ret; dövme değerleri değiştirir / kimlikleri korur / pahalanır; unsur
+  rastgele ve seçilen; kalite 8 deneme: +5..15 ya da değişmez, altın hep düşer, şans sınırları; Kut Mührü 6 kez; yetmeyen
+  altın reddi; ayrılış), KAPI (konak → 2. derinlik bölümü), BOSS (2. derinlik → arena → boss ölünce kapı → konak derinlik
+  3, boss öncesi pazar → konakta Bezirgân yok → 3. derinlik), YURT (yurt kapısı → 1. derinlik, derinlik artmaz). Kalıcı
+  kayıt geri yüklenir.
+* Çekim: `--konak_ekran=dunya | usta | sonuc` (`--konak_derinlik=N`, `--goruntu`, `--bekle`). Görseller `docs/v32/konak/`.
+* `--otomatik --derinlik=N`: `[konak] derinlik= biyom= tohum= bezirgan=` ve `[otomatik] USTA ...`.

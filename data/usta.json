@@ -1,0 +1,21 @@
+{
+ "_not": "v32 Bengisu Usta (konaktaki silah ustası; scripts/core/Usta.gd okur). Bütün hizmetler ALTINLA ve koşu zarıyla (konak tohumu). Fiyat = taban x derinlik_k (tuccar.json: 1 + 0,3 x (derinlik - 1); konak bir sonraki derinliğin konağıdır) x nadirlik_k[silahın nadirliği]. Nakış: 3 aday ek özellik yuvarlanır (nadir listesindekiler nadir_agirlik ağırlığıyla, fiyatı x nadir_k), oyuncu birini seçer; silahın nakış yuvası = nadirliğin ek özellik sayısı + ek_yuva (+1 gök demiri). Yeniden dövme: bütün ek özelliklerin değerleri yeniden yuvarlanır, aynı silahta her kullanım +artis pahalı. Unsur: rastgele ya da seçerek (x secim_k), eskisinin yerine geçer. Kalite: sans = sans_taban - sans_egim x kalite/100 (en az sans_en_az); başarıda kalite +artis[0..1] puan (hasar puan başına x1,003: 100 puan = 0,85 → 1,15 hasar yuvarlaması). Kut Mührü: ucuz kumar, sonuçlar ağırlıklı (kusur da gelebilir).",
+ "ad": "Bengisu Usta",
+ "nadirlik_k": [1.0, 1.15, 1.3, 1.5],
+ "nakis": {"fiyat": 45, "nadir_k": 1.5, "aday": 3, "nadir_agirlik": 0.5, "ek_yuva": 1},
+ "nadir_nakis": ["hasar", "krit_hasar", "zincir", "patlama", "dusuk_can", "kalkan_vurus", "can_calma", "hiz"],
+ "dovme": {"fiyat": 25, "artis": 0.5},
+ "unsur": {"fiyat": 40, "secim_k": 1.75},
+ "kalite": {"fiyat": 30, "sans_taban": 0.9, "sans_egim": 0.7, "sans_en_az": 0.2, "artis": [5, 15], "hasar_puan": 0.003},
+ "muhur": {"fiyat": 15, "sonuclar": {"nakis": 20, "kalite": 22, "unsur": 14, "kusur_sil": 10, "kusur": 20, "hic": 14}, "kalite_artis": 8},
+ "sozler": {
+  "_not": "biyoma göre (konak bir sonraki derinliğin biyomunda kurulur): usta = Bengisu'nun ekran sözü ve başının üstündeki kısa söz; bezirgan = Sartak'ın konaktaki sözü",
+  "otuken": {"usta": "«Ormanın iyeleri kılıcını tanımış, bak çentiği. Getir, nakışlayayım.»", "usta_kisa": "Ateşin başına gel, yiğit.", "bezirgan": "«Konak yerinde pazar kurdum; orman karanlık ama altın parlar.»"},
+  "bozkir": {"usta": "«Bozkır rüzgârı demiri inceltir. Bir nakış vurayım, keskinliği kalsın.»", "usta_kisa": "Rüzgâr çok, ateşe yaklaş.", "bezirgan": "«Bozkırda kervan durmaz derler; senin için durdum.»"},
+  "cini_saray": {"usta": "«Çini sarayın demiri soğuk döner. Közü harladım, getir silahını.»", "usta_kisa": "Çini tozu kalemi köreltir, çabuk ol.", "bezirgan": "«Saray diye saray... Altınını saklı tut, bana ver.»"},
+  "sahmeran": {"usta": "«Yılanlar demiri sever, zehir işlemiş kılıcına. Nakışla temizlerim.»", "usta_kisa": "Yılan kokusu geliyor, acele et.", "bezirgan": "«Şahmeran'ın yolunda bile malım taze, fiyatım tatlı.»"},
+  "kaf": {"usta": "«Kaf'ın ayazında demir kırılgan olur; közde ısıtıp nakışlayayım.»", "usta_kisa": "Elim donmadan gel.", "bezirgan": "«Karda deve yürümez ama Sartak yürür. Buyur.»"},
+  "tamu": {"usta": "«Tamu'nun ateşi benim ocağımdan sıcak. Son nakışı burada vuralım.»", "usta_kisa": "Erlik'in ocağı tüttü; son hazırlık.", "bezirgan": "«Cehennemin kapısında bile satarım. Altın orada da altındır.»"},
+  "_varsayilan": {"usta": "«Babam yurtta döver, ben yolda nakışlarım. Göster bakalım silahını.»", "usta_kisa": "Ateşin başına gel.", "bezirgan": "«Bozkırın her yolu kervanıma çıkar, yiğit. Altının varsa malım var.»"}
+ }
+}
