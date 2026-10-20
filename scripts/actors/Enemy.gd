@@ -1819,7 +1819,7 @@ func _blink_away(player: Node) -> void:
 	var side := _side_of(player)
 	for s in [side, -side]:
 		var nx: float = px + s * 210.0
-		var ty: int = level.surface_y(int(floor(nx / Level.TS)))
+		var ty: int = level.surface_y(int(floor(nx / Level.TS)), int(floor(global_position.y / Level.TS)) - 2)
 		var ny := ty * Level.TS - 1.0
 		if absf(ny - global_position.y) < 100.0 and not level.solid_at(Vector2(nx, ny - size.y * 0.5)):
 			FX.anim("smoke_puff", center(), 0.0, 0.7, Color(0.55, 0.3, 0.8), false)
@@ -2895,7 +2895,7 @@ func _ai_illusionist(delta: float, player: Node, to_p: Vector2, dist: float) -> 
 					# kendisi oyuncunun arkasına ışınlanır
 					FX.anim("smoke_puff", center(), 0.0, 0.7, Color(0.55, 0.3, 0.8), false)
 					var nx: float = player.global_position.x - float(player.facing) * 70.0
-					var ty: int = level.surface_y(int(nx / 24.0))
+					var ty: int = level.surface_y(int(nx / 24.0), int(global_position.y / 24.0) - 2)
 					if abs(ty * 24 - global_position.y) < 120:
 						global_position = Vector2(nx, ty * 24.0 - 1)
 					FX.anim("smoke_puff", center(), 0.0, 0.7, Color(0.55, 0.3, 0.8), false)
@@ -3308,7 +3308,7 @@ func _ai_stalker(delta: float, player: Node, to_p: Vector2, dist: float) -> void
 		if a <= 0.0:
 			remove_meta("ambush")
 			var nx: float = player.global_position.x - float(player.facing) * 56.0
-			var ty: int = level.surface_y(int(floor(nx / Level.TS)))
+			var ty: int = level.surface_y(int(floor(nx / Level.TS)), int(floor(global_position.y / Level.TS)) - 2)
 			if absf(ty * Level.TS - global_position.y) < 120.0 and not level.solid_at(Vector2(nx, ty * Level.TS - 20.0)):
 				global_position = Vector2(nx, ty * Level.TS - 1.0)
 			_reveal()

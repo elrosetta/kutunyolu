@@ -11,10 +11,33 @@ signal slot_requested(p: Pickup)
 signal lutuf_requested(p: Pickup)
 signal boss_died
 signal tuccar_requested   # v24: Bezirgân Sartak'ın pazarı (Main._on_tuccar)
+signal tasi_bulundu(i: int)   # v32: Kut Taşı keşfedildi
+signal harita_requested       # v32: Kut Taşı'nın dibinde W: harita (hızlı ışınlanma) açılsın
 
 const TS := 24
-const W := 256   # v25: 230'dan genişledi (harita biraz daha geniş; yoğunluk aynı)
-const H := 44
+const W := 256   # v25: 230'dan genişledi; v32: oda çizgesi 7 x 36 karolık kesim (LevelGen.SW)
+const H := 90    # v32: 44'ten 90'a: 4 satır kesim (LevelGen.SH 22); yurt ve arena üst 30 satırı kullanır
+
+## v32 oda çizgesi (LevelGen.generate): odalar, kapılar, giriş / çıkış karosu, sınırlar, ölçümler
+var rooms: Array = []
+var doors: Array = []
+var spawn_cell := Vector2i(5, 29)
+var exit_cell := Vector2i(249, 29)
+var bounds := Rect2i(0, 0, W, 44)
+var metrics: Dictionary = {}
+var kaide_xs: Array = []      # eşya kaideleri (karo): ana yolun 1/4, 2/4, 3/4'ündeki odalar
+## v32 harita ve ışınlanma
+var harita: Harita
+var tasi: Array = []          # KutTasi düğümleri
+var zamanli: Array = []       # ZamanliKapi düğümleri
+const ISIN_SURE := 0.9        # ışınlanma kanalı (sn): hasar alınırsa bozulur
+const ISIN_DOKUNULMAZ := 0.6  # varışta dokunulmazlık (sn)
+var isin_t := 0.0
+var isin_hedef := -1
+var isin_hp := 0.0
+var isin_sayi := 0            # bu bölümde tamamlanan ışınlanma
+var isin_bozuk := 0           # hasarla bozulan kanal
+var harita_istek := -1        # bot: harita ekranından seçilecek taş (Main "harita" kipi)
 
 var rng := RandomNumberGenerator.new()
 var grid := PackedByteArray()  # 0 hava, 1 katı, 2 platform
@@ -68,8 +91,9 @@ func build(seed_value: int) -> void:
 	biome = Game.biome_for_depth(int(Game.run.get("depth", 1)))
 	art = _stil_art(biome.get("art", {}))
 	Game.run["biome"] = biome.get("id", "otuken")
+	_plan_bezirgan()   # v24 / v32: tüccar bu bölümde çıkacak mı (pazar odası üretici tarafından açılır)
 	_generate()
-	_plan_bezirgan()   # v24: tüccarın yeri seçilir ve zemini düzlenir (karolardan önce)
+	Game.run["bolum_sure"] = 0.0   # v32: zamanlı kapılar için bölüm süresi
 	# bölüm başı destan sayaçları
 	Game.run["dumrul_used"] = false
 	for k in ["kills_level", "bow_level", "low_kills"]:
@@ -94,13 +118,14 @@ func build(seed_value: int) -> void:
 	_build_lighting()
 	_build_background()
 	_build_hazards()
+	_place_rooms()   # v32: ödül odaları ve pazar yeri önce (süsler tezgâhın üstüne binmesin)
 	_place_decor()
 	_spawn_player()
 	_spawn_enemies()
 	_spawn_items()
 	_spawn_scrolls()
-	_place_rooms()
 	_spawn_kesif()   # v25: eski gizli oda / Ülgen sunağı ganimeti artık bölümün kendisinde
+	_kut_taslari()   # v32: ışınlanma taşları, zamanlı kapılar, harita sisi
 	_build_particles()
 	_build_overlay_fx()
 	_place_bezirgan()
@@ -409,8 +434,9 @@ func pit_exit(feet: Vector2, prefer := 0) -> Vector2:
 
 
 func _place_rooms() -> void:
-	## Oda işaretleri: sunak (lütuf), hazine kaidesi, seçkin, kurgan ganimeti. v25: işaret üretimde kaydedilen karosundan
-	## aşağı ilk zemine konur (eskiden sütunun en üst zemini: hazine eşyası oda çatısına çıkıyordu); seçkin denetimli konur.
+	## Oda işaretleri (v32: çıkmaz ödül odaları): S sunak (lütuf), T hazine kaidesi (üst kademe eşya + altın), E seçkin
+	## bekçi, M Kut Tomarı kaidesi, P Bezirgân tezgâhı (yer planı), Z zamanlı kapı ödülü (üst kademe eşya + altın).
+	## İşaret üretimde kaydedilen karosundan aşağı ilk zemine konur (Level._floor_below).
 	for ch in chunks:
 		for mk in ch.get("marks", []):
 			var chr := String(mk[0])
@@ -425,7 +451,7 @@ func _place_rooms() -> void:
 					p.position = Vector2(tx * TS + TS / 2.0, ty * TS)
 					add_child(p)
 					pickups.append(p)
-				"T":
+				"T", "Z":
 					var it := ItemGen.random_drop(int(Game.run.get("tier", 0)) + 1)
 					drop_item(it, Vector2(tx * TS + 12, ty * TS - 30), true)
 					for g in 6:
@@ -434,6 +460,11 @@ func _place_rooms() -> void:
 					var pool := _biome_pool()
 					var kind: String = pool[rng.randi_range(0, pool.size() - 1)]
 					spawn_enemy(kind, Vector2(tx * TS + TS / 2.0, ty * TS - 1), true, false, true)
+				"M":
+					drop_scroll(Vector2(tx * TS + 12, ty * TS))
+				"P":
+					_bz_plan = tx
+					_bz_y = ty
 
 
 func _floor_below(tx: int, y0: int) -> int:
@@ -1121,12 +1152,80 @@ func cell(x: int, y: int) -> int:
 
 
 func _generate() -> void:
-	var r := LevelGen.generate(rng, W, H, int(Game.run.get("depth", 1)), art.get("styles", []))
+	## v32: oda çizgesi; biyom "level" parametreleri (data/world.json: rows, yon) ve tüccar isteği üreticiye geçer
+	var opts: Dictionary = {}
+	for k in biome.get("level", {}):
+		opts[k] = biome["level"][k]
+	opts["pazar"] = _bz_istek
+	opts["pazar_kapi"] = _bz_kapi
+	var r := LevelGen.generate(rng, W, H, int(Game.run.get("depth", 1)), art.get("styles", []), opts)
 	grid = r["grid"]
 	heights = r["heights"]
 	style = r["style"]
 	chunks = r["chunks"]
 	carved = int(r.get("carved", 0))
+	rooms = r["rooms"]
+	doors = r["doors"]
+	spawn_cell = r["spawn"]
+	exit_cell = r["exit"]
+	bounds = r["bounds"]
+	metrics = r["metrics"]
+	kaide_xs = r["kaide"]
+	_gen = r
+	print("[harita] derinlik=%d stil=%s oda=%d ana=%d dal=%d çıkmaz=%d döngü=%d dikey=%d kapı=%d taşı=%d zamanlı=%d deneme=%d ok=%s" % [
+		int(Game.run.get("depth", 1)), style, int(metrics["oda"]), int(metrics["ana"]), int(metrics["dal"]), int(metrics["cikmaz"]),
+		int(metrics["dongu"]), int(metrics["dikey_adim"]), int(metrics["kapi"]), int(metrics["tasi"]), int(metrics["zamanli"]), int(metrics["attempts"]), str(metrics["ok"])])
+
+
+var _gen: Dictionary = {}   # üreticinin ham sonucu (tasi / zamanli listeleri)
+
+
+func main_rooms() -> Array:
+	## Ana yol odaları (giriş -> çıkış sırasıyla)
+	var out: Array = []
+	for rm in rooms:
+		if int(rm.get("ana_i", -1)) >= 0 and rm["role"] != "yok":
+			out.append(rm)
+	out.sort_custom(func(a: Dictionary, b: Dictionary) -> bool: return int(a["ana_i"]) < int(b["ana_i"]))
+	return out
+
+
+func room_at(x: int, y: int) -> Dictionary:
+	## Karoyu kapsayan oda (iç alan + 2 karo duvar payı); yoksa boş
+	for rm in rooms:
+		if rm["role"] == "yok":
+			continue
+		if x >= int(rm["ix0"]) - 2 and x <= int(rm["ix1"]) + 2 and y >= int(rm["iy0"]) - 2 and y <= int(rm["iy1"]) + 2:
+			return rm
+	return {}
+
+
+func room_floor(rm: Dictionary, x: int) -> int:
+	## Odanın x sütunundaki taban satırı (katı); sütun odanın dışındaysa en yakın kenar
+	var fl: Array = rm["fl"]
+	return int(fl[clampi(x - int(rm["ix0"]), 0, fl.size() - 1)])
+
+
+func set_solid(x: int, y: int) -> void:
+	## v32: karo katı yapılır (zamanlı kapı): ızgara + zemin karo katmanı (komşu maskesiyle)
+	if x < 0 or x >= W or y < 0 or y >= H:
+		return
+	grid[idx(x, y)] = 1
+	if ground == null:
+		return
+	for p in [Vector2i(x, y), Vector2i(x - 1, y), Vector2i(x + 1, y), Vector2i(x, y - 1), Vector2i(x, y + 1)]:
+		if cell(p.x, p.y) != 1:
+			continue
+		var m := 0
+		if cell(p.x, p.y - 1) != 1:
+			m |= 1
+		if cell(p.x + 1, p.y) != 1:
+			m |= 2
+		if cell(p.x, p.y + 1) != 1:
+			m |= 4
+		if cell(p.x - 1, p.y) != 1:
+			m |= 8
+		ground.set_cell(p, 0, Vector2i(m, (p.x + p.y) % 3))
 
 
 # ------------------------------------------------------------------ karolar
@@ -1523,16 +1622,29 @@ func los(a: Vector2, b: Vector2) -> bool:
 	return true
 
 
-func surface_y(x_tile: int) -> int:
-	## Yürünen zemin: tabanın (heights) 8 karo altından yukarı tarayıp ilk "üstü hava, kendisi katı" karo.
-	## Çukurlarda çukur tabanını, mağarada tavanı değil zemini, düz yerde tabanı verir.
+func surface_y(x_tile: int, y_ref := -1) -> int:
+	## Yürünen zemin: tabanın (heights: ana yol odasının tabanı) 8 karo altından yukarı tarayıp ilk "üstü hava, kendisi
+	## katı" karo. v32: y_ref (karo) verilirse o satırdan aşağı ilk zemin (çok katlı odalarda aktörün kendi katı);
+	## aşağıda yoksa yukarı aranır.
 	var xt := clampi(x_tile, 0, W - 1)
+	if y_ref >= 0:
+		for y in range(maxi(1, y_ref), H):
+			if cell(xt, y) != 0 and cell(xt, y - 1) == 0:
+				return y
+		for y in range(mini(H - 1, y_ref), 1, -1):
+			if cell(xt, y) != 0 and cell(xt, y - 1) == 0:
+				return y
 	var y := mini(H - 1, int(heights[xt]) + 8)
 	while y > 1:
 		if cell(xt, y) != 0 and cell(xt, y - 1) == 0:
 			return y
 		y -= 1
 	return H - 1
+
+
+func floor_y_px(p: Vector2) -> float:
+	## v32: dünya noktasının altındaki (aynı kattaki) zeminin üst kenarı (px)
+	return float(surface_y(int(floor(p.x / TS)), int(floor(p.y / TS)) - 1) * TS)
 
 
 # ------------------------------------------------------------------ ışık ve atmosfer
@@ -2116,35 +2228,41 @@ func _has_decor(n: String) -> bool:
 
 
 func _place_decor() -> void:
+	## v32: süsler her odanın tabanı boyunca (çok katlı bölüm); giriş odasında dilek ağacı ve çıra
+	var sx0 := spawn_cell.x
 	if _has_decor("dilek_agaci"):
-		_decor("dilek_agaci", 8, surface_y(8), -3)
-	_decor("cira", 12, surface_y(12), -2, true)
-	var next_torch := 40
-	for x in range(16, W - 6):
-		var sy := surface_y(x)
-		if cell(x, sy) != 1:
+		_decor("dilek_agaci", sx0 + 3, surface_y(sx0 + 3, spawn_cell.y), -3)
+	_decor("cira", sx0 + 7, surface_y(sx0 + 7, spawn_cell.y), -2, true)
+	for rm in rooms:
+		if rm["role"] == "yok":
 			continue
-		if x == next_torch:
-			_decor("cira", x, sy, -2, true)
-			next_torch += rng.randi_range(26, 36) if style != "magara" else rng.randi_range(14, 22)
-			continue
-		var r := rng.randf()
-		# tavan altında ağaç/direk olmaz; mağarada mantar ve kaya çoğalır
-		var roofed := cell(x, sy - 5) == 1 or cell(x, sy - 6) == 1
-		if r < 0.02 and not roofed and _has_decor("cicek"):
-			_decor(["cicek_1", "cicek_2", "cicek_3"][rng.randi_range(0, 2)], x, sy, 6)
-		elif r < (0.18 if style == "magara" else 0.11) and _has_decor("mantar"):
-			_decor(["mantar_1", "mantar_2"][rng.randi_range(0, 1)], x, sy, 6)
-		elif r < (0.26 if style in ["magara", "harabe"] else 0.14) and _has_decor("kaya"):
-			_decor(["kaya_1", "kaya_2"][rng.randi_range(0, 1)], x, sy, -1)
-		elif r < 0.275 and not roofed and _has_decor("kam_diregi"):
-			_decor("kam_diregi", x, sy, -3)
-		elif r < 0.285 and not roofed and style != "harabe" and _has_decor("dilek_agaci"):
-			_decor("dilek_agaci", x, sy, -3)
+		var ix0 := int(rm["ix0"])
+		var ix1 := int(rm["ix1"])
+		var next_torch: int = ix0 + rng.randi_range(6, 14)
+		for x in range(ix0, ix1 + 1):
+			var sy := room_floor(rm, x)
+			if cell(x, sy) != 1 or cell(x, sy - 1) != 0:
+				continue
+			if x >= next_torch:
+				_decor("cira", x, sy, -2, true)
+				next_torch = x + (rng.randi_range(26, 36) if style != "magara" else rng.randi_range(14, 22))
+				continue
+			var r := rng.randf()
+			# tavan altında ağaç/direk olmaz; mağarada mantar ve kaya çoğalır
+			var roofed := cell(x, sy - 5) == 1 or cell(x, sy - 6) == 1
+			if r < 0.02 and not roofed and _has_decor("cicek"):
+				_decor(["cicek_1", "cicek_2", "cicek_3"][rng.randi_range(0, 2)], x, sy, 6)
+			elif r < (0.18 if style == "magara" else 0.11) and _has_decor("mantar"):
+				_decor(["mantar_1", "mantar_2"][rng.randi_range(0, 1)], x, sy, 6)
+			elif r < (0.26 if style in ["magara", "harabe"] else 0.14) and _has_decor("kaya"):
+				_decor(["kaya_1", "kaya_2"][rng.randi_range(0, 1)], x, sy, -1)
+			elif r < 0.275 and not roofed and _has_decor("kam_diregi"):
+				_decor("kam_diregi", x, sy, -3)
+			elif r < 0.285 and not roofed and style != "harabe" and _has_decor("dilek_agaci"):
+				_decor("dilek_agaci", x, sy, -3)
 	_place_ink_extras()
-	# çıkış: Kut Kapısı
-	var ex := W - 7
-	exit_pos = Vector2(ex * TS + TS / 2.0, surface_y(ex) * TS)
+	# çıkış: Kut Kapısı (çıkış odasının sağ ucu)
+	exit_pos = Vector2(exit_cell.x * TS + TS / 2.0, (exit_cell.y + 1) * TS)
 	var gate := KutGate.new()
 	gate.position = exit_pos
 	decor_root.add_child(gate)
@@ -2162,6 +2280,8 @@ func _spawn_player() -> void:
 	player = Player.new()
 	player.level = self
 	player.position = Vector2(5 * TS, surface_y(5) * TS - 2)
+	if not rooms.is_empty():
+		player.position = Vector2(spawn_cell.x * TS + TS / 2.0, (spawn_cell.y + 1) * TS - 2)
 	if OS.get_cmdline_user_args().has("--tehlikeye"):
 		# test / çekim: oyuncuyu ilk tehlike havuzunun (zehir / lav) solundaki zemine koy
 		for x in W:
@@ -2188,6 +2308,10 @@ func _spawn_player() -> void:
 	for h in heights:
 		deepest = maxi(deepest, int(h))
 	camera.limit_bottom = mini(H, deepest + 4) * TS
+	if not rooms.is_empty():
+		# v32: çok katlı bölüm: sınırlar kesim ızgarasından
+		camera.limit_right = bounds.end.x * TS
+		camera.limit_bottom = bounds.end.y * TS
 	add_child(camera)
 	Game.base_zoom = float(art.get("camera_zoom", 1.0))
 	camera.zoom = Vector2.ONE * Game.base_zoom
@@ -2200,48 +2324,59 @@ func _spawn_player() -> void:
 
 
 func _spawn_enemies() -> void:
-	## Biyomun tüm türleri: yakın dövüşçüler yüzeye, pusucular yüksek adalara, uçanlar havaya; derinlikle yoğunluk artar
-	var x := 26
+	## Biyomun tüm türleri; v32: oda başına, dövüş odalarının (ana / dal / çıkış) tabanı boyunca 15-22 karoda bir
+	## (derinlikle sıklaşır); pusucular odanın yüksek yerlerine (platform / ada / seki üstü), uçanlar havaya. Giriş ve
+	## ödül odalarında sıradan yaratık yok (seçkin odasının bekçisi _place_rooms). Seçkinler ana yolun 3. odasından
+	## sonra, aralarında en az 4 yaratık; derinlikle (ve mühürle) bölüm başına birden çok.
 	var elites := 0
-	var last_elite := -99
+	var since_elite := 99
 	var pool := _biome_pool()
 	var depth := int(Game.run.get("depth", 1))
-	var perches: Array = []
-	for px in range(24, W - 24):
-		for py in range(6, 34):
-			if cell(px, py) != 0 and cell(px, py) != 3 and cell(px, py - 1) == 0 and py < surface_y(px) - 3:
-				perches.append(Vector2i(px, py))
-	while x < W - 18:
-		var kind: String = pool[rng.randi_range(0, pool.size() - 1)]
-		var ai: String = Data.enemy_def(kind).get("ai", Data.enemy_def(String(Data.enemy_def(kind).get("sprite", kind))).get("ai", "lunger"))
-		var count := 1
-		if Data.enemy_def(kind).get("sprite", kind) == "kara_boru" and ai == "lunger" and rng.randf() < 0.5:
-			count = 2
-		elif not (ai in ["pouncer", "flyer_ranged", "diver"]) and rng.randf() < Zorluk.suru(depth):
-			count = 2   # v22: derinde ikili gruplar (sürü)
-		for k in count:
-			var tx := x + k * 2
-			# v22: derinlikle (ve mühürle) bölüm başına birden çok seçkin; 100. karodan sonra, aralarında 40 karo
-			var is_elite := elites < Zorluk.seckin_sayi(depth) and x > 100 and x - last_elite > 40 and rng.randf() < 0.3
-			if is_elite:
-				elites += 1
-				last_elite = x
-			var pos := Vector2(tx * TS + TS / 2.0, surface_y(tx) * TS - 1)
-			if ai == "pouncer" and not perches.is_empty():
-				# en yakın yüksek yer
-				var best: Vector2i = perches[0]
-				var bd := 9999.0
-				for pc in perches:
-					var dd := absf(float(pc.x - tx))
-					if dd < bd:
-						bd = dd
-						best = pc
-				if bd < 30.0:
-					pos = Vector2(best.x * TS + TS / 2.0, best.y * TS - 1)
-			var en := spawn_enemy(kind, pos, is_elite, not is_elite and rng.randf() < Zorluk.ofkeli_sans(), true)
-			if en and en.sprite_kind == "kara_boru" and k == 1:
-				en.flank = 1  # ikinci kurt arkadan dolaşır
-		x += maxi(8, rng.randi_range(13, 20) - Zorluk.yogunluk(depth))
+	var main_i := {}
+	for rm in rooms:
+		if not (rm["role"] in ["ana", "dal", "cikis"]):
+			continue
+		var ix0 := int(rm["ix0"])
+		var ix1 := int(rm["ix1"])
+		var perches: Array = []
+		for px in range(ix0, ix1 + 1):
+			var fy := room_floor(rm, px)
+			for py in range(int(rm["iy0"]), fy - 3):
+				if cell(px, py) != 0 and cell(px, py) != 3 and cell(px, py - 1) == 0 and cell(px, py - 2) == 0:
+					perches.append(Vector2i(px, py))
+		var x := ix0 + 5 + rng.randi_range(0, 5)
+		while x < ix1 - 4:
+			var kind: String = pool[rng.randi_range(0, pool.size() - 1)]
+			var ai: String = Data.enemy_def(kind).get("ai", Data.enemy_def(String(Data.enemy_def(kind).get("sprite", kind))).get("ai", "lunger"))
+			var count := 1
+			if Data.enemy_def(kind).get("sprite", kind) == "kara_boru" and ai == "lunger" and rng.randf() < 0.5:
+				count = 2
+			elif not (ai in ["pouncer", "flyer_ranged", "diver"]) and rng.randf() < Zorluk.suru(depth):
+				count = 2   # v22: derinde ikili gruplar (sürü)
+			for k in count:
+				var tx := mini(x + k * 2, ix1 - 2)
+				var is_elite := elites < Zorluk.seckin_sayi(depth) and int(rm.get("ana_i", 9)) >= 3 and since_elite >= 4 and rng.randf() < 0.3
+				if is_elite:
+					elites += 1
+					since_elite = 0
+				else:
+					since_elite += 1
+				var pos := Vector2(tx * TS + TS / 2.0, room_floor(rm, tx) * TS - 1)
+				if ai == "pouncer" and not perches.is_empty():
+					# en yakın yüksek yer
+					var best: Vector2i = perches[0]
+					var bd := 9999.0
+					for pc in perches:
+						var dd := absf(float(pc.x - tx))
+						if dd < bd:
+							bd = dd
+							best = pc
+					if bd < 20.0:
+						pos = Vector2(best.x * TS + TS / 2.0, best.y * TS - 1)
+				var en := spawn_enemy(kind, pos, is_elite, not is_elite and rng.randf() < Zorluk.ofkeli_sans(), true)
+				if en and en.sprite_kind == "kara_boru" and k == 1:
+					en.flank = 1  # ikinci kurt arkadan dolaşır
+			x += maxi(10, rng.randi_range(15, 22) - Zorluk.yogunluk(depth))
 
 
 func spawn_enemy(kind: String, pos: Vector2, is_elite := false, is_ofkeli := false, check := false) -> Enemy:
@@ -2337,15 +2472,17 @@ func _spawn_kesif() -> void:
 	## bölümün kendisine dağıtıldı: girişten ulaşılan yüksek bir çıkıntıda (ada, kule, sütun tepesi; yüzeyden en az 3 karo
 	## yukarıda) bir üst kademe eşya kaidesi + şifa + 4 altın; %50 ihtimalle yolda ikinci bir zula (eşya + 3 altın).
 	## Kaidelere, tüccara ve birbirlerine uzak.
-	var seen := LevelGen.reach_set(grid, W, H, heights)
-	var used: Array = BZ_KAIDE.duplicate()
+	var seen := LevelGen.reach_from(grid, W, H, spawn_cell.x, spawn_cell.y)
+	var used: Array = []
+	for kc in kaide_xs:
+		used.append(int(kc.x))
 	for ch in chunks:
 		for mk in ch.get("marks", []):
 			used.append(int(mk[1]))
 	var high: Array = []
 	var low: Array = []
-	for x in range(30, W - 30):
-		if bezirgan_alani(x, 6):
+	for x in range(bounds.position.x + 12, bounds.end.x - 12):
+		if bezirgan_alani(x, 6) or absi(x - spawn_cell.x) < 14 or absi(x - exit_cell.x) < 10:
 			continue
 		var far := true
 		for u in used:
@@ -2398,25 +2535,45 @@ func _spawn_kesif() -> void:
 
 
 func _spawn_items() -> void:
-	for tx in BZ_KAIDE:
+	## v32: üç eşya kaidesi ana yolun 1/4, 2/4, 3/4'ündeki odaların tabanında (LevelGen "kaide")
+	for kc in kaide_xs:
 		var it := ItemGen.random_drop(int(Game.run.get("tier", 0)))
-		drop_item(it, Vector2(tx * TS + 12, surface_y(tx) * TS - 30), true)
+		drop_item(it, Vector2(int(kc.x) * TS + 12, (int(kc.y) + 1) * TS - 30), true)
 
 
 func _spawn_scrolls() -> void:
-	## Kut Tomarları (v23; eski adı tılsım): her bölümde üç tane; ikisi yolda, biri havadaki bir adada (keşif ödülü).
-	var xs := [64 + rng.randi_range(-6, 6), 144 + rng.randi_range(-8, 8)]
-	for tx in xs:
-		var t := clampi(tx, 20, W - 20)
-		drop_scroll(Vector2(t * TS + 12, surface_y(t) * TS))
-	var best := Vector2.ZERO
-	for x in range(30, W - 30):
-		for y in range(8, 30):
-			if cell(x, y) == 1 and cell(x, y - 1) == 0 and y < surface_y(x) - 3:
-				if best == Vector2.ZERO or rng.randf() < 0.08:
-					best = Vector2(x * TS + 12, y * TS)
-	if best != Vector2.ZERO:
-		drop_scroll(best)
+	## Kut Tomarları (v23; eski adı tılsım): her bölümde üç tane. v32: çıkmaz "tomar" odaları (M işareti, _place_rooms)
+	## önce; kalanlar ana yolda: biri yolun ortasındaki odanın tabanında, biri girişten ulaşılan yüksek bir çıkıntıda
+	## (keşif ödülü).
+	var n := 0
+	for ch in chunks:
+		for mk in ch.get("marks", []):
+			if String(mk[0]) == "M":
+				n += 1
+	var mr := main_rooms()
+	if n < 3 and mr.size() >= 3:
+		var rm: Dictionary = mr[mr.size() / 2]
+		var sp: Vector2i = LevelGen._floor_spot(grid, W, H, rm, (int(rm["ix0"]) + int(rm["ix1"])) / 2 + rng.randi_range(-6, 6))
+		drop_scroll(Vector2(sp.x * TS + 12, (sp.y + 1) * TS))
+		n += 1
+	if n < 3:
+		var seen := LevelGen.reach_from(grid, W, H, spawn_cell.x, spawn_cell.y)
+		var best := Vector2.ZERO
+		for x in range(bounds.position.x + 12, bounds.end.x - 12):
+			var sy := surface_y(x)
+			for y in range(bounds.position.y + 2, bounds.end.y - 2):
+				if cell(x, y) == 1 and cell(x, y - 1) == 0 and seen[idx(x, y - 1)] == 1 and y < sy - 3 and absi(x - spawn_cell.x) > 14:
+					if best == Vector2.ZERO or rng.randf() < 0.08:
+						best = Vector2(x * TS + 12, y * TS)
+		if best != Vector2.ZERO:
+			drop_scroll(best)
+			n += 1
+	while n < 3 and mr.size() >= 2:
+		# yine eksikse (dal yok): ana yolun başka odalarının tabanı
+		var rm2: Dictionary = mr[clampi(1 + n, 1, mr.size() - 1)]
+		var sp2: Vector2i = LevelGen._floor_spot(grid, W, H, rm2, (int(rm2["ix0"]) + int(rm2["ix1"])) / 2 + 5)
+		drop_scroll(Vector2(sp2.x * TS + 12, (sp2.y + 1) * TS))
+		n += 1
 
 
 func drop_scroll(pos: Vector2) -> void:
@@ -2588,7 +2745,7 @@ func fire_pool(pos: Vector2, radius: float, duration: float, dps: float) -> void
 	fp.life = duration
 	fp.dps = dps
 	var ty := int(floor(pos.x / TS))
-	fp.position = Vector2(pos.x, surface_y(ty) * TS)
+	fp.position = Vector2(pos.x, surface_y(ty, int(floor(pos.y / TS)) - 2) * TS)
 	add_child(fp)
 	add_light(Vector2.ZERO, Color(1.0, 0.55, 0.2), radius * 3.0, 1.3, fp)
 
@@ -2620,7 +2777,7 @@ func spawn_spirit_wolf(pos: Vector2, life: float, dmg: float, sprite_name := "ka
 func telegraph_ground(pos: Vector2, t: float) -> void:
 	var m := GroundMarker.new()
 	m.life = t
-	m.position = Vector2(pos.x, surface_y(int(floor(pos.x / TS))) * TS)
+	m.position = Vector2(pos.x, surface_y(int(floor(pos.x / TS)), int(floor(pos.y / TS)) - 2) * TS)
 	fx_root.add_child(m)
 
 
@@ -2629,7 +2786,7 @@ func spawn_roots(pos: Vector2, dmg: float, source: Node) -> void:
 	r.level = self
 	r.dmg = dmg
 	r.source = source
-	r.position = Vector2(pos.x, surface_y(int(floor(pos.x / TS))) * TS)
+	r.position = Vector2(pos.x, surface_y(int(floor(pos.x / TS)), int(floor(pos.y / TS)) - 2) * TS)
 	fx_root.add_child(r)
 
 
@@ -2730,22 +2887,26 @@ const BZ_SAG := 2
 const BZ_BOS := 4          # tezgâhın üstünde boş kalması gereken karo
 const BZ_SAPMA := 2        # düzlenebilecek en büyük yükselti farkı (karo)
 const BZ_KAZI := 14        # düzlerken temizlenebilecek en çok katı karo (mağara tavanını oymasın)
-const BZ_KAIDE := [38, 116, 188]   # _spawn_items kaideleri (v25: W 256'ya göre): tezgâh bunların üstüne kurulmaz
 var _bz_plan := -1         # planlanan tüccar karosu (-1: bu bölümde yok)
+var _bz_y := -1            # tüccarın taban satırı (pazar odası)
 var _bz_sebep := ""
+var _bz_istek := false     # v32: üreticiden pazar odası istendi mi
+var _bz_kapi := false      # boss öncesi: pazar çıkışa yakın kavşaktan ayrılsın
 
 
 func _plan_bezirgan() -> void:
-	## v24: Bezirgân Sartak bazı bölümlerde durur (data/tuccar.json "yer"). Boss öncesi bölümde (Game.BOSS_AFTER) kesin ve
-	## Kut Kapısı'na yakın; 1. derinlikte %35, diğerlerinde %55 şansla bölümün orta kesiminde. Karolar kurulmadan ve
-	## gizli odalar oyulmadan önce yer seçilir ve tezgâhın altı DÜZLENİR: alandaki yüzey en çok BZ_SAPMA karo oynuyorsa
-	## çukurlar doldurulur, tümsekler ve tezgâhın üstündeki BZ_BOS karo temizlenir (en çok BZ_KAZI katı karo; mağara
-	## tavanı oyulmaz). Tehlike, oda işareti (S/T/E), kaide, giriş ve Kut Kapısı yakınına kurulmaz. Yürüyüş bozulmaz:
-	## 2 karoluk fark zıplanır. Ayrı rng (bölüm tohumundan): bölümün geri kalanı aynı kalır.
+	## v24: Bezirgân Sartak bazı bölümlerde durur (data/tuccar.json "yer"). Boss öncesi bölümde (Game.BOSS_AFTER) kesin;
+	## 1. derinlikte %35, diğerlerinde %55 şansla. v32: tezgâh artık düzlenen bir yüzey parçası değil, üreticinin açtığı
+	## çıkmaz PAZAR odasıdır (LevelGen "pazar" ödülü; boss öncesinde çıkışa en yakın kavşaktan ayrılır). Burada yalnızca
+	## istek kararı verilir; yer _place_rooms'taki "P" işaretinden gelir. Ayrı rng (bölüm tohumundan): bölümün geri
+	## kalanı aynı kalır.
 	_bz_plan = -1
+	_bz_y = -1
+	_bz_istek = false
 	var cfg: Dictionary = Pazar.data().get("yer", {})
 	var d := int(Game.run.get("depth", 1))
 	var boss_once: bool = Game.BOSS_AFTER.has(d) and not (String(Game.BOSS_AFTER[d]) in Game.run.get("boss_done", []))
+	_bz_kapi = boss_once
 	var r := RandomNumberGenerator.new()
 	r.seed = rng.seed + 7919
 	if not boss_once and not bezirgan_zorla and not OS.get_cmdline_user_args().has("--tuccar_her"):
@@ -2753,33 +2914,8 @@ func _plan_bezirgan() -> void:
 		if r.randf() >= sans:
 			_bz_sebep = "şans"
 			return
-	var span: Array = cfg.get("kapi" if boss_once else "orta", [70, 170])
-	var best := _bz_sec(int(span[0]), int(span[1]), boss_once, r)
-	if best.is_empty():
-		best = _bz_sec(16, W - 12, boss_once, r)
-	if best.is_empty():
-		_bz_sebep = "uygun yer yok"
-		return
-	_bz_plan = int(best["x"])
-	_bz_duzle(_bz_plan, int(best["sy"]))
-
-
-func _bz_sec(xa: int, xb: int, boss_once: bool, r: RandomNumberGenerator) -> Dictionary:
-	var cands: Array = []
-	var min_c := 99999
-	for x in range(xa, xb):
-		var c := _bz_maliyet(x)
-		if c.is_empty():
-			continue
-		cands.append(c)
-		min_c = mini(min_c, int(c["c"]))
-	if cands.is_empty():
-		return {}
-	# en az düzleme isteyenlerden (maliyet en az + 3): boss öncesi kapıya en yakını, yoksa rastgele biri
-	var good: Array = cands.filter(func(c: Dictionary) -> bool: return int(c["c"]) <= min_c + 3)
-	if boss_once:
-		return good[good.size() - 1]
-	return good[r.randi_range(0, good.size() - 1)]
+	_bz_istek = true
+	_bz_sebep = "pazar odası açılmadı"
 
 
 func bezirgan_alani(x: int, pay := 5) -> bool:
@@ -2787,75 +2923,19 @@ func bezirgan_alani(x: int, pay := 5) -> bool:
 	return _bz_plan >= 0 and x >= _bz_plan + BZ_SOL - pay and x <= _bz_plan + BZ_SAG + pay
 
 
-func _bz_maliyet(x: int) -> Dictionary:
-	## Bu karoya kurulursa düzleme maliyeti {"x", "sy", "c"} ya da boş (kurulamaz)
-	var x0 := x + BZ_SOL
-	var x1 := x + BZ_SAG
-	if x0 < 14 or x1 > W - 7 - 6:
-		return {}   # giriş ve Kut Kapısı'nın çevresi
-	for k in BZ_KAIDE:
-		if x1 >= int(k) - 2 and x0 <= int(k) + 2:
-			return {}
-	for ch in chunks:
-		var rows: Array = LevelGen.CHUNKS.get(String(ch["name"]), [])
-		var mark := false
-		var cw := 0
-		for line in rows:
-			cw = maxi(cw, String(line).length())
-			mark = mark or String(line).contains("S") or String(line).contains("T") or String(line).contains("E")
-		if mark and x1 >= int(ch["x"]) - 2 and x0 <= int(ch["x"]) + cw + 2:
-			return {}
-	# hedef yükselti: alandaki en sık yüzey (eşitlikte tüccarın sütununa en yakın)
-	var cnt := {}
-	for tx in range(x0, x1 + 1):
-		var s0 := surface_y(tx)
-		if cell(tx, s0) != 1:
-			return {}   # platform ya da tehlike yüzeyi
-		cnt[s0] = int(cnt.get(s0, 0)) + 1
-	var sy := surface_y(x)
-	for k in cnt:
-		if int(cnt[k]) > int(cnt.get(sy, 0)):
-			sy = int(k)
-	var c := 0
-	var kazi := 0
-	for tx in range(x0, x1 + 1):
-		var s1 := surface_y(tx)
-		if absi(s1 - sy) > BZ_SAPMA:
-			return {}
-		c += absi(s1 - sy) * 2
-		for ty in range(sy - BZ_BOS - 1, sy + 3):
-			if cell(tx, ty) == 3:
-				return {}   # zehir / lav
-		for ty in range(sy - BZ_BOS, sy):
-			if cell(tx, ty) != 0:
-				kazi += 1
-	if kazi > BZ_KAZI:
-		return {}
-	return {"x": x, "sy": sy, "c": c + kazi}
-
-
-func _bz_duzle(x: int, sy: int) -> void:
-	for tx in range(x + BZ_SOL, x + BZ_SAG + 1):
-		var s0 := surface_y(tx)
-		for ty in range(sy, s0):
-			grid[idx(tx, ty)] = 1   # çukuru doldur
-		for ty in range(sy - BZ_BOS, sy):
-			grid[idx(tx, ty)] = 0   # tümsek / alçak tavan
-		grid[idx(tx, sy)] = 1
-
-
 func _place_bezirgan() -> void:
-	## Planlanan yere (_plan_bezirgan) tüccarı ve tezgâhı kur, mallarını yuvarla; tezgâhın üstüne düşmüş ganimeti yana al,
-	## yakındaki sıradan yaratıkları kaldır (tezgâh sakin bir köşe).
+	## Planlanan yere (pazar odasının "P" işareti) tüccarı ve tezgâhı kur, mallarını yuvarla; tezgâhın üstüne düşmüş
+	## ganimeti yana al, yakındaki sıradan yaratıkları kaldır (tezgâh sakin bir köşe).
 	var d := int(Game.run.get("depth", 1))
 	if _bz_plan < 0:
 		print("[tuccar] derinlik=%d bezirgan=0 (%s)" % [d, _bz_sebep])
 		return
 	var boss_once: bool = Game.BOSS_AFTER.has(d) and not (String(Game.BOSS_AFTER[d]) in Game.run.get("boss_done", []))
 	var tx := _bz_plan
+	var ty := _bz_y if _bz_y >= 0 else surface_y(tx)
 	bezirgan = Bezirgan.new()
 	bezirgan.level = self
-	bezirgan.position = Vector2(tx * TS + TS / 2.0, surface_y(tx) * TS)
+	bezirgan.position = Vector2(tx * TS + TS / 2.0, ty * TS)
 	bezirgan.offers = Pazar.teklifler(d, boss_once)
 	actors.add_child(bezirgan)
 	Game.run["bezirgan_gordu"] = true   # v32: bu derinlikte pazar vardı; konağa gelmez
@@ -2863,7 +2943,7 @@ func _place_bezirgan() -> void:
 	for p in pickups:
 		if is_instance_valid(p) and wr.grow(20.0).has_point(p.position):
 			var nx := wr.position.x - 40.0
-			p.position = Vector2(nx, surface_y(int(floor(nx / TS))) * TS - (0.0 if p.kind == "tilsim" else 30.0))
+			p.position = Vector2(nx, surface_y(int(floor(nx / TS)), ty - 2) * TS - (0.0 if p.kind == "tilsim" else 30.0))
 	var temiz := float(Pazar.data().get("yer", {}).get("temiz", 9)) * TS
 	var moved := 0
 	for e in get_tree().get_nodes_in_group("dusman"):
@@ -2897,6 +2977,119 @@ func bezirgan_ok() -> bool:
 func on_player_died() -> void:
 	await get_tree().create_timer(1.4).timeout
 	player_died.emit()
+
+
+# ------------------------------------------------------------------ v32 Kut Taşları, zamanlı kapılar, ışınlanma
+func _kut_taslari() -> void:
+	## Üreticinin seçtiği karolara Kut Taşı (KutTasi) diker, harita sisini kurar, zamanlı kapı düğümlerini açar
+	harita = Harita.new()
+	harita.setup(self)
+	var i := 0
+	for c in _gen.get("tasi", []):
+		var cell_v: Vector2i = c
+		var rm := room_at(cell_v.x, cell_v.y)
+		var rol := String(rm.get("role", "ana"))
+		var ad := "Kavşak Taşı"
+		match rol:
+			"giris":
+				ad = "Yol Başı Taşı"
+			"odul":
+				ad = {"tomar": "Tomar Taşı", "hazine": "Hazine Taşı", "sunak": "Sunak Taşı", "pazar": "Pazar Taşı", "seckin": "Bekçi Taşı", "zamanli": "Zaman Taşı"}.get(String(rm.get("odul", "")), "Ödül Taşı")
+			"cikis":
+				ad = "Kapı Taşı"
+		if rol == "ana" and bool(rm.get("kavsak", false)):
+			ad = "%d. Kavşak Taşı" % (int(rm.get("ana_i", 0)))
+		var ks := KutTasi.new()
+		ks.level = self
+		ks.idx = i
+		ks.ad = ad
+		ks.position = Vector2(cell_v.x * TS + TS / 2.0, (cell_v.y + 1) * TS)
+		decor_root.add_child(ks)
+		tasi.append(ks)
+		harita.tasi_ekle(cell_v, ad, int(rm.get("id", -1)), rol)
+		i += 1
+	for z in _gen.get("zamanli", []):
+		var zk := ZamanliKapi.new()
+		zk.level = self
+		zk.cell = Vector2i(int(z["x"]), int(z["y"]))
+		zk.sure = float(z.get("sure", LevelGen.ZAMANLI_SURE))
+		var rm2: Dictionary = rooms[int(z["room"])]
+		zk.ic_yon = 1 if String(rm2.get("_door_side", "sol")) == "sol" else -1
+		zk.oda = Rect2i(int(rm2["ix0"]) - 1, int(rm2["iy0"]) - 1, int(rm2["ix1"]) - int(rm2["ix0"]) + 3, int(rm2["iy1"]) - int(rm2["iy0"]) + 3)
+		zk.position = Vector2(zk.cell.x * TS, zk.cell.y * TS)
+		add_child(zk)
+		zamanli.append(zk)
+	harita.reveal(spawn_cell)
+
+
+func tasi_yakin() -> int:
+	## Oyuncunun dibinde durduğu Kut Taşı (yoksa -1)
+	for t in tasi:
+		if is_instance_valid(t) and t.near and t.bulundu:
+			return t.idx
+	return -1
+
+
+func isinlan(i: int) -> bool:
+	## Bulunmuş i. Kut Taşı'na ışınlanma kanalını başlat (ISIN_SURE; hasar bozar). false: olmaz (bulunmadı, ölü,
+	## yakalanmış, zaten orada, kanal sürüyor)
+	if harita == null or i < 0 or i >= harita.tasi.size() or not bool(harita.tasi[i]["bulundu"]):
+		return false
+	if player == null or player.dead or isin_t > 0.0 or player.grabbed_by != null or hub or boss_id != "":
+		return false
+	if tasi_yakin() == i:
+		return false
+	isin_t = ISIN_SURE
+	isin_hedef = i
+	isin_hp = float(Game.run.get("hp", 0.0))
+	FX.ring(player.center(), 34, KutTasi.KUT, 0.5)
+	FX.flash_light(player.center(), KutTasi.KUT, 160.0, 1.0, 0.4)
+	Ses.play("kut_donusum", -8.0, 1.25)
+	return true
+
+
+func _isin_tick(delta: float) -> void:
+	if isin_t <= 0.0 or player == null:
+		return
+	if player.dead or float(Game.run.get("hp", 0.0)) < isin_hp - 0.01 or player.grabbed_by != null:
+		isin_t = 0.0
+		isin_hedef = -1
+		isin_bozuk += 1
+		FX.text(player.center() + Vector2(0, -40), "Işınlanma bozuldu!", Color(1.0, 0.45, 0.4), 9)
+		Ses.play("ui_iptal", -4.0)
+		return
+	var k := 1.0 - isin_t / ISIN_SURE
+	isin_t -= delta
+	player.vis_scale = Vector2(1.0 - 0.25 * k, 1.0 + 0.35 * k)
+	if int(isin_t * 30.0) % 4 == 0:
+		FX.soul(player.center() + Vector2(randf_range(-10, 10), randf_range(-16, 8)), KutTasi.KUT, 2)
+	if isin_t <= 0.0:
+		_isin_bitir()
+
+
+func _isin_bitir() -> void:
+	var td: Dictionary = harita.tasi[isin_hedef]
+	var c: Vector2i = td["cell"]
+	var from := player.center()
+	FX.burst(from, Color(0.1, 0.08, 0.12), 14, 110.0, 0.5, 0.3, 120.0, false)
+	FX.soul(from, KutTasi.KUT, 22)
+	FX.ring(from, 40, KutTasi.KUT, 0.45)
+	player.global_position = Vector2(c.x * TS + TS / 2.0, (c.y + 1) * TS - 1.0)
+	player.velocity = Vector2.ZERO
+	player.last_safe = player.global_position
+	player.inv_t = maxf(player.inv_t, ISIN_DOKUNULMAZ)
+	player.vis_scale = Vector2(0.7, 1.3)
+	if camera and camera.has_method("snap"):
+		camera.snap()
+	var to := player.center()
+	FX.soul(to, KutTasi.KUT, 22)
+	FX.ring(to, 44, KutTasi.KUT, 0.5)
+	FX.flash_light(to, KutTasi.KUT, 260.0, 1.8, 0.45)
+	FX.text(to + Vector2(0, -44), String(td["ad"]), KutTasi.KUT, 9)
+	Ses.play("kut_donusum", -4.0, 0.9)
+	harita.reveal(c)
+	isin_sayi += 1
+	isin_hedef = -1
 
 
 ## v23 etkileşim tuşu: W / ↑ (oyun kolunda yön yukarı ya da Back). Yukarı aynı zamanda ↑+J göğe savurmanın yönü
@@ -2966,4 +3159,11 @@ func _process(_delta: float) -> void:
 		elif tap and bezirgan != null and bezirgan.near:
 			bezirgan.talk()
 			tuccar_requested.emit()
+		elif tap and tasi_yakin() >= 0 and isin_t <= 0.0:
+			harita_requested.emit()   # v32: Kut Taşı'nın dibinde W: harita (hızlı ışınlanma)
+		# v32: harita sisi, zamanlı kapı süresi, ışınlanma kanalı
+		if harita != null:
+			harita.tick(_delta, player.global_position)
+		Game.run["bolum_sure"] = float(Game.run.get("bolum_sure", 0.0)) + _delta
+		_isin_tick(_delta)
 	_hazard_tick(_delta)

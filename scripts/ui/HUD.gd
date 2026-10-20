@@ -57,6 +57,8 @@ const TUT := {
 	"sanat": [[["T", "savaş sanatı"], ["Esc → T", "sanat seç"]], "Alp Nişanı hazır: T ile kuşandığın savaş sanatını kullan (sağ altta tamga ve taneler). Nişan isabetle, öldürerek, çarpışma ve kusursuz kaçışla dolar. Yeni sanatları yurtta Alp Ata öğretir; Sanat Tomarları da bulunur."],
 	# v32 konak
 	"konak": [[["W", "ocak / usta"]], "Konak: kervan seninle yol alıyor. Ateşin yanından geçince taşıdığın Kut Umay'a ulaşır. Bengisu Usta altınla silahına nakış (ek özellik) vurur, nakışları yeniden döver, unsur aşılar, kaliteyi yükseltir; Kut Mührü ucuz bir kumardır. Sağdaki kapı derine indirir."],
+	# v32 harita ve Kut Taşı
+	"kut_tasi": [[["M", "harita"], ["W", "taşın dibinde"]], "Kut Taşı: yanından geçtiğin taşlar haritaya işlenir. Bölüm dallanır ve çıkmazlarla biter: çıkmazda kalınca M ile haritayı aç, bulduğun bir taşı seç, Boşluk ile ışınlan (1 sn Kut'a bağlanırsın; darbe alırsan bozulur)."],
 }
 var back_mode := "title"   # ayarlar ekranı kapanınca dönülecek mod
 
@@ -393,6 +395,8 @@ func _draw() -> void:
 			_draw_usta(vp)
 		"sanat":
 			_draw_sanat(vp)
+		"harita":
+			HaritaUI.full(self, vp, level, sel, _t, float(level.isin_t))   # v32 tam ekran harita
 		"play":
 			if get_tree().paused:
 				_draw_pause(vp)
@@ -493,11 +497,19 @@ func _draw_hud(vp: Vector2) -> void:
 	var tm0 := float(R["time"])
 	var mh := ("%d. mühür · " % Zorluk.muhur()) if Zorluk.muhur() > 0 else ""   # v22 Kut Mührü
 	InkHUD.place(self, vp, place, "%s%d. derinlik · %d:%02d · %d" % [mh, int(R.get("depth", 1)), int(tm0 / 60.0), int(tm0) % 60, int(R["kills"])], PixUI.GOLD if not level.hub else Color(0.6, 1.0, 1.0))
+	# ---- v32 küçük harita (sağ alt; parşömen, sis, Kut Taşları): dövüşü kalabalıklaştırmasın diye boss / yurtta yok
+	if mode == "play" and not get_tree().paused and level.get("harita") != null and not level.hub and level.boss_id == "":
+		HaritaUI.minimap(self, vp, level, _t)
 	# ---- öğretici ve dünya işaretleri
 	if mode == "play" and not get_tree().paused:
 		_draw_world_marks(vp, pl)
 		_draw_ground_dps(pl)
 		_draw_tut(vp)
+		if level.get("isin_t") != null and float(level.isin_t) > 0.0:
+			# ışınlanma kanalı: oyuncunun üstünde dolan halka
+			var sp2: Vector2 = (get_viewport().get_canvas_transform() * (pl.global_position + Vector2(0, -58))) / Ayarlar.ui_scale()
+			InkUI.ring(self, sp2, 9.0, 1.0 - float(level.isin_t) / float(level.ISIN_SURE), HaritaUI.KUT)
+			PixUI.text(self, Vector2(sp2.x - 60, sp2.y - 22), "Kut'a bağlanıyor", HaritaUI.KUT, 1, HORIZONTAL_ALIGNMENT_CENTER, 120, 2)
 	# ---- kısa mesaj
 	if flash_t > 0.0 and flash_msg != "" and mode == "play":
 		var a := clampf(flash_t, 0.0, 1.0)
@@ -524,6 +536,11 @@ func _draw_hud(vp: Vector2) -> void:
 	elif p and p.kind == "lutuf":
 		var sp1: Vector2 = p.get_global_transform_with_canvas().origin / Ayarlar.ui_scale()
 		_world_prompt(sp1 + Vector2(0, -58), KEY_ETKILES, "Tanrı sunağı: lütuf dile")
+	elif p == null and level.get("harita") != null and level.tasi_yakin() >= 0 and float(level.isin_t) <= 0.0:
+		# v32: Kut Taşı'nın dibinde W harita / hızlı ışınlanma
+		var ks: Node = level.tasi[level.tasi_yakin()]
+		var sp3: Vector2 = (get_viewport().get_canvas_transform() * (ks.global_position + Vector2(0, -66))) / Ayarlar.ui_scale()
+		_world_prompt(sp3, KEY_ETKILES, "Kut Taşı: haritadan ışınlan")
 	elif p and not p.item.is_empty():
 		var opts: Array = level.slot_options(p.item)
 		var nat: String = level.natural_slot(p.item)
@@ -1017,7 +1034,7 @@ func _draw_pause(vp: Vector2) -> void:
 	PixUI.text(self, Vector2(x + 14, yy + 2), htxt, PixUI.GOLD, 1, HORIZONTAL_ALIGNMENT_LEFT, -1.0, 0)
 	PixUI.text(self, Vector2(x, yy + 2), "en çok %%%d" % int(Player.HIZ["cap"]), PixUI.DIM, 1, HORIZONTAL_ALIGNMENT_RIGHT, pw - 14, 0)
 	# v23 tuşlar: yan teçhizat E / R, etkileşim W / ↑ dokunuşu (v25: kam transı T kaldırıldı)
-	_hint(vp, [["J/K", "silahlar"], ["E/R", "teçhizat"], ["W", "al / konuş"], ["T", "sanat"], ["G", "don"], ["Q", "şişe"]], 252.0)
+	_hint(vp, [["J/K", "silahlar"], ["E/R", "teçhizat"], ["W", "al / konuş"], ["T", "sanat"], ["G", "don"], ["Q", "şişe"], ["M", "harita"]], 252.0)
 	_hint(vp, [["Esc", "devam et"], ["T", "savaş sanatları"], ["Tab", "ayarlar"]])
 
 
@@ -1053,6 +1070,8 @@ func _draw_settings(vp: Vector2) -> void:
 		"Oyun içi göstergelerin boyutu. Normal: daha çok oyun alanı görünür.",
 		"Kamera sarsıntısı, darbe kareleri ve ekran flaşları. Rahatsız ediyorsa Azaltılmış ya da Kapalı seç.",
 		"Kut Mühürleri: Erlik Han'ı her yenişinde bir sonraki zorluk kademesi açılır (daha dayanıklı ve saldırgan düşmanlar, daha az şifa, öfkeli yaratıklar). %s. Yeni koşuda geçerli." % String(Zorluk.muhur_def(Zorluk.muhur_secili()).get("desc", "")).trim_suffix("."),
+		"Sağ alttaki parşömen haritanın boyu (keşfettikçe açılır; Kut Taşları ve ödüller işlenir). Kapalı: yalnızca M ile tam ekran harita.",
+		"Küçük haritanın saydamlığı: Hafif dövüşte az yer kaplar, Koyu daha okunur.",
 	]
 	var tl := PixUI.wrap(tips[clampi(sel, 0, tips.size() - 1)], 420)
 	var ty := y + 14.0

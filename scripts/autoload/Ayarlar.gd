@@ -20,6 +20,10 @@ var quality := 0
 var vsync := true
 var ui_i := 0
 var fx_i := 0      # kamera sarsıntısı ve ekran flaşları: 0 tam, 1 yarım + ters renk karesi yok, 2 kapalı
+var harita_i := 2  # v32 küçük harita boyu: 0 kapalı, 1 küçük, 2 normal, 3 büyük (HaritaUI.SIZES)
+var harita_a := 1  # v32 küçük harita saydamlığı: 0 hafif, 1 orta, 2 koyu
+const HARITA_BOY := ["Kapalı", "Küçük", "Normal", "Büyük"]
+const HARITA_SAYDAM := ["Hafif", "Orta", "Koyu"]
 var hd_active := 0     # şu an etkin HD düzeyi (0 / 1 / 2)
 var _test_size := Vector2i.ZERO
 var hd_wanted := 0          # ayarda seçili paket; hd_active ile farklıysa yeniden başlatma gerekir
@@ -246,6 +250,10 @@ func change(row: int, dir: int) -> void:
 			var n := Zorluk.muhur_acik() + 1
 			Game.meta["muhur"] = posmod(Zorluk.muhur_secili() + dir, n)
 			Game.save_meta()
+		7:
+			harita_i = posmod(harita_i + dir, HARITA_BOY.size())
+		8:
+			harita_a = posmod(harita_a + dir, HARITA_SAYDAM.size())
 	apply()
 	save()
 
@@ -260,6 +268,8 @@ func rows() -> Array:
 		["Arayüz boyutu", UI_SIZES[ui_i], true],
 		["Sarsıntı ve flaş", FX_LEVELS[fx_i], true],
 		["Kut Mührü (yeni koşu)", muhur_text(), Zorluk.muhur_acik() > 0],
+		["Küçük harita", HARITA_BOY[harita_i], true],
+		["Harita saydamlığı", HARITA_SAYDAM[harita_a], true],
 	]
 
 
@@ -279,6 +289,8 @@ func save() -> void:
 	c.set_value("goruntu", "vsync", vsync)
 	c.set_value("goruntu", "arayuz", ui_i)
 	c.set_value("goruntu", "efekt", fx_i)
+	c.set_value("harita", "boy", harita_i)
+	c.set_value("harita", "saydam", harita_a)
 	c.save(PATH)
 
 
@@ -293,6 +305,8 @@ func _load() -> void:
 	ui_i = int(c.get_value("goruntu", "arayuz", ui_i))
 	fx_i = int(c.get_value("goruntu", "efekt", fx_i))
 	Game.fx_scale = [1.0, 0.5, 0.0][clampi(fx_i, 0, 2)]
+	harita_i = clampi(int(c.get_value("harita", "boy", harita_i)), 0, 3)
+	harita_a = clampi(int(c.get_value("harita", "saydam", harita_a)), 0, 2)
 
 
 func ui_scale() -> float:

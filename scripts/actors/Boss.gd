@@ -464,7 +464,7 @@ func _px() -> float:
 
 
 func _floor_y() -> float:
-	return float(level.surface_y(int(floor(global_position.x / Level.TS))) * Level.TS)
+	return float(level.surface_y(int(floor(global_position.x / Level.TS)), int(floor(global_position.y / Level.TS)) - 2) * Level.TS)
 
 
 func _arena_x(x: float) -> float:
@@ -529,7 +529,7 @@ func _shoot(k: String, pos: Vector2, vel: Vector2, dk := 0.6, grav := -1.0, homi
 
 func _lob(k: String, from: Vector2, tx: float, t: float, dk := 0.6, grav := 420.0) -> Projectile:
 	## tx'e t sn'de düşecek yay atışı (iniş yeri önceden işaretlenir)
-	var gy := float(level.surface_y(int(floor(tx / Level.TS))) * Level.TS) - 4.0
+	var gy := float(level.surface_y(int(floor(tx / Level.TS)), int(floor(global_position.y / Level.TS)) - 2) * Level.TS) - 4.0
 	var v := Vector2((tx - from.x) / t, (gy - from.y) / t - 0.5 * grav * t)
 	level.telegraph_ground(Vector2(tx, gy), t)
 	return _shoot(k, from, v, dk, grav)
@@ -550,7 +550,7 @@ func _ground_wave(sgn: int, spd := 280.0, dk := 0.7, col := Color(-1, 0, 0)) -> 
 
 func _drop_from_sky(x: float, k: String, delay: float, dk := 0.6) -> void:
 	## gökten düşen (işaretli): delay sn sonra x'in 300 px üstünden aşağı
-	var gy := float(level.surface_y(int(floor(x / Level.TS))) * Level.TS)
+	var gy := float(level.surface_y(int(floor(x / Level.TS)), int(floor(global_position.y / Level.TS)) - 2) * Level.TS)
 	level.telegraph_ground(Vector2(x, gy), delay + 0.45)
 	get_tree().create_timer(delay).timeout.connect(_sky_drop.bind(x, gy, k, dk))
 

@@ -111,7 +111,12 @@
    "depths": [
     1,
     2
-   ]
+   ],
+   "level": {
+    "rows": 3,
+    "yon": "inis",
+    "_not": "v32: 3 satır kesim; giriş üstte, Kut Kapısı altta (orman yüzeyden mağaraya iner)"
+   }
   },
   {
    "id": "bozkir",
@@ -218,7 +223,12 @@
    "depths": [
     3,
     4
-   ]
+   ],
+   "level": {
+    "rows": 2,
+    "yon": "serbest",
+    "_not": "v32: geniş ova, 2 satır; kurgan dalları aşağı iner"
+   }
   },
   {
    "id": "cini_saray",
@@ -334,7 +344,12 @@
    "depths": [
     5,
     6
-   ]
+   ],
+   "level": {
+    "rows": 4,
+    "yon": "inis",
+    "_not": "v32: 4 satır dar kuyu / mağara; derine iniş"
+   }
   },
   {
    "id": "kaf",
@@ -440,7 +455,12 @@
    "depths": [
     7,
     8
-   ]
+   ],
+   "level": {
+    "rows": 4,
+    "yon": "cikis",
+    "_not": "v32: Kaf Dağı tırmanışı; giriş altta, Kut Kapısı tepede (uçurum terasları, kule)"
+   }
   },
   {
    "id": "tamu",
@@ -544,7 +564,12 @@
    "depths": [
     9,
     99
-   ]
+   ],
+   "level": {
+    "rows": 4,
+    "yon": "inis",
+    "_not": "v32: Tamu derinlikleri; harabe kuyuları aşağı"
+   }
   }
  ],
  "enemies": [

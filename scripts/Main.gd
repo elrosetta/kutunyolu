@@ -77,6 +77,11 @@ func _ready() -> void:
 		var ht: Node = load("res://tools/tests/harita_testi.gd").new()
 		ht.set("main", self)
 		add_child(ht)
+	if OS.get_cmdline_user_args().has("--isinlan"):
+		# v32 ışınlanma testi (tools/tests/isinlan_testi.gd): Kut Taşı keşfi, harita ekranı, kanal, bozulma, zamanlı kapı
+		var it: Node = load("res://tools/tests/isinlan_testi.gd").new()
+		it.set("main", self)
+		add_child(it)
 	if OS.get_cmdline_user_args().has("--silah27"):
 		# v27 yeni silahlar testi / çekimi (tools/tests/silah27_testi.gd): her silahın mekaniği, kart, görüntüler
 		var s27: Node = load("res://tools/tests/silah27_testi.gd").new()
@@ -150,7 +155,7 @@ func _ready() -> void:
 			_build_boss("kara_boru_han")
 		elif String(arg).begins_with("--boss="):
 			_build_boss(String(arg).trim_prefix("--boss="))
-	if auto_test or showcase or _ekran != "" or firca or sus or bengu_t or OS.get_cmdline_user_args().has("--mekanik") or OS.get_cmdline_user_args().has("--dovus") or OS.get_cmdline_user_args().has("--yay") or OS.get_cmdline_user_args().has("--unsur") or OS.get_cmdline_user_args().has("--denge") or OS.get_cmdline_user_args().has("--tomar") or OS.get_cmdline_user_args().has("--zeka") or OS.get_cmdline_user_args().has("--tuccar") or OS.get_cmdline_user_args().has("--harita") or OS.get_cmdline_user_args().has("--sanat") or OS.get_cmdline_user_args().has("--konak"):
+	if auto_test or showcase or _ekran != "" or firca or sus or bengu_t or OS.get_cmdline_user_args().has("--mekanik") or OS.get_cmdline_user_args().has("--dovus") or OS.get_cmdline_user_args().has("--yay") or OS.get_cmdline_user_args().has("--unsur") or OS.get_cmdline_user_args().has("--denge") or OS.get_cmdline_user_args().has("--tomar") or OS.get_cmdline_user_args().has("--zeka") or OS.get_cmdline_user_args().has("--tuccar") or OS.get_cmdline_user_args().has("--harita") or OS.get_cmdline_user_args().has("--sanat") or OS.get_cmdline_user_args().has("--konak") or OS.get_cmdline_user_args().has("--isinlan"):
 		hud.mode = "play"
 		get_tree().paused = false
 	else:
@@ -231,8 +236,52 @@ func _build_level() -> void:
 	level.slot_requested.connect(_on_slot_request)
 	level.lutuf_requested.connect(_on_lutuf)
 	level.tuccar_requested.connect(_on_tuccar)   # v24 Bezirgân Sartak
+	level.harita_requested.connect(_harita_ac)   # v32: Kut Taşı'nın dibinde W
+	level.tasi_bulundu.connect(func(i: int) -> void:
+		hud.flash_msg = "Kut Taşı bulundu: %s  ·  M haritadan ışınlan" % String(level.harita.tasi[i]["ad"])
+		hud.flash_t = 3.5
+		hud._tut_show("kut_tasi"))
 	hud.level = level
 	hud._card_t = 0.0
+	rehber.reset(level)
+
+
+# ------------------------------------------------------------------ v32 harita ve Kut Taşı ışınlanması
+var rehber := Rehber.new()   # --otomatik: dallı bölümde yol bulan bot rehberi
+
+
+func _harita_ac() -> void:
+	## Tam ekran harita (M ya da Kut Taşı'nın dibinde W): ağaç durur; A/D taş seçer, Boşluk ışınlanır
+	if level == null or level.player == null or level.hub or level.boss_id != "" or level.harita == null:
+		return
+	hud.mode = "harita"
+	var found: Array = level.harita.bulunan()
+	hud.sel = 0
+	var yakin: int = level.tasi_yakin()
+	for i in found.size():
+		if int(found[i]) != yakin:
+			hud.sel = i
+			break
+	hud.open_anim()
+	get_tree().paused = true
+	Ses.play("ui_ac")
+
+
+func _harita_sec(i: int) -> void:
+	## Haritada seçili (i: bulunan taşlar dizini) Kut Taşı'na ışınlanma kanalını başlat ve haritayı kapat
+	var found: Array = level.harita.bulunan()
+	if found.is_empty():
+		Ses.play("ui_sec", 0.0, 0.7)
+		return
+	var idx: int = int(found[clampi(i, 0, found.size() - 1)])
+	if level.tasi_yakin() == idx:
+		hud.flash_msg = "Zaten bu taşın dibindesin."
+		hud.flash_t = 2.0
+		Ses.play("ui_sec", 0.0, 0.7)
+		return
+	_start_play()
+	if level.isinlan(idx):
+		Ses.play("ui_onay")
 
 
 func _build_boss(bid: String) -> void:
@@ -924,9 +973,27 @@ func _unhandled_input(event: InputEvent) -> void:
 					_start_play()
 				else:
 					hud.mode = "play"   # duraklatma ekranına dön (ağaç duraklı kalır)
+		"harita":
+			# v32: A/D (W/S) taş seç, Boşluk / Enter ışınlan, M / Esc kapat
+			var nf: int = level.harita.bulunan().size() if level and level.harita else 0
+			if event.is_action_pressed("sol") or event.is_action_pressed("yukari"):
+				if nf > 0:
+					hud.sel = (hud.sel + nf - 1) % nf
+					Ses.play("ui_gez")
+			elif event.is_action_pressed("sag") or event.is_action_pressed("asagi"):
+				if nf > 0:
+					hud.sel = (hud.sel + 1) % nf
+					Ses.play("ui_gez")
+			elif go:
+				_harita_sec(hud.sel)
+			elif event.is_action_pressed("duraklat") or event.is_action_pressed("harita") or event.is_action_pressed("yuvarlan"):
+				Ses.play("ui_kapa")
+				_start_play()
 		"play":
 			if event.is_action_pressed("duraklat"):
 				get_tree().paused = not get_tree().paused
+			elif event.is_action_pressed("harita") and not get_tree().paused:
+				_harita_ac()   # v32: tam ekran harita
 			elif event.is_action_pressed("ayarlar") and get_tree().paused:
 				_open_settings()
 			elif event.is_action_pressed("sanat") and get_tree().paused:
@@ -1309,6 +1376,13 @@ func _physics_process(delta: float) -> void:
 		"ozan":
 			_start_play()
 			return
+		"harita":
+			# v32 bot: rehberin istediği (ya da rastgele bulunmuş) taşı seçer
+			var found: Array = level.harita.bulunan() if level and level.harita else []
+			var want: int = found.find(level.harita_istek) if level else -1
+			level.harita_istek = -1
+			_harita_sec(want if want >= 0 else randi_range(0, maxi(0, found.size() - 1)))
+			return
 		"done":
 			_next_level()
 			return
@@ -1350,6 +1424,12 @@ func _physics_process(delta: float) -> void:
 		return
 	if _bot_gercek and _bot_fight(pl, t):
 		pass   # v22: ölçüm kipinde yakındaki düşmanla dövüşür (aşağıdaki yürüyüş / zıplama dizisi yine işler)
+	elif not level.rooms.is_empty() and not level.hub:
+		rehber.adim(self, pl, delta)   # v32: dallı bölümde yol bulma, ödül odaları, Kut Taşı ışınlanması
+		if level.harita_istek >= 0 and hud.mode == "play" and not get_tree().paused:
+			_harita_ac()   # rehber harita ekranından ışınlanmak istedi
+		if int(t * 60.0) % 23 == 0:
+			_tap("saldiri1")
 	else:
 		Input.action_press("sag")
 		if int(t * 60.0) % 23 == 0:
@@ -1493,6 +1573,9 @@ func _bot_report(tag: String) -> void:
 	print("[otomatik] %s derinlik=%d süre=%.1f öldürülen=%d hasar=%d dolum=%d şişe=%d ölüm=%d can=%d/%d" % [tag, int(Game.run.get("depth", 1)), _auto_t, int(Game.run.get("kills", 0)), int(_bot_hasar), _bot_dolum, _bot_sise, _bot_olum, int(Game.run.get("hp", 0)), int(Game.run.get("max_hp", 0))])
 	# v25 harita: takılma, alçak tavan (yalnızca yuvarlanarak geçilen yer) ve tehlike çukuru sayaçları
 	print("[otomatik] HARITA derinlik=%d genişlik=%d takılma=%d alçak_tavan_kare=%d çukur_değme=%d düşman_taşınan=%d konmayan=%d" % [int(Game.run.get("depth", 1)), Level.W, _bot_takilma, _bot_alcak, _bot_cukur, int(level.spawn_moved) if level else 0, int(level.spawn_skipped) if level else 0])
+	# v32: keşif yüzdesi, bulunan Kut Taşı, ışınlanma, ziyaret edilen ödül odası
+	if level and level.harita:
+		print("[otomatik] KESIF derinlik=%d keşif=%%%d taşı=%d/%d ışınlanma=%d bozuk=%d ödül_odası=%d/%d" % [int(Game.run.get("depth", 1)), int(round(level.harita.yuzde() * 100.0)), level.harita.bulunan().size(), level.harita.tasi.size(), level.isin_sayi, level.isin_bozuk, rehber.ziyaret.size(), int(level.metrics.get("cikmaz", 0))])
 	# v24 altın ekonomisi: bu koşuda toplanan altın (Pickup altin_kazanc) ve bölümdeki tüccar
 	var bz_n := 1 if level and level.bezirgan else 0
 	print("[otomatik] ALTIN derinlik=%d toplanan=%d kese=%d bezirgan=%d duvar_ok=%s" % [int(Game.run.get("depth", 1)), int(Game.run.get("altin_kazanc", 0)), int(Game.run.get("gold", 0)), bz_n, str(level.bezirgan_ok()) if level else "-"])
