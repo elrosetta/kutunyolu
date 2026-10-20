@@ -27,6 +27,14 @@ var _ducked := false
 var tuccar_onay := false          # v24 pazar: seçili mal için "satın al?" onayı açık
 var demirci_son: Dictionary = {}  # v24: Demirci'nin az önce dövüp verdiği eşya (kart gösterilir)
 var sanat_ogretmen := false       # v27: sanat ekranı Alp Ata'dan mı açıldı (öğretme), yoksa duraklatmadan mı (yalnız kuşanma)
+## v32 Bengisu Usta ekranı (Main._usta_*): adım 0 silah, 1 hizmet, 2 seçenek (nakış adayı / unsur), 3 sonuç kartı
+var usta_adim := 0
+var usta_slot := ""
+var usta_hid := ""
+var usta_secs: Array = []
+var usta_sonuc: Dictionary = {}
+var usta_onay := false
+var usta_damga_t := 0.0
 ## Öğretici (v15): mekanikler ilk karşılaşıldığında bağlamsal ipucu kartı; her ipucu en çok 3 koşuda gösterilir
 var _tut_id := ""
 var _tut_t := 0.0
@@ -47,6 +55,8 @@ const TUT := {
 	"tuccar": [[["W", "alışveriş"]], "Bezirgân Sartak: altınla silah, kalkan, teçhizat, Umay Sütü ve bazen Kut Tomarı satar. Fiyatlar derinlikle artar, malları altınla yenileyebilirsin. Altın ölünce yiter: biriktir ve harca!"],
 	# v27 savaş sanatları
 	"sanat": [[["T", "savaş sanatı"], ["Esc → T", "sanat seç"]], "Alp Nişanı hazır: T ile kuşandığın savaş sanatını kullan (sağ altta tamga ve taneler). Nişan isabetle, öldürerek, çarpışma ve kusursuz kaçışla dolar. Yeni sanatları yurtta Alp Ata öğretir; Sanat Tomarları da bulunur."],
+	# v32 konak
+	"konak": [[["W", "ocak / usta"]], "Konak: kervan seninle yol alıyor. Ateşin yanından geçince taşıdığın Kut Umay'a ulaşır. Bengisu Usta altınla silahına nakış (ek özellik) vurur, nakışları yeniden döver, unsur aşılar, kaliteyi yükseltir; Kut Mührü ucuz bir kumardır. Sağdaki kapı derine indirir."],
 }
 var back_mode := "title"   # ayarlar ekranı kapanınca dönülecek mod
 
@@ -78,8 +88,9 @@ func _process(delta: float) -> void:
 	ad_t += delta
 	_usul_flash = maxf(0.0, _usul_flash - delta * 3.0)
 	_tut_tick(delta)
+	usta_damga_t += delta
 	if mode != _last_mode:
-		if mode in ["tilsim", "slot", "umay", "demirci", "ozan", "dead", "done", "ad", "tuccar", "sanat"]:
+		if mode in ["tilsim", "slot", "umay", "demirci", "ozan", "dead", "done", "ad", "tuccar", "sanat", "usta"]:
 			_open_t = 0.0
 		_last_mode = mode
 	# menülerde ses kısılır (Ses.menu_duck varsa)
@@ -188,6 +199,9 @@ func _tut_tick(delta: float) -> void:
 		return
 	var pl: Node = level.player
 	if level.hub:
+		return
+	if level.konak:
+		_tut_show("konak")   # v32: ilk konakta kervan ipucu
 		return
 	# tetikleyiciler (öncelik sırasıyla)
 	if pl.don_kind != "" and not pl.don_on:
@@ -375,6 +389,8 @@ func _draw() -> void:
 			_draw_slot(vp)
 		"tuccar":
 			_draw_tuccar(vp)
+		"usta":
+			_draw_usta(vp)
 		"sanat":
 			_draw_sanat(vp)
 		"play":
@@ -393,6 +409,11 @@ func _draw_banner(vp: Vector2) -> void:
 		title = "ULU KAYIN YURDU"
 		sub = "Kut'unu Umay Ana'ya götür  ·  Demirci parşömen döver  ·  Alp Ata sanat öğretir  ·  kapı derine indirir"
 		col = Color(0.6, 1.0, 1.0)
+	elif level.konak:
+		# v32: konak bir sonraki derinliğin eşiğinde
+		title = "KONAK · %s" % _up(String(bm.get("name", "")))
+		sub = "%d. derinliğin eşiği  ·  ocak Kut'u Umay'a ulaştırır  ·  Bengisu Usta silah nakışlar%s  ·  kapı derine indirir" % [int(Game.run["depth"]), "  ·  Sartak'ın kervanı burada" if level.get("bezirgan") != null else ""]
+		col = Color(0.55, 1.0, 0.85)
 	else:
 		title = _up(String(bm.get("name", "Kararan Ötüken")))
 		sub = "%d. derinlik  ·  %s" % [int(Game.run["depth"]), String(bm.get("sub", ""))]
@@ -468,7 +489,7 @@ func _draw_hud(vp: Vector2) -> void:
 			PixUI.text(self, Vector2(lx + 9, ly + 1), String(l[0]), lc.lightened(0.2), 1, HORIZONTAL_ALIGNMENT_LEFT, -1.0, 0)
 			lx += w2 + 3.0
 	# ---- sağ üst: biyom, derinlik, süre
-	var place: String = ("Ulu Kayın Yurdu") if level.hub else String(level.biome.get("name", "Kararan Ötüken"))
+	var place: String = ("Ulu Kayın Yurdu") if level.hub else (("Konak · " if level.konak else "") + String(level.biome.get("name", "Kararan Ötüken")))
 	var tm0 := float(R["time"])
 	var mh := ("%d. mühür · " % Zorluk.muhur()) if Zorluk.muhur() > 0 else ""   # v22 Kut Mührü
 	InkHUD.place(self, vp, place, "%s%d. derinlik · %d:%02d · %d" % [mh, int(R.get("depth", 1)), int(tm0 / 60.0), int(tm0) % 60, int(R["kills"])], PixUI.GOLD if not level.hub else Color(0.6, 1.0, 1.0))
@@ -488,9 +509,15 @@ func _draw_hud(vp: Vector2) -> void:
 		return
 	var p: Node = level.nearest_item(pl.global_position + Vector2(0, -10))
 	if p == null and level.get("bezirgan") != null and level.bezirgan.near:
-		# W balonunun üstü (dünya biriminde: ad -101, balon -116)
-		var spb: Vector2 = (get_viewport().get_canvas_transform() * (level.bezirgan.global_position + Vector2(0, -132))) / Ayarlar.ui_scale()
+		# W balonunun üstü (dünya biriminde: ad -101, balon -116; v32: söz varsa onun üstü)
+		var dy_b := -146.0 if String(level.bezirgan.get("soz")) != "" else -132.0
+		var spb: Vector2 = (get_viewport().get_canvas_transform() * (level.bezirgan.global_position + Vector2(0, dy_b))) / Ayarlar.ui_scale()
 		_world_prompt(spb, KEY_ETKILES, "Bezirgân: alışveriş (%d altın)" % int(R["gold"]))
+	elif p == null and level.konak:
+		for n in level.npcs:
+			if n.id == "usta" and n.near:
+				var spu: Vector2 = (get_viewport().get_canvas_transform() * (n.global_position + Vector2(0, -146))) / Ayarlar.ui_scale()
+				_world_prompt(spu, KEY_ETKILES, "Bengisu Usta: silah nakışı (%d altın)" % int(R["gold"]))
 	if p and p.kind == "tilsim":
 		var sp0: Vector2 = p.get_global_transform_with_canvas().origin / Ayarlar.ui_scale()
 		_world_prompt(sp0 + Vector2(0, -34), KEY_ETKILES, "Kut Tomarını oku")
@@ -1188,7 +1215,7 @@ func _draw_tuccar(vp: Vector2) -> void:
 	var bz: Node = level.bezirgan
 	var offers: Array = bz.offers
 	var R: Dictionary = Game.run
-	_title(vp, 20, _up("Bezirgân Sartak"), PixUI.GOLD, "«Bozkırın her yolu kervanıma çıkar, yiğit. Altının varsa malım var.»")
+	_title(vp, 20, _up("Bezirgân Sartak"), PixUI.GOLD, Usta.soz(String(level.biome.get("id", "")), "bezirgan") if level.konak else "«Bozkırın her yolu kervanıma çıkar, yiğit. Altının varsa malım var.»")
 	var gold := int(R.get("gold", 0))
 	var gt := "%d altın" % gold
 	var gw := PixUI.width(gt) + 26.0
@@ -1309,6 +1336,237 @@ func _draw_tuccar(vp: Vector2) -> void:
 		if flash_t > 0.0 and flash_msg != "":
 			PixUI.text(self, Vector2(0, vp.y - 50), flash_msg, Color(PixUI.GOLD, clampf(flash_t, 0.0, 1.0)), 1, HORIZONTAL_ALIGNMENT_CENTER, vp.x, 2)
 		_hint(vp, [["W/S", "seç"], ["Boşluk", "satın al"], ["Esc", "ayrıl"]])
+
+
+# ------------------------------------------------------------------ v32 Bengisu Usta (konak)
+const USTA_COL := Color(0.55, 1.0, 0.85)
+
+
+func _draw_usta(vp: Vector2) -> void:
+	## Usta: solda adım listesi (silah → hizmet → seçenek → sonuç), sağda seçili silahın kartı; sonuçta yeni kart
+	## eskisiyle karşılaştırmalı (SnH ▲ / ▼) ve üstüne basılan mürekkep damgası.
+	_dim(vp, 0.8, Color(0.02, 0.04, 0.035))
+	if level == null or Game.run.is_empty():
+		return
+	var R: Dictionary = Game.run
+	var biome_id := String(level.biome.get("id", "")) if level.get("biome") != null else ""
+	_title(vp, 20, _up(Usta.ad()), USTA_COL, Usta.soz(biome_id, "usta"))
+	var gold := int(R.get("gold", 0))
+	var gt := "%d altın" % gold
+	var gw := PixUI.width(gt) + 26.0
+	PixUI.panel(self, Rect2((vp.x - gw) / 2.0, 62, gw, 15), PixUI.GOLD)
+	PixUI.icon(self, "altin", Vector2((vp.x - gw) / 2.0 + 6, 66), PixUI.GOLD)
+	PixUI.text(self, Vector2((vp.x - gw) / 2.0 + 16, 64), gt, PixUI.GOLD)
+	var e := _ease_open()
+	var lw := 232.0
+	var cw := 190.0
+	var x0 := roundf((vp.x - (lw + 14.0 + cw)) / 2.0 + (1.0 - e) * -16.0)
+	var cx := x0 + lw + 14.0
+	var cy := 96.0
+	# adım izi
+	var steps := ["silah", "hizmet", "seçim", "sonuç"]
+	var bx := x0
+	for i in steps.size():
+		var on: bool = i == usta_adim
+		var done: bool = i < usta_adim
+		var sc := USTA_COL if on else (Color(USTA_COL, 0.55) if done else PixUI.DIM)
+		var st := "%d. %s" % [i + 1, steps[i]]
+		PixUI.text(self, Vector2(bx, 80), st, sc, 1, HORIZONTAL_ALIGNMENT_LEFT, -1.0, 1 if on else 0)
+		bx += PixUI.width(st) + 16.0
+	var y := 92.0
+	var rh := 30.0
+	var it: Dictionary = R["slots"].get(usta_slot, {}) if usta_slot != "" else {}
+	match usta_adim:
+		0:
+			var sl := Usta.silahlar()
+			sel = clampi(sel, 0, maxi(0, sl.size() - 1))
+			if sl.is_empty():
+				PixUI.text(self, Vector2(x0, y + 10), "Kuşanılı silahın yok.", PixUI.DIM, 1, HORIZONTAL_ALIGNMENT_LEFT, -1.0, 0)
+			for i in sl.size():
+				var w_it: Dictionary = R["slots"][sl[i]]
+				var is_sel := i == sel
+				var r := Rect2(x0, y, lw, rh - 3.0)
+				_usta_row(r, is_sel)
+				var ib := Rect2(r.position.x + 3, r.position.y + 3, 40, r.size.y - 6)
+				PixUI.rect(self, ib, Color(0, 0, 0, 0.25))
+				PixUI.weapon(self, w_it, ib.get_center(), ib.size - Vector2(4, 4))
+				var rc := Color.from_string(Data.items["rarities"][int(w_it["rarity"])]["color"], PixUI.TEXT)
+				PixUI.text(self, Vector2(r.position.x + 48.0, r.position.y + 2), _kisalt(String(w_it["name"]), lw - 60.0), rc)
+				PixUI.text(self, Vector2(r.position.x + 48.0, r.position.y + 13), "%s · SnH %s · nakış %d/%d · kalite %%%d" % [SLOT_NAMES[sl[i]], ItemGen.fmt(_eff_dps(w_it)), Usta.nakis_sayi(w_it), Usta.max_nakis(w_it), int(w_it["quality"])], PixUI.DIM, 1, HORIZONTAL_ALIGNMENT_LEFT, -1.0, 0)
+				y += rh
+			if not sl.is_empty():
+				it = R["slots"][sl[sel]]
+			_usta_note(x0, y + 6.0, lw, "Usta yalnızca silaha bakar (yakın / uzak). Hizmetler altınla; fiyat derinlik ve nadirlikle artar.")
+		1:
+			var hs := Usta.hizmetler(it)
+			sel = clampi(sel, 0, hs.size() - 1)
+			for i in hs.size():
+				var h: Dictionary = hs[i]
+				var is_sel := i == sel
+				var r := Rect2(x0, y, lw, rh - 3.0)
+				_usta_row(r, is_sel)
+				var ok := bool(h["uygun"])
+				var can := ok and gold >= int(h["fiyat"])
+				PixUI.text(self, Vector2(r.position.x + 8, r.position.y + 2), String(h["ad"]), (PixUI.TEXT if can else PixUI.DIM) if ok else Color(PixUI.DIM, 0.5))
+				var sub := ""
+				var sub_col := PixUI.DIM
+				if not ok:
+					sub = String(h["neden"])
+				elif float(h["sans"]) >= 0.0:
+					sub = "şans %%%d" % int(round(float(h["sans"]) * 100.0))
+					sub_col = PixUI.GOOD if float(h["sans"]) >= 0.5 else PixUI.GOLD
+				elif String(h["id"]) == "nakis":
+					sub = "3 aday, birini seçersin (nadir ★ pahalı)"
+				elif String(h["id"]) == "unsur":
+					sub = "rastgele ya da seçerek"
+				elif String(h["id"]) == "dovme":
+					sub = "%d. dövme" % (int(it.get("usta_dovme", 0)) + 1)
+				else:
+					sub = "kumar: iyi de gelir kötü de"
+				PixUI.text(self, Vector2(r.position.x + 8, r.position.y + 13), sub, sub_col if ok else Color(PixUI.DIM, 0.6), 1, HORIZONTAL_ALIGNMENT_LEFT, -1.0, 0)
+				if ok:
+					var ft := ("%d" % int(h["fiyat"])) if String(h["id"]) != "nakis" else ("%d+" % int(h["fiyat"]))
+					var pc := PixUI.GOLD if can else Color(0.62, 0.5, 0.48)
+					var tw := PixUI.width(ft)
+					PixUI.icon(self, "altin", Vector2(r.end.x - 12.0 - tw - 9.0, r.position.y + r.size.y / 2.0 - 3.0), pc, 1, false)
+					PixUI.text(self, Vector2(r.position.x, r.position.y + r.size.y / 2.0 - 6.0), ft, pc, 1, HORIZONTAL_ALIGNMENT_RIGHT, r.size.x - 8.0, 2)
+				y += rh
+			_usta_note(x0, y + 4.0, lw, String(hs[sel]["aciklama"]))
+		2:
+			sel = clampi(sel, 0, maxi(0, usta_secs.size() - 1))
+			for i in usta_secs.size():
+				var o: Dictionary = usta_secs[i]
+				var is_sel := i == sel
+				var r := Rect2(x0, y, lw, rh - 3.0)
+				_usta_row(r, is_sel)
+				var can := gold >= int(o["fiyat"])
+				var nc := PixUI.TEXT if can else PixUI.DIM
+				if usta_hid == "unsur" and String(o["veri"]) != "":
+					nc = Unsur.color(String(o["veri"])).lightened(0.15) if can else PixUI.DIM
+					Unsur.glyph(self, String(o["veri"]), Vector2(r.position.x + 12, r.position.y + 13), 5.0, Unsur.color(String(o["veri"])), _t)
+				elif usta_hid == "nakis" and bool((o["veri"] as Dictionary).get("nadir", false)):
+					nc = Color(1.0, 0.85, 0.45) if can else PixUI.DIM
+				var tx := r.position.x + (24.0 if usta_hid == "unsur" and String(o["veri"]) != "" else 8.0)
+				PixUI.text(self, Vector2(tx, r.position.y + 2), String(o["ad"]), nc)
+				PixUI.text(self, Vector2(tx, r.position.y + 13), _kisalt(String(o["aciklama"]), lw - 80.0), PixUI.DIM, 1, HORIZONTAL_ALIGNMENT_LEFT, -1.0, 0)
+				_price(r, int(o["fiyat"]), can)
+				y += rh
+			_usta_note(x0, y + 4.0, lw, "Nakış adayları bu konakta yuvarlandı; nadir (★) olanlar daha güçlü ve pahalı." if usta_hid == "nakis" else "Unsur silahın ruhudur: vuruşta tutuşturur, dondurur, şimşek indirir, töz damgalar ya da kök dolar. Eskisi silinir.")
+		3:
+			var s := usta_sonuc
+			var once: Dictionary = s.get("once", {})
+			var sonra: Dictionary = s.get("sonra", it)
+			var iyi := bool(s.get("iyi", true))
+			var kotu := bool(s.get("kotu", false))
+			var pcol := PixUI.BAD if kotu else (USTA_COL if iyi else PixUI.GOLD)
+			var lines := PixUI.wrap(String(s.get("msg", "")), lw - 16.0)
+			var ph := 28.0 + lines.size() * 10.0 + 44.0
+			PixUI.fancy_panel(self, Rect2(x0, y, lw, ph), pcol, PixUI.INK2)
+			PixUI.text(self, Vector2(x0 + 8, y + 5), "%s · %d altın" % [String(Usta.AD.get(usta_hid, "")), int(s.get("fiyat", 0))], pcol, 1, HORIZONTAL_ALIGNMENT_LEFT, -1.0, 1)
+			var ly := y + 18.0
+			for l in lines:
+				PixUI.text(self, Vector2(x0 + 8, ly), l, PixUI.TEXT, 1, HORIZONTAL_ALIGNMENT_LEFT, -1.0, 0)
+				ly += 10.0
+			PixUI.divider(self, x0 + 8, ly + 3, lw - 16, pcol.darkened(0.3))
+			ly += 8.0
+			if not once.is_empty():
+				var d0 := _eff_dps(once)
+				var d1 := _eff_dps(sonra)
+				var dd := d1 - d0
+				var ds := ("▲ +%s (+%%%d)" if dd >= 0.0 else "▼ %s (-%%%d)") % [ItemGen.fmt(dd), absi(int(round(dd / maxf(0.01, d0) * 100.0)))]
+				PixUI.text(self, Vector2(x0 + 8, ly), "SnH %s → %s" % [ItemGen.fmt(d0), ItemGen.fmt(d1)], PixUI.TEXT, 1, HORIZONTAL_ALIGNMENT_LEFT, -1.0, 0)
+				PixUI.text(self, Vector2(x0 + 8, ly), ds if absf(dd) > 0.05 else "SnH aynı", (PixUI.GOOD if dd >= 0.0 else PixUI.BAD) if absf(dd) > 0.05 else PixUI.DIM, 1, HORIZONTAL_ALIGNMENT_RIGHT, lw - 16.0, 0)
+				ly += 10.0
+				PixUI.text(self, Vector2(x0 + 8, ly), "Kalite %%%d → %%%d · nakış %d → %d · unsur %s → %s" % [int(once["quality"]), int(sonra["quality"]), Usta.nakis_sayi(once), Usta.nakis_sayi(sonra), _unsur_ad(once), _unsur_ad(sonra)], PixUI.DIM, 1, HORIZONTAL_ALIGNMENT_LEFT, -1.0, 0)
+				ly += 10.0
+				PixUI.text(self, Vector2(x0 + 8, ly), "Kalan altın: %d" % gold, PixUI.GOLD, 1, HORIZONTAL_ALIGNMENT_LEFT, -1.0, 0)
+	# sağ: seçili silahın kartı (sonuçta yeni kart eskisiyle karşılaştırmalı) + damga
+	if not it.is_empty():
+		if usta_adim == 3 and not usta_sonuc.is_empty():
+			var once2: Dictionary = usta_sonuc.get("once", {})
+			var sonra2: Dictionary = usta_sonuc.get("sonra", it)
+			_draw_card(sonra2, Vector2(cx, cy), "YENİ HÂLİ", once2)
+			_usta_damga(Vector2(cx + cw / 2.0, cy + 40.0), String(usta_sonuc.get("damga", "")), bool(usta_sonuc.get("kotu", false)), bool(usta_sonuc.get("iyi", true)))
+		else:
+			_draw_card(it, Vector2(cx, cy), "SİLAHIN")
+	# onay / ipucu
+	if usta_onay:
+		var q := ""
+		if usta_adim == 2 and sel < usta_secs.size():
+			q = "%s — %d altın. Usta işlesin mi?" % [String(usta_secs[sel]["ad"]), int(usta_secs[sel]["fiyat"])]
+		else:
+			var hs2 := Usta.hizmetler(it)
+			var h2: Dictionary = hs2[clampi(sel, 0, hs2.size() - 1)]
+			q = "%s — %d altın. Usta işlesin mi?" % [String(h2["ad"]), int(h2["fiyat"])]
+		var qw := PixUI.width(q) + 30.0
+		var qr := Rect2((vp.x - qw) / 2.0, vp.y - 62.0, qw, 20.0)
+		PixUI.fancy_panel(self, qr, PixUI.GOLD, PixUI.INK2)
+		PixUI.text(self, Vector2(qr.position.x, qr.position.y + 4), q, PixUI.GOLD, 1, HORIZONTAL_ALIGNMENT_CENTER, qw, 2)
+		_hint(vp, [["Boşluk", "evet"], ["Esc", "vazgeç"]])
+	else:
+		if flash_t > 0.0 and flash_msg != "" and usta_adim != 3:
+			PixUI.text(self, Vector2(0, vp.y - 50), flash_msg, Color(PixUI.GOLD, clampf(flash_t, 0.0, 1.0)), 1, HORIZONTAL_ALIGNMENT_CENTER, vp.x, 2)
+		match usta_adim:
+			0:
+				_hint(vp, [["W/S", "silah"], ["Boşluk", "seç"], ["Esc", "ayrıl"]])
+			1:
+				_hint(vp, [["W/S", "hizmet"], ["Boşluk", "seç"], ["Esc", "geri"]])
+			2:
+				_hint(vp, [["W/S", "seçenek"], ["Boşluk", "işle"], ["Esc", "geri"]])
+			_:
+				_hint(vp, [["Boşluk", "başka hizmet"], ["Esc", "geri"]])
+
+
+func _usta_row(r: Rect2, is_sel: bool) -> void:
+	PixUI.panel(self, r, USTA_COL if is_sel else PixUI.EDGE.darkened(0.35), PixUI.INK2 if is_sel else PixUI.INK, false)
+	if is_sel:
+		PixUI.text(self, Vector2(r.position.x - 10 + sin(_t * 8.0) * 2.0, r.position.y + r.size.y / 2.0 - 6.0), "→", USTA_COL, 1, HORIZONTAL_ALIGNMENT_LEFT, -1.0, 2)
+
+
+func _usta_note(x: float, y: float, w: float, s: String) -> void:
+	var tl := PixUI.wrap(s, w - 14.0)
+	PixUI.panel(self, Rect2(x, y, w, 12.0 + tl.size() * 10.0), PixUI.EDGE)
+	var ty := y + 6.0
+	for l in tl:
+		PixUI.text(self, Vector2(x + 6, ty), l, PixUI.TEXT, 1, HORIZONTAL_ALIGNMENT_LEFT, -1.0, 0)
+		ty += 10.0
+
+
+func _unsur_ad(it: Dictionary) -> String:
+	var u := Unsur.of(it)
+	return String(Unsur.DEF[u]["ad"]) if u != "" else "—"
+
+
+func _kisalt(s: String, w: float) -> String:
+	var t := s
+	while PixUI.width(t + "…") > w and t.length() > 4:
+		t = t.substr(0, t.length() - 1)
+	return t if t == s else t + "…"
+
+
+func _usta_damga(c: Vector2, txt: String, kotu: bool, iyi: bool) -> void:
+	## Mürekkep damgası: kartın üstüne büyükten küçülerek basılır (0,35 sn), hafif eğik; kötü sonuç mor, tutmayan soluk
+	if txt == "":
+		return
+	var k := clampf(usta_damga_t / 0.35, 0.0, 1.0)
+	var ease_k := 1.0 - pow(1.0 - k, 3.0)
+	var scl := lerpf(2.2, 1.0, ease_k)
+	var a := lerpf(0.0, 1.0, clampf(k * 2.0, 0.0, 1.0))
+	var col := Color(0.86, 0.24, 0.2) if (iyi and not kotu) else (Color(0.6, 0.3, 0.9) if kotu else Color(0.55, 0.5, 0.5))
+	var w := PixUI.width(txt, 1) + 24.0
+	var rot := -0.16
+	draw_set_transform(c * MENU_SCALE, rot, Vector2.ONE * MENU_SCALE * scl)
+	InkUI.splat(self, Vector2.ZERO, 26.0, Color(col, 0.22 * a), 0.7)
+	InkUI.seal(self, Rect2(-w / 2.0, -11.0, w, 22.0), Color(col, a))
+	PixUI.text(self, Vector2(-w / 2.0, -5.0), txt, Color(col.lightened(0.1), a), 1, HORIZONTAL_ALIGNMENT_CENTER, w, 1)
+	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE * MENU_SCALE)
+	if k >= 1.0 and usta_damga_t < 0.6:
+		# basılış anında mürekkep sıçrantısı
+		var kk := (usta_damga_t - 0.35) / 0.25
+		for i in 6:
+			var ang := float(i) / 6.0 * TAU + 0.4
+			var p := c + Vector2.from_angle(ang) * (18.0 + 26.0 * kk)
+			draw_circle(p, 2.2 * (1.0 - kk), Color(col, 0.8 * (1.0 - kk)), true, -1.0, true)
 
 
 func _price(r: Rect2, v: int, can: bool) -> void:

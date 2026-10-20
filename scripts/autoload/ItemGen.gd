@@ -22,10 +22,11 @@ func _wpick(list: Array, weights: Array) -> Variant:
 	return list[list.size() - 1]
 
 
-func _roll_range(r: Array, is_int: bool) -> Array:
+func _roll_range(r: Array, is_int: bool, g: RandomNumberGenerator = null) -> Array:
+	## [değer, kalite 0..1]; g verilirse o zarla (v32 Usta: konak tohumuyla belirlenimci)
 	var lo := minf(r[0], r[1])
 	var hi := maxf(r[0], r[1])
-	var v := rng.randf_range(lo, hi)
+	var v := (g if g else rng).randf_range(lo, hi)
 	if is_int:
 		v = roundf(v)
 	var q := 0.5
@@ -162,12 +163,7 @@ func roll(id: String, tier: int = 0, material: String = "", rarity: int = -1, fl
 		it["kz_max"] = int(base["kizisma"].get("max", 5))
 		qs.append(kr[1])
 	var n_aff := int(R["affixes"]) + (1 if mat["id"] == "gok_demiri" else 0)
-	var target := "weapon" if cat == "weapons" else ("shield" if cat == "shields" else "gadget")
-	var pool: Array = []
-	for a in Data.items["affixes"]:
-		var fr: Array = a["for"]
-		if fr.has(target) or (target == "weapon" and base.get("kind", "") in ["bow", "throw", "magic"] and fr.has("ranged")):
-			pool.append(a)
+	var pool := affix_pool(base, cat)
 	pool.shuffle()
 	for i in mini(n_aff, pool.size()):
 		var a: Dictionary = pool[i]
@@ -209,6 +205,39 @@ func _w_at(w: Variant, t: int) -> float:
 	return float(w)
 
 
+func affix_pool(base: Dictionary, cat: String) -> Array:
+	## Bu eşya türüne gelebilecek ek özellik tanımları (silah / kalkan / teçhizat; uzak silaha "ranged" olanlar da)
+	var target := "weapon" if cat == "weapons" else ("shield" if cat == "shields" else "gadget")
+	var pool: Array = []
+	for a in Data.items["affixes"]:
+		var fr: Array = a["for"]
+		if fr.has(target) or (target == "weapon" and base.get("kind", "") in ["bow", "throw", "magic"] and fr.has("ranged")):
+			pool.append(a)
+	return pool
+
+
+func max_affix(it: Dictionary) -> int:
+	## Düşüşte yuvarlanan ek özellik sayısı: nadirliğin yuvası (+1 gök demiri). v32 Usta bunun üstüne ek yuva nakşeder.
+	var R: Dictionary = Data.items["rarities"][clampi(int(it.get("rarity", 0)), 0, Data.items["rarities"].size() - 1)]
+	return int(R["affixes"]) + (1 if String(it.get("material", "")) == "gok_demiri" else 0)
+
+
+func roll_affix(a: Dictionary, g: RandomNumberGenerator = null) -> Dictionary:
+	## v32 Usta: bir ek özellik tanımından değer yuvarla ({"id", "v"}); g verilirse konak zarıyla
+	var ar := _roll_range(a["range"], a.get("int", false), g)
+	return {"id": a["id"], "v": ar[0]}
+
+
+func reroll_affixes(it: Dictionary, g: RandomNumberGenerator = null) -> void:
+	## v32 Usta "yeniden dövme": eşyadaki ek özelliklerin değerleri yeniden yuvarlanır (kimlikler kalır)
+	for i in (it.get("affixes", []) as Array).size():
+		var a: Dictionary = it["affixes"][i]
+		var d := affix_def(String(a["id"]))
+		if not d.is_empty():
+			it["affixes"][i] = roll_affix(d, g)
+	it["name"] = item_name(it)
+
+
 func affix_def(aid: String) -> Dictionary:
 	for a in Data.items["affixes"]:
 		if a["id"] == aid:
@@ -228,7 +257,10 @@ func item_name(it: Dictionary) -> String:
 	var pre := ""
 	if it["affixes"].size() > 0:
 		pre = affix_def(it["affixes"][0]["id"]).get("adj", "") + " "
-	return pre + Unsur.name_adj(it) + Data.material_def(it["material"])["adj"] + " " + it["name_base"]
+	var ua := Unsur.name_adj(it)
+	if pre == ua:
+		pre = ""   # v32: nakış sıfatı unsur sıfatıyla aynıysa ("Ayazlı Ayazlı") bir kez yazılır
+	return pre + ua + Data.material_def(it["material"])["adj"] + " " + it["name_base"]
 
 
 func fmt(v: float) -> String:

@@ -665,6 +665,12 @@
   "decor/kaya_2_v2.webp",
   "b950e620fc9051440fe4d5913b62c1ab"
  ],
+ "decor/konak_ates_v2.png": [
+  480,
+  280,
+  "decor/konak_ates_v2.webp",
+  "c860fdb965db6aabb553d1e16feb66a7"
+ ],
  "decor/kristal_kaf_v2.png": [
   240,
   240,
@@ -844,6 +850,12 @@
   216,
   "decor/totem_v2.webp",
   "0cb2b344ae3452c667c5ec0cab0fd04a"
+ ],
+ "decor/usta_tezgah_v2.png": [
+  528,
+  368,
+  "decor/usta_tezgah_v2.webp",
+  "56e40a90c62ad94136be5d7ab38460c8"
  ],
  "decor/yh_at_v2.png": [
   464,
@@ -1366,6 +1378,12 @@
   832,
   "sprites/npc_umay_v2.webp",
   "67277a5df4de3a304c1918f834253270"
+ ],
+ "sprites/npc_usta_v2.png": [
+  1920,
+  832,
+  "sprites/npc_usta_v2.webp",
+  "2a5af9a938780c07d39c237c8fe6672e"
  ],
  "sprites/od_iyesi_v2.png": [
   4096,

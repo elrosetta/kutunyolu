@@ -1,7 +1,9 @@
 extends Node
-## Giriş noktası: başlık → hikâye → (Demirci) → bölüm. Kut Kapısı'ndan geçince eşyalar korunarak
-## bir sonraki derinliğe inilir; ölünce toplanan Kut bankaya eklenir ve yeni koşu başlar.
-## Tılsım seçimi ve Demirci ekranı burada yönetilir (ağaç duraklıyken girdi).
+## Giriş noktası: başlık → hikâye → Ulu Kayın yurdu (koşu başı; Umay / Demirci / Ozan / Alp Ata) → kapı → 1. derinlik.
+## v32: Kut Kapısı'ndan geçince yurda DÖNÜLMEZ; bir sonraki derinliğin eşiğinde gezgin bir Konak kurulur (Level.build_konak:
+## Umay Ocağı Kut'u bankaya alır, Bengisu Usta altınla silah nakışlar, bazen Bezirgân), konağın kapısı derine indirir.
+## Boss derinliklerinde: bölüm → boss arenası → konak. Ölünce toplanan Kut (Ruh Düğümü payı) bankaya eklenir, yeni koşu
+## yurtta başlar. Tılsım seçimi, Demirci ve Usta ekranları burada yönetilir (ağaç duraklıyken girdi).
 
 var level: Level
 var hud: HUD
@@ -32,9 +34,15 @@ func _ready() -> void:
 		if String(arg).begins_with("--ekran="):
 			_ekran = String(arg).trim_prefix("--ekran=")
 			auto_test = false
+	_test_kipi = _test_bayragi()
 	_new_run()
-	if OS.get_cmdline_user_args().has("--yurt"):
+	if OS.get_cmdline_user_args().has("--yurt") and not (level and level.hub):
 		_build_hub()  # yurt testi: doğrudan Ulu Kayın'da başla
+	if OS.get_cmdline_user_args().has("--konak"):
+		# v32 konak / Bengisu Usta testi (tools/tests/konak_testi.gd): kapı → konak → şifa / şişe → hizmetler → derine, boss akışı
+		var kt: Node = load("res://tools/tests/konak_testi.gd").new()
+		kt.set("main", self)
+		add_child(kt)
 	if OS.get_cmdline_user_args().has("--mekanik"):
 		var mt: Node = load("res://tools/tests/mekanik_testi.gd").new()
 		mt.set("main", self)
@@ -142,7 +150,7 @@ func _ready() -> void:
 			_build_boss("kara_boru_han")
 		elif String(arg).begins_with("--boss="):
 			_build_boss(String(arg).trim_prefix("--boss="))
-	if auto_test or showcase or _ekran != "" or firca or sus or bengu_t or OS.get_cmdline_user_args().has("--mekanik") or OS.get_cmdline_user_args().has("--dovus") or OS.get_cmdline_user_args().has("--yay") or OS.get_cmdline_user_args().has("--unsur") or OS.get_cmdline_user_args().has("--denge") or OS.get_cmdline_user_args().has("--tomar") or OS.get_cmdline_user_args().has("--zeka") or OS.get_cmdline_user_args().has("--tuccar") or OS.get_cmdline_user_args().has("--harita") or OS.get_cmdline_user_args().has("--sanat"):
+	if auto_test or showcase or _ekran != "" or firca or sus or bengu_t or OS.get_cmdline_user_args().has("--mekanik") or OS.get_cmdline_user_args().has("--dovus") or OS.get_cmdline_user_args().has("--yay") or OS.get_cmdline_user_args().has("--unsur") or OS.get_cmdline_user_args().has("--denge") or OS.get_cmdline_user_args().has("--tomar") or OS.get_cmdline_user_args().has("--zeka") or OS.get_cmdline_user_args().has("--tuccar") or OS.get_cmdline_user_args().has("--harita") or OS.get_cmdline_user_args().has("--sanat") or OS.get_cmdline_user_args().has("--konak"):
 		hud.mode = "play"
 		get_tree().paused = false
 	else:
@@ -151,12 +159,31 @@ func _ready() -> void:
 		Ses.music("baslik")
 
 
+## v32: test / çekim bayraklarından biri varsa koşu doğrudan 1. derinlikte başlar (eski davranış; testler ve bot bölümü
+## bekler); gerçek oyunda koşu Ulu Kayın yurdunda başlar (kapı 1. derinliğe indirir)
+var _test_kipi := false
+const TEST_BAYRAKLARI := ["--otomatik", "--sahne", "--savurus", "--ekran=", "--firca", "--fx_vitrin=", "--sus=", "--bengu", "--mekanik",
+	"--dovus", "--yay", "--unsur", "--denge", "--tomar", "--zeka", "--tuccar", "--harita", "--sanat", "--yaratik", "--silah27",
+	"--boss", "--piksel_tara", "--konak", "--arayuz="]
+
+
+func _test_bayragi() -> bool:
+	for arg in OS.get_cmdline_user_args():
+		for b in TEST_BAYRAKLARI:
+			if String(arg) == b or String(arg).begins_with(b):
+				return true
+	return false
+
+
 func _new_run() -> void:
 	Ses.low_hp(0.0)
 	Game.new_run()
 	Game.meta["runs"] = int(Game.meta.get("runs", 0)) + 1
 	Game.save_meta()
-	_build_level()
+	if _test_kipi:
+		_build_level()
+	else:
+		_build_hub()   # v32: koşu yurtta başlar (Umay / Demirci / Alp Ata / Ozan), kapı 1. derinliğe indirir
 	if auto_test and _bot_gercek:
 		_bot_loadout()
 
@@ -347,6 +374,7 @@ func _build_hub() -> void:
 
 
 func _next_level() -> void:
+	## Konaksız geçiş (--sahne "done" ekranı): bir sonraki derinlik hemen kurulur
 	Game.next_depth()
 	Game.meta["best_depth"] = maxi(int(Game.meta.get("best_depth", 1)), int(Game.run["depth"]))
 	Game.save_meta()
@@ -354,10 +382,51 @@ func _next_level() -> void:
 	_start_play()
 
 
+func _build_konak() -> void:
+	## v32: derinlikler arası gezgin konak (Level.build_konak). Eşyalar ve can korunur; tohum derinliğe bağlı (test belirlenimci)
+	if level:
+		level.queue_free()
+	level = Level.new()
+	level.process_mode = Node.PROCESS_MODE_PAUSABLE
+	add_child(level)
+	var seed_v := randi() if not auto_test else 4321 + int(Game.run.get("depth", 1))
+	for arg in OS.get_cmdline_user_args():
+		if String(arg).begins_with("--tohum="):
+			seed_v = int(String(arg).trim_prefix("--tohum=")) * 7 + int(Game.run.get("depth", 1))
+	level.build_konak(seed_v)
+	level.finished.connect(_on_finished)
+	level.player_died.connect(_on_died)
+	level.npc_requested.connect(_on_npc)
+	level.tuccar_requested.connect(_on_tuccar)
+	level.slot_requested.connect(_on_slot_request)
+	level.scroll_requested.connect(_on_scroll)
+	hud.level = level
+	hud._card_t = 0.0
+
+
+func _to_konak() -> void:
+	## Kut Kapısı (ya da boss) geçildi: bir sonraki derinliğe inilir (Game.next_depth: can +%15, şişeler dolar), konak kurulur
+	var hp0 := float(Game.run.get("hp", 0.0))
+	Game.run["lutuf"] = []  # lütuflar konakta söner (eskiden yurda dönünce)
+	Game.next_depth()
+	Game.meta["best_depth"] = maxi(int(Game.meta.get("best_depth", 1)), int(Game.run["depth"]))
+	Game.save_meta()
+	_build_konak()
+	_start_play()
+	var heal := int(round(float(Game.run.get("hp", 0.0)) - hp0))
+	hud.flash_msg = "Konak: can +%d, şişeler doldu. Kut'u ocağa, silahını Bengisu Usta'ya götür; kapı derine indirir." % heal
+	hud.flash_t = 5.0
+	if level.player:
+		if heal > 0:
+			FX.number(level.player.center() + Vector2(0, -12), float(heal), false, Color(0.55, 1.0, 0.55))
+		FX.soul(level.player.center(), Color(0.6, 1.0, 0.75), 12)
+
+
 func _on_finished() -> void:
-	if level and level.hub:
-		# yurttan derine
-		_next_level()
+	if level and (level.hub or level.konak):
+		# yurttan 1. derinliğe / konaktan sıradaki derinliğe (derinlik Game.run'da hazır)
+		_build_level()
+		_start_play()
 		return
 	# bu derinliğin sonunda boss var mı?
 	var depth := int(Game.run.get("depth", 1))
@@ -368,15 +437,13 @@ func _on_finished() -> void:
 			_start_play()
 			Game.run["lutuf"] = Game.run.get("lutuf", [])
 			return
-	if auto_test or showcase:
+	if auto_test:
+		_bot_report("BOLUM_SONU")   # v32: bot da konaktan geçer (kapı → konak → Usta → kapı)
+	elif showcase:
 		hud.mode = "done"
 		get_tree().paused = true
 		return
-	Game.run["lutuf"] = []  # lütuflar yurda dönünce söner
-	_build_hub()
-	_start_play()
-	hud.flash_msg = "Ulu Kayın yurdu: Kut'unu Umay Ana'ya götür (W). Kapı seni derine indirir."
-	hud.flash_t = 5.0
+	_to_konak()
 
 
 func _on_npc(id: String) -> void:
@@ -406,6 +473,149 @@ func _on_npc(id: String) -> void:
 		"alp_ata":
 			Ses.play("npc_2")
 			_open_sanat(true)
+		"usta":
+			_usta_ac()
+
+
+# ------------------------------------------------------------------ v32 Bengisu Usta (konak)
+func _usta_ac() -> void:
+	## Usta ekranı: 0 silah seç → 1 hizmet seç → 2 (nakış / unsur) seçenek → 3 sonuç kartı. Oyun durur.
+	hud.usta_adim = 0
+	hud.usta_slot = ""
+	hud.usta_hid = ""
+	hud.usta_secs = []
+	hud.usta_sonuc = {}
+	hud.usta_onay = false
+	hud.sel = 0
+	hud.mode = "usta"
+	hud.open_anim()
+	Ses.play("npc_3")
+	Ses.play("ui_ac", -4.0)
+	get_tree().paused = true
+
+
+func _usta_satirlar() -> int:
+	## Usta ekranında şu adımın satır sayısı
+	match hud.usta_adim:
+		0:
+			return Usta.silahlar().size()
+		1:
+			return Usta.HIZMETLER.size()
+		2:
+			return hud.usta_secs.size()
+	return 1
+
+
+func _usta_sec(i: int) -> void:
+	## Boşluk / Enter: adım ilerler; doğrudan hizmetlerde (dövme / kalite / mühür) ilk basış onay, ikincisi uygular
+	match hud.usta_adim:
+		0:
+			var sl := Usta.silahlar()
+			if sl.is_empty():
+				hud.flash_msg = "Kuşanılı silahın yok."
+				hud.flash_t = 2.0
+				Ses.play("ui_sec", 0.0, 0.7)
+				return
+			hud.usta_slot = String(sl[clampi(i, 0, sl.size() - 1)])
+			hud.usta_adim = 1
+			hud.sel = 0
+			hud.open_anim()
+			Ses.play("ui_onay")
+		1:
+			var it: Dictionary = Game.run["slots"].get(hud.usta_slot, {})
+			var hs := Usta.hizmetler(it)
+			var h: Dictionary = hs[clampi(i, 0, hs.size() - 1)]
+			if not bool(h["uygun"]):
+				hud.flash_msg = String(h["neden"])
+				hud.flash_t = 2.5
+				Ses.play("ui_sec", 0.0, 0.7)
+				return
+			var hid := String(h["id"])
+			if hid in ["nakis", "unsur"]:
+				hud.usta_hid = hid
+				hud.usta_secs = Usta.secenekler(hid, hud.usta_slot, it)
+				hud.usta_adim = 2
+				hud.sel = 0
+				hud.usta_onay = false
+				hud.open_anim()
+				Ses.play("ui_onay")
+				return
+			if int(Game.run.get("gold", 0)) < int(h["fiyat"]):
+				hud.flash_msg = "Altının yetmez (%d gerekir, %d var)." % [int(h["fiyat"]), int(Game.run.get("gold", 0))]
+				hud.flash_t = 2.5
+				Ses.play("ui_sec", 0.0, 0.7)
+				return
+			if not hud.usta_onay:
+				hud.usta_onay = true
+				hud.usta_hid = hid
+				Ses.play("ui_gez")
+				return
+			hud.usta_onay = false
+			_usta_uygula(hid, {})
+		2:
+			if hud.usta_secs.is_empty():
+				return
+			var o: Dictionary = hud.usta_secs[clampi(i, 0, hud.usta_secs.size() - 1)]
+			if int(Game.run.get("gold", 0)) < int(o["fiyat"]):
+				hud.flash_msg = "Altının yetmez (%d gerekir, %d var)." % [int(o["fiyat"]), int(Game.run.get("gold", 0))]
+				hud.flash_t = 2.5
+				Ses.play("ui_sec", 0.0, 0.7)
+				return
+			if not hud.usta_onay:
+				hud.usta_onay = true
+				Ses.play("ui_gez")
+				return
+			hud.usta_onay = false
+			_usta_uygula(hud.usta_hid, o)
+		3:
+			# sonuç kartı kapanır: aynı silahla hizmet listesine dönülür
+			hud.usta_sonuc = {}
+			hud.usta_adim = 1
+			hud.sel = 0
+			hud.open_anim()
+			Ses.play("ui_gez")
+
+
+func _usta_uygula(hid: String, opt: Dictionary) -> Dictionary:
+	## Hizmeti uygula (Usta.uygula), sonucu karta koy; efekt + ses
+	var r := Usta.uygula(hid, hud.usta_slot, opt)
+	if not r["ok"]:
+		hud.flash_msg = String(r["msg"])
+		hud.flash_t = 2.5
+		Ses.play("ui_sec", 0.0, 0.7)
+		return r
+	hud.usta_sonuc = r
+	hud.usta_adim = 3
+	hud.usta_damga_t = 0.0
+	hud.flash_msg = String(r["msg"])
+	hud.flash_t = 4.0
+	Ses.play("altin", -4.0, 0.9)
+	match hid:
+		"nakis":
+			Ses.play("usta_nakis")
+			Ses.play("usta_damga", -3.0)
+		"dovme":
+			Ses.play("usta_dovme")
+		"unsur":
+			Ses.play("buyu", -4.0, 1.1)
+			Ses.play("usta_damga", -3.0)
+		"kalite":
+			Ses.play("usta_dovme" if bool(r["iyi"]) else "ui_sec", 0.0 if bool(r["iyi"]) else -2.0, 1.0 if bool(r["iyi"]) else 0.6)
+		"muhur":
+			Ses.play("usta_damga")
+			Ses.play("kut_banka" if bool(r["iyi"]) else "ui_iptal", -4.0)
+	if level and level.player:
+		level.player.on_equip()
+		var pc: Vector2 = level.player.center()
+		if bool(r["kotu"]):
+			FX.soul(pc, Color(0.7, 0.3, 0.9), 16)
+		else:
+			FX.sparks(pc + Vector2(0, -6), Vector2(0.3, -1), Color(1.0, 0.8, 0.4), 10, 110.0)
+			FX.ring(pc, 30, Color(0.55, 1.0, 0.9), 0.4)
+		for n in level.npcs:
+			if n.id == "usta":
+				n.talk()
+	return r
 
 
 func _open_sanat(mentor: bool) -> void:
@@ -631,6 +841,33 @@ func _unhandled_input(event: InputEvent) -> void:
 				else:
 					Ses.play("ui_iptal")
 					_start_play()
+		"usta":
+			# v32 Usta: W/S satır, Boşluk / Enter ilerle / onay, Esc / L bir adım geri (ilk adımda ayrıl)
+			var n_u := maxi(1, _usta_satirlar())
+			if event.is_action_pressed("yukari") or event.is_action_pressed("sol"):
+				hud.sel = (hud.sel + n_u - 1) % n_u
+				hud.usta_onay = false
+				Ses.play("ui_gez")
+			elif event.is_action_pressed("asagi") or event.is_action_pressed("sag"):
+				hud.sel = (hud.sel + 1) % n_u
+				hud.usta_onay = false
+				Ses.play("ui_gez")
+			elif go:
+				_usta_sec(hud.sel)
+			elif event.is_action_pressed("duraklat") or event.is_action_pressed("yuvarlan"):
+				Ses.play("ui_iptal")
+				if hud.usta_onay:
+					hud.usta_onay = false
+				elif hud.usta_adim == 0:
+					_start_play()
+				elif hud.usta_adim == 3:
+					hud.usta_sonuc = {}
+					hud.usta_adim = 1
+					hud.sel = 0
+				else:
+					hud.usta_adim -= 1
+					hud.sel = 0
+					hud.open_anim()
 		"umay":
 			var keys: Array = Game.UMAY.keys()
 			if event.is_action_pressed("yukari") or event.is_action_pressed("sol"):
@@ -718,8 +955,14 @@ func _ad_toreni() -> void:
 
 
 func _after_intro() -> void:
-	## Hikâyeden (ya da ölümden) sonra: bekleyen parşömen varsa Demirci'ye uğra.
-	if not Game.meta.get("blueprints", []).is_empty():
+	## Hikâyeden (ya da ölümden) sonra: v32 koşu yurtta başlar (Demirci orada; bekleyen parşömen varsa hatırlatılır).
+	## Test kipinde (bölümde başlayınca) bekleyen parşömen varsa eski Demirci ekranı açılır.
+	if level and level.hub:
+		_start_play()
+		var bps: Array = Game.meta.get("blueprints", [])
+		hud.flash_msg = ("Ulu Kayın yurdu: %d parşömen bekliyor, Demirci'ye uğra. Kapı derine indirir." % bps.size()) if not bps.is_empty() else "Ulu Kayın yurdu: Kut'unu Umay Ana'ya götür (W). Kapı seni derine indirir."
+		hud.flash_t = 5.0
+	elif not Game.meta.get("blueprints", []).is_empty():
 		hud.mode = "demirci"
 		hud.sel = 0
 		get_tree().paused = true
@@ -1046,6 +1289,16 @@ func _physics_process(delta: float) -> void:
 		"tuccar":
 			_start_play()
 			return
+		"usta":
+			# v32 bot: ilk silaha paranın yettiği ilk hizmet (belirlenimci: konak tohumu), sonra yola
+			var sl := Usta.silahlar()
+			if not sl.is_empty():
+				var r := Usta.bot_hizmet(String(sl[0]))
+				print("[otomatik] USTA derinlik=%d %s altın=%d" % [int(Game.run.get("depth", 1)), String(r.get("msg", "")), int(Game.run.get("gold", 0))])
+				if r.get("ok", false) and level and level.player:
+					level.player.on_equip()
+			_start_play()
+			return
 		"sanat":
 			_start_play()
 			return
@@ -1057,7 +1310,6 @@ func _physics_process(delta: float) -> void:
 			_start_play()
 			return
 		"done":
-			_bot_report("BOLUM_SONU")
 			_next_level()
 			return
 		"dead":
@@ -1078,6 +1330,23 @@ func _physics_process(delta: float) -> void:
 	var t := _auto_t
 	var pl: Player = level.player
 	if pl.dead:
+		return
+	if level.konak:
+		# v32 konak: düşman yok; sağa koş, her 12 karede 3 kare W bas (Umay Ocağı, Usta, Bezirgân; yüklü makinede tek
+		# karelik basış Level._process'e görünmeden bırakılıyordu), takılırsa zıpla. Dövüş / çömelme dizisi burada
+		# çalışmaz: saldırı basışı W dokunuşunu bozuyor, bot Usta'nın 60 px'lik penceresini kaçırıyordu.
+		Input.action_press("sag")
+		if int(t * 60.0) % 12 < 3:
+			Input.action_press("etkiles")
+			_auto_pressed.append("etkiles")
+		if absf(pl.global_position.x - _auto_last_x) < 2.0:
+			_auto_stuck += delta
+		else:
+			_auto_stuck = 0.0
+		_auto_last_x = pl.global_position.x
+		if _auto_stuck > 1.2 and int(t * 60.0) % 20 == 0:
+			_tap("zipla")
+		_bot_last_hp = float(Game.run["hp"])
 		return
 	if _bot_gercek and _bot_fight(pl, t):
 		pass   # v22: ölçüm kipinde yakındaki düşmanla dövüşür (aşağıdaki yürüyüş / zıplama dizisi yine işler)

@@ -1,19 +1,24 @@
 class_name NPC
 extends Node2D
-## Yurt sakini: Umay Ana / Demirci Kam Kuzgun / Ozan Bilge Kopuz / Alp Ata (v27 savaş sanatları ustası). Oyuncuya döner, yaklaşınca "W" balonu çıkar (v23: etkileşim W / ↑),
-## konuşunca kısa "talk" animasyonu oynar. Etkileşimi Level yönetir (npc_requested sinyali).
+## Yurt sakini: Umay Ana / Demirci Kam Kuzgun / Ozan Bilge Kopuz / Alp Ata (v27 savaş sanatları ustası) ve v32 konaktaki
+## Bengisu Usta (silah nakışı). Oyuncuya döner, yaklaşınca "W" balonu çıkar (v23: etkileşim W / ↑), konuşunca kısa
+## "talk" animasyonu oynar. Etkileşimi Level yönetir (npc_requested sinyali). v32: soz doluysa yakınken başının
+## üstünde kısa bir söz (biyoma göre; konaktakiler "seninle yol alır").
 
 var id := ""
 var display_name := ""
+var soz := ""
 var level: Node
 var anim: SpriteAnim
 var near := false
 var talk_t := 0.0
 var _t := 0.0
+var _yazi := true   # v32: ad, söz ve W balonu (ekran açıkken gizli: menünün arkasından görünmesin; Bezirgan.gd gibi)
 
 
 func _ready() -> void:
 	z_index = 3
+	process_mode = Node.PROCESS_MODE_ALWAYS   # duraklıyken de çizilir (yazı gizlenir, konuşma animasyonu sürer)
 	anim = SpriteAnim.new()
 	add_child(anim)
 	anim.setup("npc_" + id)
@@ -24,6 +29,8 @@ func _ready() -> void:
 		var col := Color(0.6, 0.95, 1.0) if id == "umay" else (Color(1.0, 0.6, 0.3) if id == "demirci" else Color(1.0, 0.85, 0.5))
 		if id == "alp_ata":
 			col = Color(1.0, 0.5, 0.42)
+		elif id == "usta":
+			col = Color(0.55, 1.0, 0.9)   # nakış kaleminin Kut ışığı
 		level.add_light(Vector2(0, -40), col, 110.0, 0.55, self)
 
 
@@ -35,6 +42,14 @@ func talk() -> void:
 func _process(delta: float) -> void:
 	_t += delta
 	talk_t -= delta
+	var paused := get_tree().paused
+	if paused == _yazi:
+		_yazi = not paused
+		queue_redraw()
+	if paused:
+		if talk_t <= 0.0 and anim.anim != "idle":
+			anim.play("idle")
+		return
 	var pl: Node = level.player if level else null
 	if pl:
 		# yüzünü oyuncuya dön (çizim sola bakar: oyuncu soldaysa facing 1)
@@ -46,6 +61,8 @@ func _process(delta: float) -> void:
 
 
 func _draw() -> void:
+	if not _yazi:
+		return
 	PixUI.text(self, Vector2(-80, -101), display_name, PixUI.TEXT, 1, HORIZONTAL_ALIGNMENT_CENTER, 160, 2)
 	if id == "ozan" and not Adlar.pending().is_empty():
 		var by := roundf(-132.0 + sin(_t * 4.0) * 2.0)
@@ -53,3 +70,5 @@ func _draw() -> void:
 	if near:
 		var y := roundf(-116.0 + sin(_t * 5.0) * 2.0)
 		PixUI.key_cap(self, Vector2(-5, y), HUD.KEY_ETKILES)
+		if soz != "":
+			PixUI.text(self, Vector2(-110, y - 14.0), "«%s»" % soz, Color(PixUI.TEXT, 0.85), 1, HORIZONTAL_ALIGNMENT_CENTER, 220, 2)

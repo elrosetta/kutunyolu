@@ -11,7 +11,7 @@ const LAYER_PLATFORM := 8
 ## Her koşuda açık olan eşyalar; diğerleri parşömenle Demirci'de açılır.
 const BASE_UNLOCKED := ["alp_kilici", "turk_yayi", "kara_barut", "yuvarlak_kalkan", "pala", "coban_sapani"]
 
-## Tanrı lütufları (sunaktan alınır; yurda dönene dek sürer, en çok 3)
+## Tanrı lütufları (sunaktan alınır; bir sonraki konağa dek sürer — v32'den önce yurda dönene dek —, en çok 3)
 const LUTUF := {
 	"tengri": ["Tengri'nin Yıldırımı", "Darbeler %22 şansla yakındaki düşmana şimşekle sıçrar.", [0.7, 0.85, 1.0]],
 	"ulgen": ["Ülgen'in Işığı", "Her öldürmede %3 can.", [1.0, 0.95, 0.6]],
@@ -23,7 +23,7 @@ const LUTUF := {
 	"gun_ana": ["Gün Ana'nın Közü", "Darbeler %25 şansla tutuşturur.", [1.0, 0.6, 0.3]],
 	"yel_ana": ["Yel Ana'nın Soluğu", "Saldırı hızı +%10.", [0.72, 0.95, 0.82]],   # v20 (Player.HIZ.lutuf; v25: 15 → 10)
 }
-## Boss arenaları: bu derinlik bitince (Kut Kapısı) önce boss, sonra yurt
+## Boss arenaları: bu derinlik bitince (Kut Kapısı) önce boss, sonra konak (v32; eskiden yurt)
 const BOSS_AFTER := {2: "kara_boru_han", 4: "tepegoz", 6: "sahmeran", 8: "yelbegen", 10: "erlik_han"}
 
 ## Umay Ana'nın kalıcı armağanları: Kut bankasıyla alınır (Dead Cells "Collector" mantığı).
@@ -348,7 +348,8 @@ func biome_for_depth(depth: int) -> Dictionary:
 
 
 func next_depth() -> void:
-	## Kut Kapısı'ndan geçiş: eşyalar, ongunlar ve can korunur; şişeler dolar; düşmanlar sertleşir.
+	## Kut Kapısı'ndan geçiş (v32: konağa varış): eşyalar, ongunlar ve can korunur; can +%15 (Zorluk.derinlik_sifa),
+	## şişeler dolar; düşmanlar sertleşir.
 	run["depth"] = int(run.get("depth", 1)) + 1
 	run["tier"] = Zorluk.kademe(int(run["depth"]))   # v22: kademe = derinlik - 1 (en çok 8; Zorluk)
 	run["flasks"] = int(run["max_flasks"])

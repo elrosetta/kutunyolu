@@ -35,6 +35,9 @@ var biome: Dictionary = {}
 var art: Dictionary = {}
 var exit_pos := Vector2.ZERO
 var hub := false
+var konak := false        # v32: derinlikler arası gezgin konak (Bengisu Usta, Umay Ocağı, bazen Bezirgân)
+var konak_ates := Vector2.ZERO   # v32: Umay Ocağı (konak ateşi): yanından geçince taşınan Kut Umay'a ulaşır
+var _ocak_done := false
 var npcs: Array = []
 var decal_root: Node2D
 var hazard: TileMapLayer
@@ -536,6 +539,171 @@ func build_hub(seed_value: int) -> void:
 		add_child(tour)
 
 
+func build_konak(seed_value: int) -> void:
+	## v32 Konak: Kut Kapısı'ndan (ya da bosstan) sonra, bir sonraki derinliğin biyomunda kurulan gezgin kervan konağı.
+	## Düşmansız kısa düz alan (data/konak.json): konak ateşi (Umay Ocağı), Bengisu Usta'nın tezgâhı, biyoma göre
+	## çadır / kazan / fener / at / balbal, bir önceki bölümde pazar çıkmadıysa Bezirgân Sartak, sağda Kut Kapısı.
+	konak = true
+	rng.seed = seed_value
+	var K: Dictionary = Data.load_json("res://data/konak.json")
+	var G: Dictionary = K.get("genel", {})
+	biome = Game.biome_for_depth(int(Game.run.get("depth", 1)))
+	art = _stil_art(biome.get("art", {}))
+	var B: Dictionary = K.get("biyom", {}).get(String(biome.get("id", "")), {})
+	if B.has("ambient"):
+		art["ambient"] = B["ambient"]
+	art["decor_tint"] = B.get("decor_tint", [0.92, 0.9, 0.94])
+	Game.run["biome"] = biome.get("id", "otuken")
+	_generate_konak(int(G.get("genislik", 64)), int(G.get("yuzey", 30)))
+	_build_tiles()
+	decor_root = Node2D.new()
+	decor_root.z_index = -2
+	add_child(decor_root)
+	decal_root = Node2D.new()
+	decal_root.z_index = 1
+	add_child(decal_root)
+	_hub_floor = Node2D.new()
+	add_child(_hub_floor)
+	actors = Node2D.new()
+	add_child(actors)
+	proj_root = Node2D.new()
+	proj_root.z_index = 20
+	add_child(proj_root)
+	fx_root = Node2D.new()
+	fx_root.z_index = 50
+	add_child(fx_root)
+	FX.root = fx_root
+	FX.level = self
+	_build_lighting()
+	_build_background()
+	_place_konak(G, B)
+	_spawn_player()
+	camera.limit_right = int(G.get("genislik", 64)) * TS
+	_build_particles()
+	_build_overlay_fx()
+	Usta.yeni_konak(seed_value)
+	Ses.music(String(G.get("muzik", "yurt")))
+	print("[konak] derinlik=%d biyom=%s tohum=%d bezirgan=%d" % [int(Game.run.get("depth", 1)), String(biome.get("id", "")), seed_value, 1 if bezirgan else 0])
+
+
+func _generate_konak(w: int, top: int) -> void:
+	## Düz zemin, iki yanı kapalı; sağ uçta kapıya doğru hafif seki
+	style = "konak"
+	grid.resize(W * H)
+	grid.fill(0)
+	heights = []
+	for x in W:
+		var h := top
+		if x > w - 14:
+			h = top - int((x - (w - 14)) / 7)
+		heights.append(h)
+		for y in range(h, H):
+			grid[idx(x, y)] = 1
+		if x >= w:
+			for y in H:
+				grid[idx(x, y)] = 1
+	for y in range(0, top):
+		grid[idx(0, y)] = 1
+
+
+func _place_konak(G: Dictionary, B: Dictionary) -> void:
+	## Konak yerleşimi (data/konak.json): yol taşları, biyom süsleri, Umay Ocağı, Bengisu Usta + tezgâh, Bezirgân, kapı
+	var w := int(G.get("genislik", 64))
+	var xk := 3.0
+	var yi := 0
+	while xk < w - 3.0:
+		_hub_prop("yh_yol_%d" % (yi % 3 + 1), xk, 0, yi % 2 == 1, _hub_floor, 1.0)
+		xk += 3.15
+		yi += 1
+	for pr in B.get("props", []):
+		var z := int(pr[2]) if pr.size() > 2 else -3
+		var flip: bool = bool(pr[3]) if pr.size() > 3 else false
+		if String(pr[0]).begins_with("yh_hali"):
+			_hub_prop(String(pr[0]), float(pr[1]), 1, flip, _hub_floor, 1.0)
+			var cx := int(float(pr[1]))
+			for x in range(cx - 2, cx + 3):
+				overlay.erase_cell(Vector2i(x, surface_y(x) - 1))
+		else:
+			_hub_prop(String(pr[0]), float(pr[1]), z, flip)
+	# Umay Ocağı: konak ateşi (ısı + kor), yanından geçince Kut Umay'a ulaşır
+	var ax := float(G.get("ates", 22))
+	_hub_prop("konak_ates", ax, -2)
+	konak_ates = _hub_px(ax, 0.0)
+	_hub_fire(_hub_px(ax, -30), Color(1.0, 0.62, 0.3), 260.0, 1.3)
+	var sm := _hub_emitter(_hub_px(ax, -40), 10, 5.0, Color(0.5, 0.5, 0.56, 0.2), Vector2(3, 1), false, -8)
+	sm.direction = Vector2(0.25, -1)
+	sm.spread = 14.0
+	sm.initial_velocity_min = 8.0
+	sm.initial_velocity_max = 14.0
+	sm.gravity = Vector2(3, -3)
+	sm.scale_amount_min = 1.0
+	sm.scale_amount_max = 1.8
+	# Bengisu Usta: tezgâh (kütük örs + kor mangalı), kendisi tezgâhın 26 birim sağında (usta_ink.STAND_X)
+	var tx := float(G.get("tezgah", 33))
+	_hub_prop("usta_tezgah", tx, -3)
+	var fl := add_light(_hub_px(tx, -22) + Vector2(-24, 0), Color(1.0, 0.5, 0.2), 150.0, 1.0, decor_root)
+	var tw := fl.create_tween().set_loops()
+	tw.tween_property(fl, "energy", 0.8, 0.45).set_trans(Tween.TRANS_SINE)
+	tw.tween_property(fl, "energy", 1.15, 0.55).set_trans(Tween.TRANS_SINE)
+	var n := NPC.new()
+	n.id = "usta"
+	n.display_name = Usta.ad()
+	n.soz = Usta.soz(String(biome.get("id", "")), "usta_kisa")
+	n.level = self
+	n.position = _hub_px(tx, 0.0) + Vector2(26.0, 0.0)
+	actors.add_child(n)
+	npcs.append(n)
+	# Bezirgân: bir önceki derinlikte pazar çıkmadıysa kervan konağa gelir
+	if not bool(Game.run.get("bezirgan_gordu", false)) or Level.bezirgan_zorla:
+		var bx := int(G.get("bezirgan", 47))
+		bezirgan = Bezirgan.new()
+		bezirgan.level = self
+		bezirgan.position = Vector2(bx * TS + TS / 2.0, surface_y(bx) * TS)
+		bezirgan.offers = Pazar.teklifler(int(Game.run.get("depth", 1)), false)
+		bezirgan.soz = Usta.soz(String(biome.get("id", "")), "bezirgan")
+		actors.add_child(bezirgan)
+	Game.run["bezirgan_gordu"] = false
+	# çıkış: Kut Kapısı (taş kemer)
+	var ex := int(G.get("kapi", 58))
+	exit_pos = Vector2(ex * TS + TS / 2.0, surface_y(ex) * TS)
+	var gate := KutGate.new()
+	gate.position = exit_pos
+	decor_root.add_child(gate)
+	var portal := FX.anim("rift_portal", exit_pos + Vector2(0, -34), 0.0, 1.0, Color(0.6, 1.0, 1.0, 0.85))
+	if portal:
+		portal.loop = true
+		portal.z_index = -1
+		portal.reparent(decor_root)
+	add_light(exit_pos + Vector2(0, -60), Color(0.45, 0.9, 1.0), 240.0, 1.3, decor_root)
+	_hub_fire(_hub_px(ex - 2.6, -50), Color(1.0, 0.6, 0.28), 150.0, 0.8)
+	var kp := _hub_emitter(exit_pos + Vector2(0, -70), 14, 5.0, Color(0.6, 1.5, 1.5, 0.9), Vector2(40, 60), true, 6)
+	kp.direction = Vector2(0, -1)
+	kp.initial_velocity_min = 3.0
+	kp.initial_velocity_max = 9.0
+	kp.gravity = Vector2(0, -2)
+	kp.scale_amount_min = 0.08
+	kp.scale_amount_max = 0.16
+
+
+func _konak_tick() -> void:
+	## Umay Ocağı: oyuncu ateşin yanından geçince taşınan Kut Umay'a ulaşır (yurttaki Umay Ana gibi; kalıcı bankaya)
+	if _ocak_done or player == null or player.dead:
+		return
+	if absf(player.global_position.x - konak_ates.x) < 40.0 and absf(player.global_position.y - konak_ates.y) < 48.0:
+		_ocak_done = true
+		var k := int(Game.run.get("kut", 0))
+		if k > 0:
+			Game.bank_run_kut()
+			Ses.play("kut_banka")
+			FX.soul(player.center(), Color(0.6, 1.0, 1.0), 30)
+			FX.ring(konak_ates + Vector2(0, -24), 50, Color(0.6, 1.0, 1.0), 0.6)
+			FX.text(konak_ates + Vector2(0, -60), "%d Kut Umay'a ulaştı" % k, Color(0.6, 1.0, 1.0), 9)
+			var m: Node = get_parent()
+			if m and m.get("hud"):
+				m.hud.flash_msg = "Umay Ocağı: %d Kut Umay Ana'ya ulaştı (banka %d)." % [k, int(Game.meta.get("kut_bank", 0))]
+				m.hud.flash_t = 3.5
+
+
 func _generate_hub() -> void:
 	style = "yurt"
 	grid.resize(W * H)
@@ -689,7 +857,7 @@ func _hub_prop_ink(d: Dictionary, dname: String, tx: float, z: int, flip: bool, 
 		s.add_child(g)
 		# alevler ve kut ışığı titrer / nefes alır
 		var tw := g.create_tween().set_loops()
-		var fast := dname in ["yh_mangal", "yh_kandil", "yh_kazan", "yh_kapi", "yh_sunak", "yh_demirhane", "yh_ors"]
+		var fast := dname in ["yh_mangal", "yh_kandil", "yh_kazan", "yh_kapi", "yh_sunak", "yh_demirhane", "yh_ors", "konak_ates", "usta_tezgah"]
 		tw.tween_property(g, "self_modulate:a", 0.78, rng.randf_range(0.14, 0.2) if fast else 1.6)
 		tw.tween_property(g, "self_modulate:a", 1.0, rng.randf_range(0.16, 0.24) if fast else 1.8)
 	return s
@@ -2690,6 +2858,7 @@ func _place_bezirgan() -> void:
 	bezirgan.position = Vector2(tx * TS + TS / 2.0, surface_y(tx) * TS)
 	bezirgan.offers = Pazar.teklifler(d, boss_once)
 	actors.add_child(bezirgan)
+	Game.run["bezirgan_gordu"] = true   # v32: bu derinlikte pazar vardı; konağa gelmez
 	var wr := bezirgan.world_rect()
 	for p in pickups:
 		if is_instance_valid(p) and wr.grow(20.0).has_point(p.position):
@@ -2766,16 +2935,25 @@ func _process(_delta: float) -> void:
 	if player and not player.dead:
 		Game.run["time"] = float(Game.run.get("time", 0.0)) + _delta
 		var tap := _etkiles_tap()
-		if hub:
+		if hub or konak:
 			# v24: Demirci'nin dövdüğü eşya yurtta yerde durur: yakınsa önce o alınır, yoksa NPC ile konuşulur
+			# v32: konakta da (Bezirgân'ın kilimine düşen mal; Usta ve Sartak)
+			if konak:
+				_konak_tick()
 			var hp_item := nearest_item(player.global_position + Vector2(0, -10))
 			if hp_item and tap and hp_item.kind == "item":
 				try_equip(hp_item)
+				return
+			if hp_item and tap and hp_item.kind == "tilsim":
+				scroll_requested.emit(hp_item)
 				return
 			var n := nearest_npc()
 			if n and tap:
 				n.talk()
 				npc_requested.emit(n.id)
+			elif tap and bezirgan != null and bezirgan.near:
+				bezirgan.talk()
+				tuccar_requested.emit()
 			return
 		var p := nearest_item(player.global_position + Vector2(0, -10))
 		if p and tap:
