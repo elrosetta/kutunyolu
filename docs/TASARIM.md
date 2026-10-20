@@ -6127,6 +6127,8 @@ yolun 2/3'ü gezilmiş tam harita: "?" ipuçları ve "Hazine 0/6 · Tomar 0/3 ·
 
 ## v35: vahşet — parçalanma, kalıcı cesetler, sesler
 
+> v36'da parçalanma / kalıcı ceset yolu ve vahset_olum / yirtil / dusme sesleri kaldırıldı: bkz. "v36: Dead Cells tarzı ölüm patlaması".
+
 İstek: "Düşmanlar ölünce parçalara ayrılsın, kanlı gövdeleri yerde kalsın; vuruş sesleri de vahşet olsun. Kritik sesini hâlâ
 beğenmiyorum, düz METAL bir ses olsun (Dead Cells'teki gibi ama kopya değil)."
 
@@ -6294,3 +6296,52 @@ oto_dönüş=0, istenmeyen_ağır=0; `--sanat --boss --muhur=0` SONUC GECTI hata
 Bilinen: parçalar hâlâ yaratık sprite'ının kendisi (gerçek 3B değil, gölge sahte); taşıyıcı nesnelerin (küp, çömlek)
 üstünde durabilir; pencereli başarım parça gölgelendiricisiyle düştü (çok parçalı sahnede 4K yakalamada), gerekirse
 `MAX_PIECES` (280) düşürülür. Taş / tahta yaratıkta kesit boyası yalnızca açık taş grisi.
+
+## v36: Dead Cells tarzı ölüm patlaması
+
+İstek: "Hiç beğenmedim, 2B bir nesne yırtılmış gibi duruyor. Dead Cells'te düşman ölünce kan yoğun ve parça parça
+fışkırıyor, 'dışşkk' diye bir ölüm sesi çalıyor, gövde anında yok oluyor, parçalar saçılıyor, o kadar."
+
+### Patlama (`scripts/core/Gore.gd`, `Enemy._die`, `Boss._v29_death`)
+
+* v35'in sprite dilimleme yolu (Polygon2D parçalar, et gölgelendiricileri, kalıcı cesetler, parça sınırı, `Gore.warm`)
+  tamamen kaldırıldı. Ölümde gövde anında kaybolur (uçan ceset / `_ds_death` / çözülme yok).
+* `Gore.burst(merkez, yarı_boy, yön, güç, renk, malzeme, ölçek)`: gövde silueti içinden sıkışık patlama.
+  - et: (44 + 26·(güç-1))·ölçek küçük düzensiz kan topağı (dönen iki dörtgen + üst-solda ışık kıyısı; Dead Cells
+    örneğindeki gibi koyu kızıl / kırmızı / parlak kırmızı / kırmızı-pembe / pembe), 3-9 iri et topağı,
+    (44 + 30·(güç-1))·ölçek ince damla (hızla uzar) ve kısa kan buğusu;
+  - taş (`Gore.TAS`): gri moloz kırıntısı (yere iki kez seker, 4-7 sn kalır) + toz; ruh: mürekkep / ektoplazma tülü
+    (yukarı süzülür, genişleyip söner); ateş (`Gore.KOR`: sihirli_kandil, isilti_bocegi): titreyen korlar + duman.
+* %65'i öldürücü darbe yönüne eğilimli, hepsi yukarı itkili; yerçekimi + hava direnciyle yay çizer. Güç
+  `Enemy._gore_power` (aşırı hasar, kritik, ağır vuruş; bitiriş +0,3), ölçek seçkin 1,4, boss 2,2 × 3 dalga.
+  Bitirişte yön KesikFX'in ana kesik yönü + savurma (opts.kesik_yon / launch).
+* Zemine düşen topak küçük yassı leke (8-15 sn), damlaların %35'i leke (4-8 sn), duvara çarpan duvar lekesi (3-6 sn);
+  lekeler son 1,5 sn'de söner, en çok 600 (dolunca en eskinin yerine). Renkler `Blood.telafi_of` ile gece ortam
+  ışığına karşı yükseltilir (Ötüken / Şahmeran'da kırmızı okunur).
+* Ölüm sırası olan boss: Enemy._die patlamaz (`v36_gec_patla`), ölüm satırının son karesinden sonra gövdenin üç
+  noktasından dev patlama + iki ağır "dışşkk", gövde gizlenir.
+* Başarım: bütün zerreler tek düğümde paralel dizilerde, çizim tek üçgen dizisi (önceden ayrılmış diziler, sabit dizin
+  kalıbı); lekeler ayrı tuvalde, yalnızca değişince / 4 karede bir yeniden çizilir.
+
+### Ses (`tools/audiogen/v36.py`)
+
+| ses | yapı | nerede |
+|---|---|---|
+| `vahset_patla_1..4` | 3 ms tık + Kenney impactPunch (perde düşük, doyurulmuş) + alt güm + ıslak şapırtı + tiz ıslak hışırtı ("şş", ~0,26 sn) + kuyrukta kısa çıtırtı ("kk"); ~0,27 sn | sıradan etli öldürüş |
+| `vahset_patla_agir_1..3` | aynısı, daha dolgun alt, daha uzun hışırtı (~0,37 sn) | kritik / bitiriş / seçkin / boss |
+| `vahset_et_1..4` | v35 etli darbe, geçiş vurgusu artırıldı, 0,22 sn | her vuruş (etli) |
+
+`vahset_olum`, `vahset_yirtil`, `vahset_dusme` silindi; vuruştaki `vahset_kemik` ve metal kritik korundu. Kritik
+öldürüşte patlama sesi 2 dB kısık (metal üstte okunur). Kaynaklar: sentez + yerel CC0 Kenney kayıtları.
+
+### Test (`tools/tests/vahset_testi.gd`, `-- --vahset [--vahset_cek=<klasör>] [--vahset_boss] [--vahset_cik]`)
+
+* Şeritler (0 / 0,05 / 0,1 / 0,2 / 0,4 / 0,8 sn, duvar saati; ilk kareler vuruş duraksamasında): sıradan, kritik,
+  bitiriş, seçkin, taş; `docs/v36/gore/serit_<ad>_<biyom>.jpg` (otuken, sahmeran), boss: `serit_boss_otuken.jpg`,
+  Dead Cells örneğiyle yan yana: `karsilastirma_deadcells.jpg`.
+* 40 öldürüş (8'lik dalgalar, 8 öldürüş art arda 8 fizik karesinde): tepe ~1000 canlı zerre; Gore'un kendi kare maliyeti
+  (fizik + çizim + leke) çoğu karede < 0,5 ms, tepe ~5-7 ms (8 eşzamanlı patlamanın hemen ardından, bu yavaş test
+  makinesinde; oyunun kendi ortalama karesi aynı makinede ~27-33 ms); tek patlama kurulumu ≤ 0,7 ms. Boss patlaması:
+  ~1200 zerre, fizik 1,3 ms + çizim 2 ms.
+* `--dovus --boss --kontrol`, `--sanat --boss --muhur=0` (GECTI), `--otomatik --derinlik=1/3`, `--piksel_tara`
+  (TOPLAM 0): betik hatası 0.

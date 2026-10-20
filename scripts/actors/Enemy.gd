@@ -219,7 +219,6 @@ func _ready() -> void:
 	# olduğundan biyom tonu uygulanmaz (yoklama: kendi çeşitlemesi yoksa taban türün v2 sprite'ı kullanılır)
 	var own_v2 := kind != sprite_kind and FileAccess.file_exists("res://assets/sprites/%s_%s.json" % [kind, Data.STIL])
 	anim.setup(kind if own_v2 else sprite_kind)
-	Gore.warm(anim)   # v35: parçalanma maskesi önceden (ilk öldürüşte takılma yok)
 	_ds_setup()
 	if def.has("tint") and not own_v2:
 		var tt: Array = def["tint"]
@@ -460,8 +459,8 @@ func take_hit(d: float, opts: Dictionary) -> bool:
 			Ses.hit(tier, center())
 		elif crit:
 			Ses.play("darbe_kritik", 0.0)
-	# v35 vahşet: etli yaratıkta her vuruşa etli darbe + şapırtı; büyük / kritik vuruşa kemik çatırtısı (öldürüşte
-	# _die'nin parçalanma sesleri çalar)
+	# v35 vahşet: etli yaratıkta her vuruşa etli darbe + şapırtı (v36: daha çıtkı); büyük / kritik vuruşa kemik
+	# çatırtısı (öldürüşte _die'nin "dışşkk" patlama sesi çalar)
 	if is_flesh() and hp > 0.0:
 		Ses.play("vahset_et", -6.0 if not big else -2.5, 1.0, 0.1, 0.03, center())
 		if big or opts.get("heavy", false):
@@ -601,41 +600,27 @@ func _die(dir := 1.0, kb := 100.0, crit := false) -> void:
 	if SlashFX.has("kill_flash"):
 		FX.slash_sprite("kill_flash", center(), 0.0, Vector2(1.0, 1.0) * (1.4 if elite else 1.0), Color(1.0, 0.97, 0.9), true, Vector2(-1, -1), null, 30.0)
 	Game.rumble(0.5 if not elite else 0.8, 0.25, 0.12 if not elite else 0.25)
-	if level and level.has_method("ground_y_below"):
+	if is_flesh() and level and level.has_method("ground_y_below"):
 		var gy: float = level.ground_y_below(global_position + Vector2(0, -4))
 		if gy >= 0.0:
 			FX.decal("decal_blood_%d" % (randi() % 3), Vector2(global_position.x + dir * 6.0, gy + 2), 0.0, 10.0, 1.0 + (0.5 if elite else 0.0), Color(blood_col(), 0.85))
-	# v35 vahşet: gövde öldürücü darbe yönünde parçalanır (etli: kanlı parçalar yerde kalır; taş: yığın; ruh / ateş:
-	# tül / kor olup söner); güç aşırı hasar, ağır vuruş, kritik, seçkin / boss ile artar. Olmazsa eski ceset yolu.
+	# v36 Dead Cells tarzı ölüm patlaması: gövde anında kaybolur (ceset / parçalanma yok), yerinde gövde silueti içinden
+	# sıkışık kan topağı + damla + buğu patlaması (taş: moloz + toz; ruh: mürekkep tülü; ateş: kor) öldürücü darbe
+	# yönüne ve yukarı fırlar. Güç aşırı hasar, ağır vuruş, kritik, bitiriş ile; ölçek seçkin / boss ile büyür.
+	# Ölüm sırası olan boss (Boss._v29_death) patlamasını kendi son karesinden sonra yapar.
 	var gk := _gore_power(kb, crit)
 	var gm := Gore.material_of(sprite_kind, kind, is_flesh())
-	var made := 0
-	# v35 birleştirme: bitirişle ölüm → ilk kesik KesikFX'in ana darbesi açısında (Player opts.kesik_yon), parçalar
-	# bitirişin savurmasını (opts.launch) yukarı yönlü ek itki olarak alır, güç +0,3
+	# v35 birleştirme: bitirişle ölüm → patlama KesikFX'in ana darbesi yönünde (Player opts.kesik_yon), bitirişin
+	# savurması (opts.launch) yukarı ek itki, güç +0,3
 	var g_dir := Vector2(dir if dir != 0.0 else float(facing), -0.35)
 	var ky: Vector2 = _son_vurus.get("kesik_yon", Vector2.ZERO)
 	if ky != Vector2.ZERO:
+		g_dir = ky.normalized() * 0.7 + Vector2(signf(ky.x) if ky.x != 0.0 else float(facing), 0.0) * 0.3
 		g_dir.y -= clampf(float(_son_vurus.get("launch", 0.0)) / 300.0, 0.0, 0.6)
 		gk = minf(3.0, gk + 0.3)
-	var gn := clampi(3 + int(round((gk - 1.0) * 1.6)), 3, 6) if not is_boss else 6
-	if gm != Gore.MAT_RUH:
-		made = Gore.dismember(anim.base, g_dir, gk, gn, blood_col(), gm, is_boss, ky)
-	if made > 0:
-		if gm == Gore.MAT_ET:
-			# kritik öldürüşte vahşet katmanı 2,5 dB kısık ve ikinci kemik çatırtısı yok (vuruştaki kemik çaldı):
-			# metal kritik (Krit veri yolu + krit_duck) üstte okunur, Master sınırlayıcısı pompalanmaz
-			var kd := -2.5 if crit else 0.0
-			Ses.play("vahset_olum", -1.0 + minf(gk - 1.0, 1.5) * 1.5 + kd, 1.0, 0.06, 0.03, center())
-			Ses.play("vahset_yirtil", -3.0 + kd, 1.0, 0.08, 0.04, center())
-			if not crit:
-				Ses.play("vahset_kemik", -3.0, 0.9, 0.1, 0.0, center())
-			Blood.splat(center(), blood_col(), 3 + int(gk * 2.0), false)
-	elif not _ds_death(Vector2(dir * maxf(140.0, kb * 1.3), -220.0 - kb * 0.4)):
-		FX.corpse(anim.base, Vector2(dir * maxf(140.0, kb * 1.3), -220.0 - kb * 0.4), blood_col())
-	if gm == Gore.MAT_RUH:
-		Gore.dismember(anim.base, Vector2(dir, -0.5), gk, 3, blood_col(), gm)
-	FX.blood(center(), Vector2(dir, -0.8), blood_col(), 16)
-	Blood.burst(center(), Vector2(dir, -0.6), blood_col(), int((45 + (40 if elite else 0) + (90 if is_boss else 0)) * (1.0 + 0.4 * minf(gk - 1.0, 2.0))), (randi_range(4, 6) + (4 if elite else 0) + (10 if is_boss else 0) + int(gk * 2.0)), is_flesh())
+	if not has_meta("v36_gec_patla"):
+		Gore.burst(center(), size * 0.5, g_dir, gk, blood_col(), gm, 1.4 if elite else (3.0 if is_boss else 1.0))
+		_death_sfx(gm, gk, crit or ky != Vector2.ZERO or elite or is_boss, center())
 	# sade ölüm: kan + ceset + ruh zerresi okunur; eski koyu kırmızı duman diski ve her ölümde halka kaldırıldı
 	# (üst üste 10 katman ekranı bulandırıyordu)
 	FX.smoke(center(), 3, 0.4, Color(0.32, 0.3, 0.36, 0.45))
@@ -652,8 +637,20 @@ func _die(dir := 1.0, kb := 100.0, crit := false) -> void:
 	queue_free()
 
 
+func _death_sfx(gm: int, gk: float, agir: bool, at: Vector2) -> void:
+	## v36 ölüm sesi: etli yaratıkta kısa ıslak "dışşkk" (kritik / bitiriş / seçkin / boss: ağır çeşit). Kritik metal
+	## sesi üstte okunsun diye kritik öldürüşte 2 dB kısık.
+	if gm != Gore.MAT_ET:
+		return
+	var kd := -2.0 if _son_vurus.get("crit", false) else 0.0
+	if agir:
+		Ses.play("vahset_patla_agir", minf(gk - 1.0, 1.5) * 1.2 + kd, 1.0, 0.07, 0.03, at)
+	else:
+		Ses.play("vahset_patla", kd, 1.0, 0.09, 0.03, at)
+
+
 func _gore_power(kb: float, crit: bool) -> float:
-	## v35: parçalanma gücü 0,7..3: aşırı hasar (can kaç kat aşıldı), ağır vuruş / büyük itme, kritik, seçkin / boss
+	## v35: ölüm patlaması gücü 0,7..3: aşırı hasar (can kaç kat aşıldı), ağır vuruş / büyük itme, kritik, seçkin / boss
 	var over := clampf(-hp / maxf(1.0, max_hp), 0.0, 2.0)
 	var k := 1.0 + over * 0.7
 	if crit or _son_vurus.get("crit", false):

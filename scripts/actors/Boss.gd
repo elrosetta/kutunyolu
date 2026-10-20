@@ -446,19 +446,24 @@ func _v29_death() -> void:
 	tw.tween_callback(func() -> void:
 		FX.smoke(host.global_position + Vector2(0, -40), 6, 0.9, Color(0.3, 0.28, 0.34, 0.5))
 		FX.soul(host.global_position + Vector2(0, -50), fx_c, 30))
-	# v35 vahşet: etli boss son karesinden parçalanır, kanlı parçaları bölüm boyunca yerde kalır (taş / ruh: eski sönüş)
+	# v36: ölüm satırının son karesinden sonra gövde anında kaybolur, yerinde dev Dead Cells tarzı ölüm patlaması
+	# (üç dalga, gövdenin üç noktasından; Enemy._die bu boss için kendi patlamasını yapmaz: "v36_gec_patla")
 	var gm := Gore.material_of(sprite_kind, kind, is_flesh())
 	var bcol := blood_col()
-	if gm != Gore.MAT_RUH:
-		tw.tween_callback(func() -> void:
-			if Gore.dismember(sa.base, Vector2(float(dir), -0.4), 2.6, 6, bcol, gm, true) > 0:
-				if gm == Gore.MAT_ET:
-					Ses.play("vahset_olum", 2.0, 0.8, 0.03, 0.0, host.global_position)
-					Ses.play("vahset_yirtil", 0.0, 0.85, 0.05, 0.0, host.global_position)
-					Blood.burst(host.global_position + Vector2(0, -40), Vector2(float(dir), -0.6), bcol, 160, 14, true)
-				Game.shake(5.0)
-				sa.visible = false)
-	tw.tween_property(sa, "modulate", Color(0.2, 0.15, 0.25, 0.0), 1.3)
+	var ext := size * 0.5
+	set_meta("v36_gec_patla", true)
+	tw.tween_callback(func() -> void:
+		var c := host.global_position + Vector2(0.0, -ext.y)
+		for i in 3:
+			var o := Vector2(randf_range(-0.5, 0.5) * ext.x, (float(i) - 1.0) * ext.y * 0.45)
+			Gore.burst(c + o, ext * 0.6, Vector2(float(dir), -0.5), 2.6, bcol, gm, 2.2)
+		if gm == Gore.MAT_ET:
+			Ses.play("vahset_patla_agir", 2.0, 0.8, 0.03, 0.0, c)
+			Ses.play("vahset_patla_agir", 0.0, 0.92, 0.03, 0.0, c)
+		Game.shake(5.0)
+		Game.hitstop(0.08)
+		sa.visible = false)
+	tw.tween_interval(0.6)
 	tw.tween_callback(host.queue_free)
 	anim.base.texture = null   # uçan ceset ve darbe karesi silueti yerine yukarıdaki ölüm sırası
 	if anim.glow:

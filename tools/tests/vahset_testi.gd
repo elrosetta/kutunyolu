@@ -1,11 +1,10 @@
 extends Node
-## v35 vahşet testi / çekimi (-- --vahset [--vahset_cek=<klasör>]):
-##   1) üç öldürüş (sıradan, kritik, ağır + aşırı hasar) için parçalanma kare şeridi (pencereli koşuda PNG);
-##   2) başarım: arenada 40 öldürüş (8'lik dalgalar), her dalgada FPS, kare süresi, Gore parça / hareketli sayısı;
-##   3) dövüşten sonra cesetlerin kaldığı oda görüntüsü.
-## v35 birleştirme: 4. şerit "bitiris" (Player._finisher_fx yolunun benzeri: opts.launch + opts.kesik_yon, KesikFX kesiği,
-## öldürüş ağır çekimi; ilk parçalanma kesiği fırça darbesiyle aynı açıda olmalı). Çekimde her şeridin 0,18 sn ve 1,6 sn
-## karesi tam ekran JPG olarak da kaydedilir (tam_<ad>_<i>.jpg), oda görüntüsü oda_cesetler.jpg.
+## v36 ölüm patlaması testi / çekimi (-- --vahset [--vahset_cek=<klasör>] [--vahset_cik]):
+##   1) kare şeritleri (0 / 0,05 / 0,1 / 0,2 / 0,4 / 0,8 sn): sıradan, kritik, bitiriş, seçkin öldürüş ve taş yaratık
+##      (pencereli koşuda serit_<ad>_<biyom>.jpg; --derinlik ile biyom seçilir);
+##      --vahset_boss: kara_boru_han ölüm satırından sonraki dev patlama da çekilir;
+##   2) başarım: arenada 40 öldürüş (8'lik dalgalar, aynı karede), her dalgada FPS, kare süresi, Gore zerre / leke sayısı;
+##   3) dövüşten sonra oda görüntüsü (lekeler sönüyor mu: oda_<biyom>.jpg).
 ## Çıktı satırları "[vahset] ..."; headless'ta görüntü alınmaz, ölçümler yine yazılır.
 
 var main: Node
@@ -45,16 +44,23 @@ func _shot() -> Image:
 
 
 func _screen_pos(p: Vector2) -> Vector2:
-	## dünya → yakalanan görüntü pikseli (kanvas dönüşümü görünür alan biriminde; doku boyuna ölçeklenir)
+	## dünya → yakalanan görüntü pikseli (kamera merkezi + yakınlaştırma; görünür alandan doku boyuna ölçeklenir)
 	var vp := get_viewport()
-	return (vp.get_canvas_transform() * p) * (Vector2(vp.get_texture().get_size()) / vp.get_visible_rect().size)
+	var cam: Camera2D = vp.get_camera_2d()
+	var vs := vp.get_visible_rect().size
+	var q := (p - cam.get_screen_center_position()) * cam.zoom + vs * 0.5 if cam else vp.get_canvas_transform() * p
+	return q * (Vector2(vp.get_texture().get_size()) / vs)
 
 
-func _strip(name: String, kind: String, opts: Dictionary, dmg_k: float) -> void:
+func _biyom() -> String:
+	return String(main.level.biome.get("id", "otuken"))
+
+
+func _strip(name: String, kind: String, opts: Dictionary, dmg_k: float, elite := false) -> void:
 	var pl: Node2D = main.level.player
 	_clear()
-	await _wait(0.2)
-	var en: Node = main.level.spawn_enemy(kind, pl.global_position + Vector2(70, -2), false)
+	await _wait(0.3)
+	var en: Node = main.level.spawn_enemy(kind, pl.global_position + Vector2(70, -2), elite)
 	if en == null:
 		print("[vahset] %s: yaratık yok" % name)
 		return
@@ -62,13 +68,16 @@ func _strip(name: String, kind: String, opts: Dictionary, dmg_k: float) -> void:
 	await _wait(0.5)
 	en.set_physics_process(true)
 	var c: Vector2 = en.center() if en.has_method("center") else en.global_position
-	var sp := _screen_pos(c + Vector2(30, 10))
-	print("[vahset] ekran=%s gorunur=%s doku=%s" % [str(sp), str(get_viewport().get_visible_rect().size), str(get_viewport().get_texture().get_size())])
-	var ts := [0.0, 0.08, 0.18, 0.32, 0.55, 0.9, 1.6, 3.0]
+	var sp := _screen_pos(c)
+	print("[vahset] ekran=%s doku=%s" % [str(sp), str(get_viewport().get_texture().get_size())])
+	var ts := [0.0, 0.05, 0.1, 0.2, 0.4, 0.8]
 	var frames: Array = []
-	var t0 := Time.get_ticks_msec()
 	var o := opts.duplicate()
 	o["dir"] = 1
+	var bekle := bool(o.get("_bekle", false))   # boss: ölüm satırından sonraki gecikmeli patlamayı bekle
+	o.erase("_bekle")
+	var n0 := int(Gore.stats().get("patlama", 0))
+	var t0 := Time.get_ticks_msec()
 	if o.has("_kesik_sinif"):
 		# bitiriş: Player'daki gibi kesik yönü + savurma, sonra kesik ve öldürüş ağır çekimi (_finisher_fx)
 		var cls := String(o["_kesik_sinif"])
@@ -80,38 +89,39 @@ func _strip(name: String, kind: String, opts: Dictionary, dmg_k: float) -> void:
 		Game.slowmo(float(Player.V35["olum_yavas"][0]), float(Player.V35["olum_yavas"][1]))
 	else:
 		en.take_hit(float(en.hp) * dmg_k + 1.0, o)
+	if bekle:
+		var tb := Time.get_ticks_msec()
+		while int(Gore.stats().get("patlama", 0)) == n0 and Time.get_ticks_msec() - tb < 9000:
+			await get_tree().process_frame
+		print("[vahset] boss gecikmeli patlama: %.2f sn sonra, patlama=%d" % [float(Time.get_ticks_msec() - tb) / 1000.0, int(Gore.stats().get("patlama", 0)) - n0])
+		t0 = Time.get_ticks_msec()
+	var st := Gore.stats()
 	for t in ts:
+		# oyun zamanı (vuruş duraksaması / ağır çekim dahil) yerine duvar saati: oyuncunun gördüğü an
 		var dt := float(t) - float(Time.get_ticks_msec() - t0) / 1000.0
 		if dt > 0.0:
 			await _wait(dt)
 		var im: Image = await _shot()
 		if im:
 			frames.append(im)
-			if float(t) == 0.18 or float(t) == 1.6 or float(t) == 3.0:
-				# yakın çekim: yakalama dokusunun kendi çözünürlüğünde (1080p'nin ~2 katı) öldürüş çevresi
-				var yr := Rect2i(int(sp.x) - 420, int(sp.y) - 470, 1200, 640)
-				yr.position.x = clampi(yr.position.x, 0, im.get_width() - yr.size.x)
-				yr.position.y = clampi(yr.position.y, 0, im.get_height() - yr.size.y)
-				im.get_region(yr).save_jpg(out_dir.path_join("yakin_%s_%d.jpg" % [name, frames.size()]), 0.92)
-			if float(t) == 0.18 or float(t) == 1.6:
-				var tam := im.duplicate()
-				tam.resize(1920, 1080, Image.INTERPOLATE_LANCZOS)
-				tam.save_jpg(out_dir.path_join("tam_%s_%d.jpg" % [name, frames.size()]), 0.9)
-	print("[vahset] %s %s parca=%s" % [name, kind, str(Gore.stats())])
+	print("[vahset] %s %s biyom=%s patlama_sonrasi=%s" % [name, kind, _biyom(), str(st)])
 	if frames.is_empty():
 		return
-	var cw := 1000
-	var chh := 560
+	var tex_k: float = float(frames[0].get_width()) / 1920.0
+	sp *= float(frames[0].get_width()) / float(get_viewport().get_texture().get_size().x)   # görüntü dokudan küçük olabilir
+	var cw := int(400 * tex_k)
+	var chh := int(300 * tex_k)
 	var strip := Image.create(cw * frames.size(), chh, false, Image.FORMAT_RGBA8)
 	for i in frames.size():
 		var im2: Image = frames[i]
 		im2.convert(Image.FORMAT_RGBA8)
-		var r := Rect2i(int(sp.x * 0.5) - 300, int(sp.y) - chh / 2 - 60, cw, chh)   # görgül: yatayda yakalama ölçeği yarı
+		var r := Rect2i(int(sp.x) - cw / 2, int(sp.y) - chh / 2 - int(30 * tex_k), cw, chh)
 		r.position.x = clampi(r.position.x, 0, im2.get_width() - cw)
 		r.position.y = clampi(r.position.y, 0, im2.get_height() - chh)
 		strip.blit_rect(im2, r, Vector2i(i * cw, 0))
-	strip.resize(strip.get_width() / 2, strip.get_height() / 2, Image.INTERPOLATE_LANCZOS)
-	strip.save_png(out_dir.path_join("serit_%s.png" % name))
+	var k := 2400.0 / float(strip.get_width())
+	strip.resize(2400, int(strip.get_height() * k), Image.INTERPOLATE_LANCZOS)
+	strip.save_jpg(out_dir.path_join("serit_%s_%s.jpg" % [name, _biyom()]), 0.9)
 
 
 func _run() -> void:
@@ -124,9 +134,12 @@ func _run() -> void:
 	# 1) şeritler
 	await _strip("siradan", "kara_boru", {"kb": 120.0}, 1.0)
 	await _strip("kritik", "surale", {"kb": 200.0, "crit": true}, 1.6)
-	await _strip("agir", "sicrayan_tazi", {"kb": 340.0, "heavy": true}, 3.0)
 	await _strip("bitiris", "sicrayan_tazi", {"kb": 220.0, "_kesik_sinif": "agir"}, 1.3)
-	await _strip("bitiris_kilic", "kara_boru", {"kb": 200.0, "_kesik_sinif": "kilic"}, 1.3)
+	await _strip("seckin", "kara_boru", {"kb": 200.0, "heavy": true}, 1.5, true)
+	await _strip("tas", "balbal", {"kb": 160.0}, 1.2)
+	if OS.get_cmdline_user_args().has("--vahset_boss"):
+		await _strip("boss", "kara_boru_han", {"kb": 200.0, "crit": true, "_bekle": true}, 40.0)
+	await _wait(1.0)
 	# 2) başarım: 40 öldürüş
 	_clear()
 	await _wait(0.3)
@@ -163,12 +176,11 @@ func _run() -> void:
 	await _wait(3.0)
 	var g := Gore.stats()
 	print("[vahset] SON olum=%d en_kotu_kare_ms=%.2f gore=%s nesne=%d" % [n, worst, str(g), int(Performance.get_monitor(Performance.OBJECT_NODE_COUNT))])
-	# 3) oda görüntüsü: cesetler kaldı mı
+	# 3) oda görüntüsü: lekeler sönüyor (ceset yok)
 	var im: Image = await _shot()
 	if im:
-		im.resize(im.get_width() / 2, im.get_height() / 2, Image.INTERPOLATE_LANCZOS)
-		im.save_png(out_dir.path_join("oda_cesetler.png"))
-		im.save_jpg(out_dir.path_join("oda_cesetler.jpg"), 0.9)
+		im.resize(1920, 1080, Image.INTERPOLATE_LANCZOS)
+		im.save_jpg(out_dir.path_join("oda_%s.jpg" % _biyom()), 0.88)
 	print("[vahset] BITTI")
 	if OS.get_cmdline_user_args().has("--vahset_cik"):
 		get_tree().quit()

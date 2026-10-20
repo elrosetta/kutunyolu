@@ -1512,26 +1512,6 @@
   "len": 1.5,
   "hedef_db": -8.5
  },
- "vahset_dusme_1": {
-  "loop": false,
-  "len": 0.14,
-  "hedef_db": -16.0
- },
- "vahset_dusme_2": {
-  "loop": false,
-  "len": 0.14,
-  "hedef_db": -16.0
- },
- "vahset_dusme_3": {
-  "loop": false,
-  "len": 0.14,
-  "hedef_db": -16.0
- },
- "vahset_dusme_4": {
-  "loop": false,
-  "len": 0.14,
-  "hedef_db": -16.0
- },
  "vahset_et_1": {
   "loop": false,
   "len": 0.206,
@@ -1572,34 +1552,39 @@
   "len": 0.12,
   "hedef_db": -12.5
  },
- "vahset_olum_1": {
+ "vahset_patla_1": {
   "loop": false,
-  "len": 0.51,
-  "hedef_db": -8.5
+  "len": 0.272,
+  "hedef_db": -8.0
  },
- "vahset_olum_2": {
+ "vahset_patla_2": {
   "loop": false,
-  "len": 0.51,
-  "hedef_db": -8.5
+  "len": 0.272,
+  "hedef_db": -8.0
  },
- "vahset_olum_3": {
+ "vahset_patla_3": {
   "loop": false,
-  "len": 0.51,
-  "hedef_db": -8.5
+  "len": 0.278,
+  "hedef_db": -8.0
  },
- "vahset_yirtil_1": {
+ "vahset_patla_4": {
   "loop": false,
-  "len": 0.403,
-  "hedef_db": -12.0
+  "len": 0.298,
+  "hedef_db": -8.0
  },
- "vahset_yirtil_2": {
+ "vahset_patla_agir_1": {
   "loop": false,
-  "len": 0.42,
-  "hedef_db": -12.0
+  "len": 0.372,
+  "hedef_db": -7.0
  },
- "vahset_yirtil_3": {
+ "vahset_patla_agir_2": {
   "loop": false,
-  "len": 0.42,
-  "hedef_db": -12.0
+  "len": 0.372,
+  "hedef_db": -7.0
+ },
+ "vahset_patla_agir_3": {
+  "loop": false,
+  "len": 0.372,
+  "hedef_db": -7.0
  }
 }

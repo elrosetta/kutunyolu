@@ -93,7 +93,7 @@ func _ready() -> void:
 		yt2.set("main", self)
 		add_child(yt2)
 	if OS.get_cmdline_user_args().has("--vahset"):
-		# v35 vahşet testi (tools/tests/vahset_testi.gd): parçalanma şeritleri, 40 öldürüşte başarım, ceset odası
+		# v36 ölüm patlaması testi (tools/tests/vahset_testi.gd): kare şeritleri, 40 öldürüşte başarım, oda görüntüsü
 		var vt: Node = load("res://tools/tests/vahset_testi.gd").new()
 		vt.set("main", self)
 		add_child(vt)
