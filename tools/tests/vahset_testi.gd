@@ -3,6 +3,9 @@ extends Node
 ##   1) üç öldürüş (sıradan, kritik, ağır + aşırı hasar) için parçalanma kare şeridi (pencereli koşuda PNG);
 ##   2) başarım: arenada 40 öldürüş (8'lik dalgalar), her dalgada FPS, kare süresi, Gore parça / hareketli sayısı;
 ##   3) dövüşten sonra cesetlerin kaldığı oda görüntüsü.
+## v35 birleştirme: 4. şerit "bitiris" (Player._finisher_fx yolunun benzeri: opts.launch + opts.kesik_yon, KesikFX kesiği,
+## öldürüş ağır çekimi; ilk parçalanma kesiği fırça darbesiyle aynı açıda olmalı). Çekimde her şeridin 0,18 sn ve 1,6 sn
+## karesi tam ekran JPG olarak da kaydedilir (tam_<ad>_<i>.jpg), oda görüntüsü oda_cesetler.jpg.
 ## Çıktı satırları "[vahset] ..."; headless'ta görüntü alınmaz, ölçümler yine yazılır.
 
 var main: Node
@@ -66,7 +69,17 @@ func _strip(name: String, kind: String, opts: Dictionary, dmg_k: float) -> void:
 	var t0 := Time.get_ticks_msec()
 	var o := opts.duplicate()
 	o["dir"] = 1
-	en.take_hit(float(en.hp) * dmg_k + 1.0, o)
+	if o.has("_kesik_sinif"):
+		# bitiriş: Player'daki gibi kesik yönü + savurma, sonra kesik ve öldürüş ağır çekimi (_finisher_fx)
+		var cls := String(o["_kesik_sinif"])
+		o.erase("_kesik_sinif")
+		o["kesik_yon"] = KesikFX.ana_yon(cls, 1)
+		o["launch"] = float(Player.V35["fin_firlat"])
+		en.take_hit(float(en.hp) * dmg_k + 1.0, o)
+		KesikFX.bitiris(c, 1, cls, 1.2)
+		Game.slowmo(float(Player.V35["olum_yavas"][0]), float(Player.V35["olum_yavas"][1]))
+	else:
+		en.take_hit(float(en.hp) * dmg_k + 1.0, o)
 	for t in ts:
 		var dt := float(t) - float(Time.get_ticks_msec() - t0) / 1000.0
 		if dt > 0.0:
@@ -74,6 +87,16 @@ func _strip(name: String, kind: String, opts: Dictionary, dmg_k: float) -> void:
 		var im: Image = await _shot()
 		if im:
 			frames.append(im)
+			if float(t) == 0.18 or float(t) == 1.6 or float(t) == 3.0:
+				# yakın çekim: yakalama dokusunun kendi çözünürlüğünde (1080p'nin ~2 katı) öldürüş çevresi
+				var yr := Rect2i(int(sp.x) - 420, int(sp.y) - 470, 1200, 640)
+				yr.position.x = clampi(yr.position.x, 0, im.get_width() - yr.size.x)
+				yr.position.y = clampi(yr.position.y, 0, im.get_height() - yr.size.y)
+				im.get_region(yr).save_jpg(out_dir.path_join("yakin_%s_%d.jpg" % [name, frames.size()]), 0.92)
+			if float(t) == 0.18 or float(t) == 1.6:
+				var tam := im.duplicate()
+				tam.resize(1920, 1080, Image.INTERPOLATE_LANCZOS)
+				tam.save_jpg(out_dir.path_join("tam_%s_%d.jpg" % [name, frames.size()]), 0.9)
 	print("[vahset] %s %s parca=%s" % [name, kind, str(Gore.stats())])
 	if frames.is_empty():
 		return
@@ -102,6 +125,8 @@ func _run() -> void:
 	await _strip("siradan", "kara_boru", {"kb": 120.0}, 1.0)
 	await _strip("kritik", "surale", {"kb": 200.0, "crit": true}, 1.6)
 	await _strip("agir", "sicrayan_tazi", {"kb": 340.0, "heavy": true}, 3.0)
+	await _strip("bitiris", "sicrayan_tazi", {"kb": 220.0, "_kesik_sinif": "agir"}, 1.3)
+	await _strip("bitiris_kilic", "kara_boru", {"kb": 200.0, "_kesik_sinif": "kilic"}, 1.3)
 	# 2) başarım: 40 öldürüş
 	_clear()
 	await _wait(0.3)
@@ -143,6 +168,7 @@ func _run() -> void:
 	if im:
 		im.resize(im.get_width() / 2, im.get_height() / 2, Image.INTERPOLATE_LANCZOS)
 		im.save_png(out_dir.path_join("oda_cesetler.png"))
+		im.save_jpg(out_dir.path_join("oda_cesetler.jpg"), 0.9)
 	print("[vahset] BITTI")
 	if OS.get_cmdline_user_args().has("--vahset_cik"):
 		get_tree().quit()

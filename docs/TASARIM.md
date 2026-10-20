@@ -6251,3 +6251,46 @@ kırmızı çerçeve temas, sarı çerçeve BITIRIS), `bitiris_once.jpg` / `biti
 
 Bilinen: kesik dünya uzayında (hedefle birlikte kaymaz, yerinde kurur); kalabalıkta her bitiriş tek kesik çizer (yalnızca
 ilk isabet). Hançer çarpısı çok yakın düşmanda oyuncunun üstüne taşabilir.
+
+## v35 birleştirme denetimi (vahşet + kombo)
+
+İstek: "Düşmanlar parçalansın, yerde KANLI gövdeler kalsın." Ek geri bildirim (test izlenirken): "Parçalanma kâğıttan
+kesilmiş gibi, dümdüz. Rastgele yerlerden kopsun, gövde yırtılsın, iyi gölgelensin; 3B et yığını gibi görünsün."
+
+* **Yırtık, düz kesik değil** (`Gore._cut_all`, `_jag`, `_tear`): ana yırtık darbe yönünde (±30°), sonrakiler çoğunlukla en
+  büyük, bazen rastgele bir orta boy parçadan, rastgele nokta ve açıyla (hep baş / bacak / kol değil). Kesik kenarları
+  ~1,6 dünya px'te bir bölünüp iki dalga + seyrek sivri lif uçlarıyla (±1,5 px, uçlar ×2,4) kırılır; iki yan aynı yırtık
+  işlevini kullanır (birbirini tamamlar). Parça sayısı 4-8 (eskiden 3-6).
+* **Hacim** (`PARCA_SHADER`): parça kendi üçgenlemesiyle (dış halka + ~3,6 px içeride iç halka + merkez) çizilir; köşe
+  rengi veri taşır (r: yırtığa yakınlık, b: et / taş). Kesit: koyu kızıl kenar → çiğ kırmızı et (lifli gürültü) → pembe
+  yağ şeridi → yırtığa yakın deri gölgesi. Ekranın yukarısı doku uzayında `-dFdy(UV)`: parça dönse de üst kenarda cel
+  ışık bandı + ıslak parlama, altta iki cel gölge bandı, ince kenar ışığı. Arkada 0,8 / 2,6 px kaymış koyu kızıl "yan yüz"
+  kopyası (kalınlık), durunca yerde yumuşak gölge. Uzuvların çoğunda en uzun yırtıkta fildişi kemik + koyu ilik noktası.
+  Taş yaratıkta kesit açık taş grisi (kan yok). Ruh / ateş parçaları değişmedi.
+* **Ek parçalar** (`Gore._gibs`): et topakları (küre cel ışık + parıltı + kontur), ağır / kritikte 1-2 bağırsak / sinir
+  şeridi (iki katman Line2D), 1-3 kemik kırığı; boss'ta fazlası. Yere inince ezilip titrer (elastik), dikilip kalmaz:
+  en yakın yatık duruşa devrilir / yuvarlanır, alt ucu zeminde kalır; altında kan göllenir.
+* **Koyu biyomda okunurluk** (`Blood._tone`, `Blood.telafi_of`, `ink_blood.gdshader`): kan daha doygun ve canlı (%3-15
+  koyulaşır, eskiden %12-30); gece ortam ışığı (CanvasModulate kırmızısı Yurt / Ötüken'de ~0,32) kanı ve eti siyaha
+  bastırıyordu, kan ve et gölgelendiricileri rengi `0,6 / ortam.r` katıyla (1-1,9) önceden yükseltir. Leke ortasında
+  küçük parlak ışık lekesi; kuruma tabanı 0,12 → 0,34 (kurumuş kan koyu kızıl kalır). Göl: gövde 5-8 sn, uzuv 1,5-3 sn
+  kanar, birleşen leke en çok 24 px (15), durunca gövdenin altına hemen üç iri leke.
+* **Bitiriş → parçalanma**: Player bitiriş vuruşunda `opts.kesik_yon = KesikFX.ana_yon(sınıf, yön)` (ilk fırça
+  darbesinin kirişi) verir; Enemy._die ilk yırtığı tam bu açıda gövdenin ortasından atar (dik yarma da), parçalar
+  `opts.launch`'u yukarı ek itki olarak alır, güç +0,3. Ağır çekim (0,12 sn ×0,35) parça fiziğini de yavaşlatır.
+* **Kritik öldürüş sesi**: metal kritik Krit veri yolunda ve konumsuz havuzda (24 ses); vahşet sesleri konumlu havuzda
+  (16, "vahset" sınırı 6): birbirini kesmez. Kritik öldürüşte vahşet ölüm katmanı 2,5 dB kısık ve ikinci kemik
+  çatırtısı yok (vuruştaki kemik zaten çaldı): kritik krit_duck'la üstte okunur, Master sınırlayıcısı pompalanmaz.
+* **Test**: `--vahset` artık test bayraklarında (eskiden Yurt'ta başlıyordu; `--derinlik=` biyomu seçer, gece Yurt için
+  `--yurt`). Yeni şeritler `bitiris` (sıçrayan tazı, ağır yarma) ve `bitiris_kilic` (kara böri, çapraz hilal);
+  `yakin_<şerit>_<kare>.jpg` yakalama çözünürlüğünde yakın çekim, `tam_*.jpg` tam ekran.
+
+Ölçüm (`--vahset --derinlik=1 --tohum=7`, 40 öldürüş + 5 şerit, en çok 280 parça): headless ortalama kare 7,2 ms, en kötü
+22,6 ms (önce 12,1 / 27,9). Pencereli 1920×1080 (4K yakalama dokusu) ~27 fps / 41 ms (önce ~43 fps / 25 ms; aynı anda
+dört headless test koşuyordu, kesin karşılaştırma değil). `--dovus --boss --kontrol` TAKILMA=0, basılmamış=0,
+oto_dönüş=0, istenmeyen_ağır=0; `--sanat --boss --muhur=0` SONUC GECTI hata=0; `--otomatik --derinlik=1/3 --muhur=0`,
+`--piksel_tara` (TOPLAM 0): betik hatası 0.
+
+Bilinen: parçalar hâlâ yaratık sprite'ının kendisi (gerçek 3B değil, gölge sahte); taşıyıcı nesnelerin (küp, çömlek)
+üstünde durabilir; pencereli başarım parça gölgelendiricisiyle düştü (çok parçalı sahnede 4K yakalamada), gerekirse
+`MAX_PIECES` (280) düşürülür. Taş / tahta yaratıkta kesit boyası yalnızca açık taş grisi.

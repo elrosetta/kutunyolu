@@ -40,6 +40,27 @@ static func sinif_of(cls: String) -> Dictionary:
 	return SINIF.get(cls, SINIF["kilic"])
 
 
+static func ana_yon(cls: String, facing: int) -> Vector2:
+	## v35 birleştirme: bitiriş kesiğinin ilk (ana) darbesinin dünya yönü (bitiris()'teki ilk _stroke'un a → b kirişi).
+	## Gore ilk kesiği buna göre atar: parçalanma çizgisi ekrandaki fırça darbesiyle örtüşür.
+	var fx := float(facing if facing != 0 else 1)
+	var d := Vector2(1.8 * fx, 1.3)
+	match String(sinif_of(cls)["sekil"]):
+		"iai":
+			d = Vector2(2.35 * fx, 0.17)
+		"carpi":
+			d = Vector2(1.6 * fx, 1.3)
+		"saplama":
+			d = Vector2(2.55 * fx, -0.04)
+		"supurme":
+			d = Vector2(2.25 * fx, 0.3)
+		"yarma":
+			d = Vector2(0.65 * fx, 1.9)
+		"kivrim":
+			d = Vector2(1.05 * fx, 0.35)
+	return d.normalized()
+
+
 static func bitiris(pos: Vector2, facing: int, cls: String, guc := 1.0, renk := Color(0, 0, 0, 0)) -> KesikFX:
 	## Zincir bitirişinin kesiği: pos hedefin merkezi, facing vuruş yönü, cls Player._tempo_class
 	if FX.root == null or Game.fx_scale <= 0.0:

@@ -9,6 +9,8 @@
 shader_type canvas_item;
 
 const vec3 INK = vec3(0.0075, 0.008, 0.012);
+// v35 birleştirme: gece ortam ışığı telafisi (Blood.telafi_of) ve ıslak parlak vurgu
+uniform float telafi = 1.0;
 
 float h1(float n) {
 	return fract(sin(n * 127.1 + 31.7) * 43758.5453);
@@ -53,10 +55,12 @@ void fragment() {
 		float aa = fwidth(dd) * 0.9 + 0.01;
 		a = smoothstep(aa, -aa, dd);
 		if (kind < 1.5) {
-			// koyu kenar (mürekkep sinmesi) + ortada ıslak parlama
-			col *= mix(0.42, 1.0, smoothstep(0.0, 0.22, -d));
-			float wet = 1.0 - smoothstep(0.0, 0.16, length(p - vec2(-0.25, -0.3)));
-			col = mix(col, col * 1.7 + 0.04, wet * 0.5);
+			// koyu kenar (mürekkep sinmesi) + ortada ıslak parlama + küçük parlak ışık lekesi (göl ıslak okunur)
+			col *= mix(0.5, 1.0, smoothstep(0.0, 0.22, -d));
+			float wet = 1.0 - smoothstep(0.0, 0.2, length(p - vec2(-0.25, -0.3)));
+			col = mix(col, col * 1.7 + 0.05, wet * 0.55);
+			float spec = 1.0 - smoothstep(0.0, 0.09, length((p - vec2(-0.32, -0.36)) * vec2(0.7, 1.4)));
+			col = mix(col, vec3(1.0, 0.86, 0.82), spec * 0.5);
 		} else {
 			col = mix(col, col * 1.45 + 0.03, smoothstep(0.1, -0.5, p.y + p.x * 0.4) * 0.6);
 			col = mix(col, INK, smoothstep(-0.2, -0.1, d));
@@ -71,5 +75,5 @@ void fragment() {
 		a = smoothstep(-aa, aa, m);
 		col *= mix(0.55, 1.0, smoothstep(0.0, 0.5, w - x));
 	}
-	COLOR = vec4(col, a * COLOR.a);
+	COLOR = vec4(col * telafi, a * COLOR.a);
 }

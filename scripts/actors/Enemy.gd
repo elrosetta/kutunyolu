@@ -608,16 +608,27 @@ func _die(dir := 1.0, kb := 100.0, crit := false) -> void:
 	# v35 vahşet: gövde öldürücü darbe yönünde parçalanır (etli: kanlı parçalar yerde kalır; taş: yığın; ruh / ateş:
 	# tül / kor olup söner); güç aşırı hasar, ağır vuruş, kritik, seçkin / boss ile artar. Olmazsa eski ceset yolu.
 	var gk := _gore_power(kb, crit)
-	var gn := clampi(3 + int(round((gk - 1.0) * 1.6)), 3, 6) if not is_boss else 6
 	var gm := Gore.material_of(sprite_kind, kind, is_flesh())
 	var made := 0
+	# v35 birleştirme: bitirişle ölüm → ilk kesik KesikFX'in ana darbesi açısında (Player opts.kesik_yon), parçalar
+	# bitirişin savurmasını (opts.launch) yukarı yönlü ek itki olarak alır, güç +0,3
+	var g_dir := Vector2(dir if dir != 0.0 else float(facing), -0.35)
+	var ky: Vector2 = _son_vurus.get("kesik_yon", Vector2.ZERO)
+	if ky != Vector2.ZERO:
+		g_dir.y -= clampf(float(_son_vurus.get("launch", 0.0)) / 300.0, 0.0, 0.6)
+		gk = minf(3.0, gk + 0.3)
+	var gn := clampi(3 + int(round((gk - 1.0) * 1.6)), 3, 6) if not is_boss else 6
 	if gm != Gore.MAT_RUH:
-		made = Gore.dismember(anim.base, Vector2(dir if dir != 0.0 else float(facing), -0.35), gk, gn, blood_col(), gm, is_boss)
+		made = Gore.dismember(anim.base, g_dir, gk, gn, blood_col(), gm, is_boss, ky)
 	if made > 0:
 		if gm == Gore.MAT_ET:
-			Ses.play("vahset_olum", -1.0 + minf(gk - 1.0, 1.5) * 1.5, 1.0, 0.06, 0.03, center())
-			Ses.play("vahset_yirtil", -3.0, 1.0, 0.08, 0.04, center())
-			Ses.play("vahset_kemik", -3.0, 0.9, 0.1, 0.0, center())
+			# kritik öldürüşte vahşet katmanı 2,5 dB kısık ve ikinci kemik çatırtısı yok (vuruştaki kemik çaldı):
+			# metal kritik (Krit veri yolu + krit_duck) üstte okunur, Master sınırlayıcısı pompalanmaz
+			var kd := -2.5 if crit else 0.0
+			Ses.play("vahset_olum", -1.0 + minf(gk - 1.0, 1.5) * 1.5 + kd, 1.0, 0.06, 0.03, center())
+			Ses.play("vahset_yirtil", -3.0 + kd, 1.0, 0.08, 0.04, center())
+			if not crit:
+				Ses.play("vahset_kemik", -3.0, 0.9, 0.1, 0.0, center())
 			Blood.splat(center(), blood_col(), 3 + int(gk * 2.0), false)
 	elif not _ds_death(Vector2(dir * maxf(140.0, kb * 1.3), -220.0 - kb * 0.4)):
 		FX.corpse(anim.base, Vector2(dir * maxf(140.0, kb * 1.3), -220.0 - kb * 0.4), blood_col())

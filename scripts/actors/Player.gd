@@ -4628,6 +4628,9 @@ func _melee_hits() -> void:
 			# v35: zincir bitirişi hafif düşmanı havaya savurur (Enemy ağır / uçan / zırhlıyı kendisi eler)
 			if c.get("last", false) and not atk.get("pause", false) and not ("is_boss" in e and e.is_boss):
 				opts["launch"] = maxf(float(opts.get("launch", 0.0)), float(V35["fin_firlat"]))
+			# v35 birleştirme: bitirişle ölürse ilk parçalanma kesiği KesikFX'in ana darbesiyle aynı açıda (Enemy._die)
+			if c.get("last", false) and not atk.get("pause", false):
+				opts["kesik_yon"] = KesikFX.ana_yon(_tempo_class(it), facing)
 			opts["hit_n"] = atk["hit"].size()
 			opts["sfx_done"] = true
 			opts["feel_done"] = true

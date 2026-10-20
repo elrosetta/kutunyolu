@@ -44,6 +44,7 @@ static func sys() -> Blood:
 	var im: ShaderMaterial = null
 	im = ShaderMaterial.new()
 	im.shader = INK_SHADER
+	im.set_shader_parameter("telafi", telafi_of(lv))
 	bl.material = im
 	lv.add_child(bl)
 	bl.stains = _Stains.new()
@@ -55,10 +56,25 @@ static func sys() -> Blood:
 
 
 static func _tone(col: Color, rng_k: float) -> Color:
-	## Gerçekçi ton: renk biraz koyulaşır, damladan damlaya parlaklık değişir
-	var c := col.darkened(0.12 + 0.18 * rng_k)
+	## Gerçekçi ton: damladan damlaya parlaklık değişir. v35 birleştirme: kırmızı kan daha doygun ve canlı (koyu
+	## biyomda siyaha dönmesin): eskiden %12-30 koyulaşıyordu, şimdi %3-15 ve kırmızı kanal öne çıkar.
+	var c := col.darkened(0.03 + 0.12 * rng_k)
+	if c.r > maxf(c.g, c.b) * 2.0:
+		c = Color(minf(1.0, c.r * 1.3 + 0.04), c.g * 0.7, c.b * 0.8)
 	c.a = 1.0
 	return c
+
+
+static func telafi_of(lv: Node) -> float:
+	## v35 birleştirme: gece ortam ışığı (Level CanvasModulate, Ötüken'de kırmızı ~0,32) kanı ve et şeridini siyaha
+	## bastırıyordu. Kan / et gölgelendiricileri rengi bu katla önceden yükseltir (aydınlık biyomda ~1).
+	if lv == null:
+		return 1.0
+	for ch in lv.get_children():
+		if ch is CanvasModulate:
+			var r: float = (ch as CanvasModulate).color.r
+			return clampf(0.6 / maxf(r, 0.05), 1.0, 1.9)
+	return 1.0
 
 
 static func spray(pos: Vector2, dir: Vector2, col: Color, n: int, power := 1.0, back := true) -> void:
@@ -348,8 +364,8 @@ class _Stains:
 				var ec: Vector2 = e[0]
 				var es: Vector2 = e[1]
 				if int(e[4]) == 1 and absf(ec.y + es.y * 0.18 - sy) < 1.2 and absf(ec.x - p.x) < es.x * 0.5 + 1.5:
-					var nw := minf(es.x + float(spread) * 0.45 + 0.6, 15.0)
-					var nh := clampf(nw * 0.4, 1.8, 4.2)
+					var nw := minf(es.x + float(spread) * 0.45 + 0.6, 24.0)   # v35 birleştirme: göl daha geniş (15 → 24)
+					var nh := clampf(nw * 0.36, 1.8, 5.0)
 					e[1] = Vector2(nw, nh)
 					e[0] = Vector2(lerpf(ec.x, p.x, 0.2), sy - nh * 0.18)
 					_dirty = true
@@ -366,16 +382,17 @@ class _Stains:
 		_ink_add(p, Vector2(s, s * 0.7), col, 3)
 
 	func _process(delta: float) -> void:
-		# lekeler yavaşça koyulaşır (her 4 sn bir adım)
+		# lekeler yavaşça koyulaşır (her 4 sn bir adım); v35 birleştirme: taban 0,12 → 0,34 (kurumuş kan koyu kızıl
+		# kalır, siyaha dönmez: savaş sonrası oda kanlı okunur)
 		_age_t += delta
 		if _age_t > 4.0:
 			_age_t = 0.0
 			for i in cols.size():
 				var c := cols[i]
-				if c.v > 0.12:
+				if c.v > 0.34:
 					cols[i] = c.darkened(0.035)
 			for e in _ik:
-				if (e[2] as Color).v > 0.12:
+				if (e[2] as Color).v > 0.34:
 					e[2] = (e[2] as Color).darkened(0.035)
 			_dirty = true
 		if _dirty:
