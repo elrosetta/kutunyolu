@@ -1,5 +1,6 @@
 extends Node
 ## v12 mekanik testi: godot --headless --path . --quit-after 6000 -- --mekanik [--derinlik=N]
+## v34: -- --mekanik --zipla --boss: zıplama / tutunma / Kahraman İnişi ölçümü (tools/tests/zipla_testi.gd)
 ## v25 tehlike çukuru (tek vuruş + sektirme / güvenli zemine dönüş), Don (her arketip), Usul ızgarası, Ad Koyma töreni.
 
 var main: Node
@@ -85,6 +86,12 @@ func _tuzak(lv: Node, pl: Node) -> void:
 
 
 func _run() -> void:
+	if OS.get_cmdline_user_args().has("--zipla"):
+		# v34: zıplama / tutunma / Kahraman İnişi ölçümü (tools/tests/zipla_testi.gd; --boss arenası)
+		var zt: Node = load("res://tools/tests/zipla_testi.gd").new()
+		zt.set("main", main)
+		add_child(zt)
+		return
 	await _wait(0.5)
 	var lv: Node = main.level
 	var pl: Node = lv.player

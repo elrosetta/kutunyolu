@@ -5641,3 +5641,155 @@ ara duvar ve yanında tırmanış basamakları), `kapak_inis.jpg` (dal kuyusunun
 * Bot dövüşmez (`--bot_gercek` dışında): derin bölümde can azalırsa ödülleri bırakıp kapıya gider, yine de ölebilir.
 * Saf koşu süresi (35 sn) hedeflenen 45-90 sn'nin altında: ayak izi ve yol v32'ye göre küçüldü (oyuncu isteği); gerçek
   geçiş (savaş + ödül sapmaları) bot ölçümünde 58-98 sn.
+
+## v34: Dead Cells zıplaması, kahraman inişi, ağır silah temposu
+
+Geri bildirim (v33'ü oynayarak): (a) "Zıplama mekaniğimiz çok hantal, Dead Cells gibi olsun; basamak çıkmak çok yorucu,
+akıcı değil." (b) "Dead Cells'teki gibi yüksekten düşerken havada S + Boşluk ile güzel bir kahraman inişi: düşüş hasarı
+almayalım, daha hızlı düşelim." (c) "Bazı iki elli kılıçların ve büyük çift ağızlı ağır silahların savuruşu o kadar yavaş
+ki sinir bozuyor; çözüm bul."
+
+### Zıplama (`Player.gd`: `JUMP_V`, `GRAV_RISE`, `GRAV_FALL`, `JUMP_CUT`, `APEX`, `TURN_AIR`, `FLOW.coyote`)
+
+Platform "oyun hissi" kuralları (Celeste / Dead Cells): kısa ve sert yükseliş, tepede çok kısa asılı kalış, yükselişten
+sert düşüş (ayrı yerçekimi), tuşu erken bırakınca alçak zıplama, havada güçlü yön verme ve keskin dönüş, cömert coyote ve
+zıplama tamponu, kenara kendiliğinden tutunma, köşe düzeltme (v10'dan). Çift zıplama zaten vardı (Umay lütfuyla üçlü);
+yenisi eklenmedi. Yuvarlanma / sürünme / ölüm / sanatlar eski `GRAV` 1180'i kullanır; kurt ve Don biçimleri de yükseliş /
+düşüş yerçekimine ve alçak zıplamaya geçti.
+
+| (ölçüm: `--mekanik --zipla --boss`, 60 Hz) | v33 | v34 |
+|---|---|---|
+| sabitler | JUMP_V -430, GRAV 1180 (iki yön), MAX_FALL 560, ACC_AIR 1500, kesme ×0,55, tepe ×0,62 (\|vy\|<60) | JUMP_V -565, yükseliş 1950, düşüş 2100, MAX_FALL 620, ACC_AIR 2400 (ters yönde ×1,5), kesme ×0,5, tepe ×0,6 (\|vy\|<60) |
+| tam zıplama yüksekliği | 75,7 px (3,15 karo) | 77,6 px (3,23 karo) |
+| tepeye varış / havada | 0,400 / 0,800 sn | 0,317 / 0,617 sn |
+| dokunuş (2 kare) | 26,6 px, 0,433 sn | 24,9 px, 0,333 sn |
+| koşu zıplaması yatay | 124 px (5,17 karo) | 95,6 px (3,98 karo) |
+| koşu + çift zıplama yatay | 204,1 px (8,50 karo) | 162,7 px (6,78 karo) |
+| çift zıplama toplam yükseklik | 138,3 px (5,76 karo) | 141,1 px (5,88 karo) |
+| coyote (kenardan düştükten sonra) | 5 kare (0,083 sn; FLOW 0,11) | 6 kare (0,100 sn; FLOW 0,125) |
+| zıplama tamponu | 6 kare evet, 8 kare hayır | 6 ve 8 kare (0,13 sn) evet (FLOW 0,15) |
+| 10 karo düşüş | 0,683 sn, en çok 560 px/sn | 0,550 sn, en çok 620 px/sn |
+
+Erişim (`LevelGen._moves`: tek / çift zıplama en çok 4 karo yukarı, ±5 sütun; düşüş 15 satır): tek zıplama tepesi ≥ eski,
+çift zıplama 5,9 karo (> 4), koşu zıplaması 4 karoluk boşluğu (±5 sütun; gövde 12 px: ~84 px merkez yolu) 95,6 px ile
+geçer, çift zıplamayla 162,7 px; kenara tutunma 2,5 karo (60 px) yukarıya uzanır. `--harita` (üretici kendi modeliyle)
+değişmedi. Bilinen: tek koşu zıplamasının yatay menzili v33'ten ~%23 kısa (Dead Cells gibi kısa havada kalış); modelin en
+geniş tek zıplamalık boşluğu (4 karo) hâlâ geçilir, daha genişi çift zıplama ister (model zaten çift zıplama sayar).
+**LevelGen değişmedi** (adım yüksekliği / ızgara aynı).
+
+### Basamak ve kenar (`Player._ledge`, `_try_step_up`, `_try_mantle`)
+
+* Kenar bulma artık fizik sorgusuyla (`test_move`: önde duvar, gövde h px yükselince öne geçebiliyor mu, sonra aşağı
+  yoklayıp tam ayak hizası); karo ızgarasına bağlı değil (tek yönlü platformun yanından tutunulmaz: altından geçilir).
+* **Basamak:** yerde 1 karoluk (≤ 28 px) basamağa doğru yürürken zıplamadan 0,075 sn'lik kaymayla çıkılır (koşu karesi
+  sürer, hız korunur). Duvara değişten üstünde durmaya 0,117 sn (v33: çıkılamazdı, zıplamak gerekiyordu).
+* **Tutunma:** havada kenara doğru basılıyken ya da ilerlerken (yükselirken de, vy > -260) ayağın en çok 60 px üstündeki
+  kenara eller yetişince 0,07-0,15 sn'lik tırmanış (yüksekliğe göre); bitince koşu hızının %85'iyle sürer, tırmanırken
+  basılan zıplama tamponda kalır. v33: yalnız tepe / düşüşte (vy ≥ -80), 52 px, sabit 0,16 sn, sonra durma.
+
+| kenar (yürüyerek gelip zıpla) | v33 | v34 |
+|---|---|---|
+| 1 karo | çıkılamaz (yürüyerek) | yürüyerek 0,117 sn |
+| 2 karo | 0,667 sn | kısa zıplamayla 0,250 sn (tutunma), tam zıplamayla 0,533 sn |
+| 3 karo | 0,533 sn | 0,300 sn (tutunma) |
+| 4 karo (çift zıplama) | 1,067 sn | 0,333 sn (tutunma) |
+
+### Kahraman İnişi (havada S + Boşluk; `HERO`, `_hero_begin`, `_hero_tick`, `_hero_land`, `_land_hold`)
+
+* Aşağı + zıpla çakışması (v33 kapakları): **yerde** (tek yönlü platform / kapak üstünde) aşağı + zıpla = platformdan
+  in (değişmedi); **havada** = Kahraman İnişi. Platformdan indikten sonraki 0,25 sn (drop_t) dalış açılmaz (bot kapaktan
+  inerken aşağı basılı tutup zıplamaya bastığından). Havada ↓+J Kartal Dalışı (silah saldırısı) ayrı kalır.
+* Dalış: 0,06 sn toplanma (havada durur, diz karna), sonra 880 px/sn'den 1150 px/sn'ye çakılır (normal en çok 620), az
+  yön (koşunun %25'i), mürekkep izi (koyu gövde kopyaları, damlalar), silah baş üstünde geride.
+* İniş: düşüş yüksekliğiyle (k = h / 240 px, 0,35-1,6) büyüyen şok dalgası: yarıçap 56 + 44k px, ±44 px dikey; düşman
+  hasar alır (yakın silahın hasarı × (0,55 + 0,45k), merkezden kenara %100 → %60; silahsızken 6 + 6k), geri itilir,
+  havaya kalkar, 0,45 + 0,35k sn sersemler; kombo sayılır. Ekran sarsıntısı, itiş, kısa duraklama, titreşim, yer
+  çarpması (GroundSlamFX + mor-lacivert mürekkep sıçrantısı), şok halkası, iki yana toz, mürekkep toz bulutu,
+  `inis_2` + `darbe_cekic` (+ yüksekte `sarsinti`). Düşüş sersemlemesi / hasarı yok; 0,2 sn dokunulmazlık.
+* Poz: 0,32 sn tek diz yerde (çömelik saldırı gövdesi `crouch_atk`), ön kol iskeletle aşağı (yumruk toprakta), bıçak
+  geriye-yukarı, gövde ezik ve öne eğik, yavaşça doğrulur; 0,1 sn'den sonra her girdi (yürü / zıpla / saldır / yuvarlan /
+  ikincil) pozu keser, darbe alınca biter. Silahsızken derin iniş karesi.
+* **Yüksek düşüş sersemlemesi** (Dead Cells gibi; v33'e dek düşüş hasarı yoktu): Kahraman İnişi yapmadan > 12 karo
+  (288 px, son hız en çokta) düşünce 0,45 sn sersem (yıldızlar, hareket yok); > 18 karo (432 px) 0,6 sn + azami canın
+  %5'i (öldürmez). v33 kuyuları 13-15 satır: ana yoldaki kuyudan düz atlayan kısa sersemler (bot da; geçişi bozmuyor),
+  S + Boşluk ile hem hızlı hem sersemsiz.
+* Öğretici: HUD `TUT["kahraman"]` (ilk uzun düşüşte, 5 karodan sonra): "S+Boşluk — havada: kahraman inişi".
+
+| ölçüm (`--zipla`) | değer |
+|---|---|
+| 13 karo: basıştan inişe / normal düşüş | 0,350 sn / 0,633 sn |
+| en hızlı dalış | 1150 px/sn |
+| isabet (düşmanlar -40, +90, +190 px) | 2 (yakındaki iki; uzaktaki değil) |
+| oyuncu hasarı / sersemleme | 0 / 0 |
+| 4 karo: basıştan inişe, isabet | 0,167 sn, 1 |
+| normal düşüş 13 / 19 karo | 0,43 sn sersem, hasar 0 / 0,58 sn sersem, 6,5 hasar (130 canın %5'i) |
+
+### Ağır silah temposu (`TEMPO_V34`, `V34_AGIR`, items.json "dmg")
+
+Dead Cells'in ağır silahları gibi: ağırlık yavaşlıktan değil darbeden. v26 katmanının üstüne dördüncü katman (sınıf
+çarpanları): hazırlık (basış→temas) en çok kısalır, süpürme (görünüş, smear) aynı, kilit / toparlanma biraz kısalır,
+zincirin her adımı öncekinden hızlı ("ramp": dev %7, ağır %6, uzun sap %4 / adım), bitiriş hazırlığı ek kısalır. Her
+silahın savuruş biçimi, gövdesi ve zinciri aynı. Ayrıca: ağır / dev silahta hazırlık süper zırhlı (sarsılmaz; vuruş anında
+söner, zıplamayla yine kesilir), orta kademe vuruş duraklaması ×1,2, vuruş anı öne adım 9 → 13 px. İptaller zaten vardı
+(yuvarlanma her evreyi, isabetten 0,05 sn sonra zıplama kilidi, toparlanma her girdiyi keser). Saniyedeki hasar eski
+düzeyde (+%2-3) kalsın diye items.json taban hasarı ~%10-25 indi; basılı tutulan şarjlı ağır vuruş (şarj süresi aynı)
+`sarj_k` (dev 1,33, ağır 1,27, uzun 1,1) ile eski hasarında. Gün-Ay İkizi (iki duruş) dokunulmadı.
+
+| `[ilk hazırlık, zincir hazırlığı, süpürme, kilit, toparlanma, tutuş, ramp, bitiriş]` | |
+|---|---|
+| dev (ulu kılıç, bozgun kılıcı, dağ / kor çekici) | 0,62 · 0,7 · 1 · 0,85 · 0,8 · 0,55 · 0,07 · 0,85 |
+| ağır (gürz, çivili topuz, savaş baltası, ikiz balta, kıstın, çevgen) | 0,66 · 0,75 · 1 · 0,9 · 0,85 · 0,65 · 0,06 · 0,9 |
+| uzun (teber, Erlik tırpanı, kayın asası) | 0,82 · 0,88 · 1 · 0,95 · 0,9 · 0,8 · 0,04 · 0,95 |
+
+Ölçüm (`--dovus --boss --agir`: Player.tempo_phases + ItemGen; 1. kademe kusursuz demir, nitelik / yuvarlama yok;
+"temas" = model basış→temas, oyunda + 1 kare; tur = sürekli basışta zincir turu; SnH = ItemGen.dps):
+
+| silah | sınıf | ilk temas (ms) | tur (ms) | hasar | SnH |
+|---|---|---|---|---|---|
+| ulu_kilic | dev | 376 → 247 | 1727 → 1270 | 11,5 → 8,7 | 40,1 → 41,1 |
+| bozgun_kilici | dev | 353 → 234 | 2409 → 1739 | 13,7 → 10,2 | 33,3 → 34,4 |
+| dag_cekici | dev | 376 → 247 | 1479 → 1073 | 16,7 → 12,5 | 31,3 → 32,2 |
+| kor_cekici | dev | 353 → 234 | 1486 → 1075 | 16,3 → 12,2 | 29,5 → 30,4 |
+| gurz | agir | 277 → 200 | 1778 → 1354 | 14,8 → 11,6 | 38,7 → 39,9 |
+| civili_topuz | agir | 277 → 200 | 1711 → 1307 | 14,5 → 11,4 | 32,9 → 33,7 |
+| savas_baltasi | agir | 277 → 200 | 1118 → 883 | 13,4 → 10,8 | 12,2 → 12,5 |
+| ikiz_balta | agir | 277 → 200 | 1766 → 1377 | 8,2 → 6,5 | 31,4 → 32,2 |
+| kistin | agir | 294 → 211 | 2269 → 1745 | 12,6 → 10,0 | 30,2 → 31,1 |
+| cevgen | agir | 277 → 200 | 1613 → 1248 | 14,5 → 11,5 | 30,7 → 31,5 |
+| teber | uzun | 204 → 174 | 1472 → 1291 | 8,9 → 8,0 | 24,7 → 25,3 |
+| erlik_tirpani | uzun | 204 → 174 | 1638 → 1439 | 7,4 → 6,7 | 28,0 → 28,7 |
+| kayin_asasi | uzun | 204 → 174 | 1650 → 1456 | 8,5 → 7,8 | 26,4 → 27,3 |
+| gun_ay_ikizi | uzun | 159 → 159 | 1898 → 1898 | 6,2 → 6,2 | 26,1 → 26,1 |
+| alp_kilici | kilic | 161 → 161 | 1288 → 1288 | 7,8 → 7,8 | 26,4 → 26,4 |
+| pala | kilic | 161 → 161 | 1447 → 1447 | 6,3 → 6,3 | 25,3 → 25,3 |
+| yatagan | duello | 157 → 157 | 1567 → 1567 | 7,0 → 7,0 | 20,7 → 20,7 |
+| ikiz_bicak | hancer | 138 → 138 | 1356 → 1356 | 3,7 → 3,7 | 20,6 → 20,6 |
+| kargi | mizrak | 156 → 156 | 1018 → 1018 | 5,9 → 5,9 | 20,7 → 20,7 |
+| kement | kirbac | 192 → 192 | 896 → 896 | 8,5 → 8,5 | 20,5 → 20,5 |
+
+Oyunda ölçülen basış→temas (`--dovus --boss` TEMPO satırı, 60 Hz): ulu kılıç / bozgun kılıcı / dağ çekici / kor çekici
+266 / 250 / 266 / 250 ms, gürz 233, savaş baltası / ikiz balta 216 ms (hedef ≤ 300-350 ms; v33 modeli 353-376 ms + 1 kare). Ulu Kılıç tam zinciri (iki savuruş, her temasta basış; `--agir_klip`): temaslar
+400 / 1083 ms → 267 / 767 ms, iki savuruş bitip boşta duruşa ~2,2 sn → 1,72 sn.
+
+### Test
+
+* `--mekanik --zipla --boss` (yeni `tools/tests/zipla_testi.gd`; `--anlik=<klasör>` pencereli çekim): zıplama yayı,
+  dokunuş, koşu / çift zıplama menzili, coyote, tampon, düşüş, 1-4 karo kenar, tek yönlü platformdan iniş (dalış değil),
+  yüksek düşüş sersemlemesi / hasarı, Kahraman İnişi (hız, isabet, hasarsız, poz). `OZET hata=0`. Test eski sürümde de
+  koşar (karşılaştırma: Kahraman İnişi yoksa yalnız zıplama kısmı).
+* `--dovus --boss --agir` (durumsuz tempo / SnH tablosu), `--dovus --boss --agir_klip=<silah> --anlik=<klasör>` (zincir
+  kare çekimi, evre ve temas anları).
+* Gerileme: `--dovus --boss --kontrol` TAKILMA=0, basılmamış 0 (basış 272 / savuruş 135); `--dovus --boss` (tam) betik
+  hatasız, TEMPO satırı yukarıda; `--savurus` hatasız; `--mekanik --muhur=0` BITTI; `--zeka --muhur=0` BITTI;
+  `--otomatik --derinlik=1` 73 sn'de BOLUM_SONU (ölüm 0), `--derinlik=3` 63 sn'de BOLUM_SONU (ölüm 0); `--harita` GECTI
+  (üretici erişimi 120/120, kendi modeli); `--konak` GECTI; `--piksel_tara --otomatik --derinlik=3` TOPLAM 0.
+  `--sanat --boss --muhur=0` SONUC KALDI hem v33'te (tulpar_dortnali "kombo çok uzun" 157 kare) hem v34'te
+  (yildirim_agi 151-152, tulpar_dortnali 154-156; eşik 150): tek başına (`--sanat_tek=yildirim_agi`) iki sürüm aynı
+  (129-143 kare); koşudan koşuya kritik / vuruş duraklaması oynaklığı, v34'ten değil (bilinen). Bütün koşularda SCRIPT
+  ERROR 0 (yalnız motorun çıkıştaki RID sızıntısı satırları).
+
+### Görseller (`docs/v34/hareket/`)
+
+`zipla_yay.jpg` (koşu zıplaması yayı, 4 karede bir), `tutunma.jpg` (2 karo kenara kısa zıplama + tutunma),
+`kahraman_inisi.jpg` (dalış → yere değiş → poz, şok dalgası, iki düşman sersem), `agir_ulu_kilic.jpg` (Ulu Kılıç zinciri
+v33 / v34, basıştan geçen süre ve temas kareleri işaretli).

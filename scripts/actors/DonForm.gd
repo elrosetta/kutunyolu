@@ -143,9 +143,9 @@ func process(delta: float) -> void:
 	var dir := Input.get_axis("sol", "sag")
 	var fl: bool = pl.is_on_floor()
 	if Input.is_action_just_pressed("zipla"):
-		pl.jump_buf = 0.13
+		pl.jump_buf = float(pl.FLOW["buf_jump"])   # v34: oyuncuyla aynı tampon / coyote
 	if fl:
-		pl.coyote = 0.09
+		pl.coyote = float(pl.FLOW["coyote"])
 		pl.air_jumps = 1
 	if Engine.get_physics_frames() % 3 == 0:
 		FX.burst(pl.center() + Vector2(randf_range(-12, 12), randf_range(-14, 10)), COL, 1, 22, 0.5, 0.15, -50, true)
@@ -182,9 +182,16 @@ func process(delta: float) -> void:
 			pl.velocity.y = pl.JUMP_V * (0.9 if arch == "dev" else 1.05)
 			pl.jump_buf = 0.0
 			pl.coyote = 0.0
+			pl.jumping = true
 			pl.vis_scale = Vector2(0.85, 1.15)
 			FX.dust(pl.global_position, Vector2.UP, 4, 0.28)
-	var g: float = pl.GRAV * (0.3 if arch == "kanat" else 1.0)
+	# v34: yükseliş / düşüş yerçekimi oyuncuyla aynı (Dead Cells zıplaması); kanat süzülür
+	var g: float = (pl.GRAV_RISE if pl.velocity.y < 0.0 else pl.GRAV_FALL) * (0.3 if arch == "kanat" else 1.0)
+	if fl:
+		pl.jumping = false
+	elif pl.jumping and arch != "kanat" and pl.velocity.y < -140.0 and not Input.is_action_pressed("zipla"):
+		pl.velocity.y *= pl.JUMP_CUT   # alçak zıplama (bir kez)
+		pl.jumping = false
 	pl.velocity.y = minf(pl.velocity.y + g * delta, pl.MAX_FALL * (0.45 if arch == "kanat" and not atk.get("kind", "") == "dive" else 1.0))
 	pl.move_and_slide()
 	anim.set_facing(pl.facing)

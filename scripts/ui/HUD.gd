@@ -58,6 +58,8 @@ const TUT := {
 	# v32 konak
 	"konak": [[["W", "ocak / usta"]], "Konak: kervan seninle yol alıyor. Ateşin yanından geçince taşıdığın Kut Umay'a ulaşır. Bengisu Usta altınla silahına nakış (ek özellik) vurur, nakışları yeniden döver, unsur aşılar, kaliteyi yükseltir; Kut Mührü ucuz bir kumardır. Sağdaki kapı derine indirir."],
 	# v32 harita ve Kut Taşı
+	# v34 Kahraman İnişi
+	"kahraman": [[["S+Boşluk", "havada: kahraman inişi"]], "Kahraman İnişi: havadayken S'ye basılı tutup Boşluk'a bas. Yere çakılır, çevredeki düşmanları şok dalgasıyla sersemletip savurursun; ne kadar yüksekten, o kadar güçlü. Çok yüksekten öylece düşersen kısa sersemlersin, inişle hiç sersemlemezsin."],
 	"kut_tasi": [[["M", "harita"], ["W", "taşın dibinde"]], "Kut Taşı: yanından geçtiğin taşlar haritaya işlenir. Bölüm dallanır ve çıkmazlarla biter: çıkmazda kalınca M ile haritayı aç, bulduğun bir taşı seç, Boşluk ile ışınlan (1 sn Kut'a bağlanırsın; darbe alırsan bozulur)."],
 }
 var back_mode := "title"   # ayarlar ekranı kapanınca dönülecek mod
@@ -234,6 +236,8 @@ func _tut_tick(delta: float) -> void:
 		_tut_show("tuccar")
 	if _tut_id == "" and "sanat" in pl and pl.sanat != null and pl.sanat.hazir() and float(Game.run.get("time", 0.0)) > 8.0:
 		_tut_show("sanat")   # v27
+	if _tut_id == "" and "_air_top" in pl and not pl.is_on_floor() and float(pl.hero_t) < 0.0 and pl.global_position.y - float(pl._air_top) > 120.0:
+		_tut_show("kahraman")   # v34: ilk uzun düşüşte
 
 
 func _draw_tut(vp: Vector2) -> void:
