@@ -90,11 +90,13 @@ var _wind_k := 1.0
 var bar: EnemyBar
 var elite_star: Node2D
 ## Düşmana özgü sıçrantı rengi (tazı: kor; çor: zehir yeşili; iye: Erlik moru özsu; balbal: taş tozu; kam: lanet moru; gulyabani: ölü irin)
-const BLOOD := {"tepegoz": Color(0.75, 0.25, 0.2), "sahmeran_ana": Color(0.5, 1.0, 0.4), "yelbegen": Color(0.6, 0.9, 1.0), "erlik_han": Color(1.0, 0.45, 0.15), "kara_boru": Color(0.6, 0.05, 0.05), "kayip_ruh": Color(0.55, 0.85, 1.0), "buz_balbali": Color(0.75, 0.9, 1.0), "cini_golemi": Color(0.5, 0.7, 0.85), "cor": Color(0.55, 0.85, 0.2), "agac_iyesi": Color(0.6, 0.28, 0.72), "balbal": Color(0.6, 0.6, 0.66),
+const BLOOD := {"tepegoz": Color(0.75, 0.25, 0.2), "sahmeran_ana": Color(0.5, 1.0, 0.4), "yelbegen": Color(0.6, 0.05, 0.08), "erlik_han": Color(1.0, 0.45, 0.15), "kara_boru": Color(0.6, 0.05, 0.05), "kayip_ruh": Color(0.55, 0.85, 1.0), "buz_balbali": Color(0.75, 0.9, 1.0), "cini_golemi": Color(0.5, 0.7, 0.85), "cor": Color(0.55, 0.85, 0.2), "agac_iyesi": Color(0.6, 0.28, 0.72), "balbal": Color(0.6, 0.6, 0.66),
 		"arcura": Color(0.7, 0.25, 0.9), "surale": Color(0.5, 0.55, 0.42), "bekci": Color(0.55, 0.5, 0.45), "tosbaga": Color(0.45, 0.6, 0.3), "kara_boru_han": Color(0.5, 0.03, 0.06)}
 
 
-const NOT_FLESH := ["balbal", "bekci", "buz_balbali", "cini_golemi", "arcura", "kayip_ruh", "agac_iyesi", "cor", "yelbegen", "sihirli_kandil", "isilti_bocegi"]
+## v36 düzeltme: etsizlik yaratık türüne (kind) göre; eskiden sprite adına bakılıyordu ve aynı sprite'ı paylaşan
+## 30 canlı (al_atli, kan_yarasasi, kaf_kartali, yilan_muhafiz...) kan yerine mürekkep tülü saçıyordu
+const NOT_FLESH := ["balbal", "buz_balbali", "cini_golemi", "kayip_ruh", "agac_iyesi", "tozkoparan", "su_iyesi", "od_iyesi", "arcura", "sihirli_kandil", "isilti_bocegi"]
 
 
 ## v23: uygulanan bütün yapay zekâ türleri (eskiden tornado / crawler / swarm / caster / kamikaze / mimic / charmer
@@ -109,13 +111,14 @@ const TEPKI := {"lunger": 3, "pouncer": 3, "crawler": 3, "stalker": 3, "flyer_ra
 
 func blood_col() -> Color:
 	## v13: etten yaratıkların kanı koyu kırmızı; ruh/taş/bitki yaratıklarının kendi rengi
-	if BLOOD.has(sprite_kind):
-		return BLOOD[sprite_kind]
+	## v36 düzeltme: renk yalnızca türün kendisine göre (paylaşılan sprite'ın rengi başka canlıya geçmez)
+	if BLOOD.has(kind):
+		return BLOOD[kind]
 	return Color(0.55, 0.04, 0.06)
 
 
 func is_flesh() -> bool:
-	return not (sprite_kind in NOT_FLESH or kind in NOT_FLESH)
+	return not (kind in NOT_FLESH)
 
 
 func setup(k: String, is_elite: bool, _tier: int, is_ofkeli := false) -> void:

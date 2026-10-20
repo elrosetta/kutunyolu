@@ -132,6 +132,14 @@ func _run() -> void:
 	Game.camera.reset_smoothing.call_deferred()
 	await _wait(0.6)
 	# 1) şeritler
+	# --vahset_tur=a,b,...: verilen türlerle sıradan öldürüş şeritleri (eskiden etsiz sayılan canlıları denemek için)
+	for arg in OS.get_cmdline_user_args():
+		if String(arg).begins_with("--vahset_tur="):
+			for t in String(arg).trim_prefix("--vahset_tur=").split(","):
+				await _strip("tur_" + t, t, {"kb": 160.0}, 1.2)
+			if out_dir != "":
+				get_tree().quit()
+				return
 	await _strip("siradan", "kara_boru", {"kb": 120.0}, 1.0)
 	await _strip("kritik", "surale", {"kb": 200.0, "crit": true}, 1.6)
 	await _strip("bitiris", "sicrayan_tazi", {"kb": 220.0, "_kesik_sinif": "agir"}, 1.3)

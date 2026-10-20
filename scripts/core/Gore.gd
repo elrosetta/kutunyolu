@@ -17,8 +17,8 @@ const MAT_ET := 0
 const MAT_TAS := 1
 const MAT_RUH := 2
 const MAT_KOR := 3
-const TAS := ["balbal", "bekci", "buz_balbali", "cini_golemi", "agac_iyesi"]
-const KOR := ["sihirli_kandil", "isilti_bocegi"]
+const TAS := ["balbal", "buz_balbali", "cini_golemi"]
+const KOR := ["sihirli_kandil", "isilti_bocegi", "od_iyesi"]
 # zerre türleri
 const K_TOPAK := 0
 const K_DAMLA := 1
@@ -106,9 +106,9 @@ static func stats() -> Dictionary:
 static func material_of(sprite_kind: String, kind: String, flesh: bool) -> int:
 	if flesh:
 		return MAT_ET
-	if sprite_kind in TAS or kind in TAS:
+	if kind in TAS:
 		return MAT_TAS
-	if sprite_kind in KOR or kind in KOR:
+	if kind in KOR:
 		return MAT_KOR
 	return MAT_RUH
 
