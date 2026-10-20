@@ -24,14 +24,27 @@ static func _nisan_pips(h: Control, p0: Vector2, n_full: float, cost: float, col
 			var fc := Color(1.0, 0.84, 0.46) if fill >= 1.0 else Color(1.0, 0.84, 0.46, 0.55)
 			if fill >= 1.0 and flash > 0.0 and i == int(n_full / bu) - 1:
 				fc = fc.lerp(Color.WHITE, flash)
-			var top := c.y + s * 1.25 - fill * s * 2.5
-			var part := PackedVector2Array()
-			for q in dia:
-				part.append(Vector2(q.x, maxf(q.y, top)))
-			h.draw_colored_polygon(part, fc)
+			if fill >= 0.98:
+				h.draw_colored_polygon(dia, fc)
+			elif fill * s * 2.5 >= 0.6:
+				# v32: kısmen dolu tane: eşkenar dörtgen alttan "top" çizgisine dek kesilir (eski nokta çökertme "Invalid
+				# polygon data" veriyordu)
+				var top := c.y + s * 1.25 - fill * s * 2.5
+				var band := PackedVector2Array([Vector2(c.x - s - 1.0, top), Vector2(c.x + s + 1.0, top), Vector2(c.x + s + 1.0, c.y + s * 1.25 + 1.0), Vector2(c.x - s - 1.0, c.y + s * 1.25 + 1.0)])
+				for part in Geometry2D.intersect_polygons(dia, band):
+					# çok ince dilim (sıfıra yakın alan) üçgenlenemez: atlanır
+					if part.size() >= 3 and absf(_alan(part)) >= 0.5:
+						h.draw_colored_polygon(part, fc)
 		if in_cost:
 			var k := 0.75 + 0.25 * sin(t * 6.0) if n_full >= cost else 0.5
 			h.draw_polyline(PackedVector2Array([dia[0], dia[1], dia[2], dia[3], dia[0]]), Color(col, k), 1.0, true)
+
+
+static func _alan(poly: PackedVector2Array) -> float:
+	var a := 0.0
+	for i in poly.size():
+		a += poly[i].cross(poly[(i + 1) % poly.size()])
+	return a * 0.5
 
 
 static func hud(h: Control, c: Vector2, pl: Node, t: float) -> void:
@@ -154,16 +167,16 @@ static func _hasar_metni(d: Dictionary) -> String:
 			hs = "karşılık ×%s (kesin kritik)" % ItemGen.fmt(float(d["hasar"]))
 		"kurt_dansi":
 			hs = "%d kesik × ×%s + patlama ×%s" % [int(d.get("adim", 4)), ItemGen.fmt(float(d["hasar"])), ItemGen.fmt(float(d.get("kin_hasar", 1.3)))]
-		"evren_kuyrugu":
-			hs = "×%s + 3 × ×%s + çakılma ×%s" % [ItemGen.fmt(float(d["hasar"])), ItemGen.fmt(float(d.get("sarmal_hasar", 0.4))), ItemGen.fmt(float(d.get("carpma_hasar", 1.6)))]
-		"tengri_carki":
-			hs = "4 × ×%s + patlama ×%s" % [ItemGen.fmt(float(d["hasar"])), ItemGen.fmt(float(d.get("son_hasar", 1.4)))]
-		"yer_yarigi":
-			hs = "×%s + 2 × ×%s + çakılma ×%s, yarık ×%s" % [ItemGen.fmt(float(d["hasar"])), ItemGen.fmt(float(d.get("x_hasar", 0.5))), ItemGen.fmt(float(d.get("carpma_hasar", 1.6))), ItemGen.fmt(float(d.get("yarik_hasar", 1.0)))]
+		"pehlivan_savurmasi":
+			hs = "tutuş ×%s, savrulan ×%s / tur, çarptığı ×%s, çakılma ×%s" % [ItemGen.fmt(float(d["hasar"])), ItemGen.fmt(float(d.get("tutus_hasar", 0.3))), ItemGen.fmt(float(d.get("savurma_hasar", 0.55))), ItemGen.fmt(float(d.get("firlatma_hasar", 1.3)))]
+		"yildirim_agi":
+			hs = "kazık ×%s, ağ ×%s / tık, zincir ×%s, yıldırım ×%s" % [ItemGen.fmt(float(d["hasar"])), ItemGen.fmt(float(d.get("ag_hasar", 0.12))), ItemGen.fmt(float(d.get("zincir_hasar", 0.8))), ItemGen.fmt(float(d.get("son_hasar", 1.5)))]
+		"tulpar_dortnali":
+			hs = "%d vuruş ×%s (+%s / vuruş), dörtnal ×%s" % [int(d.get("vurus", 4)), ItemGen.fmt(float(d["hasar"])), ItemGen.fmt(float(d.get("artis", 0.12))), ItemGen.fmt(float(d.get("son_hasar", 1.5)))]
 		"akinci_akini":
 			hs = "%d + %d ok × ×%s, delen ok ×%s" % [int(d.get("yaylim_ok", 5)), int(d.get("seri_ok", 6)), ItemGen.fmt(float(d.get("seri_hasar", 0.35))), ItemGen.fmt(float(d.get("delis_hasar", 1.6)))]
 	if d.has("ritim_k"):
-		hs += " · TAM ×%s" % ("%.2f" % float(d["ritim_k"])).replace(".", ",").trim_suffix("0")
+		hs += " · TAM ×%s%s" % [("%.2f" % float(d["ritim_k"])).replace(".", ",").trim_suffix("0"), " (her vuruş; dördü TAM: dörtnal)" if String(d["id"]) == "tulpar_dortnali" else ""]
 	return hs + " · duruş %s · boss ×%s" % [ItemGen.fmt(float(d.get("durus", 1.0))), ItemGen.fmt(float(d.get("boss_k", 0.7)))]
 
 
