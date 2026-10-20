@@ -1,13 +1,20 @@
 {
  "_not": "v24 Bezirgân Sartak (tüccar) ve altın ekonomisi. Okuyan: scripts/core/Pazar.gd. Fiyat = taban[kategori] x nadirlik[n] x (0,85 + 0,3 x kalite) x unsur x kusur x derinlik_k; derinlik_k = 1 + derinlik_artis x (derinlik - 1). Altın tanesi = 1-3 x altin_k (aynı derinlik çarpanı): fiyatlar ve gelir birlikte büyür. Ölçüm: -- --tuccar (tools/tests/tuccar_testi.gd).",
  "taban": {"weapons": 60, "shields": 46, "gadgets": 52},
- "nadirlik": [1.0, 1.7, 2.8, 4.6],
+ "nadirlik": [1.0, 1.55, 2.4, 3.8],
  "unsur": 1.25,
  "kusur": 0.8,
  "derinlik_artis": 0.3,
  "ust_kademe": 1.35,
  "sifa": {"ad": "Umay Sütü", "fiyat": 34, "can": 0.4},
  "tomar": {"ad": "Kut Tomarı", "fiyat": 230, "sans": 0.35},
+ "pazar": {
+  "_not": "v34 mal seçimi (Pazar.teklifler): kademe = malın kademesi derinliğin kademesinden kaç üst; nadirlik = nadirlik zarı kaç sütun ileri (items.json rarities.weight); aday = Sartak'ın her mal için baktığı aday sayısı (oyuncuya en iyi gelen tezgâha); gozde = kesin iyileşme malı (esik: kuşanılana göre SnH oranı, deneme: aday sayısı, indirim: fiyat çarpanı, bileme: aday bulunamazsa en iyisinin hasarına en çok bu çarpan). Ölçüm: -- --tuccar --tuccar_oran.",
+  "kademe": 1,
+  "nadirlik": 2,
+  "aday": 2,
+  "gozde": {"esik": 1.15, "deneme": 48, "indirim": 0.8, "bileme": 1.35}
+ },
  "yenile": {"fiyat": 14, "artis": 0.6},
  "altin": {"artis": 0.3, "tane": [1, 3]},
  "yer": {

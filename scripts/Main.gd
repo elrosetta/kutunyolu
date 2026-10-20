@@ -335,6 +335,7 @@ func _on_tuccar() -> void:
 	## v24: Bezirgân Sartak'ın pazarı (oyun durur). Mallar Level.bezirgan.offers; satın alma Pazar.satin_al.
 	if level == null or level.bezirgan == null:
 		return
+	Pazar.gozde_tazele(level.bezirgan)   # v34: gözde mal oyuncunun şimdiki donanımına göre
 	hud.sel = 0
 	hud.tuccar_onay = false
 	hud.mode = "tuccar"
@@ -771,6 +772,8 @@ func _apply_scroll(sel: int) -> void:
 		FX.text(level.player.center() + Vector2(0, -36), "%s +1" % Data.items["ongun"][k]["name"], col, 9)
 		level.player.vis_scale = Vector2(0.85, 1.15)
 	if is_instance_valid(scroll_pickup):
+		if level:   # v34: tomar kaidenin üstünde açılır, seçilen statın tamgası parlayıp oyuncuya uçar
+			TomarV2.acilis(level, scroll_pickup.global_position + Vector2(0, Pickup.TOMAR_Y), k, level.player)
 		level.pickups.erase(scroll_pickup)
 		scroll_pickup.queue_free()
 	scroll_pickup = null
@@ -1277,6 +1280,9 @@ func _debug_screen() -> void:
 	if _ekran_t != 40 or level == null or level.player == null:
 		return
 	var pl: Player = level.player
+	if _ekran == "tomar":
+		_ekran_tomar(pl)
+		return
 	Game.run["slots"]["second"] = ItemGen.roll("savas_baltasi", 2, "gumus", 2)
 	Game.run["slots"]["g2"] = ItemGen.roll("sifa_muskasi", 1, "tunc", 1)
 	Game.run["ongun"] = {"kurt": 3, "kartal": 1, "ayi": 2}
@@ -1331,6 +1337,60 @@ func _debug_screen() -> void:
 			hud.mode = "title"
 			_open_settings()
 			hud.sel = 2   # doku kalitesi
+
+
+func _ekran_tomar(pl: Player) -> void:
+	## v34 çekim: --ekran=tomar: oyuncunun önüne bir Kut Tomarı (kaidesiyle) konur, yakındaki yaratıklar kalkar.
+	## --tomar_oku=<sn> verilirse o kadar sonra tomar oyunun yolundan okunur (_on_scroll -> _apply_scroll; açılış
+	## animasyonu), --tomar_stat=0|1|2 seçilen stat (Bozkurt / Kartal / Ayı). --tomar_dx=<birim> tomarın uzaklığı,
+	## --tomar_yavas=<k> okurken oyun hızı, --tomar_seri=<mutlak önek>: okununca açılışın 14 karesini (her 0,1 oyun sn)
+	## <önek>_<i>.png olarak kaydeder ve çıkar (çekim süresinden bağımsız, belirlenimci).
+	var oku := -1.0
+	var st := 0
+	var dx := 64.0
+	var yavas := 1.0
+	var seri := ""
+	for arg in OS.get_cmdline_user_args():
+		if String(arg).begins_with("--tomar_seri="):
+			seri = String(arg).trim_prefix("--tomar_seri=")
+		if String(arg).begins_with("--tomar_yavas="):
+			yavas = float(String(arg).trim_prefix("--tomar_yavas="))
+		if String(arg).begins_with("--tomar_oku="):
+			oku = float(String(arg).trim_prefix("--tomar_oku="))
+		elif String(arg).begins_with("--tomar_stat="):
+			st = int(String(arg).trim_prefix("--tomar_stat="))
+		elif String(arg).begins_with("--tomar_dx="):
+			dx = float(String(arg).trim_prefix("--tomar_dx="))
+	for e in get_tree().get_nodes_in_group("dusman"):
+		if is_instance_valid(e) and e.global_position.distance_to(pl.global_position) < 600.0:
+			e.queue_free()
+	pl.facing = 1
+	var at := pl.global_position + Vector2(dx, -30.0)
+	var gy: float = level.ground_y_below(at, 160.0)
+	level.drop_scroll(Vector2(at.x, gy if gy > 0.0 else pl.global_position.y))
+	var p: Pickup = level.pickups[level.pickups.size() - 1]
+	print("[tomar] ekran: oyuncu=%s tomar=%s zemin=%.0f ms=%d" % [str(pl.global_position), str(p.global_position), gy, Time.get_ticks_msec()])
+	Game.camera.reset_smoothing()
+	if oku >= 0.0:
+		await get_tree().create_timer(oku).timeout
+		if is_instance_valid(p):
+			print("[tomar] okunuyor ms=%d" % Time.get_ticks_msec())
+			_on_scroll(p)
+			hud.sel = st
+			_apply_scroll(st)
+			Engine.time_scale = yavas
+			if seri != "":
+				for i in 14:
+					await RenderingServer.frame_post_draw
+					var img := get_viewport().get_texture().get_image()
+					if get_viewport().use_hdr_2d:
+						if img.get_format() != Image.FORMAT_RGBA8 and img.get_format() != Image.FORMAT_RGB8:
+							img.convert(Image.FORMAT_RGBA8)
+						img.linear_to_srgb()
+					img.save_png("%s_%02d.png" % [seri, i])
+					await get_tree().create_timer(0.1).timeout
+				print("[tomar] seri bitti")
+				get_tree().quit()
 
 
 func _physics_process(delta: float) -> void:

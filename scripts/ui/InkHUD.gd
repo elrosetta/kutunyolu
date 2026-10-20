@@ -62,6 +62,10 @@ static func top_left(h: Control, R: Dictionary, hp: float, mhp: float, hpk: floa
 		InkUI.icon_at(h, k, Vector2(x + 6, y3 + 6), 13.0, col)
 		InkUI.draw_str(h, Vector2(x + 14, y3 + 10), str(int(R["ongun"][k])), f, 10, col.lightened(0.25), 1)
 		x += 30.0
+	# v34: okunan Kut Tomarı sayısı (kayın kabuğu tomar simgesi)
+	if TomarV2.on() and TomarV2.has("ui_tomar"):
+		TomarV2.ui(h, "ui_tomar", Vector2(x + 9, y3 + 6), 22.0)
+		InkUI.draw_str(h, Vector2(x + 21, y3 + 10), str(int(R.get("scrolls", 0))), f, 10, PixUI.GOLD, 1)
 	return y3
 
 

@@ -1,6 +1,7 @@
 class_name Pazar
 extends RefCounted
 ## v24 Bezirgân Sartak'ın pazarı: mal (teklif) yuvarlama, fiyat, satın alma, malları yenileme ve altın tanesi değeri.
+## v34: mallar oyuncunun donanımına göre (iyilesme): üst kademe + daha iyi nadirlik, aday seçimi, "Bezirgân'ın gözdesi".
 ## Bütün sayılar data/tuccar.json'da. Fiyat ve altın geliri aynı derinlik çarpanıyla büyür (derinlik_k), böylece her
 ## derinlikte "biriktirirsen 1-2 iyi mal" dengesi korunur. Ölçüm: -- --tuccar (tools/tests/tuccar_testi.gd).
 
@@ -64,29 +65,147 @@ static func tomar_fiyat(d := -1) -> int:
 	return int(round(float(data().get("tomar", {}).get("fiyat", 230)) * derinlik_k(d) / 5.0)) * 5
 
 
+static func _pz() -> Dictionary:
+	return data().get("pazar", {})
+
+
+static func yuva(it: Dictionary) -> String:
+	## Malın kuşanılacağı doğal yuva (Level.natural_slot ile aynı)
+	if String(it.get("cat", "")) == "gadgets":
+		return "g1"
+	return "second" if Player.is_second_item(it) else "melee"
+
+
+static func guc(it: Dictionary) -> float:
+	## Karşılaştırma ölçüsü: silahta oyuncunun SnH'si (ItemGen.dps_oyuncu), teçhizatta güç, kalkanda blok x kademe x
+	## nadirlik; ek özellik başına +%10 (silahta SnH zaten içerir)
+	if it.is_empty():
+		return 0.0
+	var ek := 1.0 + 0.1 * (it.get("affixes", []) as Array).size()
+	match String(it.get("cat", "")):
+		"weapons":
+			return ItemGen.dps_oyuncu(it)
+		"gadgets":
+			return float(it.get("power", 0.0)) * ek
+		"shields":
+			return float(it.get("block", 0.5)) * Zorluk.esya_k(int(it.get("tier", 0))) * Zorluk.nadirlik_k(int(it.get("rarity", 0))) * ek
+	return 0.0
+
+
+static func iyilesme(it: Dictionary) -> float:
+	## v34: mal, oyuncunun aynı yuvadaki eşyasına göre ne kadar güçlü (oran; 1,1 = %10 iyi). Yuva boşsa 2; kıyaslanamazsa
+	## (ikinci yuvada yay varken kalkan) 0. Teçhizat iki yuvanın zayıfıyla kıyaslanır.
+	if Game.run.is_empty() or it.is_empty():
+		return 0.0
+	var sl: Dictionary = Game.run.get("slots", {})
+	match String(it.get("cat", "")):
+		"weapons":
+			var cur: Dictionary = sl.get(yuva(it), {})
+			if cur.is_empty():
+				return 2.0
+			if String(cur.get("cat", "")) != "weapons":
+				return 0.0
+			return guc(it) / maxf(0.01, guc(cur))
+		"shields":
+			var sh: Dictionary = sl.get("second", {})
+			if sh.is_empty():
+				return 2.0
+			if String(sh.get("cat", "")) != "shields":
+				return 0.0
+			return guc(it) / maxf(0.01, guc(sh))
+		"gadgets":
+			var lo := minf(guc(sl.get("g1", {})), guc(sl.get("g2", {})))
+			return 2.0 if lo <= 0.0 else guc(it) / lo
+	return 0.0
+
+
+static func _aday(kt: int, nt: int, cat: String, n: int) -> Dictionary:
+	## Sartak'ın ayırdığı mal: n aday arasından oyuncuya en iyi gelen (iyilesme); kıyaslanamayanlar arasında en güçlü
+	var best := {}
+	var bv := -1.0
+	for i in maxi(1, n):
+		var it := ItemGen.tuccar_drop(kt, nt, cat)
+		var v := iyilesme(it)
+		if v <= 0.0:
+			v = 0.5 + 0.001 * guc(it)
+		if v > bv:
+			bv = v
+			best = it
+	return best
+
+
+static func gozde_sec(kt: int, nt: int) -> Dictionary:
+	## "Bezirgân'ın gözdesi": oyuncunun kuşandığı silahtan açıkça iyi (oran >= esik) bir silah; "deneme" aday aranır
+	## (adayların ikinci üçte biri bir, son üçte biri iki kademe ve nadirlik sütunu üstten); bulunamazsa en iyi aday
+	## bilenir (hasarı eşiğe dek artar, "bilendi"): ziyaret başına en az bir iyileşme kesin
+	var G: Dictionary = _pz().get("gozde", {})
+	var esik := float(G.get("esik", 1.15))
+	var n := int(G.get("deneme", 40))
+	var best := {}
+	var bv := -1.0
+	for i in n:
+		var ust := (i * 3) / maxi(1, n)
+		var it := ItemGen.tuccar_drop(mini(8, kt + ust), mini(8, nt + ust), "weapons")
+		var v := iyilesme(it)
+		if v >= esik:
+			return it
+		if v > bv:
+			bv = v
+			best = it
+	# hiçbiri yetmedi (oyuncunun silahı çok iyi): Sartak en iyi adayı biler (hasar eşiğe dek, en çok x"bileme")
+	if not best.is_empty() and bv > 0.0 and bv < esik and String(best.get("cat", "")) == "weapons":
+		var k := minf(esik / bv, float(G.get("bileme", 1.35)))
+		best["dmg"] = float(best["dmg"]) * k
+		best["bilendi"] = true
+	return best
+
+
 static func teklifler(d := -1, tomar_kesin := false) -> Array:
-	## Bu derinliğin malları (3-5): bir silah, bir rastgele eşya, bir üst kademe eşya (pahalı, daha iyi nadirlik
-	## şansı), Umay Sütü (şifa) ve şansla (boss öncesinde kesin) bir Kut Tomarı.
+	## v34 (Dead Cells esinli): mallar o derinliğin kademesinin üstünden (data "pazar.kademe") ve daha iyi nadirlik
+	## zarıyla ("pazar.nadirlik" sütun ileri) yuvarlanır; Sartak her mal için birkaç aday arasından oyuncunun aynı
+	## yuvasındaki eşyasına göre en iyisini tezgâha koyar ("pazar.aday"). Mallar:
+	##   1. Bezirgân'ın gözdesi: kuşanılandan açıkça iyi bir silah (kesin iyileşme), indirimli ("gozde.indirim"),
+	##   2. bir silah, 3. rastgele bir eşya (silah / kalkan / teçhizat), 4. "seçme" mal (bir kademe daha üstten, pahalı),
+	##   5. Umay Sütü, 6. şansla (boss öncesinde kesin) Kut Tomarı.
 	var dd := derinlik() if d < 1 else d
 	var tier := Zorluk.kademe(dd)
+	var P := _pz()
+	var kt := mini(8, tier + int(P.get("kademe", 1)))
+	var nt := mini(8, tier + int(P.get("nadirlik", 2)))
+	var n_aday := int(P.get("aday", 2))
 	var out: Array = []
-	var silah := {}
-	for i in 12:   # ilk mal bir silah (yakın ya da yay); havuz silahsız gelirse rastgele
-		var it := ItemGen.random_drop(tier)
-		if String(it.get("cat", "")) == "weapons":
-			silah = it
-			break
-	if silah.is_empty():
-		silah = ItemGen.random_drop(tier)
-	out.append({"tur": "esya", "item": silah, "fiyat": esya_fiyat(silah, dd), "satildi": false})
-	var it2 := ItemGen.random_drop(tier)
+	var gz := gozde_sec(kt, nt)
+	var gzf := maxi(5, int(round(float(esya_fiyat(gz, dd)) * float(P.get("gozde", {}).get("indirim", 0.85)) / 5.0)) * 5)
+	out.append({"tur": "esya", "item": gz, "fiyat": gzf, "satildi": false, "gozde": true})
+	var w := _aday(kt, nt, "weapons", n_aday)
+	out.append({"tur": "esya", "item": w, "fiyat": esya_fiyat(w, dd), "satildi": false})
+	var it2 := _aday(kt, nt, "", n_aday)
 	out.append({"tur": "esya", "item": it2, "fiyat": esya_fiyat(it2, dd), "satildi": false})
-	var it3 := ItemGen.random_drop(mini(8, tier + 1))
+	var it3 := _aday(mini(8, kt + 1), mini(8, nt + 1), "", n_aday)
 	out.append({"tur": "esya", "item": it3, "fiyat": esya_fiyat(it3, dd, true), "satildi": false, "ust": true})
 	out.append({"tur": "sifa", "item": {}, "fiyat": sifa_fiyat(dd), "satildi": false})
 	if tomar_kesin or randf() < float(data().get("tomar", {}).get("sans", 0.35)):
 		out.append({"tur": "tomar", "item": {}, "fiyat": tomar_fiyat(dd), "satildi": false})
 	return out
+
+
+static func gozde_tazele(bz: Node) -> void:
+	## v34: pazar açılınca (mallar bölüm kurulurken yuvarlandı; oyuncu arada eşya almış olabilir) satılmamış gözde mal
+	## artık açık iyileşme değilse oyuncunun şimdiki donanımına göre yeniden seçilir
+	var G: Dictionary = _pz().get("gozde", {})
+	for i in (bz.offers as Array).size():
+		var o: Dictionary = bz.offers[i]
+		if not bool(o.get("gozde", false)) or bool(o.get("satildi", false)):
+			continue
+		if iyilesme(o["item"]) >= float(G.get("esik", 1.15)) * 0.97:
+			return
+		var dd := derinlik()
+		var tier := Zorluk.kademe(dd)
+		var P := _pz()
+		var gz := gozde_sec(mini(8, tier + int(P.get("kademe", 1))), mini(8, tier + int(P.get("nadirlik", 2))))
+		o["item"] = gz
+		o["fiyat"] = maxi(5, int(round(float(esya_fiyat(gz, dd)) * float(G.get("indirim", 0.85)) / 5.0)) * 5)
+		return
 
 
 static func yenile_fiyat(n_yenileme: int, d := -1) -> int:
