@@ -87,6 +87,35 @@ func random_drop(tier: int) -> Dictionary:
 	return roll(_wpick(pool, ws), tier)
 
 
+func tuccar_drop(tier: int, rar_t: int, cat := "") -> Dictionary:
+	## v34 Bezirgân malı: random_drop'un havuzu (açılmış eşyalar, en düşük kademe, gelişmiş sürüm x1,4) ama kategori
+	## verilebilir ve nadirlik zarı rar_t sütunundan (items.json rarities.weight; pazar daha iyi nadirlik çeker)
+	var c := cat if cat != "" else String(_wpick(["weapons", "shields", "gadgets"], [6, 2, 2]))
+	var ids := unlocked(c)
+	if ids.is_empty():
+		ids = unlocked("weapons")
+	if ids.is_empty():
+		ids = implemented("weapons")
+	var pool: Array = []
+	var ws: Array = []
+	for id in ids:
+		var base := Data.find_item(id)
+		if tier < int(base.get("min_tier", 0)):
+			continue
+		pool.append(id)
+		ws.append(1.4 if base.has("upgrade_of") else 1.0)
+	if pool.is_empty():
+		pool = ids
+		ws = []
+		for id in ids:
+			ws.append(1.0)
+	var rars: Array = Data.items["rarities"]
+	var rw: Array = []
+	for r in rars:
+		rw.append(_w_at(r["weight"], clampi(rar_t, 0, 8)))
+	return roll(_wpick(pool, ws), tier, "", rars.find(_wpick(rars, rw)))
+
+
 func roll(id: String, tier: int = 0, material: String = "", rarity: int = -1, flaw: String = "?") -> Dictionary:
 	var base := Data.find_item(id)
 	if base.is_empty():

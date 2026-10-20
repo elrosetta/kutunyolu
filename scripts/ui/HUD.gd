@@ -881,12 +881,17 @@ func _draw_tilsim(vp: Vector2) -> void:
 		var is_sel := i == sel
 		var x := x0 + i * (cw + gap)
 		var y := 104.0 + (1.0 - e) * (20.0 + i * 10.0) - (5.0 if is_sel else 0.0)
-		var ch := 196.0
+		var ch := 220.0
 		var r := Rect2(x, y, cw, ch)
 		PixUI.fancy_panel(self, r, col if is_sel else col.darkened(0.5), Color(col.darkened(0.82), 0.97) if is_sel else PixUI.INK)
-		# simge (3x)
-		var isz := PixUI.icon_size(k) * 3.0
-		PixUI.icon(self, k, Vector2(x + (cw - isz.x) / 2.0, y + 10), col if is_sel else col.darkened(0.35), 3)
+		# v34: açık Kut Tomarı resmi (kayın kabuğu, bozkurt başlı çubuk, halkada statın tamgası; tools/artgen/tomar_ink.py)
+		if TomarV2.on() and TomarV2.has("ui_kart_" + k):
+			var bob := sin(_t * 2.4 + i) * (1.2 if is_sel else 0.0)
+			TomarV2.ui(self, "ui_kart_" + k, Vector2(x + cw / 2.0, y + 35.0 + bob), 72.0 if is_sel else 64.0, Color(1, 1, 1) if is_sel else Color(0.62, 0.6, 0.66))
+		else:
+			var isz := PixUI.icon_size(k) * 3.0
+			PixUI.icon(self, k, Vector2(x + (cw - isz.x) / 2.0, y + 10), col if is_sel else col.darkened(0.35), 3)
+		y += 24.0
 		PixUI.text(self, Vector2(x, y + 36), _up(String(o["name"])), col, 1, HORIZONTAL_ALIGNMENT_CENTER, cw, 2)
 		var lv := int(R["ongun"][k])
 		var m0 := Game.ongun_mult_lv(k, 0)
@@ -932,7 +937,7 @@ func _draw_tilsim(vp: Vector2) -> void:
 			yy += 10.0
 		if not any:
 			PixUI.text(self, Vector2(x + 8, yy), "(bu renkte eşyan yok)", Color(PixUI.DIM, 0.7), 1, HORIZONTAL_ALIGNMENT_LEFT, -1.0, 0)
-	_hint(vp, [["A/D", "seç"], ["Boşluk", "oku"]], 304.0)
+	_hint(vp, [["A/D", "seç"], ["Boşluk", "oku"]], 330.0)
 
 
 # ------------------------------------------------------------------ ekranlar
@@ -1295,7 +1300,10 @@ func _draw_tuccar(vp: Vector2) -> void:
 		else:
 			name_col = PixUI.GOLD
 			sub = "stat tomarı"
-			PixUI.icon(self, "tilsim", ib.get_center() - Vector2(6, 6), PixUI.GOLD, 2)
+			if TomarV2.on() and TomarV2.has("ui_tomar"):
+				TomarV2.ui(self, "ui_tomar", ib.get_center() + Vector2(0, 1), ib.size.x + 2.0, Color(1, 1, 1, 1.0 if not bool(o["satildi"]) else 0.4))   # v34
+			else:
+				PixUI.icon(self, "tilsim", ib.get_center() - Vector2(6, 6), PixUI.GOLD, 2)
 		var tx := r.position.x + 48.0
 		var nm := Pazar.ad(o)
 		var full_nm := nm
@@ -1313,8 +1321,32 @@ func _draw_tuccar(vp: Vector2) -> void:
 			info = "SnH %s" % ItemGen.fmt(d)
 			if not cur.is_empty() and String(cur.get("cat", "")) == "weapons":
 				var dd := d - _eff_dps(cur)
-				info += ("  ▲ +%s" if dd >= 0.0 else "  ▼ %s") % ItemGen.fmt(dd)
+				# v34: fark yüzdesiyle (kuşanılan aynı yuva silahına göre)
+				var pc := int(round(dd / maxf(0.01, _eff_dps(cur)) * 100.0))
+				info += ("  ▲ +%s (+%%%d)" if dd >= 0.0 else "  ▼ %s (-%%%d)") % [ItemGen.fmt(dd), absi(pc)]
 				info_col = PixUI.GOOD if dd >= 0.0 else PixUI.BAD
+			elif cur.is_empty():
+				info += "  · boş yuva"
+				info_col = PixUI.GOOD
+		elif tur == "esya" and not sold:
+			# v34: kalkan / teçhizat: aynı yuvadakinden güçlüyse yeşil ▲ (Pazar.iyilesme)
+			var iy := Pazar.iyilesme(it)
+			if iy >= 1.1:
+				info += ("  ▲ +%%%d" % int(round((iy - 1.0) * 100.0))) if iy < 1.99 else "  ▲ boş yuva"
+				info_col = PixUI.GOOD
+		if tur == "esya" and not sold:
+			# v34: yeşil iyileşme rozeti (simgenin köşesi) ve "Bezirgân'ın gözdesi" damgası
+			if Pazar.iyilesme(it) >= 1.1:
+				var bc := Vector2(ib.end.x - 4.0, ib.position.y + 4.0)
+				draw_circle(bc, 4.6, Color(0.05, 0.12, 0.05, 0.9))
+				draw_circle(bc, 3.8, PixUI.GOOD)
+				draw_colored_polygon(PackedVector2Array([bc + Vector2(0, -2.4), bc + Vector2(2.3, 1.6), bc + Vector2(-2.3, 1.6)]), Color(0.04, 0.12, 0.04))
+			if bool(o.get("gozde", false)):
+				var gw2 := PixUI.width("GÖZDE") + 8.0
+				var gr := Rect2(r.end.x - gw2 - 4.0, r.position.y - 4.0, gw2, 10.0)
+				draw_rect(gr, Color(0.55, 0.32, 0.06, 0.95))
+				draw_rect(gr, PixUI.GOLD, false, 1.0)
+				PixUI.text(self, gr.position + Vector2(0, -1), "GÖZDE", Color(1.0, 0.95, 0.75), 1, HORIZONTAL_ALIGNMENT_CENTER, gw2, 0)
 		PixUI.text(self, Vector2(tx, r.position.y + 13), info, info_col if not sold else Color(PixUI.DIM, 0.4), 1, HORIZONTAL_ALIGNMENT_LEFT, -1.0, 0)
 		if sold:
 			var sc := Color(0.86, 0.24, 0.2, 0.95)
@@ -1331,7 +1363,7 @@ func _draw_tuccar(vp: Vector2) -> void:
 		if String(o2["tur"]) == "esya":
 			var it2: Dictionary = o2["item"]
 			var cur2: Dictionary = R["slots"].get(level.natural_slot(it2), {})
-			_draw_card(it2, Vector2(cx, cy), "SATILIK" if not bool(o2["satildi"]) else "SATILDI", cur2)
+			_draw_card(it2, Vector2(cx, cy), ("BEZİRGÂN'IN GÖZDESİ" if bool(o2.get("gozde", false)) else "SATILIK") if not bool(o2["satildi"]) else "SATILDI", cur2)
 		else:
 			var lines := PixUI.wrap(Pazar.aciklama(o2), cw - 14.0)
 			var h := 30.0 + lines.size() * 10.0

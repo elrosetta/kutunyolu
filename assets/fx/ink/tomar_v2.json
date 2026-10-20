@@ -1,0 +1,217 @@
+{
+ "texel": 4.0,
+ "filter": "linear",
+ "_not": "v34 Kut Tomarı atlası (tools/artgen/tomar_ink.py). rect/pivot temel doku pikseli; texel: doku pikseli / dünya (arayüz) birimi.",
+ "sprites": {
+  "tomar": {
+   "rect": [
+    612,
+    712,
+    200,
+    136
+   ],
+   "pivot": [
+    100.0,
+    56.0
+   ],
+   "texel": 4.0,
+   "glow": true
+  },
+  "tomar_kaide": {
+   "rect": [
+    0,
+    892,
+    136,
+    56
+   ],
+   "pivot": [
+    68.0,
+    48.0
+   ],
+   "texel": 4.0,
+   "glow": true
+  },
+  "tomar_ac_0": {
+   "rect": [
+    404,
+    356,
+    200,
+    176
+   ],
+   "pivot": [
+    100.0,
+    28.0
+   ],
+   "texel": 4.0,
+   "glow": true
+  },
+  "tomar_ac_1": {
+   "rect": [
+    608,
+    356,
+    200,
+    176
+   ],
+   "pivot": [
+    100.0,
+    28.0
+   ],
+   "texel": 4.0,
+   "glow": true
+  },
+  "tomar_ac_2": {
+   "rect": [
+    812,
+    356,
+    200,
+    176
+   ],
+   "pivot": [
+    100.0,
+    28.0
+   ],
+   "texel": 4.0,
+   "glow": true
+  },
+  "tomar_ac_3": {
+   "rect": [
+    0,
+    712,
+    200,
+    176
+   ],
+   "pivot": [
+    100.0,
+    28.0
+   ],
+   "texel": 4.0,
+   "glow": true
+  },
+  "tomar_ac_4": {
+   "rect": [
+    204,
+    712,
+    200,
+    176
+   ],
+   "pivot": [
+    100.0,
+    28.0
+   ],
+   "texel": 4.0,
+   "glow": true
+  },
+  "tomar_ac_5": {
+   "rect": [
+    408,
+    712,
+    200,
+    176
+   ],
+   "pivot": [
+    100.0,
+    28.0
+   ],
+   "texel": 4.0,
+   "glow": true
+  },
+  "tamga_kurt": {
+   "rect": [
+    140,
+    892,
+    56,
+    56
+   ],
+   "pivot": [
+    28.0,
+    28.0
+   ],
+   "texel": 4.0,
+   "glow": true
+  },
+  "tamga_kartal": {
+   "rect": [
+    200,
+    892,
+    56,
+    56
+   ],
+   "pivot": [
+    28.0,
+    28.0
+   ],
+   "texel": 4.0,
+   "glow": true
+  },
+  "tamga_ayi": {
+   "rect": [
+    260,
+    892,
+    56,
+    56
+   ],
+   "pivot": [
+    28.0,
+    28.0
+   ],
+   "texel": 4.0,
+   "glow": true
+  },
+  "ui_tomar": {
+   "rect": [
+    816,
+    712,
+    200,
+    136
+   ],
+   "pivot": [
+    100.0,
+    56.0
+   ],
+   "texel": 4.0,
+   "glow": false
+  },
+  "ui_kart_kurt": {
+   "rect": [
+    0,
+    0,
+    400,
+    352
+   ],
+   "pivot": [
+    200.0,
+    56.0
+   ],
+   "texel": 8.0,
+   "glow": false
+  },
+  "ui_kart_kartal": {
+   "rect": [
+    404,
+    0,
+    400,
+    352
+   ],
+   "pivot": [
+    200.0,
+    56.0
+   ],
+   "texel": 8.0,
+   "glow": false
+  },
+  "ui_kart_ayi": {
+   "rect": [
+    0,
+    356,
+    400,
+    352
+   ],
+   "pivot": [
+    200.0,
+    56.0
+   ],
+   "texel": 8.0,
+   "glow": false
+  }
+ }
+}

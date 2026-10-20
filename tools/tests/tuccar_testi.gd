@@ -8,6 +8,12 @@ extends Node
 ##            eşya ve kuşanma (Level.try_equip), SnH farkı (HUD'un çizdiği sayı), şifa, yetmeyen altın, yenileme.
 ##   PARSOMEN: yurtta Demirci'de aynı parşömen iki kez açılır (Main._demirci_ac): her seferinde önüne rastgele
 ##            yuvarlanmış bir eşya düşer (kademe 0), eşya düşme havuzuna girer. Kalıcı kayıt test sonunda geri yüklenir.
+##   ORAN (v34): birçok derinlikte (1-9) çok sayıda pazar ziyareti; oyuncunun o derinlikte tipik olarak taşıdığı donanım
+##            oyunun kendi düşüş zarıyla kurulur (_tipik_donanim: başlangıç donanımı + her derinliğin kaide / yüksek çıkıntı /
+##            hazine / seçkin düşüşleri, bulunanın en iyisi kuşanılır, beklenen tomar statıyla SnH), sonra Pazar.teklifler:
+##            silah mallarının yüzde kaçı aynı yuvadaki silaha göre açık iyileşme (SnH >= +%10), ziyaret başına en az bir
+##            iyileşme, iyileşmelerin fiyatı / bölüm başına toplanan altın. --tuccar_oran yalnızca bunu koşar
+##            (--tuccar_ziyaret=N derinlik başına ziyaret, varsayılan 150).
 ## Çekim kipleri (--goruntu ile): --tuccar_ekran=dunya | pazar | demirci | yurt (kurar ve bekler, çıkmaz).
 ## Çıktı "[tuccar] ..." satırları, sonda "[tuccar] SONUC GECTI|KALDI".
 
@@ -15,6 +21,7 @@ var main: Node
 var _fail: Array = []
 var _meta0: Dictionary = {}
 var _ekran := ""
+var _altin_d: Dictionary = {}   # derinlik -> bölüm temizlenirse beklenen altın (EKONOMI)
 
 
 func _ready() -> void:
@@ -54,7 +61,13 @@ func _run() -> void:
 	if _ekran != "":
 		await _ekran_kur()
 		return
+	if OS.get_cmdline_user_args().has("--tuccar_oran"):
+		await _oran()
+		_p("SONUC %s%s" % ["GECTI" if _fail.is_empty() else "KALDI", "" if _fail.is_empty() else " (" + ", ".join(_fail) + ")"])
+		get_tree().quit()
+		return
 	await _ekonomi()
+	await _oran()
 	await _pazar()
 	await _parsomen()
 	Game.meta = _meta0
@@ -101,6 +114,7 @@ func _ekonomi() -> void:
 		tot_lv += n_seed
 		# altın tanesi ortalaması 2 x altin_k; sıradan 2-4 tane (3), seçkin +10 (13), hazine 6; boss (2, 4, 6, 8. derinlik sonu) 30
 		var g := (en * 3.0 + el * 13.0 + tr * 6.0 + (30.0 if Game.BOSS_AFTER.has(d) else 0.0)) * 2.0 * Pazar.altin_k(d)
+		_altin_d[d] = g
 		var pr := _fiyat_ort(d)
 		_p("EKONOMI %d | %.1f %.1f %.1f | %d | %d/%d %s | %d %d %d | %d | %d | %d" % [d, en, el, tr, int(g), bz, n_seed, "duvar_ok" if wall_ok else "DUVARDA", pr[0], pr[1], pr[2], Pazar.sifa_fiyat(d), Pazar.tomar_fiyat(d), Pazar.yenile_fiyat(0, d)])
 		_check(wall_ok, "d%d bezirgân duvarda değil" % d)
@@ -119,6 +133,156 @@ func _fiyat_ort(d: int) -> Array:
 		sums[r] += Pazar.esya_fiyat(it, d)
 		cnt[r] += 1
 	return [int(sums[0] / maxi(1, cnt[0])), int(sums[1] / maxi(1, cnt[1])), int(sums[2] / maxi(1, cnt[2]))]
+
+
+# ------------------------------------------------------------------ v34 oran: pazar malları oyuncunun donanımına göre ne kadar iyi?
+const TOPLAMA := 0.75   # bölümü koşan oyuncunun "hepsi" altınından topladığı pay (v24 ölçümü: %70-80)
+const BULMA := 0.75     # oyuncunun bir bölümdeki eşya düşüşlerinden bulup baktığı pay
+
+
+func _guc(it: Dictionary) -> float:
+	## Kalkan / teçhizat karşılaştırma ölçüsü: teçhizatta güç, kalkanda blok x kademe x nadirlik (+ ek özellik başına %10)
+	if it.is_empty():
+		return 0.0
+	match String(it.get("cat", "")):
+		"weapons":
+			return ItemGen.dps_oyuncu(it)
+		"gadgets":
+			return float(it.get("power", 0.0)) * (1.0 + 0.1 * (it.get("affixes", []) as Array).size())
+		"shields":
+			return float(it.get("block", 0.5)) * Zorluk.esya_k(int(it.get("tier", 0))) * Zorluk.nadirlik_k(int(it.get("rarity", 0))) * (1.0 + 0.1 * (it.get("affixes", []) as Array).size())
+	return 0.0
+
+
+func _yuva(it: Dictionary) -> String:
+	if String(it.get("cat", "")) == "gadgets":
+		return "g1"
+	return "second" if Player.is_second_item(it) else "melee"
+
+
+func _karsi(it: Dictionary, sl: Dictionary, kalkan: Dictionary) -> float:
+	## Malın aynı yuvadaki kuşanılana göre oranı (1,0 = eşit). Kalkan: en iyi bulunan kalkana; teçhizat: zayıf olana.
+	match String(it.get("cat", "")):
+		"weapons":
+			var cur: Dictionary = sl.get(_yuva(it), {})
+			if cur.is_empty() or String(cur.get("cat", "")) != "weapons":
+				return 2.0
+			return ItemGen.dps_oyuncu(it) / maxf(0.01, ItemGen.dps_oyuncu(cur))
+		"shields":
+			return 2.0 if kalkan.is_empty() else _guc(it) / maxf(0.01, _guc(kalkan))
+		"gadgets":
+			var a := _guc(sl.get("g1", {}))
+			var b := _guc(sl.get("g2", {}))
+			var lo := minf(a, b)
+			return 2.0 if lo <= 0.0 else _guc(it) / lo
+	return 0.0
+
+
+func _al(it: Dictionary, sl: Dictionary, kalkan: Dictionary) -> void:
+	## Tipik oyuncu bulduğu eşyayı yuvasındakinden iyiyse kuşanır (kalkan ayrı izlenir; ikinci yuvada yay kalır)
+	match String(it.get("cat", "")):
+		"weapons":
+			var y := _yuva(it)
+			if sl.get(y, {}).is_empty() or _karsi(it, sl, kalkan) > 1.0:
+				sl[y] = it
+		"shields":
+			if kalkan.is_empty() or _guc(it) > _guc(kalkan):
+				kalkan.clear()
+				kalkan.merge(it)
+		"gadgets":
+			if sl.get("g2", {}).is_empty():
+				sl["g2"] = it
+			elif _karsi(it, sl, kalkan) > 1.0:
+				var weak := "g1" if _guc(sl["g1"]) <= _guc(sl["g2"]) else "g2"
+				sl[weak] = it
+
+
+func _tipik_donanim(d: int) -> Dictionary:
+	## d. derinlikteki pazara gelen tipik oyuncu: başlangıç donanımı; 1..d-1 derinliklerin düşüşleri tam, d.'nin yarısı
+	## (pazar bölümün ortasında). Bölüm başına düşüş (Level): 3 kaide (kademe), yüksek çıkıntı (kademe+1), %50 alçak
+	## çıkıntı (kademe), hazine / seçkin (kademe+1, ~1,5); her biri BULMA şansıyla görülür. Tomar statı beklenen modelden.
+	Game.new_run()
+	var sl: Dictionary = Game.run["slots"]
+	var kalkan := {}
+	for j in range(1, d + 1):
+		Game.run["depth"] = j
+		Game.run["tier"] = Zorluk.kademe(j)
+		Game.run["ongun"] = Zorluk.beklenen_tomar(j)
+		var t := Zorluk.kademe(j)
+		var drops: Array = [t, t, t, t + 1, t + 1, t + 1]
+		if randf() < 0.5:
+			drops.append(t)
+		var pay := 1.0 if j < d else 0.5
+		for dt in drops:
+			if randf() < BULMA * pay:
+				_al(ItemGen.random_drop(mini(8, int(dt))), sl, kalkan)
+	Game.run["depth"] = d
+	Game.run["tier"] = Zorluk.kademe(d)
+	var o := Zorluk.beklenen_tomar(d)
+	o["kurt"] = int(o["kurt"]) + 1   # bölümün ilk yarısındaki tomar
+	Game.run["ongun"] = o
+	return kalkan
+
+
+func _oran() -> void:
+	var n := 150
+	for a in OS.get_cmdline_user_args():
+		if String(a).begins_with("--tuccar_ziyaret="):
+			n = int(String(a).trim_prefix("--tuccar_ziyaret="))
+	_p("ORAN d | silah malı: açık iyileşme (>= +%%10) / herhangi > 0 | ziyarette >= 1 iyileşme (her mal) | gözde iyileşme | iyileşen silah fiyatı ort | bölüm altını (x%.2f) | fiyat / bölüm altını | tipik melee SnH" % TOPLAMA)
+	var run0: Dictionary = Game.run.duplicate(true)
+	var tot_w := 0
+	var tot_up := 0
+	var tot_v := 0
+	var tot_vup := 0
+	for d in range(1, 10):
+		var nw := 0
+		var nup := 0
+		var npos := 0
+		var nvup := 0
+		var ngz := 0
+		var ngz_up := 0
+		var fiyat_up := 0.0
+		var melee_dps := 0.0
+		for v in n:
+			var kalkan := _tipik_donanim(d)
+			var sl: Dictionary = Game.run["slots"]
+			melee_dps += ItemGen.dps_oyuncu(sl["melee"])
+			var offers: Array = Pazar.teklifler(d, false)
+			var any := false
+			for o in offers:
+				if String(o["tur"]) != "esya":
+					continue
+				var it: Dictionary = o["item"]
+				var r := _karsi(it, sl, kalkan)
+				if r >= 1.1:
+					any = true
+				if bool(o.get("gozde", false)):
+					ngz += 1
+					if r >= 1.1:
+						ngz_up += 1
+				if String(it["cat"]) != "weapons":
+					continue
+				nw += 1
+				if r >= 1.1:
+					nup += 1
+					fiyat_up += float(o["fiyat"])
+				if r > 1.0:
+					npos += 1
+			if any:
+				nvup += 1
+		var g: float = float(_altin_d.get(d, 0.0))
+		if g <= 0.0:
+			g = 150.0 * Pazar.altin_k(d)   # yalnızca --tuccar_oran: EKONOMI ölçümü yoksa kaba tahmin
+		var gl := g * TOPLAMA
+		var fu := fiyat_up / maxf(1.0, float(nup))
+		_p("ORAN %d | %%%d / %%%d | %%%d | %s | %d | %d | %.2f | %s" % [d, int(round(100.0 * nup / maxf(1.0, nw))), int(round(100.0 * npos / maxf(1.0, nw))), int(round(100.0 * nvup / float(n))), ("%%%d (%d)" % [int(round(100.0 * ngz_up / maxf(1.0, ngz))), ngz]) if ngz > 0 else "-", int(fu), int(gl), fu / maxf(1.0, gl), ItemGen.fmt(melee_dps / float(n))])
+		tot_w += nw
+		tot_up += nup
+		tot_v += n
+		tot_vup += nvup
+	_p("ORAN toplam | silah malı açık iyileşme %%%d | ziyarette >= 1 iyileşme %%%d" % [int(round(100.0 * tot_up / maxf(1.0, tot_w))), int(round(100.0 * tot_vup / maxf(1.0, tot_v)))])
+	Game.run = run0
 
 
 # ------------------------------------------------------------------ pazar
@@ -152,7 +316,12 @@ func _pazar() -> void:
 	lv.tuccar_requested.emit()
 	await _frames(3)
 	_check(main.hud.mode == "tuccar" and get_tree().paused, "pazar açıldı (oyun duraklı)")
-	_check(bz.offers.size() >= 3 and bz.offers.size() <= 5, "mal sayısı 3-5 (%d)" % bz.offers.size())
+	_check(bz.offers.size() >= 3 and bz.offers.size() <= 6, "mal sayısı 3-6 (%d)" % bz.offers.size())
+	# v34: ilk mal "Bezirgân'ın gözdesi": oyuncunun aynı yuvadaki silahından açıkça iyi (Pazar.iyilesme >= esik)
+	var gz_o: Dictionary = bz.offers[0]
+	var gz_iy := Pazar.iyilesme(gz_o["item"])
+	_check(bool(gz_o.get("gozde", false)) and gz_iy >= float(Pazar.data().get("pazar", {}).get("gozde", {}).get("esik", 1.15)) * 0.97,
+		"gözde mal açık iyileşme (x%.2f, %s)" % [gz_iy, String(gz_o["item"].get("name", ""))])
 	for i in bz.offers.size():
 		var o: Dictionary = bz.offers[i]
 		var extra := ""

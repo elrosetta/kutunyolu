@@ -19,7 +19,13 @@ var ink_spr: Sprite2D
 var ink_base: Sprite2D   # kaide (eşya / tılsım)
 
 ## Yerdeki nesnelerin temas gölgesi genişliği (piksel); süzülen ruhlar (don, lutuf) gölgesiz
-const SHADOW_W := {"item": 18.0, "tilsim": 16.0, "parsomen": 14.0, "sifa": 10.0, "gold": 6.0, "kut": 6.0}
+## v34: yerdeki tomarın ölçeği (atlas 4 doku pikseli / birim; çizim 50x34 birim, tomar ~44 birim) ve süzülme yüksekliği
+const TOMAR_OLCEK := 1.15
+const TOMAR_Y := -29.0
+var _hale: Sprite2D   # tomar: arkasındaki sıcak ışık halesi (toplamalı)
+var _near := 0.0   # tomar: oyuncu yakınlığı (0..1, yumuşatılmış)
+
+const SHADOW_W := {"item": 18.0, "tilsim": 24.0, "parsomen": 14.0, "sifa": 10.0, "gold": 6.0, "kut": 6.0}
 
 
 func _ready() -> void:
@@ -39,7 +45,7 @@ func _ready() -> void:
 		light = level.add_light(Vector2(0, -4), Color.WHITE, 60.0, 0.8, self)
 		_refresh()
 	elif kind == "tilsim":
-		light = level.add_light(Vector2(0, -10), Color(1.0, 0.85, 0.5), 90.0, 1.0, self)
+		light = level.add_light(Vector2(0, -22), Color(1.0, 0.8, 0.48), 110.0, 1.05, self)   # v34: sıcak tomar ışığı
 	elif kind == "parsomen":
 		var sanat_t := item_id.begins_with("sanat:")   # v27 Sanat Tomarı: kızıl-altın ışık
 		light = level.add_light(Vector2(0, -6), Color(1.0, 0.62, 0.38) if sanat_t else Color(0.6, 0.9, 1.0), 80.0 if sanat_t else 70.0, 0.9, self)
@@ -49,6 +55,33 @@ func _ready() -> void:
 
 
 func _ink_setup() -> void:
+	if kind == "tilsim" and TomarV2.on() and TomarV2.has("tomar"):
+		# v34 Kut Tomarı: kayın kabuğu tomar (bozkurt başlı topuzlar, mum mühür, üç stat tamgası) + oyma taş kaide
+		_hale = Sprite2D.new()
+		var gt := GradientTexture2D.new()
+		gt.fill = GradientTexture2D.FILL_RADIAL
+		gt.fill_from = Vector2(0.5, 0.5)
+		gt.fill_to = Vector2(1.0, 0.5)
+		gt.width = 128
+		gt.height = 128
+		var gr := Gradient.new()
+		gr.set_color(0, Color(1, 1, 1, 1))
+		gr.set_color(1, Color(1, 1, 1, 0))
+		gr.add_point(0.45, Color(1, 1, 1, 0.35))
+		gt.gradient = gr
+		_hale.texture = gt
+		_hale.material = SusV2.add_mat()
+		_hale.scale = Vector2(0.7, 0.46)
+		_hale.position = Vector2(0, TOMAR_Y)
+		add_child(_hale)
+		ink_spr = TomarV2.sprite("tomar", false, Color(1.25, 1.2, 1.1))
+		add_child(ink_spr)
+		ink_base = TomarV2.sprite("tomar_kaide")
+		if ink_base:
+			ink_base.scale *= TOMAR_OLCEK
+			add_child(ink_base)
+			move_child(ink_base, 0)
+		return
 	var nm: String = {"gold": "altin", "kut": "kut", "sifa": "sifa", "tilsim": "tilsim_muska", "parsomen": "parsomen",
 		"don": "don"}.get(kind, "")
 	if nm != "":
@@ -82,8 +115,27 @@ func _process(_delta: float) -> void:
 		"sifa":
 			ink_spr.position.y = sin(_t * 3.0) * 1.5
 		"tilsim":
-			ink_spr.position = Vector2(0, -20 + sin(_t * 2.2) * 2.0)
-			ink_spr.rotation = sin(_t * 1.6) * 0.12
+			if _hale != null:
+				# v34: süzülme + hafif salınım, ışıma nabzı; oyuncu yaklaşınca tomar uyanır (parlar, biraz büyür)
+				var pl0: Node = level.player if level else null
+				var near := 0.0
+				if pl0 and not pl0.dead:
+					near = clampf(1.0 - (pl0.center().distance_to(global_position + Vector2(0, -22)) - 30.0) / 70.0, 0.0, 1.0)
+				_near = lerpf(_near, near, 0.12)
+				ink_spr.position = Vector2(0, TOMAR_Y + sin(_t * 2.1) * 2.2 - _near * 2.0)
+				_hale.position = ink_spr.position
+				_hale.modulate = Color(1.0, 0.72, 0.36, 0.42 + 0.1 * sin(_t * 3.1) + 0.25 * _near)
+				ink_spr.rotation = sin(_t * 1.5) * 0.05
+				ink_spr.scale = Vector2.ONE * 0.25 * TOMAR_OLCEK * (1.0 + 0.06 * _near)
+				var gl := ink_spr.get_node_or_null("glow") as Sprite2D
+				var pulse := 0.85 + 0.25 * sin(_t * 3.1) + 0.6 * _near
+				if gl:
+					gl.self_modulate = Color(1.25 * pulse, 1.2 * pulse, 1.1 * pulse)
+				if light:
+					light.energy = 1.0 + 0.2 * sin(_t * 3.1) + 0.5 * _near
+			else:
+				ink_spr.position = Vector2(0, -20 + sin(_t * 2.2) * 2.0)
+				ink_spr.rotation = sin(_t * 1.6) * 0.12
 		"parsomen":
 			ink_spr.position = Vector2(0, -10 + sin(_t * 3.0) * 1.5)
 		"don":
@@ -155,10 +207,16 @@ func _physics_process(delta: float) -> void:
 			if item != spr.get_meta("shown", {}):
 				spr.set_meta("shown", item)
 				_refresh()
-		if light:
+		if light and kind != "tilsim":
 			light.energy = 0.9 + 0.25 * sin(_t * 4.0)
-		if kind == "tilsim" and int(_t * 60.0) % 12 == 0:
-			FX.burst(global_position + Vector2(randf_range(-8, 8), -10), Color(1.0, 0.85, 0.45), 1, 20, 0.7, 0.14, -50, true)
+		if kind == "tilsim":
+			# v34: tomardan süzülen zerreler: kara mürekkep damlaları ve sırayla üç stat renginde kıvılcım
+			var fi := int(_t * 60.0)
+			if fi % 14 == 0:
+				var sc: Color = [Color(1.0, 0.42, 0.3), Color(0.37, 0.78, 1.0), Color(0.61, 0.88, 0.4)][(fi / 14) % 3]
+				FX.burst(global_position + Vector2(randf_range(-14, 14), -24 + randf_range(-4, 4)), sc, 1, 18, 0.9, 0.13, -45, true)
+			if fi % 22 == 7:
+				FX.burst(global_position + Vector2(randf_range(-12, 12), -20), Color(0.07, 0.06, 0.09, 0.8), 1, 14, 1.1, 0.16, -30, false)
 		if kind == "parsomen":
 			if int(_t * 60.0) % 10 == 0:
 				FX.burst(global_position + Vector2(randf_range(-6, 6), -8), Color(0.6, 0.9, 1.0), 1, 16, 0.6, 0.12, -40, true)

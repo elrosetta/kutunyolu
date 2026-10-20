@@ -5793,3 +5793,121 @@ Oyunda ölçülen basış→temas (`--dovus --boss` TEMPO satırı, 60 Hz): ulu 
 `zipla_yay.jpg` (koşu zıplaması yayı, 4 karede bir), `tutunma.jpg` (2 karo kenara kısa zıplama + tutunma),
 `kahraman_inisi.jpg` (dalış → yere değiş → poz, şok dalgası, iki düşman sersem), `agir_ulu_kilic.jpg` (Ulu Kılıç zinciri
 v33 / v34, basıştan geçen süre ve temas kareleri işaretli).
+
+## v34: yeni tomar tasarımı ve Bezirgân oranları
+
+Geri bildirim: "Topladığımız tomarlar (güçlendirme) var; tasarımını daha temaya uygun ve yüksek çözünürlüklü yapalım." ·
+"Bezirgân'da elimdekinden iyi eşya o kadar seyrek çıkıyor ki hiçbir şey alamıyorum. Oranı artıralım."
+
+### Kut Tomarı: kayın kabuğu tomar (`tools/artgen/tomar_ink.py`, `scripts/world/TomarV2.gd`)
+
+Eski görünüş: kaide üstünde 18x24 birimlik yuvarlak deri muska, içinde üç renk taş (`sus_ink.tilsim_muska`). Temadan
+kopuktu (tomar değil muska) ve küçüktü. Yeni tasarım Ulu Kayın'dan çıkar:
+
+* **Tomar**: Ulu Kayın'ın kabuğundan dürülmüş sıcak krem bir kayın kabuğu rulosu (kara kayın benekleri, sol ucunda sarmal
+  dürüm ağzı, sağ ucunda kalkık kabuk dili). İki ucundaki çubuğa tunç-altın **bozkurt başlı topuzlar** takılı (dışa
+  bakan kurt başı: dik kulak, uzun burun, aralık çene ve ak diş, ense yelesi, ışıyan altın göz). Gövdede sırayla ışıyan üç
+  **tamga**: Bozkurt kızılı kurt başı (arayüzün "kurt" simgesiyle aynı siluet), Kartal mavisi açık kanatlı kartal, Ayı
+  yeşili pençe; renkler `items.json` ongun renkleri (#ff6a4d / #5ec8ff / #9be06a). Sağ üçte birde kızıl deri kayış ve
+  üstünde **kızıl mum mühür** (damlalı kenar, altın Kut tamgası: Ulu Kayın / hayat ağacı); mühürden üç renk ipek kurdele
+  ve ışıyan boncuklar sarkar (stat seçimi tomarın okunduğu anda yapıldığı için yerdeki tomar üç rengi birden taşır).
+* **Kaide**: alçak oyma ak taş seki, önde koçboynuzu oyma, iki yanda ışıyan altın çentik, üstünde saçaklı kilim örtü.
+* **Stil**: mürekkep-cel (`inkkit` / `inkprop`), sol üst ışık, gölge yanında kalınlaşan fırça konturu, sıcak malzemeler
+  (krem kabuk, altın, kızıl mum) soğuk biyom zemininde canlı okunur; arkasında sıcak toplamalı hale (`GradientTexture2D`
+  radyal, nabız). 4 kat süper örnekleme (ss=4), temel doku 4 doku pikseli / birim, HD paketi 8 (2x). Tomar 50x34 birim
+  çizilir, oyunda x1,15 (`Pickup.TOMAR_OLCEK`, ~50 birim; eski muska 18 birim): 1080p'de ~200, 1440p'de ~270 ekran pikseli
+  genişlik, HD dokuyla keskin.
+* **Atlas**: `assets/fx/ink/tomar_v2.png` (+ `_e` ışıma) + `tomar_v2.json` (`rect`, `pivot`, `texel`); HD
+  `assets_hd/x2/fx/ink/tomar_v2.webp` (manifest girişi, denetim TAMAM ort 0,0025). Parçalar: `tomar`, `tomar_kaide`,
+  `tomar_ac_0..5` (açılış kareleri), `tamga_kurt / kartal / ayi`, `ui_tomar` (arayüz simgesi, ışıma ve hale dokuya
+  işlenmiş), `ui_kart_kurt / kartal / ayi` (seçim kartı resmi, 8 doku pikseli / birim). Üretim: `python tomar_ink.py`,
+  `KY_HD=2 python tomar_ink.py`, `python tomar_ink.py --paketle` (yalnızca bu atlasın WebP + manifest girişi);
+  `--onizleme <png>` iki koyu zeminde (Ötüken gecesi, Tamu kızılı) okunurluk önizlemesi.
+
+Oyunda:
+
+* **Yerde** (`Pickup` "tilsim"): süzülme (2,2 birim) + hafif salınım, ışıma katmanı nabız atar; oyuncu ~100 birim
+  yaklaşınca tomar "uyanır" (ışıma ve hale güçlenir, %6 büyür, biraz yükselir). Tomardan sırayla üç stat renginde
+  kıvılcımlar ve kara mürekkep damlaları süzülür. Işık sıcak altın (110 birim).
+* **Okununca** (`Main._apply_scroll` → `TomarV2.acilis`, ~1,5 sn): mühür kırılır (kızıl mum kıymıkları, altın halka),
+  tomar asma tomar gibi aşağı açılır (6 kare: üstte kurt başlı çubuk, kabuk yaprak, iki yanda Göktürk harfi sütunları,
+  ortada fırça halkası), halkada **seçilen statın tamgası** belirir ve parlar, sonra halka / ruh / ışık patlamasıyla ışık
+  topu gibi oyuncuya uçar; tomar solar. Eski davranış (stat +1, can, SnH duyurusu) aynı.
+* **Seçim kartı** (`HUD._draw_tilsim`): her kartın tepesinde açık tomar resmi (o statın tamgasıyla, seçilende hafif
+  süzülür); kart 196 → 220 birim.
+* **Sol üst sayaç** (`InkHUD.top_left`): ongun rozetlerinin yanında `ui_tomar` simgesi + okunan tomar sayısı.
+* **Bezirgân satırı**: Kut Tomarı malının simgesi `ui_tomar`.
+* Haritadaki tomar işareti (`HaritaUI`, eski muska simgesi) bu sürümde değişmedi (dosya harita çalışmasında).
+* Tomarın nadirliği / stat türü yok (seçim okurken yapılır), bu yüzden yerdeki tomarın tek biçimi var; stat ayrımı
+  açılışta, kartlarda ve tamgalarda.
+
+### Bezirgân: oyuncuya göre mal (`scripts/core/Pazar.gd`, `ItemGen.tuccar_drop`, `data/tuccar.json` "pazar")
+
+Ölçüm (`-- --tuccar --muhur=0`, yeni **ORAN** bölümü; `--tuccar_oran` yalnız onu koşar): her derinlikte 150 pazar
+ziyareti. Oyuncunun o derinlikte taşıdığı **tipik donanım** oyunun kendi düşüş zarıyla kurulur (`_tipik_donanim`:
+başlangıç donanımı; her geçilen derinlikte 3 kaide + yüksek çıkıntı (kademe+1) + %50 alçak çıkıntı + ~2 hazine / seçkin
+(kademe+1) düşüşü, her biri %75 bulunur, bulunanın SnH'si yuvasındakinden iyiyse kuşanılır; pazar bölümün ortasında
+olduğu için o derinliğin düşüşlerinin yarısı; tomar statı `Zorluk.beklenen_tomar`). "Açık iyileşme": silahta aynı
+yuvadaki silaha göre `ItemGen.dps_oyuncu` x1,1 ve üstü; kalkanda blok x kademe x nadirlik (+ ek özellik başına %10) en iyi
+bulunan kalkana göre, teçhizatta güç iki yuvanın zayıfına göre.
+
+Neden seyrekti: eşya gücünün çoğu tomardan gelir (v23), kademe silah hasarını derinlik başına yalnız %6 artırır, oysa
+silah türleri arasında SnH farkı %40'a varır. Tipik oyuncu derinlik başına ~5 düşüşün en iyisini taşır; Bezirgân'ın tek
+zarla yuvarladığı (o derinliğin kademesi, normal nadirlik) silah bu "en iyiyi" nadiren geçer.
+
+Değişen (Dead Cells esinli: dükkân malı kademenin üstünden ve daha iyi nadirlikle gelir):
+
+1. **Bezirgân'ın gözdesi** (ilk mal, "GÖZDE" damgası, kartta "BEZİRGÂN'IN GÖZDESİ"): oyuncunun aynı yuvadaki silahından
+   en az **x1,15** SnH'li bir silah (`Pazar.gozde_sec`: 48 aday; ikinci üçte biri bir, son üçte biri iki kademe ve
+   nadirlik sütunu üstten; hiçbiri yetmezse en iyi aday "bilenir": hasarı eşiğe dek, en çok x1,35). Fiyat **x0,8**.
+   Pazar açılınca (`Pazar.gozde_tazele`) oyuncu arada eşya aldıysa ve gözde artık iyileşme değilse yeniden seçilir.
+2. Bütün eşya malları **bir kademe üstten** (`pazar.kademe` 1) ve **iki sütun ileri nadirlik zarıyla** (`pazar.nadirlik`
+   2; `ItemGen.tuccar_drop`, `random_drop`'un havuzu + kategori + nadirlik sütunu) yuvarlanır; Sartak her mal için **iki
+   aday** arasından oyuncuya iyi geleni tezgâha koyar (`pazar.aday`, `Pazar.iyilesme`).
+3. Mallar: gözde, silah, rastgele eşya, seçme mal (bir kademe ve sütun daha üst, x1,35), Umay Sütü, (şansla) Kut Tomarı:
+   3-5 → 5-6 mal.
+4. Fiyat: daha nadir mal geldiği için nadirlik fiyat çarpanı `[1; 1,7; 2,8; 4,6]` → `[1; 1,55; 2,4; 3,8]`.
+5. Pazar satırı: silahta "SnH N ▲ +X (+%Y)" (yüzde yeni), yuva boşsa "boş yuva"; kalkan / teçhizatta "▲ +%Y";
+   açık iyileşmelerin simgesinin köşesinde yeşil ▲ rozeti; gözde malda altın "GÖZDE" damgası.
+
+Ölçüm, önce / sonra (`--tuccar --muhur=0`; "bölüm altını" = EKONOMI'nin "hepsi" altını x0,75, üç tohumla gürültülü):
+
+| d | silah malı açık iyileşme (önce → sonra) | iyileşme > 0 | ziyarette ≥ 1 iyileşme (her mal) | gözde iyileşme | iyileşen silah fiyatı / bölüm altını | tipik melee SnH |
+|---|---|---|---|---|---|---|
+| 1 | %22 → **%61** | %28 → %68 | %74 → **%100** | %100 | 1,05 → 1,08 | 38 |
+| 2 | %22 → **%68** | %30 → %74 | %75 → **%100** | %100 | 0,94 → 0,74 | 60 |
+| 3 | %19 → **%59** | %27 → %66 | %61 → **%100** | %100 | 1,58 → 1,28 | 85 |
+| 4 | %19 → **%60** | %25 → %66 | %53 → **%100** | %100 | 1,23 → 1,00 | 105 |
+| 5 | %15 → **%53** | %20 → %60 | %53 → **%100** | %100 | 1,24 → 1,38 | 132 |
+| 6 | %13 → **%56** | %18 → %63 | %53 → **%100** | %100 | 0,87 → 0,95 | 163 |
+| 7 | %13 → **%51** | %14 → %58 | %49 → **%100** | %100 | 1,70 → 1,11 | 198 |
+| 8 | %12 → **%50** | %18 → %57 | %49 → **%100** | %100 | 1,04 → 0,88 | 219 |
+| 9 | %9 → **%45** | %15 → %52 | %34 → **%100** | %100 | 1,46 → 0,98 | 250 |
+| toplam | **%16 → %56** | | **%56 → %100** | | ort. 1,23 → 1,04 | |
+
+Okuma: silah mallarının yarısından fazlası artık açık iyileşme (hedef %40-60; 1-4. derinlikte biraz üstü, 9.'da %45) ve
+her ziyarette en az bir iyileşme var (gözde). İyileşen silah ~1 bölümün altını (gözde x0,8 ile ~0,85): her bölümde
+harcayan oyuncu bir iyi mal, bir bölüm biriktiren iki iyi mal alır (Bezirgân bölümlerin ~%80'inde). Altın geliri ve
+öbür fiyatlar (Umay Sütü, Kut Tomarı, yenileme) değişmedi.
+
+### Test
+
+* `-- --tuccar --muhur=0`: EKONOMI, yeni ORAN, PAZAR (mal sayısı 3-6, **gözde mal açık iyileşme** denetimi; ör. x1,40
+  "Köklü Kara Taş Kistin"), PARSOMEN: GECTI. `--tuccar_oran` yalnızca ORAN (`--tuccar_ziyaret=N`).
+* Yeni çekim kipi `--ekran=tomar` (oyuncunun önüne kaideli tomar; `--tomar_dx=`, `--tomar_oku=<sn>` oyunun yolundan
+  okur, `--tomar_stat=0|1|2`, `--tomar_yavas=<k>`, `--tomar_seri=<önek>` açılışın 14 karesini 0,1 sn arayla kaydeder).
+* `--tomar --boss` GECTI (tomar oyunun yolundan okunur, açılış animasyonu sahnede; SNH tablosu sınırda), `--konak` GECTI,
+  `--otomatik --derinlik=1 / 3 --muhur=0` (`--fixed-fps 60 --quit-after 9000`) Kut Kapısı'na varır (80 / 27 sn; her
+  ikisinde Bezirgân, 5 / 6 mal, duvar_ok), `--zeka --muhur=0` BITTI, `--piksel_tara --otomatik --derinlik=3` ve
+  `--piksel_tara --ekran=tomar --tomar_oku=3` TOPLAM 0 (yeni atlas `assets/fx/ink/` altında: mürekkep yolu),
+  `--yurt --yurt-tur` kapıya varır; bütün koşularda SCRIPT ERROR 0 (`--tomar` sırasında Yıldırım Kılıcı ölçümünden sonra
+  bir "Lambda capture ... freed" satırı; tomar kodunda lambda yok).
+
+### Görseller (`docs/v34/tomar/`)
+
+`dunya_otuken.jpg` (Kararan Ötüken, kaideli tomar, sıcak hale), `dunya_sahmeran.jpg` (Şahmeran'ın Mağarası: soğuk
+yeşil zeminde sıcak tomar), `yakin_1440.png` (2560x1440 çekimden yakın kesit: HD doku, oyuncu yakınken uyanmış ışıma),
+`acilis_serit.jpg` (okununca açılış: 0,1 sn arayla 13 kare, Bozkurt tamgası belirip oyuncuya uçar), `kart_secim.jpg`
+(tomar seçim kartları: açık tomar resmi + tamga), `pazar.jpg` (Bezirgân: GÖZDE damgası, yeşil ▲ rozetleri, SnH farkı
+yüzdesiyle, Kut Tomarı satırında yeni simge), `hud_sayac_1440.png` (sol üst: ongunlar + tomar sayacı),
+`tomar_onizleme.jpg` (atlasın parçaları koyu zeminde: tomar, kaide, tamgalar, kart resimleri).
