@@ -144,6 +144,15 @@ func _ready() -> void:
 
 
 func _process(delta: float) -> void:
+	if Prof.on:
+		var t0 := Time.get_ticks_usec()
+		_process_ic(delta)
+		Prof.ekle(&"fx", t0)
+		return
+	_process_ic(delta)
+
+
+func _process_ic(delta: float) -> void:
 	_t += delta
 	var alive := false
 	for s in _puffs:

@@ -314,6 +314,15 @@ func _kill(i: int) -> void:
 
 
 func _physics_process(delta: float) -> void:
+	if Prof.on:
+		var t0 := Time.get_ticks_usec()
+		_physics_process_ic(delta)
+		Prof.ekle(&"gore", t0)
+		return
+	_physics_process_ic(delta)
+
+
+func _physics_process_ic(delta: float) -> void:
 	if level == null or not is_instance_valid(level):
 		return
 	if _p.is_empty() and _sp.is_empty() and _mist.is_empty():
@@ -468,6 +477,15 @@ func _draw_lek() -> void:
 
 
 func _draw() -> void:
+	if Prof.on:
+		var t0 := Time.get_ticks_usec()
+		_draw_ic()
+		Prof.ekle(&"gore_ciz", t0)
+		return
+	_draw_ic()
+
+
+func _draw_ic() -> void:
 	var t0 := Time.get_ticks_usec()
 	for mi in _mist:
 		var u: float = mi[3] / mi[4]

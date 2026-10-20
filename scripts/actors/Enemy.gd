@@ -884,6 +884,7 @@ func _ds_setup() -> void:
 	if not _ds_on:
 		return
 	_ds = {}
+	_lk_ok = false
 	const ALIAS := {"windup_zirh": "windup!!", "death": "_death", "spawn": "_spawn", "explode": "kamikaze:windup"}
 	for k in (raw as Dictionary).keys():
 		var v: Variant = raw[k]
@@ -896,7 +897,16 @@ func _ds_setup() -> void:
 
 
 func _process(delta: float) -> void:
-	if _ds_on and not dead and anim != null:
+	if Prof.on:
+		var t0 := Time.get_ticks_usec()
+		_process_ic(delta)
+		Prof.ekle(&"dusman_anim", t0)
+		return
+	_process_ic(delta)
+
+
+func _process_ic(delta: float) -> void:
+	if _ds_on and not dead and anim != null and not uyku:
 		_anim_tick(delta)
 
 
@@ -914,8 +924,23 @@ func _ds_get(k: String) -> Dictionary:
 	return _ds[k] if _ds.has(k) else {}
 
 
+var _lk := ["", "", "", false]   # v38: son arama anahtarı (önceki durum, durum, hamle, zırh); aynıysa sonuç yeniden kullanılır
+var _lk_e: Dictionary = {}
+var _lk_ok := false
+
+
 func _ds_lookup() -> Dictionary:
 	## durum anahtarı arama sırası: geçiş, ai:durum/hamle(!!), durum/hamle(!!), ai:durum(!!), durum(!!)
+	## v38: anahtar her karede biçimlenip sözlükte aranmaz; yalnızca durum / hamle değişince
+	if _lk_ok and _ds_state == _lk[1] and _ds_move == _lk[2] and _ds_prev == _lk[0] and _ds_aa == _lk[3]:
+		return _lk_e
+	_lk_e = _ds_lookup_ara()
+	_lk = [_ds_prev, _ds_state, _ds_move, _ds_aa]
+	_lk_ok = true
+	return _lk_e
+
+
+func _ds_lookup_ara() -> Dictionary:
 	var ck := "%s|%s|%s|%s" % [_ds_prev, _ds_state, _ds_move, "1" if _ds_aa else "0"]
 	if _ds_cache.has(ck):
 		return _ds_cache[ck]
@@ -1271,7 +1296,19 @@ func exec_ok() -> bool:
 
 # ------------------------------------------------------------------ yapay zekâ
 func _physics_process(delta: float) -> void:
+	if Prof.on:
+		var t0 := Time.get_ticks_usec()
+		_physics_process_ic(delta)
+		Prof.ekle(&"dusman_fizik", t0)
+		return
+	_physics_process_ic(delta)
+
+
+func _physics_process_ic(delta: float) -> void:
 	if dead:
+		return
+	uyku = _uzakta_uyu()
+	if uyku:
 		return
 	var player: Node = level.player if level else null
 	_tick_status(delta)
@@ -1432,6 +1469,35 @@ func _physics_process(delta: float) -> void:
 			_ai_custom(delta, player, to_p, dist)
 	guard_t = maxf(0.0, guard_t - delta)
 	_post_move(player)
+
+
+# ------------------------------------------------------------------ v38 uzak LOD
+## Oyuncudan ~1,7 ekran (yakın çekim kamerada görünür alan ~565 x 320) ötede, uyanık olmayan, durumu / etkisi
+## olmayan, yerde (ya da uçan) boşta yaratık uyur: yapay zekâ, hareket ve poz saati çalışmaz (görünmez; yaklaşınca
+## kaldığı yerden sürer). Uyanma (aggro) 290 px'te, uyanıklık 520 px'te söndüğü için dövüşe etkisi yok.
+const UYKU_X := 1000.0
+const UYKU_Y := 640.0
+var uyku := false
+
+
+func _uzakta_uyu() -> bool:
+	if is_boss or aggro or decoy or level == null:
+		return false
+	var pl: Node2D = level.player
+	if pl == null:
+		return false
+	var d := global_position - pl.global_position
+	if absf(d.x) < UYKU_X and absf(d.y) < UYKU_Y:
+		return false
+	if not (state == "idle" or state == "perch" or state == "dormant" or state == "lurk"):
+		return false
+	if launch_t > 0.0 or hurt_t > 0.0 or stun_t > 0.0 or freeze_t > 0.0 or root_t > 0.0 or sanat_tut > 0.0 or _haz_bt > 0.0:
+		return false
+	if burn_t > 0.0 or bleed_t > 0.0 or poison_t > 0.0 or broken_t > 0.0 or cursed_t > 0.0 or has_meta("unsur"):
+		return false
+	if hp < max_hp * 0.35:
+		return false   # kan damlatır (_tick_status)
+	return flying or is_on_floor()
 
 
 func _sanat_kilit(delta: float) -> void:

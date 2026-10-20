@@ -98,6 +98,41 @@ func _ready() -> void:
 	_movie_clock = Time.get_ticks_msec() / 1000.0
 	_setup_input()
 	load_meta()
+	_on_yukle_baslat()
+
+
+# ------------------------------------------------------------------ v38 efekt dokusu ön yüklemesi
+## İlk kullanımda yüklenen efekt / arayüz dokuları (ör. hush_lock 40 ms, smoke_puff 25 ms) dövüşün ortasında kare
+## takılmasıydı: oyun açılırken arka plan iş parçacığında yüklenir ve başvurusu tutulur (ResourceLoader önbelleğinde
+## kalır; Data.tex / InkDraw / AnimFX'in load() çağrısı anında döner). HD paketindeki dokular atlanır (Data.tex onları
+## paketten alır).
+const ON_YUKLE_DIZIN := ["res://assets/fx/anim/", "res://assets/fx/ink/", "res://assets/fx/ink_p/", "res://assets/ui/ink/"]
+var _on_bekleyen: Array = []
+var _on_yuklu: Array = []
+
+
+func _on_yukle_baslat() -> void:
+	for d in ON_YUKLE_DIZIN:
+		if not DirAccess.dir_exists_absolute(d):
+			continue
+		for f in ResourceLoader.list_directory(d):
+			var p := String(d) + String(f)
+			if not p.ends_with(".png") or Data.pack_has(p):
+				continue
+			if ResourceLoader.load_threaded_request(p) == OK:
+				_on_bekleyen.append(p)
+
+
+func _on_yukle_tick() -> void:
+	## Her karede yalnızca biten isteklerin sonucu alınır (bekleme yok)
+	while not _on_bekleyen.is_empty():
+		var p: String = _on_bekleyen[0]
+		var st := ResourceLoader.load_threaded_get_status(p)
+		if st == ResourceLoader.THREAD_LOAD_IN_PROGRESS:
+			return
+		_on_bekleyen.pop_front()
+		if st == ResourceLoader.THREAD_LOAD_LOADED:
+			_on_yuklu.append(ResourceLoader.load_threaded_get(p))
 
 
 ## Zaman kaynağı: gerçek zaman; --write-movie çekiminde kare saati (çekim gerçek zamandan yavaş işlenir; duraklama ve
@@ -111,6 +146,17 @@ func clock() -> float:
 
 
 func _process(delta: float) -> void:
+	if Prof.on:
+		var t0 := Time.get_ticks_usec()
+		_process_ic(delta)
+		Prof.ekle(&"game", t0)
+		return
+	_process_ic(delta)
+
+
+func _process_ic(delta: float) -> void:
+	if not _on_bekleyen.is_empty():
+		_on_yukle_tick()
 	if _movie:
 		_movie_clock += delta / maxf(0.001, Engine.time_scale)
 	var now := clock()

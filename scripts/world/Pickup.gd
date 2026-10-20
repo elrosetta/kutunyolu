@@ -11,6 +11,8 @@ var level: Node
 var pedestal := false
 var _t := 0.0
 var _grounded := false
+var _dur_pos := Vector2.INF   # v38: yerde durulan konum (tane hızı sıfırken fizik atlanır)
+var _dur_surum := -1
 var spr: Sprite2D
 var light: PointLight2D
 var shadow: GroundShadow
@@ -102,6 +104,15 @@ func _ink_setup() -> void:
 
 
 func _process(_delta: float) -> void:
+	if Prof.on:
+		var t0 := Time.get_ticks_usec()
+		_process_ic(_delta)
+		Prof.ekle(&"pickup", t0)
+		return
+	_process_ic(_delta)
+
+
+func _process_ic(_delta: float) -> void:
 	if ink_spr == null and ink_base == null:
 		return
 	match kind:
@@ -176,6 +187,15 @@ func _refresh() -> void:
 
 
 func _physics_process(delta: float) -> void:
+	if Prof.on:
+		var t0 := Time.get_ticks_usec()
+		_physics_process_ic(delta)
+		Prof.ekle(&"pickup", t0)
+		return
+	_physics_process_ic(delta)
+
+
+func _physics_process_ic(delta: float) -> void:
 	_t += delta
 	var pl: Node = level.player if level else null
 	if kind == "don":
@@ -253,6 +273,12 @@ func _physics_process(delta: float) -> void:
 					level.get_parent().hud.kut_pulse()
 			queue_free()
 		return
+	# v38: yerde duran tane (hız sıfır, yeri ve karolar değişmedi) her karede aynı sonucu verir: atlanır
+	var sv: int = level.grid_surum
+	if velocity == Vector2.ZERO and position == _dur_pos and sv == _dur_surum:
+		if ink_spr == null and ink_base == null:
+			queue_redraw()
+		return
 	velocity.y = minf(velocity.y + 900.0 * delta, 400.0)
 	velocity.x = move_toward(velocity.x, 0.0, 120.0 * delta)
 	var nxt2 := position + velocity * delta
@@ -260,9 +286,13 @@ func _physics_process(delta: float) -> void:
 		velocity = Vector2(velocity.x * 0.5, -absf(velocity.y) * 0.3)
 		if absf(velocity.y) < 30.0:
 			velocity.y = 0.0
+		if velocity == Vector2.ZERO:
+			_dur_pos = position
+			_dur_surum = sv
 	else:
 		position = nxt2
-	queue_redraw()
+	if ink_spr == null and ink_base == null:
+		queue_redraw()   # mürekkep sprite'lı tanede _draw boş (yalnızca "item" çizer)
 
 
 func _collect_blueprint(pl: Node) -> void:

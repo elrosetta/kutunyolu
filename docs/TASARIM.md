@@ -6403,3 +6403,80 @@ Kenney impactMetal_heavy alt gövdesi. `olum_vurus_1..2`: aynı KANG 0,75-0,8 sn
 olum_vurus -9 dB), Krit veri yolu / `krit_duck` değişmedi; v37'nin kılıç-çarpışması kritiği `v37.build_all`'dan çıkarıldı (tek kaynak v37c).
 Kaynak kalitesi: örs 256 kbps/48 kHz MP3, kılıç 128 kbps önizleme (tam WAV Freesound girişi ister; aynı adla `.wav` konursa `load()` onu
 yeğler). Lisanslar `assets/audio/LICENSES.txt` 6-8.
+
+## v38: performans (CPU)
+
+Amaç: oyun davranışı değişmeden işlemci (betik, fizik, yapay zekâ, efekt, bölüm kurma) maliyetini ve kare takılmalarını
+azaltmak. Görüntü / GPU tarafı (çizici ayarları, gölgelendiriciler, doku içe aktarma, HD paket, ışık) ayrı iş (v38 GPU).
+
+**Ölçüm** (`tools/tests/perf_testi.gd`, `-- --perf`): `--fixed-fps 60` ile karelerin hepsi işlenir (başsızda olabildiğince
+hızlı, pencerede dikey eşitleme kapatılır), kare süresi = gerçek maliyet. Evreler (`--perf_faz=` ile seçilir, `--perf_sure=`
+60 sn'lik evreyi ölçekler): `uretim` (20 tohumda `Main._build_level`, derinlik 1-10; adım adım süre tablosu, kurulumdan sonraki
+ilk kare, kurulumlar arası düğüm / nesne sayısı), `yurt`, `konak` (bot yürür, kapıdan geçince ölçüm biter), `gezinti`
+(2. derinlik, rehber botu, küçük harita açık, 45 sn), `savas3` / `savas7` (gerçek bölüm, oyuncunun çevresinde hep ~25 düşman,
+bot dövüşür, test 0,4 sn'de bir yakındaki düşmanı öldürür: gore, kan, ceset, altın; 60 sn; sonra düşmanlar silinip 6 sn
+beklenir ve hangi düğüm türünün arttığı yazılır). Satırlar: `[perf] EVRE` (ort / p95 / p99 / en kötü kare ms, düğüm, nesne,
+çizim çağrısı, statik bellek), `[perf] SISTEM` (sistem başına kare başı ms), `[perf] TAKILMA` (33 ms'yi aşan kare ve o karenin
+en pahalı sistemleri), `[perf] SIZINTI`, `[perf] URETIM adim_ms`.
+
+    godot --headless --path . --quit-after 80000 --fixed-fps 60 -- --perf
+    godot --path . --quit-after 80000 --fixed-fps 60 --resolution 1920x1080 -- --perf --perf_faz=uretim,yurt,gezinti
+
+**Profil ölçer** (`scripts/core/Prof.gd`): sıcak `_process` / `_physics_process` / `_draw` gövdeleri `..._ic` işlevine
+taşındı, asıl işlev `if Prof.on:` ise süreyi `Prof.ekle(&"ad", t0)` ile biriktirir (kapalıyken tek statik bool okuması).
+Ölçülenler: dusman_fizik / dusman_anim, oyuncu, bengu, gore(_ciz), kan(_ciz), ceset, bolum, hud(_ciz), game, ses, bot,
+kamera, paralaks, onplan, mermi, pickup, spriteanim, can_cubugu(_ciz), golge(_ciz), silah_izi(_ciz), fx, sanatfx, dunya;
+`Level.build` her adımı `kur_*` olarak.
+
+**Önce / sonra** (başsız, test makinesi Intel UHD 750; aynı makinede GPU ölçümleri koşarken alındı, gürültü ±%50: önce / sonra
+koşuları sırayla değiştirildi, sayılar 2-4 koşunun ortalaması; dövüş sistemleri değişmeyen "oyuncu" süresine bölünerek de
+karşılaştırıldı):
+
+| ölçüm | önce | sonra |
+|---|---|---|
+| bölüm kurma (20 tohum ort.) | 1044 ms (en kötü 2054) | 620 ms (en kötü 1432) |
+| ↳ LevelGen.generate | 588 ms | 213 ms |
+| ↳ spawn_scrolls / spawn_kesif (reach_from) | 85 / 81 ms | 31 / 29 ms |
+| bölüm kurma, pencereli 1920x1080 | 1375 ms (generate 693) | 495 ms (generate 184) |
+| gezinti: dusman_fizik (27 yaratık) | 1,3-2,8 ms (oyuncu x2,2) | 0,9-1,8 ms (oyuncu x1,7), -%27 |
+| gezinti: golge (48 gölge) | 0,6-1,2 ms | 0,4-0,75 ms, -%28 |
+| gezinti: dusman_anim | 0,5-1,1 ms | 0,3-0,7 ms, -%29 |
+| küçük harita (HUD içinde) | ~0,6 ms, işaret listesi her karede | işaret listesi ~15 Hz |
+| dövüş: golge (55-70 gölge, yerde altın) | 0,7-1,5 ms | 0,5-0,75 ms, -%25 |
+| dövüş: dusman_fizik / gore / kan | 1,2-2,6 / 0,25-0,35 / 0,3-0,4 ms | aynı (gürültü içinde) |
+| tek sistemli en büyük takılma | oyuncu 97-122 ms (ilk yay nişanı), oyuncu 44-72 ms ve dusman_fizik 42-59 ms (ilk efekt dokuları) | ≤ 19 ms (yalnızca yük gürültüsü) |
+| boşta kan (Blood) | her karede fizik + yeniden çizim | atlanır |
+
+Pencereli (1920x1080, UHD 750) kare süresi yurtta, konakta, gezintide ve dövüşte 27-37 ms: GPU sınırlı; işlemci payı
+(betikler ~6-9 ms) bunun altında kaldığından pencereli kare süresi CPU düzeltmeleriyle belirgin değişmez. HUD çizimi
+(`hud_ciz`) pencerede 3-4 ms, başsızda 1-3 ms: en büyük tek betik maliyeti olarak kaldı (anlık çizim; dokunulmadı).
+
+**Düzeltmeler** (hepsi aynı sonucu verir; yalnızca uzak LOD görünmeyen yaratığın boşta dolaşmasını durdurur):
+- `LevelGen._moves`: adaylar `_stand_cols` (sütun başına ayakta durulabilir satırlar, BFS başına bir kez) üzerinden; 231
+  adayın `_standable` çağrısı yerine sütun başına birkaç satır, doğrulama `_hamle_ok`'ta (sıra ve sonuç aynı). `traps`: ters
+  kenarlar sözlük-dizi yerine sıkıştırılmış dizide (kenar listesi + sayım). `--harita` 120 tohum çıktısı önce / sonra aynı
+  (yalnızca tohumsuz rastgele satırlar farklı). `reach_from` / `path_cells` / `_reach` aynı yoldan hızlandı.
+- `Enemy` uzak LOD (`_uzakta_uyu`): oyuncudan ~1000 px yatay / 640 px dikey (yakın çekimde ~1,7 ekran) ötede, uyanık değil,
+  boşta (idle / perch / dormant / lurk), hiçbir durum etkisi yok, yerde ya da uçan yaratık uyur: yapay zekâ, hareket ve poz saati
+  çalışmaz. Uyanma 290 px'te olduğundan dövüş etkilenmez. `_ds_lookup`: anahtar her karede biçimlenmez (durum değişince).
+- `GroundShadow`: zemin taraması (40 adım) ve aya ışın (175 adım) ayak noktası ya da bölüm karoları (`Level.grid_surum`,
+  `set_air` / `set_solid`'de artar) değişmedikçe yeniden yapılmaz; durgun sahipte (yerdeki tane, duran yaratık) kare tümüyle atlanır.
+- `Pickup`: yerde duran tane her karede aynı sonucu veren düşüş / zemin denetimini atlar; mürekkep sprite'lı tanede boş `_draw`
+  için yeniden çizim istenmez.
+- `Blood`: damla / akıntı / et parçası yokken fizik ve yeniden çizim yok; leke ağı (`_Stains`) önbellekte: yeni leke eklenir,
+  büyüyen leke yerinde güncellenir, koyulaşma / kırpma tümünü kurar (eskiden kirli her karede 1600 dörtgen baştan).
+- `HaritaUI.minimap`: `Harita.isaretler()` (düşman grubu taraması, kapı / oda denetimi, sözlükler) ~15 Hz; tam harita her kare.
+- Takılmalar: `Game` açılışta efekt / arayüz dokularını (`assets/fx/anim`, `fx/ink`, `fx/ink_p`, `ui/ink`; HD paketindekiler
+  hariç) arka plan iş parçacığında yükleyip tutar (ilk kullanımda 15-40 ms'lik `load`). `Player._yay_uclari_hazirla`: yay uçları
+  (4096x2248 BPTC silah atlası sayfasının çözülmesi + piksel taraması, ~100 ms) ilk nişanda değil kuşanınca / bölüm kurulurken.
+
+**Sızıntı denetimi**: aynı 10 tohum iki tur kurulunca düğüm sayıları birebir aynı (528 ... 712); nesne sayısının ikinci
+turdaki artışı azalarak söner (+371 → +43: doku / sprite önbellekleri ısınıyor), sızıntı değil. Dövüşten sonra (düşmanlar
+silinip 6 sn) kalan düğümler yalnızca yerde toplanmamış altın / eşya (Pickup + gölge + ışık + sprite), havuzdaki silah izleri
+(InkTrail, en çok 6) ve sunak / tomar zerreleri; efekt, ceset ve parçacık birikmesi yok.
+**Bulunan sızıntı**: `Level.build_boss` kullanılmayan bir `Enemy.new()` oluşturuyordu (ağaca girmeyen yaratık + fizik
+gövdesi, her boss arenasında bir tane; `--dovus --boss`, `--sanat --boss`, `--konak` çıkışında "Body2D RID leaked"); kaldırıldı. Ses oynatıcıları zaten havuzlu (Ses).
+Başsız koşuda statik bellek ~2 GB (sahte çizici görüntüleri RAM'de tutar), pencerede 220-280 MB.
+
+Testler: `--dovus --boss --kontrol`, `--sanat --boss --muhur=0`, `--harita`, `--isinlan`, `--konak`, `--tuccar --muhur=0`,
+`--otomatik --derinlik=1/3/5 --muhur=0`, `--vahset`, `--zeka --muhur=0`, `--piksel_tara`: betik hatası 0.

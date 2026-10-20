@@ -44,6 +44,15 @@ func iz_flying() -> bool:
 
 
 func _physics_process(delta: float) -> void:
+	if Prof.on:
+		var t0 := Time.get_ticks_usec()
+		_physics_process_ic(delta)
+		Prof.ekle(&"mermi", t0)
+		return
+	_physics_process_ic(delta)
+
+
+func _physics_process_ic(delta: float) -> void:
 	_t += delta
 	if _state == 1:
 		_wall_tick(delta)

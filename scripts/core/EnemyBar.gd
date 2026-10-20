@@ -44,6 +44,15 @@ func shown() -> bool:
 
 
 func _process(delta: float) -> void:
+	if Prof.on:
+		var t0 := Time.get_ticks_usec()
+		_process_ic(delta)
+		Prof.ekle(&"can_cubugu", t0)
+		return
+	_process_ic(delta)
+
+
+func _process_ic(delta: float) -> void:
 	if host == null or not is_instance_valid(host):
 		return
 	_t += delta
@@ -80,6 +89,15 @@ func _process(delta: float) -> void:
 
 
 func _draw() -> void:
+	if Prof.on:
+		var t0 := Time.get_ticks_usec()
+		_draw_ic()
+		Prof.ekle(&"can_cubugu_ciz", t0)
+		return
+	_draw_ic()
+
+
+func _draw_ic() -> void:
 	if _a <= 0.001 or host == null or not is_instance_valid(host):
 		return
 	var k := clampf(float(host.hp) / maxf(1.0, float(host.max_hp)), 0.0, 1.0)

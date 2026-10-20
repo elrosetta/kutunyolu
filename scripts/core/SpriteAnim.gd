@@ -200,6 +200,15 @@ func set_tint(c: Color) -> void:
 
 
 func _process(delta: float) -> void:
+	if Prof.on:
+		var t0 := Time.get_ticks_usec()
+		_process_ic(delta)
+		Prof.ekle(&"spriteanim", t0)
+		return
+	_process_ic(delta)
+
+
+func _process_ic(delta: float) -> void:
 	if anim == "" or manual:
 		return
 	var a: Dictionary = meta["anims"][anim]

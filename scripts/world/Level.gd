@@ -96,24 +96,29 @@ var _light_tex: GradientTexture2D
 var _done := false
 var _hub_floor: Node2D
 var moon: DirectionalLight2D  # ay: yönlü ışık + arazi gölgeleri (GroundShadow kayma yönünü buradan okur)
+var grid_surum := 0       # v38: oyun sırasında karo değişince artar (GroundShadow / Pickup zemin önbelleği)
 var moon_shadow := 0.72  # ay gölgesindeki aktörde ay ışığının giden payı (toon_light moon_shade üst sınırı)
 var _shadow_dir := Vector2(0, 1)  # ay ışığının gidiş yönü (karo engelleyicileri bu yöne göre seçilir)
 
 
 func build(seed_value: int) -> void:
+	var _pt := Time.get_ticks_usec()   # v38: --perf adım süreleri (Prof.on değilse yalnızca saat okuması)
 	rng.seed = seed_value
 	biome = Game.biome_for_depth(int(Game.run.get("depth", 1)))
 	art = _stil_art(biome.get("art", {}))
 	Game.run["biome"] = biome.get("id", "otuken")
 	Game.run["bezirgan_gordu"] = false   # v32: bu bölümün pazarı (_place_bezirgan) belirler; önceki kurulumdan kalmasın
 	_plan_bezirgan()   # v24 / v32: tüccar bu bölümde çıkacak mı (pazar odası üretici tarafından açılır)
+	_pt = _adim(&"kur_plan_bezirgan", _pt)
 	_generate()
+	_pt = _adim(&"kur_generate", _pt)
 	Game.run["bolum_sure"] = 0.0   # v32: zamanlı kapılar için bölüm süresi
 	# bölüm başı destan sayaçları
 	Game.run["dumrul_used"] = false
 	for k in ["kills_level", "bow_level", "low_kills"]:
 		Adlar.set_stat(k, 0.0)
 	_build_tiles()
+	_pt = _adim(&"kur_build_tiles", _pt)
 	decor_root = Node2D.new()
 	decor_root.z_index = -2
 	add_child(decor_root)
@@ -131,24 +136,48 @@ func build(seed_value: int) -> void:
 	FX.root = fx_root
 	FX.level = self
 	_build_lighting()
+	_pt = _adim(&"kur_build_lighting", _pt)
 	_build_background()
+	_pt = _adim(&"kur_build_background", _pt)
 	_build_hazards()
+	_pt = _adim(&"kur_build_hazards", _pt)
 	_place_rooms()   # v32: ödül odaları ve pazar yeri önce (süsler tezgâhın üstüne binmesin)
+	_pt = _adim(&"kur_place_rooms", _pt)
 	_place_decor()
+	_pt = _adim(&"kur_place_decor", _pt)
 	_spawn_player()
+	_pt = _adim(&"kur_spawn_player", _pt)
 	_gizemler()      # v34: gizli cepler, parmaklıklı pencereler, kilitli kapı (yaratıklardan önce: karolar ve ızgara)
+	_pt = _adim(&"kur_gizemler", _pt)
 	_spawn_enemies()
+	_pt = _adim(&"kur_spawn_enemies", _pt)
 	_spawn_items()
+	_pt = _adim(&"kur_spawn_items", _pt)
 	_spawn_scrolls()
+	_pt = _adim(&"kur_spawn_scrolls", _pt)
 	_spawn_kesif()   # v25: eski gizli oda / Ülgen sunağı ganimeti artık bölümün kendisinde (v34: zula gizli cepte)
+	_pt = _adim(&"kur_spawn_kesif", _pt)
 	_kut_taslari()   # v32: ışınlanma taşları, zamanlı kapılar, harita sisi
+	_pt = _adim(&"kur_kut_taslari", _pt)
 	_build_particles()
+	_pt = _adim(&"kur_build_particles", _pt)
 	_build_overlay_fx()
+	_pt = _adim(&"kur_build_overlay_fx", _pt)
 	_place_bezirgan()
+	_pt = _adim(&"kur_place_bezirgan", _pt)
 	_bos_oda_doldur()     # v34: yaratıksız kalan ana yol / dal odasına bir yaratık
+	_pt = _adim(&"kur_bos_oda_doldur", _pt)
 	_kupler_yerlestir()   # v34: her odada "bir şey" (boş oda kalmaz)
+	_pt = _adim(&"kur_kupler_yerlestir", _pt)
 	sayac_ilk = sayac()
 	Ses.music(biome.get("id", "otuken"))
+
+
+func _adim(ad: StringName, t0: int) -> int:
+	## v38 --perf: bölüm kurma adımının süresi Prof tablosuna (perf_testi "uretim" evresi)
+	if Prof.on:
+		Prof.ekle(ad, t0)
+	return Time.get_ticks_usec()
 
 
 func build_boss(seed_value: int, bid_boss: String) -> void:
@@ -199,8 +228,8 @@ func build_boss(seed_value: int, bid_boss: String) -> void:
 		_place_ink_extras_spec(art["boss_extras"])
 	_spawn_player()
 	camera.limit_right = 84 * TS
-	# boss: sağdan, uzak
-	var en := Enemy.new()
+	# boss: sağdan, uzak (v38: burada kullanılmayan bir Enemy.new() ağaca girmeden kalıyor, her boss arenasında bir
+	# yaratık + fizik gövdesi sızdırıyordu; kaldırıldı)
 	var bx := 64
 	boss = Boss.new()
 	# v22: boss canı / hasarı Enemy.setup içinde Zorluk'tan (boss kendi derinliğinde; data/zorluk.json "boss")
@@ -1248,6 +1277,7 @@ func set_air(x: int, y: int) -> void:
 	if x < 1 or x >= W - 1 or y < 1 or y >= H - 1 or grid[idx(x, y)] == 0:
 		return
 	grid[idx(x, y)] = 0
+	grid_surum += 1
 	if harita != null:
 		harita.karo_degisti(x, y)
 	if ground == null:
@@ -1263,6 +1293,7 @@ func set_solid(x: int, y: int) -> void:
 	if x < 0 or x >= W or y < 0 or y >= H:
 		return
 	grid[idx(x, y)] = 1
+	grid_surum += 1
 	if harita != null:
 		harita.karo_degisti(x, y)
 	if ground == null:
@@ -3552,6 +3583,15 @@ func _etkiles_tap() -> bool:
 
 
 func _process(_delta: float) -> void:
+	if Prof.on:
+		var t0 := Time.get_ticks_usec()
+		_process_ic(_delta)
+		Prof.ekle(&"bolum", t0)
+		return
+	_process_ic(_delta)
+
+
+func _process_ic(_delta: float) -> void:
 	# v25: kapının kemeri boyunca (yerden 96 px yukarıya dek) geçmek yeter: zıplayarak kapının içinden geçen oyuncu
 	# (eskiden yalnızca ayak noktası 30 px yakınsa) kapıyı kaçırıp bölüm sonundaki duvara takılmaz
 	var dpe: Vector2 = player.global_position - exit_pos if player else Vector2(999, 999)

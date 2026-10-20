@@ -283,6 +283,15 @@ func _dinlen(z: Zincir) -> void:
 
 # ------------------------------------------------------------------ benzetim
 func _process(delta: float) -> void:
+	if Prof.on:
+		var t0 := Time.get_ticks_usec()
+		_process_ic(delta)
+		Prof.ekle(&"bengu", t0)
+		return
+	_process_ic(delta)
+
+
+func _process_ic(delta: float) -> void:
 	if anim == null or not is_visible_in_tree():
 		_reset = true
 		return

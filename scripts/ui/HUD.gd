@@ -83,6 +83,15 @@ func _ready() -> void:
 
 
 func _process(delta: float) -> void:
+	if Prof.on:
+		var t0 := Time.get_ticks_usec()
+		_process_ic(delta)
+		Prof.ekle(&"hud", t0)
+		return
+	_process_ic(delta)
+
+
+func _process_ic(delta: float) -> void:
 	_t += delta
 	_test_hook()
 	_card_t += delta
@@ -349,6 +358,15 @@ func _hud_vp() -> Vector2:
 
 
 func _draw() -> void:
+	if Prof.on:
+		var t0 := Time.get_ticks_usec()
+		_draw_ic()
+		Prof.ekle(&"hud_ciz", t0)
+		return
+	_draw_ic()
+
+
+func _draw_ic() -> void:
 	var vp := _menu_vp()
 	if mode == "ayarlar":
 		if back_mode == "title" or Game.run.is_empty() or level == null or level.player == null:

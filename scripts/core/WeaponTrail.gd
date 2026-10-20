@@ -43,6 +43,15 @@ func add(base: Vector2, tip: Vector2) -> void:
 
 
 func _process(delta: float) -> void:
+	if Prof.on:
+		var t0 := Time.get_ticks_usec()
+		_process_ic(delta)
+		Prof.ekle(&"silah_izi", t0)
+		return
+	_process_ic(delta)
+
+
+func _process_ic(delta: float) -> void:
 	_t += delta
 	while _pts.size() > 0 and _t - float(_pts[0][2]) > life:
 		_pts.pop_front()

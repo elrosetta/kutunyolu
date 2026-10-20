@@ -439,6 +439,15 @@ func _spawn_fleck(base: Vector2, tip: Vector2) -> void:
 
 
 func _process(delta: float) -> void:
+	if Prof.on:
+		var t0 := Time.get_ticks_usec()
+		_process_ic(delta)
+		Prof.ekle(&"silah_izi", t0)
+		return
+	_process_ic(delta)
+
+
+func _process_ic(delta: float) -> void:
 	if not _auto.is_empty():
 		_auto_step(delta)
 	# bu karede eklenen örneklerin zamanı önceki kare ile bu kare arasına yayılır (kademesiz yaş)
@@ -740,6 +749,15 @@ func _ribbon_path(layer: int, wmul: float, u_shift: float, age_add: float, offs:
 
 
 func _draw() -> void:
+	if Prof.on:
+		var t0 := Time.get_ticks_usec()
+		_draw_ic()
+		Prof.ekle(&"silah_izi_ciz", t0)
+		return
+	_draw_ic()
+
+
+func _draw_ic() -> void:
 	_vp.clear()
 	_vuv.clear()
 	_vcol.clear()

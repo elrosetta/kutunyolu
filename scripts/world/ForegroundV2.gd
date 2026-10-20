@@ -98,6 +98,15 @@ func _add_leaves(path: String, n: int) -> void:
 
 
 func _process(_delta: float) -> void:
+	if Prof.on:
+		var t0 := Time.get_ticks_usec()
+		_process_ic(_delta)
+		Prof.ekle(&"onplan", t0)
+		return
+	_process_ic(_delta)
+
+
+func _process_ic(_delta: float) -> void:
 	var cam: Camera2D = Game.camera
 	if cam == null:
 		return

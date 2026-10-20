@@ -1215,6 +1215,7 @@ func _ready() -> void:
 	sac = BenguSac.ekle(anim, self)
 	anim.finished.connect(_on_anim_finished)
 	Silah27.attach(self)   # v27 yeni silahların durumu ve çizimi (scripts/core/Silah27.gd)
+	_yay_uclari_hazirla()
 
 
 func set_moon_shade(v: float) -> void:
@@ -1396,6 +1397,16 @@ func on_equip() -> void:
 	sec_buf = 0.0
 	_heavy_armed = false
 	_resolve_roles()
+	_yay_uclari_hazirla()
+
+
+func _yay_uclari_hazirla() -> void:
+	## v38: kuşanılan yayın uç noktaları (silah atlası sayfasının çözülmesi + piksel taraması, ilk seferde ~100 ms)
+	## ilk nişanda değil kuşanınca / bölüm kurulurken okunur: dövüşün ortasında kare takılması olmasın (sonuç aynı)
+	for k in ["melee", "second"]:
+		var it := slot(k)
+		if it.get("kind", "") == "bow":
+			_bow_tips(it)
 
 
 func hurt_rect() -> Rect2:
@@ -1680,6 +1691,15 @@ func _set_crouch(v: bool) -> void:
 
 # ------------------------------------------------------------------ ana döngü
 func _physics_process(delta: float) -> void:
+	if Prof.on:
+		var t0 := Time.get_ticks_usec()
+		_physics_process_ic(delta)
+		Prof.ekle(&"oyuncu", t0)
+		return
+	_physics_process_ic(delta)
+
+
+func _physics_process_ic(delta: float) -> void:
 	# düşük can: kalp atışı ve boğuk ses (Ses.low_hp 0..1)
 	Ses.low_hp(0.0 if dead else clampf(1.0 - float(Game.run["hp"]) / float(Game.run["max_hp"]) / 0.3, 0.0, 1.0))
 	if dead:

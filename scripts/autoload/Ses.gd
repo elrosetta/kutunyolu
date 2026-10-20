@@ -627,6 +627,15 @@ func low_hp(k: float) -> void:
 
 
 func _process(_delta: float) -> void:
+	if Prof.on:
+		var t0 := Time.get_ticks_usec()
+		_process_ic(_delta)
+		Prof.ekle(&"ses", t0)
+		return
+	_process_ic(_delta)
+
+
+func _process_ic(_delta: float) -> void:
 	var now := Time.get_ticks_usec()
 	var dt := clampf(float(now - _last_us) / 1000000.0, 0.0, 0.1)
 	_last_us = now

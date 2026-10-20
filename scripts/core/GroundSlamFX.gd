@@ -253,6 +253,15 @@ class GroundCrack extends Node2D:
 
 # ------------------------------------------------------------------ güncelleme
 func _process(delta: float) -> void:
+	if Prof.on:
+		var t0 := Time.get_ticks_usec()
+		_process_ic(delta)
+		Prof.ekle(&"fx", t0)
+		return
+	_process_ic(delta)
+
+
+func _process_ic(delta: float) -> void:
 	# flaş evresi gerçek zamanda akar (vuruş duraklaması flaşı en çok 2 karede tutar; kalan donar)
 	_t += maxf(delta, 1.0 / 60.0) if _t < T_FLASH else delta
 	_frame += 1

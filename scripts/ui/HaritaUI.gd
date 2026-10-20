@@ -10,6 +10,12 @@ const BONE := Color(0.95, 0.88, 0.74)
 const SIZES := [Vector2.ZERO, Vector2(126, 76), Vector2(168, 100), Vector2(228, 136)]   # Kapalı / Küçük / Normal / Büyük
 const PPT := [0.0, 2.2, 2.6, 3.0]   # birim / karo (v33: küçük bölümde daha geniş pencere: Normal ~65 x 38 karo, 3-4 oda)
 const SAYAC_SIMGE := {"hazine": "esya", "tomar": "tomar", "gizli": "gizli", "kilit": "kilit"}   # tam harita sayacı
+# v38: küçük haritanın işaret listesi (Harita.isaretler: düşman grubu taraması, kapı / oda denetimi, sözlükler) her
+# karede değil ~15 Hz'de kurulur; tam ekran harita (M) her karede tazesini alır
+const ISARET_MS := 66
+static var _mm_id := 0
+static var _mm_ms := -100000
+static var _mm: Array = []
 
 
 # ------------------------------------------------------------------ küçük harita (oyun içi, sağ alt)
@@ -162,7 +168,17 @@ static func _markers(h: Control, hm: Harita, r: Rect2, origin: Vector2, ppt: flo
 	var sel_i := -1
 	if sel >= 0 and not found.is_empty():
 		sel_i = int(found[clampi(sel, 0, found.size() - 1)])
-	for m in hm.isaretler():
+	var liste: Array
+	if big:
+		liste = hm.isaretler()
+	else:
+		var now := Time.get_ticks_msec()
+		if hm.get_instance_id() != _mm_id or now - _mm_ms >= ISARET_MS:
+			_mm_id = hm.get_instance_id()
+			_mm_ms = now
+			_mm = hm.isaretler()
+		liste = _mm
+	for m in liste:
 		var c: Vector2i = m["cell"]
 		var p := r.position + (Vector2(c.x + 0.5, c.y + 0.5) - origin) * ppt
 		if not r.grow(2.0).has_point(p):

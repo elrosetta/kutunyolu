@@ -148,6 +148,15 @@ func _build_inv() -> void:
 
 
 func _process(_delta: float) -> void:
+	if Prof.on:
+		var t0 := Time.get_ticks_usec()
+		_process_ic(_delta)
+		Prof.ekle(&"fx", t0)
+		return
+	_process_ic(_delta)
+
+
+func _process_ic(_delta: float) -> void:
 	_n += 1
 	if _n <= _frames:
 		return

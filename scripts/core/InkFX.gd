@@ -158,6 +158,15 @@ func el(shape: String, off: Vector2, rot: float, size: Vector2, variant := V_SPL
 
 
 func _process(delta: float) -> void:
+	if Prof.on:
+		var t0 := Time.get_ticks_usec()
+		_process_ic(delta)
+		Prof.ekle(&"fx", t0)
+		return
+	_process_ic(delta)
+
+
+func _process_ic(delta: float) -> void:
 	if auto_pal:
 		# vuruş, izin oluştuğu karede izden ÖNCE işlenir: palet ilk birkaç karede yakındaki taze izden okunur
 		_auto_n += 1

@@ -31,6 +31,20 @@ var _ry := 0
 var _a := 0.0
 var _rxf := 0.0
 var _ryf := 0.0
+# v38: zemin taraması ve ay ışını ayak noktası (ve bölüm karoları) değişmedikçe yeniden yapılmaz: duran yaratık /
+# yerdeki eşya her karede 40 adımlık tarama ve 175 adımlık ışın yürütmesin (sonuç aynı)
+var _g_feet := Vector2.INF
+var _g_surum := -1
+var _g_y := -1.0
+var _m_feet := Vector2.INF
+var _m_surum := -1
+# durgun sahip (yerdeki tane, duran yaratık): girdiler aynı ve ay gölgesi oturmuşsa kare tümüyle atlanır
+var _durgun := false
+var _shade_sabit := false
+var _s_feet := Vector2.INF
+var _s_a := -1.0
+var _s_sx := 0.0
+var _s_rot := 0.0
 
 
 static func attach(h: Node2D, w: float, a: CanvasItem = null, sf: Node2D = null) -> GroundShadow:
@@ -82,6 +96,15 @@ func _ground_y(lv: Node, feet: Vector2) -> float:
 
 
 func _process(_delta: float) -> void:
+	if Prof.on:
+		var t0 := Time.get_ticks_usec()
+		_process_ic(_delta)
+		Prof.ekle(&"golge", t0)
+		return
+	_process_ic(_delta)
+
+
+func _process_ic(_delta: float) -> void:
 	if host == null or not is_instance_valid(host):
 		return
 	var lv := _level()
@@ -92,8 +115,22 @@ func _process(_delta: float) -> void:
 			hide()
 		return
 	var feet := host.global_position
+	var sa := src.modulate.a
+	var sx := scale_from.scale.x if scale_from != null else 1.0
+	var sv: int = lv.grid_surum
+	if _durgun and feet == _s_feet and sa == _s_a and sx == _s_sx and host.rotation == _s_rot and sv == _g_surum:
+		return
+	_s_feet = feet
+	_s_a = sa
+	_s_sx = sx
+	_s_rot = host.rotation
 	_update_moon_shade(lv, feet, _delta)
-	var gy := _ground_y(lv, feet)
+	_durgun = _shade_sabit and _m_feet == feet and _m_surum == sv   # ay ışını bu konum için atılmış olmalı
+	if feet != _g_feet or sv != _g_surum:
+		_g_feet = feet
+		_g_surum = sv
+		_g_y = _ground_y(lv, feet)
+	var gy := _g_y
 	var h := gy - feet.y
 	var k := clampf(1.0 - maxf(0.0, h) / FADE_H, 0.0, 1.0)
 	var alpha := k * src.modulate.a
@@ -127,11 +164,16 @@ func _update_moon_shade(lv: Node, feet: Vector2, delta: float) -> void:
 	_shade_t -= 1
 	if _shade_t <= 0:
 		_shade_t = 3
-		_shade_hit = lv.moon_occluded(feet + Vector2(0, -14))
+		var sv: int = lv.grid_surum
+		if feet != _m_feet or sv != _m_surum:
+			_m_feet = feet
+			_m_surum = sv
+			_shade_hit = lv.moon_occluded(feet + Vector2(0, -14))
 	# aktörler gölgede bile okunur kalsın: ay payının en çok %55'i kesilir
 	var target: float = float(lv.get("moon_shadow")) * 0.55 if _shade_hit else 0.0
 	var ns := move_toward(_shade, target, delta * 5.0)
-	if absf(ns - _shade) < 0.0001 and _shade_t != 3:
+	_shade_sabit = absf(ns - _shade) < 0.0001
+	if _shade_sabit and _shade_t != 3:
 		return
 	_shade = ns
 	if host.has_method("set_moon_shade"):
@@ -141,6 +183,15 @@ func _update_moon_shade(lv: Node, feet: Vector2, delta: float) -> void:
 
 
 func _draw() -> void:
+	if Prof.on:
+		var t0 := Time.get_ticks_usec()
+		_draw_ic()
+		Prof.ekle(&"golge_ciz", t0)
+		return
+	_draw_ic()
+
+
+func _draw_ic() -> void:
 	# çekirdek leke + daha geniş soluk yıkama (iki ton, yumuşak kenar)
 	InkDraw.ellipse(self, Vector2(0, -_ryf * 0.45), _rxf * 1.2, _ryf * 1.25, Color(INK, EDGE_A * _a))
 	InkDraw.ellipse(self, Vector2(0, -_ryf * 0.45), _rxf * 0.85, _ryf * 0.85, Color(INK, (CORE_A + 0.1) * _a))

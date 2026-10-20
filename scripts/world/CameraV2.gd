@@ -66,6 +66,15 @@ func _target() -> Vector2:
 
 
 func _process(delta: float) -> void:
+	if Prof.on:
+		var t0 := Time.get_ticks_usec()
+		_process_ic(delta)
+		Prof.ekle(&"kamera", t0)
+		return
+	_process_ic(delta)
+
+
+func _process_ic(delta: float) -> void:
 	if player == null or not is_instance_valid(player):
 		return
 	if not _ready_done or player.global_position.distance_to(_last_p) > 220.0:

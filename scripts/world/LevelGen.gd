@@ -1766,89 +1766,122 @@ static func _standable(g: PackedByteArray, x: int, y: int, W: int, H: int) -> bo
 	return below == 1 or below == 2
 
 
-static func _moves(g: PackedByteArray, W: int, H: int, cx: int, cy: int) -> Array:
+static func _moves(g: PackedByteArray, W: int, H: int, cx: int, cy: int, cols: Array = []) -> Array:
 	## Fizik sadık hamleler (oyuncu 2 karo boy, sürünürken 1): yürüme/sürünme ±1; düşme ±5 sütun / 15 satır;
 	## zıplama en çok 4 karo yukarı (çift zıplama), çıkış sütununda baş boşluğu, yörünge tepesi açık olmalı.
 	## v25: tek yönlü platform (2) baş boşluğunu ve zıplama yörüngesini kesmez (oyuncu altından içinden zıplar).
+	## v38: cols (_stand_cols: sütun başına ayakta durulabilir satırlar) verilirse adaylar yalnızca oradan gelir
+	## (BFS'lerde 231 adayın _standable denetimi yerine sütun başına birkaç satır); sıra ve sonuç aynıdır.
 	var out: Array = []
 	var tall: bool = _cell(g, cx, cy - 1, W, H) != 1
 	var head := 0
 	while head < 5 and _cell(g, cx, cy - 1 - head, W, H) != 1:
 		head += 1
 	var max_up := (head - 1) if tall else 0
+	var ylo := maxi(1, cy - maxi(0, max_up))
+	var yhi := mini(H - 2, cy + 15)
 	for dx in range(-5, 6):
-		for dy in range(-5, 16):
-			var nx := cx + dx
-			var ny := cy + dy
-			if nx < 1 or nx >= W - 1 or ny < 1 or ny >= H - 1:
-				continue
-			if dy < 0 and -dy > max_up:
-				continue
-			if dx == 0 and dy == 0:
-				continue
-			if not _standable(g, nx, ny, W, H):
-				continue
-			var crawl_dest: bool = _cell(g, nx, ny - 1, W, H) == 1
-			if crawl_dest and not (dy == 0 and absi(dx) == 1):
-				continue
-			if not (dy == 0 and absi(dx) == 1):
-				if not tall and dy < 0:
+		var nx := cx + dx
+		if nx < 1 or nx >= W - 1:
+			continue
+		if cols.is_empty():
+			for ny in range(ylo, yhi + 1):
+				if (dx == 0 and ny == cy) or not _standable(g, nx, ny, W, H):
 					continue
-				var apex := mini(cy, ny) - 1 - (1 if dy > 2 else 0)
-				if dy < 0:
-					apex = ny - 1
-				var blocked := false
-				var step := 1 if dx > 0 else -1
-				var k := cx
-				while k != nx:
-					k += step
-					if _cell(g, k, apex, W, H) == 1 and _cell(g, k, apex + 1, W, H) == 1:
-						blocked = true
-						break
-				if blocked:
+				if _hamle_ok(g, W, H, cx, cy, nx, ny, tall):
+					out.append(_idx(nx, ny, W))
+		else:
+			for ny in cols[nx]:
+				if ny < ylo:
 					continue
-				if dy > 0 and _cell(g, nx, ny - 1, W, H) == 1:
+				if ny > yhi:
+					break
+				if dx == 0 and ny == cy:
 					continue
-				# v33 düzeltmeleri (eskiden kayanın / tek yönlü platformun içinden düşülebiliyordu):
-				# dikine iniş yalnızca durulan tek yönlü platformdan (aşağı + zıpla); altındaki sütun ilk tutunulacak
-				# yere dek boş (araya giren platform / katı karo düşüşü orada keser: o ayrı bir hamledir)
-				if dx == 0 and dy > 0:
-					if _cell(g, cx, cy + 1, W, H) != 2:
-						continue
-					var thru := true
-					for yy in range(cy + 2, ny):
-						if _tutar(_cell(g, cx, yy, W, H)):
-							thru = false
-							break
-					if not thru:
-						continue
-				# yana düşüş: düşülen sütunda iniş yolu boş olmalı (başlangıç ayak hizasının altındaki platform da
-				# tutar); değilse kenardan yürüyüp komşu sütunda düşülür: komşu sütun boş ve varış satırının üstü
-				# komşudan varışa dek açık
-				if dy > 1 and dx != 0:
-					var clear := true
-					for yy in range(mini(cy, ny) - 1, ny):
-						var cc := _cell(g, nx, yy, W, H)
-						if cc == 1 or (cc == 2 and yy > cy):
-							clear = false
-							break
-					if not clear:
-						var c1 := cx + step
-						var ok2 := true
-						for yy in range(cy - 1, ny):
-							var cc := _cell(g, c1, yy, W, H)
-							if cc == 1 or (cc == 2 and yy > cy):
-								ok2 = false
-								break
-						var k2 := c1
-						while ok2 and k2 != nx:
-							k2 += step
-							if _cell(g, k2, ny - 1, W, H) == 1 or (k2 != nx and _cell(g, k2, ny, W, H) == 2):
-								ok2 = false
-						if not ok2:
-							continue
-			out.append(_idx(nx, ny, W))
+				if _hamle_ok(g, W, H, cx, cy, nx, ny, tall):
+					out.append(ny * W + nx)
 	return out
+
+
+static func _stand_cols(g: PackedByteArray, W: int, H: int) -> Array:
+	## v38: sütun başına ayakta durulabilir satırlar (artan; _standable ile aynı kural), BFS başına bir kez
+	var cols: Array = []
+	cols.resize(W)
+	for x in W:
+		var c := PackedInt32Array()
+		for y in range(0, H - 1):
+			if g[y * W + x] == 0:
+				var b: int = g[(y + 1) * W + x]
+				if b == 1 or b == 2:
+					c.append(y)
+		cols[x] = c
+	return cols
+
+
+static func _hamle_ok(g: PackedByteArray, W: int, H: int, cx: int, cy: int, nx: int, ny: int, tall: bool) -> bool:
+	## _moves'un aday doğrulaması (varış ayakta durulabilir ve aynı hücre değil): sürünme, yörünge tepesi, iniş yolu
+	var dx := nx - cx
+	var dy := ny - cy
+	var crawl_dest: bool = _cell(g, nx, ny - 1, W, H) == 1
+	if crawl_dest and not (dy == 0 and absi(dx) == 1):
+		return false
+	if not (dy == 0 and absi(dx) == 1):
+		if not tall and dy < 0:
+			return false
+		var apex := mini(cy, ny) - 1 - (1 if dy > 2 else 0)
+		if dy < 0:
+			apex = ny - 1
+		var blocked := false
+		var step := 1 if dx > 0 else -1
+		var k := cx
+		while k != nx:
+			k += step
+			if _cell(g, k, apex, W, H) == 1 and _cell(g, k, apex + 1, W, H) == 1:
+				blocked = true
+				break
+		if blocked:
+			return false
+		if dy > 0 and _cell(g, nx, ny - 1, W, H) == 1:
+			return false
+		# v33 düzeltmeleri (eskiden kayanın / tek yönlü platformun içinden düşülebiliyordu):
+		# dikine iniş yalnızca durulan tek yönlü platformdan (aşağı + zıpla); altındaki sütun ilk tutunulacak
+		# yere dek boş (araya giren platform / katı karo düşüşü orada keser: o ayrı bir hamledir)
+		if dx == 0 and dy > 0:
+			if _cell(g, cx, cy + 1, W, H) != 2:
+				return false
+			var thru := true
+			for yy in range(cy + 2, ny):
+				if _tutar(_cell(g, cx, yy, W, H)):
+					thru = false
+					break
+			if not thru:
+				return false
+		# yana düşüş: düşülen sütunda iniş yolu boş olmalı (başlangıç ayak hizasının altındaki platform da
+		# tutar); değilse kenardan yürüyüp komşu sütunda düşülür: komşu sütun boş ve varış satırının üstü
+		# komşudan varışa dek açık
+		if dy > 1 and dx != 0:
+			var clear := true
+			for yy in range(mini(cy, ny) - 1, ny):
+				var cc := _cell(g, nx, yy, W, H)
+				if cc == 1 or (cc == 2 and yy > cy):
+					clear = false
+					break
+			if not clear:
+				var c1 := cx + step
+				var ok2 := true
+				for yy in range(cy - 1, ny):
+					var cc := _cell(g, c1, yy, W, H)
+					if cc == 1 or (cc == 2 and yy > cy):
+						ok2 = false
+						break
+				var k2 := c1
+				while ok2 and k2 != nx:
+					k2 += step
+					if _cell(g, k2, ny - 1, W, H) == 1 or (k2 != nx and _cell(g, k2, ny, W, H) == 2):
+						ok2 = false
+				if not ok2:
+					return false
+	return true
 
 
 static func _tutar(c: int) -> bool:
@@ -1869,6 +1902,7 @@ static func _reach(g: PackedByteArray, W: int, H: int, _heights: Array) -> Dicti
 	seen.fill(0)
 	var q: Array = [_idx(sx, sy, W)]
 	seen[q[0]] = 1
+	var cols := _stand_cols(g, W, H)
 	var best := [sx, sy]
 	var bd := 999999
 	var qi := 0
@@ -1883,7 +1917,7 @@ static func _reach(g: PackedByteArray, W: int, H: int, _heights: Array) -> Dicti
 			best = [cx, cy]
 		if _goal(cx, cy):
 			return {"ok": true, "x": cx, "y": cy}
-		for n in _moves(g, W, H, cx, cy):
+		for n in _moves(g, W, H, cx, cy, cols):
 			if seen[n] == 0:
 				seen[n] = 1
 				q.append(n)
@@ -1904,10 +1938,11 @@ static func reach_from(g: PackedByteArray, W: int, H: int, sx: int, sy: int) -> 
 	seen[s0] = 1
 	var q: Array = [s0]
 	var qi := 0
+	var cols := _stand_cols(gh, W, H)
 	while qi < q.size():
 		var id: int = q[qi]
 		qi += 1
-		for n in _moves(gh, W, H, id % W, id / W):
+		for n in _moves(gh, W, H, id % W, id / W, cols):
 			if seen[n] == 0:
 				seen[n] = 1
 				q.append(n)
@@ -1917,45 +1952,69 @@ static func reach_from(g: PackedByteArray, W: int, H: int, sx: int, sy: int) -> 
 static func traps(g: PackedByteArray, W: int, H: int, _heights: Array, orig: PackedByteArray = PackedByteArray()) -> Array:
 	## Tuzaklar: girişten ulaşılabilen ama çıkışa ulaşamayan ayakta durma hücreleri (düşülen çıkmaz çukurlar).
 	## orig verilirse tehlike (3) tabanlı hücreler sayılmaz (çukur oyuncuyu kendisi dışarı sektirir).
+	## v38: ters kenarlar sıkıştırılmış dizide (kenar listesi + sayım sıralaması), hamleler sütun listesinden
 	var sx := int(_son["sx"])
 	var sy := int(_son["sy"])
 	var seen := PackedByteArray()
 	seen.resize(W * H)
 	seen.fill(0)
-	var rev: Dictionary = {}
+	var sira := PackedInt32Array()   # hücre -> q içindeki sıra (yalnızca görülenler için geçerli)
+	sira.resize(W * H)
+	var es := PackedInt32Array()     # kenar kaynağı (q sırası)
+	var ed := PackedInt32Array()     # kenar hedefi (q sırası)
 	var q: Array = [_idx(sx, sy, W)]
 	seen[q[0]] = 1
+	sira[q[0]] = 0
+	var cols := _stand_cols(g, W, H)
 	var qi := 0
 	var goals: Array = []
 	while qi < q.size():
 		var id: int = q[qi]
 		qi += 1
 		if _goal(id % W, id / W):
-			goals.append(id)
-		for n in _moves(g, W, H, id % W, id / W):
-			if not rev.has(n):
-				rev[n] = []
-			rev[n].append(id)
+			goals.append(qi - 1)
+		for n in _moves(g, W, H, id % W, id / W, cols):
 			if seen[n] == 0:
 				seen[n] = 1
+				sira[n] = q.size()
 				q.append(n)
+			es.append(qi - 1)
+			ed.append(sira[n])
+	# ters komşuluk: hedef başına kaynaklar (sayım + önek toplamı)
+	var nq := q.size()
+	var bas := PackedInt32Array()
+	bas.resize(nq + 1)
+	bas.fill(0)
+	for d in ed:
+		bas[d + 1] += 1
+	for k in nq:
+		bas[k + 1] += bas[k]
+	var yaz := bas.duplicate()
+	var radj := PackedInt32Array()
+	radj.resize(ed.size())
+	for k in ed.size():
+		var d: int = ed[k]
+		radj[yaz[d]] = es[k]
+		yaz[d] += 1
 	var good := PackedByteArray()
-	good.resize(W * H)
+	good.resize(nq)
 	good.fill(0)
 	var rq: Array = goals.duplicate()
 	for gq in goals:
 		good[gq] = 1
 	var ri := 0
 	while ri < rq.size():
-		var id2: int = rq[ri]
+		var o: int = rq[ri]
 		ri += 1
-		for pr in rev.get(id2, []):
+		for k in range(bas[o], bas[o + 1]):
+			var pr: int = radj[k]
 			if good[pr] == 0:
 				good[pr] = 1
 				rq.append(pr)
 	var out: Array = []
-	for id3 in q:
-		if good[id3] == 0:
+	for k in nq:
+		if good[k] == 0:
+			var id3: int = q[k]
 			if not orig.is_empty() and orig[id3] == 3:
 				continue
 			out.append(id3)
@@ -2036,6 +2095,7 @@ static func path_cells(g: PackedByteArray, W: int, H: int, sx: int, sy: int, gx:
 	var q: Array = [s0]
 	var qi := 0
 	var goal := -1
+	var cols := _stand_cols(gh, W, H)
 	while qi < q.size() and qi < max_nodes:
 		var id: int = q[qi]
 		qi += 1
@@ -2044,7 +2104,7 @@ static func path_cells(g: PackedByteArray, W: int, H: int, sx: int, sy: int, gx:
 		if absi(cx - gx) <= 2 and absi(cy - gy) <= 1:
 			goal = id
 			break
-		for n in _moves(gh, W, H, cx, cy):
+		for n in _moves(gh, W, H, cx, cy, cols):
 			if seen[n] == 0:
 				seen[n] = 1
 				par[n] = id

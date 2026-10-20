@@ -97,6 +97,11 @@ func _ready() -> void:
 		var vt: Node = load("res://tools/tests/vahset_testi.gd").new()
 		vt.set("main", self)
 		add_child(vt)
+	if OS.get_cmdline_user_args().has("--perf"):
+		# v38 başarım ölçümü (tools/tests/perf_testi.gd): bölüm kurma, yurt / konak, gezinti, kalabalık dövüş; Prof tablosu
+		var pf: Node = load("res://tools/tests/perf_testi.gd").new()
+		pf.set("main", self)
+		add_child(pf)
 	if OS.get_cmdline_user_args().has("--sanat"):
 		# v27 savaş sanatları testi (tools/tests/sanat_testi.gd): bedel, bekleme, isabet, sınıf kuralı, kilit ve kayıt
 		var sat: Node = load("res://tools/tests/sanat_testi.gd").new()
@@ -160,7 +165,7 @@ func _ready() -> void:
 			_build_boss("kara_boru_han")
 		elif String(arg).begins_with("--boss="):
 			_build_boss(String(arg).trim_prefix("--boss="))
-	if auto_test or showcase or _ekran != "" or firca or sus or bengu_t or OS.get_cmdline_user_args().has("--mekanik") or OS.get_cmdline_user_args().has("--dovus") or OS.get_cmdline_user_args().has("--yay") or OS.get_cmdline_user_args().has("--unsur") or OS.get_cmdline_user_args().has("--denge") or OS.get_cmdline_user_args().has("--tomar") or OS.get_cmdline_user_args().has("--zeka") or OS.get_cmdline_user_args().has("--tuccar") or OS.get_cmdline_user_args().has("--harita") or OS.get_cmdline_user_args().has("--sanat") or OS.get_cmdline_user_args().has("--konak") or OS.get_cmdline_user_args().has("--isinlan") or OS.get_cmdline_user_args().has("--vahset"):
+	if auto_test or showcase or _ekran != "" or firca or sus or bengu_t or OS.get_cmdline_user_args().has("--mekanik") or OS.get_cmdline_user_args().has("--dovus") or OS.get_cmdline_user_args().has("--yay") or OS.get_cmdline_user_args().has("--unsur") or OS.get_cmdline_user_args().has("--denge") or OS.get_cmdline_user_args().has("--tomar") or OS.get_cmdline_user_args().has("--zeka") or OS.get_cmdline_user_args().has("--tuccar") or OS.get_cmdline_user_args().has("--harita") or OS.get_cmdline_user_args().has("--sanat") or OS.get_cmdline_user_args().has("--konak") or OS.get_cmdline_user_args().has("--isinlan") or OS.get_cmdline_user_args().has("--vahset") or OS.get_cmdline_user_args().has("--perf"):
 		hud.mode = "play"
 		get_tree().paused = false
 	else:
@@ -174,7 +179,7 @@ func _ready() -> void:
 var _test_kipi := false
 const TEST_BAYRAKLARI := ["--otomatik", "--sahne", "--savurus", "--ekran=", "--firca", "--fx_vitrin=", "--sus=", "--bengu", "--mekanik",
 	"--dovus", "--yay", "--unsur", "--denge", "--tomar", "--zeka", "--tuccar", "--harita", "--sanat", "--yaratik", "--silah27",
-	"--boss", "--piksel_tara", "--konak", "--isinlan", "--arayuz=", "--vahset"]
+	"--boss", "--piksel_tara", "--konak", "--isinlan", "--arayuz=", "--vahset", "--perf"]
 
 
 func _test_bayragi() -> bool:
@@ -1399,6 +1404,15 @@ func _ekran_tomar(pl: Player) -> void:
 
 
 func _physics_process(delta: float) -> void:
+	if Prof.on:
+		var t0 := Time.get_ticks_usec()
+		_physics_process_ic(delta)
+		Prof.ekle(&"bot", t0)
+		return
+	_physics_process_ic(delta)
+
+
+func _physics_process_ic(delta: float) -> void:
 	if _ekran != "":
 		_debug_screen()
 		return

@@ -27,6 +27,7 @@ var _drips: Array = []  # [pos: Vector2, speed: float, life: float, col: Color]
 # et parçaları
 var _gibs: Array = []  # {p, v, col, s, rot, w, bounces, trail}
 var stains: _Stains
+var _bos_cizildi := false   # v38: damla / akıntı / et parçası yokken boş kare bir kez çizildi (sonra çizim ve fizik atlanır)
 const INK_SHADER: Shader = preload("res://shaders/ink_blood.gdshader")
 
 
@@ -172,8 +173,24 @@ func _cell_at(p: Vector2) -> int:
 
 
 func _physics_process(delta: float) -> void:
+	if Prof.on:
+		var t0 := Time.get_ticks_usec()
+		_physics_process_ic(delta)
+		Prof.ekle(&"kan", t0)
+		return
+	_physics_process_ic(delta)
+
+
+func _physics_process_ic(delta: float) -> void:
 	if level == null or not is_instance_valid(level):
 		return
+	if _p.is_empty() and _drips.is_empty() and _gibs.is_empty():
+		# v38: boşta her karede yeniden çizim yok; son kare (boş) bir kez temizlenir
+		if not _bos_cizildi:
+			_bos_cizildi = true
+			queue_redraw()
+		return
+	_bos_cizildi = false
 	var TS: float = level.TS
 	var i := _p.size() - 1
 	while i >= 0:
@@ -300,6 +317,15 @@ func _ink_draw() -> void:
 
 
 func _draw() -> void:
+	if Prof.on:
+		var t0 := Time.get_ticks_usec()
+		_draw_ic()
+		Prof.ekle(&"kan_ciz", t0)
+		return
+	_draw_ic()
+
+
+func _draw_ic() -> void:
 	_ink_draw()
 
 
@@ -316,6 +342,14 @@ class _Stains:
 	const MAX_INK := 1600
 	var _ik: Array = []
 	var _runs: Array = []  # duvar akıntıları: [üst, alt_y, renk, tohum, genişlik]
+	# v38: _ik dörtgenleri önbellekte; yeni lekeler eklenir, büyüyen leke yerinde güncellenir, koyulaşma / kırpma
+	# tümünü yeniden kurar (eskiden kirli her karede 1600 dörtgen baştan yazılıyordu). Çizim aynı.
+	var _c_pa := PackedVector2Array()
+	var _c_ua := PackedVector2Array()
+	var _c_ca := PackedColorArray()
+	var _c_ia := PackedInt32Array()
+	var _c_n := 0
+	var _c_tam := true
 
 	static func quad(pts: PackedVector2Array, uvs: PackedVector2Array, cols: PackedColorArray, idx: PackedInt32Array, c: Vector2, ax: Vector2, ay: Vector2, col: Color, seed: int, kind: int) -> void:
 		## c merkez; ax: u ekseni (tam uzunluk), ay: v ekseni (tam uzunluk). UV'de tohum ve tür kodlanır.
@@ -338,6 +372,7 @@ class _Stains:
 		_ik.append([c, size, col, randi() % 64, kind])
 		if _ik.size() > MAX_INK:
 			_ik = _ik.slice(_ik.size() - MAX_INK + 200)
+			_c_tam = true
 		_dirty = true
 
 	func add_run(p: Vector2, col: Color) -> Array:
@@ -368,6 +403,8 @@ class _Stains:
 					var nh := clampf(nw * 0.36, 1.8, 5.0)
 					e[1] = Vector2(nw, nh)
 					e[0] = Vector2(lerpf(ec.x, p.x, 0.2), sy - nh * 0.18)
+					if k < _c_n and not _c_tam:
+						_c_yer(k, e)
 					_dirty = true
 					return
 			var w := float(spread) * 1.2 + randf_range(2.2, 3.4)
@@ -394,19 +431,45 @@ class _Stains:
 			for e in _ik:
 				if (e[2] as Color).v > 0.34:
 					e[2] = (e[2] as Color).darkened(0.035)
+			_c_tam = true
 			_dirty = true
 		if _dirty:
 			_dirty = false
 			queue_redraw()
 
+	func _c_yer(k: int, e: Array) -> void:
+		## önbellekteki k. lekenin köşeleri (quad ile aynı formül; renk ve UV değişmez)
+		var c: Vector2 = e[0]
+		var sz: Vector2 = e[1]
+		var ax := Vector2(sz.x, 0)
+		var ay := Vector2(0, sz.y)
+		var b := k * 4
+		_c_pa[b] = c - ax * 0.5 - ay * 0.5
+		_c_pa[b + 1] = c + ax * 0.5 - ay * 0.5
+		_c_pa[b + 2] = c - ax * 0.5 + ay * 0.5
+		_c_pa[b + 3] = c + ax * 0.5 + ay * 0.5
+
 	func _draw() -> void:
-		var pa := PackedVector2Array()
-		var ua := PackedVector2Array()
-		var ca := PackedColorArray()
-		var ia := PackedInt32Array()
-		for e in _ik:
+		if _c_tam:
+			_c_tam = false
+			_c_n = 0
+			_c_pa.clear()
+			_c_ua.clear()
+			_c_ca.clear()
+			_c_ia.clear()
+		for k in range(_c_n, _ik.size()):
+			var e: Array = _ik[k]
 			var sz: Vector2 = e[1]
-			quad(pa, ua, ca, ia, e[0], Vector2(sz.x, 0), Vector2(0, sz.y), e[2], e[3], e[4])
+			quad(_c_pa, _c_ua, _c_ca, _c_ia, e[0], Vector2(sz.x, 0), Vector2(0, sz.y), e[2], e[3], e[4])
+		_c_n = _ik.size()
+		if _runs.is_empty():
+			if not _c_ia.is_empty():
+				RenderingServer.canvas_item_add_triangle_array(get_canvas_item(), _c_ia, _c_pa, _c_ca, _c_ua)
+			return
+		var pa := _c_pa.duplicate()
+		var ua := _c_ua.duplicate()
+		var ca := _c_ca.duplicate()
+		var ia := _c_ia.duplicate()
 		for r in _runs:
 			var top: Vector2 = r[0]
 			var L := float(r[1]) - top.y + 1.2
