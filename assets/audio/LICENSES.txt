@@ -26,3 +26,14 @@ Kenney Impact Sounds (impactMetal_light — 900 Hz altı kesilmiş çelik geçi�
 OGA "RPG Sound Pack" (artisticdude) battle/sword-unsheathe..5 (gerçek bıçak sürtünmesi, 2 kHz üstü 110 ms) — CC0 1.0.
 Bıçak çınlaması, pırıltı, sıyırma, ıslak şapırtı / hışırtı katmanları sentezdir. Dead Cells'in ya da başka bir oyunun sesi
 kullanılmadı, örneklenmedi.
+
+v37c kritik = "örs KANG" (tools/audiogen/v37c.py): darbe_kritik[_1..4], darbe_kritik_kunt_1..3, olum_vurus_1..2 — çekirdek GERÇEK KAYIT.
+Yeni indirilen CC0 kaynaklar (tools/audiogen/src/; CC0 1.0: https://creativecommons.org/publicdomain/zero/1.0/, atıf zorunlu değil):
+6) "Anvil #1" (bsb_anvil1_s3589.mp3) — Pablo Bergel, BigSoundBank — https://bigsoundbank.com/anvil-1-s3589.html — CC0
+   (demirci örsü vuruşu, omni mikrofon; 256 kbps / 48 kHz MP3: WAV girişsiz indirilemedi) — örs geçişi + 2,5 kHz gerçek çınlama.
+7) "Sword Clash" (fs_275159_birdman_sword_clash.mp3) — Bird_man, Freesound — https://freesound.org/people/Bird_man/sounds/275159/ — CC0
+   (128 kbps "hq" önizleme; tam WAV Freesound girişi ister) — gerçek kılıç-kılıca geçiş, 0,6-3 kHz gövde (ilk 110 ms).
+8) "Sword hits - no reverb" (fs_397168_ihitokage_sword_hits_noreverb.mp3) — ihitokage, Freesound — https://freesound.org/people/ihitokage/sounds/397168/ — CC0
+   (128 kbps önizleme) — bıçak sürtünmesinden 6-13 kHz, 50 ms kıvılcım katmanı.
+Künt çeşitte ayrıca Kenney Impact Sounds impactMetal_heavy_000/002/003 (yukarıda 1) alt gövde. Sentez katmanı yok (yalnızca EQ, geçiş
+şekillendirme, kuyruk zarfı, doyum, 3 erken yansıma). Sekiro'nun ya da başka bir oyunun sesi kullanılmadı, örneklenmedi.

@@ -94,7 +94,10 @@ if do_sfx:
     allsfx.update(v37.build_all())
     import v37b  # v37b: ölüm sesi "olum_2a" (vışkkkkk + vıcık): vahset_patla_1..6, vahset_patla_agir_1..3 (v37'nin üstüne yazar)
     allsfx.update(v37b.build_all())
+    import v37c  # v37c: kritik = "sekiro_2" örs KANG (gerçek CC0 örs + kılıç kaydı): darbe_kritik[_1..4], darbe_kritik_kunt_1..3, olum_vurus_1..2 (tek kaynak)
+    allsfx.update(v37c.build_all())
     impact.ONSET['darbe_kritik'] = 0.0
+    impact.ONSET['olum_vurus'] = 0.0   # v37c: geçiş t=0 (örs KANG), ön-yankı yok
     amb = P.ambience()
     print('üretildi:', len(allsfx) + len(amb), 'ses', round(time.time() - t0, 1), 's')
     meta = {}

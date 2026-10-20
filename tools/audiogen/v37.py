@@ -181,14 +181,9 @@ BEST = 0
 
 
 def build_all():
+    # v37c: kritik (darbe_kritik*, olum_vurus*) artık v37c.py'de (örs KANG, gerçek kayıt); buradaki clash() yalnızca
+    # tarihçe / --olc ölçümü için duruyor, dosya üretmez.
     out = {}
-    for i, v in enumerate(CV):
-        out['darbe_kritik_%d' % (i + 1)] = clash(v, i)
-    for i in range(3):
-        out['darbe_kritik_kunt_%d' % (i + 1)] = clash(CV[i], i, True)
-    for i in range(2):
-        out['olum_vurus_%d' % (i + 1)] = clash(CV[i + 1], i + 1, False, 0.4)
-    out['darbe_kritik'] = out['darbe_kritik_%d' % (BEST + 1)]
     for i in range(4):
         out['vahset_patla_%d' % (i + 1)] = dissk(i)
     for i in range(3):

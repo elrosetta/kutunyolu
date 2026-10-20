@@ -292,6 +292,9 @@ func play(name: String, vol_db := 0.0, pitch := 1.0, pitch_var := 0.06, min_gap 
 		_son_calan.append([now, key, vol, bus])
 		if _son_calan.size() > 12:
 			_son_calan.pop_front()
+		if name.begins_with("darbe_kritik") or name.begins_with("olum_vurus"):
+			# v37c: kritik çeşidi (darbe_kritik_1..4 tekrarsız) ve öldürücü vuruş konsola: çeşitlerin dönüşümü denetlenir
+			print("[ses] kritik %s bus=%s vol=%.1f dB perde=%.2f" % [key, bus, vol, pit])
 	if name.begins_with("vahset_patla"):
 		olum_sesi_sayisi += 1
 		if log_ses:
@@ -335,7 +338,7 @@ func play_at(name: String, pos: Vector2, vol_db := 0.0, pitch := 1.0, pitch_var 
 const HIT_TIERS := [
 	{"name": "darbe_hafif", "alt": "darbe_et", "db": -3.0, "pv": 0.05},
 	{"name": "darbe_agir", "alt": "darbe_kunt", "db": -1.0, "pv": 0.04},
-	{"name": "darbe_kritik", "alt": "darbe_kritik", "db": 1.5, "pv": 0.06},   # v26: kendi veri yolu + kısma; v27: metal (kılıç çarpışması), ± %6 perde
+	{"name": "darbe_kritik", "alt": "darbe_kritik", "db": 1.5, "pv": 0.06},   # v26: kendi veri yolu + kısma; v37c: örs KANG (gerçek kayıt, darbe_kritik_1..4 tekrarsız), ± %6 perde
 	{"name": "olum_vurus", "alt": "darbe_kritik", "db": 1.5, "pv": 0.025},
 ]
 ## Yüzey -> ses: kademe 0..1'de kademe sesinin yerine geçer (v26: kritik her zaman kritik sesi; taş / kalkanda tok çeşidi;

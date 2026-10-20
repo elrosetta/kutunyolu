@@ -6383,3 +6383,23 @@ tek patlama kurulumu ≤ 1,7 ms; ortalama kare 12 ms (başsız).
 
 Testler: `--vahset` (+ `--vahset_cek --pencere=1920x1080` şeritleri), `--dovus --boss --kontrol`, `--otomatik --derinlik=1
 --muhur=0` (iki öldürüşte de `[ses] ölüm sesi ... bus=Krit çalıyor=true`, eşzamanlı çığlık yok): betik hatası 0.
+
+## v37c: kritik = sekiro_2 (örs KANG, gerçek kayıt)
+
+Oyuncu geri bildirimi (4 tur ret: ince "ting" A-F, sinüs "çınn" G-K, süzülmüş Kenney L-P): "Sekiro savuşturması gibi; sert, metalik,
+gerçek KILIÇ sesi yok bunlarda". Araştırma (`scratch_v37/aday/tur4/ARASTIRMA.md`): Sekiro için resmî ses-tasarımı kaynağı yok;
+oyuncu / basın betimlemelerinde ortak kelime **"CLANG"** — savuşturma "gürültülü, bloktan belirgin şekilde daha tiz bir clang + kıvılcım",
+blok "sönük ding". Yani ana karakter ince çınlama değil, gövdeli (0,8-3 kHz) sert çelik vuruşu; parlak çınlama onun üstünde oturur.
+Bu turda 8 aday tamamen gerçek CC0 çelik kayıtlarından kuruldu (`scratch_v37/aday/tur4/`), oyuncu **sekiro_2**'yi seçti.
+
+**Ses** (`tools/audiogen/v37c.py`; `darbe_kritik_1` = sekiro_2 birebir): Pablo Bergel'in demirci örsü vuruşu (BigSoundBank "Anvil #1",
+CC0; gerçek 2,52 kHz örs çınlaması, 2 s temiz kuyruk → 0,95 s'e şekillendirilmiş, 0,8-3 kHz +3 dB raf, +6 dB geçiş) + aynı kaydın
+geçişsiz kuyruğu (%55, çınlamayı öne alır) + Bird_man kılıç-kılıca çarpışmasının ilk 110 ms'si (Freesound 275159, CC0; enerjisinin
+%93'ü 0,6-3 kHz: "CLANG" gövdesi ve sertlik) + ihitokage bıçak sürtünmesinden 50 ms kıvılcım (6-13 kHz, %18); 3 erken yansıma, tanh
+doyum; sentez katmanı yok. Ölçüm: tepe 2,52 kHz, merkez ~2,6 kHz, 0,6-3 kHz payı %97, t40 ≈ 0,64 s, 1,05 sn, tepe/RMS 8,3 dB.
+Çeşitler `darbe_kritik_2..4`: örs perdesi ±4-7 %, iki ayrı örs vuruşu, kılıç geçişi kaydın 1./2. vuruşu, kuyruk ±15 %, kıvılcım farklı
+(`Ses._pick_variant` 4 çeşitten son ikisini dışarıda bırakır). `darbe_kritik_kunt_1..3`: örs ×0,77-0,84, kuyruk kısa, +8 dB geçiş +
+Kenney impactMetal_heavy alt gövdesi. `olum_vurus_1..2`: aynı KANG 0,75-0,8 sn, -9 dB. Hedefler v37 ile aynı (kritik -6,5 dB,
+olum_vurus -9 dB), Krit veri yolu / `krit_duck` değişmedi; v37'nin kılıç-çarpışması kritiği `v37.build_all`'dan çıkarıldı (tek kaynak v37c).
+Kaynak kalitesi: örs 256 kbps/48 kHz MP3, kılıç 128 kbps önizleme (tam WAV Freesound girişi ister; aynı adla `.wav` konursa `load()` onu
+yeğler). Lisanslar `assets/audio/LICENSES.txt` 6-8.
