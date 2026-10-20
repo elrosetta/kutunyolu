@@ -6124,3 +6124,54 @@ yolun 2/3'ü gezilmiş tam harita: "?" ipuçları ve "Hazine 0/6 · Tomar 0/3 ·
 * Bilinen: erişim modeli (`_moves`) gerçek zıplamadan biraz iyimser (yukarıdaki 219 hamle; hedefler yine erişilir);
   Rehber bot 5. derinlikte çok hasar alır (dövüşmeyen bot, eskisi gibi); bir `--otomatik --derinlik=5` koşusu yüklü
   makinede 13 sn'de çıktı (CIKIS, betik hatası yok), yeniden koşuda 93 sn'de BOLUM_SONU.
+
+## v35: sanatsal kombolar
+
+Geri bildirim: "Silah kombolarından hâlâ tatmin olmuyorum. Çok sanatsal, çok güzel görünen ve iyi hissettiren bir şey olmalı."
+
+Ön çekimde (`docs/v35/kombo/once_serit.jpg`) zincir bitirişi ara vuruşlardan ayırt edilmiyordu: aynı hilal, aynı
+sıçrantı, +0,02 sn duraklama; hançer ve mızrak bitirişi kıvılcımların altında kayboluyordu. Hedef (Dead Cells / Hades /
+Shinobi / Ōkami): ara vuruşlar sade ve keskin, gösteri yalnızca bitirişte; bitiriş "ayrı bir olay" (beklenti parıltısı →
+hüsnühat kesiği → uzun duraklama + yakınlaşma + yönlü sarsıntı → düşman savrulur).
+
+* **Hüsnühat kesiği** (`scripts/core/KesikFX.gd`, yeni): bitiriş isabetinde hedefin üstüne sumi-e fırça darbesi. 13 kıl
+  şeridi (her kılın enine yeri, titreşimi, bitişi, tonu ayrı): kenar kılları ve rastgele damarlar sumi, içtekiler sınıf
+  vurgusunda; başta yuvarlak ıslak göl ("tome"), kuyrukta kıllar ayrı ayrı kopar (kuru fırça / kasure). 0,06 sn'de çizilir,
+  ilk iki kare bıçak ağzında ak-sıcak hat, 0,3 sn kalır, kurudukça koyulaşır, 0,12 sn'de söner. Kuyrukta darbe yönünde
+  damlalar, merkezde ucu damlalı kısa ışınsal mürekkep dikenleri. Gerçek zamanlı (duraklamada ve ağır çekimde de akar).
+* **Sınıf imzası** (`KesikFX.SINIF`, `Player._tempo_class` ile bütün silahlara):
+
+  | Sınıf | Kesik | Vurgu |
+  |---|---|---|
+  | kılıç | baş üstünden çapraz hilal | vermilyon |
+  | düello (yatağan, rüzgâr) | uzun ince yatay iai çekişi | açık kızıl |
+  | hançer | iki kesişen darbe (çarpı, ikincisi 0,045 sn sonra) | koyu kızıl |
+  | mızrak | uzun düz deliş + iki ince hız teli | aşı boyası altın |
+  | uzun sap | geniş yatay hilal | kızıl turuncu |
+  | ağır / dev | dik yarma + yerde kısa sürüntü, en kalın | kor turuncu |
+  | kırbaç | kıvrık S darbe | vermilyon |
+
+  Silahın kendi WFX rengi vurguya %35 karışır (Ayaz mavisi, Ruh yeşili kimliğini korur).
+* **Bitiriş hissi** (`Player._finisher_fx`): kesik + küçültülmüş sıçrantı (eski büyük sıçrantı ve halka kaldırıldı: üst
+  üste binmesin), yakınlaşma 0,05 (ağır / dev 0,025) + ağırlık, vuruş yönünde sarsıntı (0,32 × ağırlık) ve kamera itişi,
+  hafif düşman `V35.fin_firlat` (150) ile havaya savrulur (boss hariç; ağır / uçan / zırhlıyı Enemy eler), öldürüşte
+  0,12 sn ×0,35 ağır çekim. Darbe karesi (ImpactFrame) bilerek eklenmedi: beyaz silüetler kesiği örtüyordu (denendi).
+* **Beklenti**: bitiriş savuruşu hazırlıktan süpürmeye geçtiği karede bıçak ucunda kısa dört kollu iğne parıltısı
+  (`KesikFX.parilti`, sınıf vurgusu + ak).
+* **Vuruş duraklaması kademeleri** (`V35`): hafif ara vuruş 0,03 (hançerde ×0,75) · orta (ağır silah ara vuruşu, büyük
+  itiş) 0,05 · bitiriş / büyük 0,09 · kritik +0,03 · öldürüş +0,02 · en çok 0,12. Ağır / dev ara vuruşları v34'teki gibi
+  ×1,2 (bitiriş tavanı aşmasın diye bitirişte değil). Eski `V19.fin_hs` ekinin yerini bitiriş kademesi aldı.
+* **İz**: sınıf iz eni (hançer ×1,2, mızrak ×1,15, düello ×1,1: kısa bıçak izleri okunur) ve bitiriş izi ×1,15 + 2 fiske.
+* **Tempo değişmedi**: savuruş süreleri / SWINGS / COMBOS aynı. `--dovus --boss --agir` tablosu v34 ile birebir (ör. gürz
+  ilk temas 200 ms, tur 1354 ms; Ulu Kılıç 247 / 1270 ms).
+
+Test: `--dovus --boss --kontrol` TAKILMA=0, basılmamış=0, oto_dönüş=0, istenmeyen_ağır=0; `--dovus --boss --agir` v34
+ile aynı; `--sanat --boss --muhur=0` SONUC GECTI hata=0 TAKILMA=0; `--otomatik --derinlik=1 --muhur=0` betik hatası 0;
+`--piksel_tara` TOPLAM 0. Hiçbir koşuda SCRIPT ERROR yok.
+
+Görseller (`docs/v35/kombo/`): `once_serit.jpg` / `sonra_serit.jpg` (Alp Kılıcı, Ulu Kılıç, Kargı, İkiz Bıçak tam zincir;
+kırmızı çerçeve temas, sarı çerçeve BITIRIS), `bitiris_once.jpg` / `bitiris_sonra.jpg` (her silahın bitiriş teması, +1 ve
++3 çekim), `bitiris_ortasi_ulu_kilic.jpg`. Çekim: `--fixed-fps 60 -- --dovus --boss --agir_klip=<silah> --anlik=<klasör>`.
+
+Bilinen: kesik dünya uzayında (hedefle birlikte kaymaz, yerinde kurur); kalabalıkta her bitiriş tek kesik çizer (yalnızca
+ilk isabet). Hançer çarpısı çok yakın düşmanda oyuncunun üstüne taşabilir.
