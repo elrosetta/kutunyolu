@@ -13,6 +13,10 @@ extends Node2D
 
 const MAX_P := 3200
 const MAX_ST := 600
+## v37 "biraz daha kan": etli ölüm patlamasında topak / damla sayısı x ET_KAT, saçılma hızı x ET_YAYILMA (seçkin / boss
+## çarpanı m aynen uygulanır: oransal olarak yine büyük kalırlar)
+const ET_KAT := 1.6
+const ET_YAYILMA := 1.12
 const MAT_ET := 0
 const MAT_TAS := 1
 const MAT_RUH := 2
@@ -172,6 +176,12 @@ func _burst(pos: Vector2, ext: Vector2, dir: Vector2, power: float, col: Color, 
 	var n_main := int((44.0 + 26.0 * (pw - 1.0)) * m)
 	var n_fine := int((44.0 + 30.0 * (pw - 1.0)) * m)
 	var n_big := int((3.0 + pw * 2.0) * sqrt(m))
+	if mat == MAT_ET:
+		n_main = int(n_main * ET_KAT)
+		n_fine = int(n_fine * ET_KAT)
+		n_big += 2
+		spd *= ET_YAYILMA
+		ex *= 1.1
 	var kind_main := K_TOPAK
 	match mat:
 		MAT_TAS:

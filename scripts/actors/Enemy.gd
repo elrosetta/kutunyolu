@@ -431,6 +431,9 @@ func take_hit(d: float, opts: Dictionary) -> bool:
 	Blood.spray(hitp, Vector2(dir, -0.35), blood_col(), 10 + int(hk * 45.0) + (14 if crit else 0) + (8 if big else 0), 1.0 + (0.35 if big else 0.0))
 	if crit and is_flesh():
 		Blood.spray(hitp, Vector2(dir, -1.0), blood_col(), 10, 1.4, false)
+	elif is_flesh():
+		# v37: etli yaratıkta sıradan vuruşa da küçük, darbe yönünde ileri kan fışkırması
+		Blood.spray(hitp, Vector2(dir, -0.15), blood_col(), 7, 1.2, false)
 	# darbe çizgileri: büyük vuruşlarda darbe noktasından dışarı kısa ışınlar
 	if big:
 		for k in 5:
@@ -591,7 +594,11 @@ func _die(dir := 1.0, kb := 100.0, crit := false) -> void:
 		queue_free()
 		return
 	Game.run["kills"] = int(Game.run.get("kills", 0)) + 1
-	Ses.play(_die_sfx(), 0.0, 1.0, 0.08, 0.03, center())
+	# v37: etli sıradan yaratıkta uzun ölüm çığlığı (surale_olum, kurt_olum ... 1,8-3 sn) çalınmaz: ölüm "dışşkk"ını örtüyordu
+	# (oyuncu "öldürünce dışşkk gelmiyor"). Seçkin / boss / etsiz yaratıkta çığlık kalır (etlide 5 dB kısık).
+	var et_olum := is_flesh() and not has_meta("v36_gec_patla")
+	if not et_olum or elite or is_boss:
+		Ses.play(_die_sfx(), -5.0 if et_olum else 0.0, 1.0, 0.08, 0.03, center())
 	if not _feel_done and Ses.has_method("hit"):
 		Ses.hit(3, center())
 	Game.hitstop(0.06 if not elite else 0.1)
@@ -607,6 +614,9 @@ func _die(dir := 1.0, kb := 100.0, crit := false) -> void:
 		var gy: float = level.ground_y_below(global_position + Vector2(0, -4))
 		if gy >= 0.0:
 			FX.decal("decal_blood_%d" % (randi() % 3), Vector2(global_position.x + dir * 6.0, gy + 2), 0.0, 10.0, 1.0 + (0.5 if elite else 0.0), Color(blood_col(), 0.85))
+			# v37: darbe yönünde birkaç küçük yer lekesi daha (sıçrayan kan izi)
+			for k in 2 + (2 if elite else 0):
+				FX.decal("decal_blood_%d" % (randi() % 3), Vector2(global_position.x + dir * randf_range(14.0, 34.0) * (1.0 + k * 0.5), gy + 2), 0.0, 10.0, randf_range(0.45, 0.75), Color(blood_col(), 0.75))
 	# v36 Dead Cells tarzı ölüm patlaması: gövde anında kaybolur (ceset / parçalanma yok), yerinde gövde silueti içinden
 	# sıkışık kan topağı + damla + buğu patlaması (taş: moloz + toz; ruh: mürekkep tülü; ateş: kor) öldürücü darbe
 	# yönüne ve yukarı fırlar. Güç aşırı hasar, ağır vuruş, kritik, bitiriş ile; ölçek seçkin / boss ile büyür.
@@ -646,6 +656,9 @@ func _death_sfx(gm: int, gk: float, agir: bool, at: Vector2) -> void:
 	if gm != Gore.MAT_ET:
 		return
 	var kd := -2.0 if _son_vurus.get("crit", false) else 0.0
+	# v37: ölüm sesi baskın katman: kritik veri yolunda çalar (Ses.LOUD_PREFIXES) ve aynı anda çalan öbür efektleri (olum_vurus,
+	# silah, et / kemik darbeleri) kısa süre kısar (kritik kısması, ~-4,5 dB, 0,07 sn tutma + 0,26 sn bırakma)
+	Ses.krit_duck(0.8)
 	if agir:
 		Ses.play("vahset_patla_agir", minf(gk - 1.0, 1.5) * 1.2 + kd, 1.0, 0.07, 0.03, at)
 	else:

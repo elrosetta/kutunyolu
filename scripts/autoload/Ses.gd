@@ -32,7 +32,15 @@ const LIMITS := {
 	"adim": 2, "inis": 1, "zipla": 1, "yuvarlan": 1, "altin": 4, "kut_tane": 4, "ui_gez": 2, "ui_sec": 2,
 	"savur": 3, "darbe": 5, "darbe_kritik": 2, "darbe_kritik_kunt": 2, "ok_vurus": 3, "ok_ucus": 3, "dusman_hazirlik": 3, "hazirlik": 3,
 	"vahset": 6, "patlama": 3, "sarsinti": 2, "olum_vurus": 2, "simsek_catirti": 2, "gok_gurleme": 2,
+	"vahset_patla": 3, "vahset_patla_agir": 2,   # v37: ölüm "dışşkk"ı kendi grubunda (vuruş vahşet sesleri onu çalamaz)
 }
+## v37: ölüm patlaması sesi (Dead Cells tarzı "dışşkk") kritik veri yoluna gider: SFX sıkıştırıcısını ve kritik kısmasını
+## atlar, öbür ölüm katmanlarının (olum_vurus, yaratık ölüm çığlığı) üstünde duyulur (bkz. Enemy._death_sfx).
+const LOUD_PREFIXES := ["vahset_patla"]
+## v37 hata ayıklama: `--ses_log` (ya da `--otomatik`) ile ölüm patlaması çalınışları konsola yazılır ([ses] ...).
+var log_ses := false
+var olum_sesi_sayisi := 0
+var _son_calan: Array = []
 const DEFAULT_LIMIT := 3
 
 ## Biyom akustiği: yankı odası, sönüm (yüksek = karanlık), ıslak oran, ön gecikme (ms). Ortam döngüsü "ortam_<id>_dongu".
@@ -117,6 +125,8 @@ func _ready() -> void:
 	_heart.bus = BUS_UI
 	add_child(_heart)
 	_last_us = Time.get_ticks_usec()
+	var ua := OS.get_cmdline_user_args()
+	log_ses = ua.has("--ses_log") or ua.has("--otomatik")
 	set_volumes(float(Game.meta.get("ses_sfx", 1.0)), float(Game.meta.get("ses_muzik", 0.8)))
 	set_biome("baslik")
 
@@ -283,6 +293,20 @@ func play(name: String, vol_db := 0.0, pitch := 1.0, pitch_var := 0.06, min_gap 
 		a.volume_db = vol
 		a.pitch_scale = pit
 		a.play()
+	if log_ses:
+		_son_calan.append([now, key, vol, bus])
+		if _son_calan.size() > 12:
+			_son_calan.pop_front()
+	if name.begins_with("vahset_patla"):
+		olum_sesi_sayisi += 1
+		if log_ses:
+			# aynı anda (0,15 sn içinde) çalan öbür sesler: ölüm sesini örten katmanlar
+			var es := []
+			for r in _son_calan:
+				if now - float(r[0]) <= 0.15 and r[1] != key:
+					es.append("%s(%s %.1f)" % [r[1], r[3], float(r[2])])
+			print("[ses] ölüm sesi #%d %s bus=%s vol=%.1f dB bus_db=%.1f perde=%.2f çalıyor=%s | eşzamanlı: %s" % [olum_sesi_sayisi, key, bus, vol,
+				AudioServer.get_bus_volume_db(AudioServer.get_bus_index(bus)), pit, str(p.playing), ", ".join(es)])
 	return p
 
 
@@ -380,6 +404,9 @@ func _bus_for(name: String) -> String:
 		return BUS_AMB
 	if name.begins_with("darbe_kritik"):
 		return BUS_KRIT
+	for pre in LOUD_PREFIXES:
+		if name.begins_with(pre):
+			return BUS_KRIT
 	for pre in UI_PREFIXES:
 		if name.begins_with(pre):
 			return BUS_UI

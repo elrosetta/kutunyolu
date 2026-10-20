@@ -6345,3 +6345,41 @@ fışkırıyor, 'dışşkk' diye bir ölüm sesi çalıyor, gövde anında yok o
   ~1200 zerre, fizik 1,3 ms + çizim 2 ms.
 * `--dovus --boss --kontrol`, `--sanat --boss --muhur=0` (GECTI), `--otomatik --derinlik=1/3`, `--piksel_tara`
   (TOPLAM 0): betik hatası 0.
+
+## v37: kılıç çarpışması kritik, duyulur ölüm sesi, daha çok kan
+
+Oyuncu geri bildirimi: "kritik sesi metal değil, tencere / tava vurmak gibi; kılıç çarpışması istiyorum", "öldürünce 'dışşkk'
+gelmiyor (Dead Cells'e yakın olsun)", "sıradan yaratıklarda kan biraz daha çok olsun".
+
+**Kritik = kılıç çarpışması** (`tools/audiogen/v37.py`; `darbe_kritik_1..4`, `darbe_kritik_kunt_1..3`, `olum_vurus_1..2`):
+* Neden tava gibiydi: v35'in kritiği çan / plaka kip oranlarıyla (1; 1,18; 1,5; 2; 2,5 ...) 2-3,5 kHz'te SIK dizilmiş kipler +
+  ~1 kHz "klang" gövdesi ve 0,5-0,8 sn çınlamaydı: kulak bunu gövdeli bir kabın çınlaması olarak duyar. (Ağırlık merkezi zaten
+  3-4 kHz'ti; sorun parlaklık değil kip yoğunluğu ve uzun gövde çınlamasıydı.)
+* Yeni tasarım: 2 ms tık + Kenney impactMetal_light (perde yukarı, 900 Hz altı kesik: gerçek çelik geçişi, gövdesiz) + iki
+  ince bıçak (çubuğun SEYREK inharmonik kipleri 1 : 2,76 : 5,40 : 8,93; temel 2,65-3,6 kHz, 0,12-0,35 sn) + tiz seyrek
+  pırıltı (4-9 kHz, biri uzun ve çok sessiz) + sıyırma: OGA sword-unsheathe kaydı (2 kHz üstü, 110 ms) + sentez 9 → 4,5 kHz
+  sıyırma; yalnızca erken yansımalı minik oda; sonda 700 Hz dik alçak kesim. Künt çeşit: bıçaklar x0,8, kısa gövdesiz "çank"
+  (900 Hz üstü gürültü vuruşu) + çıtırtı; tava gövdesi yok. `olum_vurus`: aynı çarpışmanın kısa (0,4 sn), kısık çeşidi.
+* Ölçüm (ilk 0,35 sn): ağırlık merkezi eski 2961-4114 Hz → yeni 4418-5579 Hz (künt 2994 → 5166 Hz); 500 Hz altı < %0,15;
+  2,5-9 kHz payı %40-58 → %78-89 (künt %58); çınlama gövdesi 0,68 sn → ~0,12 sn (+ sessiz pırıltı).
+
+**Ölüm sesi neden duyulmuyordu** (`--otomatik` günlüğü, `[ses]` satırları; `--ses_log` ile de açılır): ses ÇALIYORDU, ama
+öldürüş karesinde 0,15 sn içinde 9 ses daha çalıyordu: yaratığın 1,8-3 sn'lik ölüm çığlığı (ör. surale_olum, 0 dB), olum_vurus
+(+1,5 dB), silah, et, kemik, acı sesleri — hepsi SFX sıkıştırıcısından geçiyor, "dışşkk" da onlarla birlikte bastırılıyordu.
+Üstelik eski `vahset_patla`nın enerjisinin %95'i 500 Hz altındaydı (güm): karakteristik "şşkk" hışırtısı çok sessizdi.
+Düzeltme:
+* `vahset_patla*` kritik veri yolunda çalar (`Ses.LOUD_PREFIXES`: SFX sıkıştırıcısını atlar), kendi eşzamanlılık grubunda
+  (3 / 2); çalarken `Ses.krit_duck(0.8)` öbür efektleri kısa süre ~4,5 dB kısar.
+* Etli sıradan yaratıkta uzun ölüm çığlığı (`_die_sfx`) artık çalmaz; seçkin / boss'ta 5 dB kısık; etsizde aynen.
+* Ses yeniden üretildi (4 + 3 çeşit, ~0,31-0,37 sn): tık + impactPunch + kısa güm + 2 kHz → 600 Hz inen ıslak "ış" bandı +
+  ıslak şapırtı + çıtırtılı sıkışma + tiz "şşş" kuyruğu + "kk" zerre çıtırtısı; alt güm payı sınırlı. Ağırlık merkezi
+  336 → 1784 Hz, 500 Hz altı %95 → %53, 2,5-9 kHz %2,5 → %22; algılanan yükseklik ~+3 dB (-9,7 → -6,9).
+
+**Daha çok kan** (`Gore.ET_KAT` 1,6, `ET_YAYILMA` 1,12): etli ölüm patlamasında topak ve damla x1,6, iri topak +2, saçılma hızı
+x1,12, çıkış siluet alanı x1,1 (seçkin / boss çarpanı aynen: oransal olarak yine büyük); öldürüşte darbe yönünde 2 (seçkin 4)
+küçük yer lekesi daha; etli yaratıkta sıradan (kritik olmayan) vuruşa da küçük ileri kan fışkırması (7 damla).
+`--vahset`: tepe canlı zerre ~1000 → 1726, patlama başına ~212 zerre, Gore'un en kötü kare maliyeti ~6 ms (önce 5-7 ms),
+tek patlama kurulumu ≤ 1,7 ms; ortalama kare 12 ms (başsız).
+
+Testler: `--vahset` (+ `--vahset_cek --pencere=1920x1080` şeritleri), `--dovus --boss --kontrol`, `--otomatik --derinlik=1
+--muhur=0` (iki öldürüşte de `[ses] ölüm sesi ... bus=Krit çalıyor=true`, eşzamanlı çığlık yok): betik hatası 0.

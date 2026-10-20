@@ -332,22 +332,22 @@
  },
  "darbe_kritik": {
   "loop": false,
-  "len": 0.68,
+  "len": 0.545,
   "hedef_db": -6.5
  },
  "darbe_kritik_1": {
   "loop": false,
-  "len": 0.68,
+  "len": 0.545,
   "hedef_db": -6.5
  },
  "darbe_kritik_2": {
   "loop": false,
-  "len": 0.68,
+  "len": 0.568,
   "hedef_db": -6.5
  },
  "darbe_kritik_3": {
   "loop": false,
-  "len": 0.68,
+  "len": 0.472,
   "hedef_db": -6.5
  },
  "darbe_kunt": {
@@ -1245,15 +1245,13 @@
  },
  "olum_vurus_1": {
   "loop": false,
-  "len": 0.6,
-  "hedef_db": -7.5,
-  "onset": 0.03
+  "len": 0.397,
+  "hedef_db": -9.0
  },
  "olum_vurus_2": {
   "loop": false,
-  "len": 0.6,
-  "hedef_db": -7.5,
-  "onset": 0.03
+  "len": 0.368,
+  "hedef_db": -9.0
  },
  "patlama_1": {
   "loop": false,
@@ -1314,17 +1312,17 @@
  },
  "darbe_kritik_kunt_1": {
   "loop": false,
-  "len": 0.68,
+  "len": 0.532,
   "hedef_db": -6.5
  },
  "darbe_kritik_kunt_2": {
   "loop": false,
-  "len": 0.68,
+  "len": 0.62,
   "hedef_db": -6.5
  },
  "darbe_kritik_kunt_3": {
   "loop": false,
-  "len": 0.68,
+  "len": 0.434,
   "hedef_db": -6.5
  },
  "tamu_seli": {
@@ -1554,37 +1552,42 @@
  },
  "vahset_patla_1": {
   "loop": false,
-  "len": 0.272,
-  "hedef_db": -8.0
+  "len": 0.31,
+  "hedef_db": -6.0
  },
  "vahset_patla_2": {
   "loop": false,
-  "len": 0.272,
-  "hedef_db": -8.0
+  "len": 0.31,
+  "hedef_db": -6.0
  },
  "vahset_patla_3": {
   "loop": false,
-  "len": 0.278,
-  "hedef_db": -8.0
+  "len": 0.318,
+  "hedef_db": -6.0
  },
  "vahset_patla_4": {
   "loop": false,
-  "len": 0.298,
-  "hedef_db": -8.0
+  "len": 0.338,
+  "hedef_db": -6.0
  },
  "vahset_patla_agir_1": {
   "loop": false,
-  "len": 0.372,
-  "hedef_db": -7.0
+  "len": 0.37,
+  "hedef_db": -5.0
  },
  "vahset_patla_agir_2": {
   "loop": false,
-  "len": 0.372,
-  "hedef_db": -7.0
+  "len": 0.37,
+  "hedef_db": -5.0
  },
  "vahset_patla_agir_3": {
   "loop": false,
-  "len": 0.372,
-  "hedef_db": -7.0
+  "len": 0.37,
+  "hedef_db": -5.0
+ },
+ "darbe_kritik_4": {
+  "loop": false,
+  "len": 0.552,
+  "hedef_db": -6.5
  }
 }

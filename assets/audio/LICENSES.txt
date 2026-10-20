@@ -19,3 +19,10 @@ v35 vahşet sesleri (tools/audiogen/v35.py): vahset_et/kemik/olum/yirtil/dusme v
 Yeni indirme yapılmadı; yalnızca yukarıdaki yerel CC0 kayıtlar katmanlandı: Kenney Impact Sounds (impactPunch_heavy, impactSoft_heavy/medium,
 impactWood_light) ve Kenney RPG Audio (knifeSlice) — CC0 1.0. Metal kritik tamamen sentezdir (kipsel çan / plaka kipleri, sıyırma gürültüsü,
 küçük metal oda); hiçbir oyunun ya da zil sesinin kaydı kullanılmadı veya örneklenmedi.
+
+v37 kılıç çarpışması kritik + ölüm "dışşkk"ı (tools/audiogen/v37.py): darbe_kritik_1..4, darbe_kritik_kunt_1..3, olum_vurus_1..2,
+vahset_patla_1..4, vahset_patla_agir_1..3. Yeni indirme yapılmadı; yalnızca yukarıdaki yerel CC0 kayıtlar katmanlandı:
+Kenney Impact Sounds (impactMetal_light — 900 Hz altı kesilmiş çelik geçişi; impactPunch_heavy, impactSoft_heavy) ve
+OGA "RPG Sound Pack" (artisticdude) battle/sword-unsheathe..5 (gerçek bıçak sürtünmesi, 2 kHz üstü 110 ms) — CC0 1.0.
+Bıçak çınlaması, pırıltı, sıyırma, ıslak şapırtı / hışırtı katmanları sentezdir. Dead Cells'in ya da başka bir oyunun sesi
+kullanılmadı, örneklenmedi.
