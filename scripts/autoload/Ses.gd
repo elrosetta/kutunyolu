@@ -56,7 +56,7 @@ const BIOME_FX := {
 
 var _streams: Dictionary = {}
 var _variants: Dictionary = {}  # önek -> [ad, ad...]
-var _last_key: Dictionary = {}  # önek -> son çalınan dosya (art arda tekrar yok)
+var _last_key: Dictionary = {}  # önek -> son çalınan dosya(lar) (v37b: tekrarsız rastgele, bkz. _pick_variant)
 var _pool: Array = []
 var _pool2d: Array = []
 var _loops: Dictionary = {}
@@ -252,12 +252,7 @@ func play(name: String, vol_db := 0.0, pitch := 1.0, pitch_var := 0.06, min_gap 
 	## onlardan seçer, yoksa tam adı çalar. pos verilirse (dünya konumu) kameraya göre sağ-sol ve uzaklıkla çalar.
 	var key := ""
 	if _variants.has(name):
-		var vs: Array = _variants[name]
-		var i := randi() % vs.size()
-		if vs.size() > 1 and vs[i] == _last_key.get(name, ""):
-			i = (i + 1 + randi() % (vs.size() - 1)) % vs.size()
-		key = vs[i]
-		_last_key[name] = key
+		key = _pick_variant(name)
 	elif _streams.has(name):
 		key = name
 	else:
@@ -308,6 +303,25 @@ func play(name: String, vol_db := 0.0, pitch := 1.0, pitch_var := 0.06, min_gap 
 			print("[ses] ölüm sesi #%d %s bus=%s vol=%.1f dB bus_db=%.1f perde=%.2f çalıyor=%s | eşzamanlı: %s" % [olum_sesi_sayisi, key, bus, vol,
 				AudioServer.get_bus_volume_db(AudioServer.get_bus_index(bus)), pit, str(p.playing), ", ".join(es)])
 	return p
+
+
+func _pick_variant(name: String) -> String:
+	## v37b: tekrarsız rastgele çeşit: son çalınan(lar) dışındakilerden eşit olasılıkla seçer. 4+ çeşitte son ikisi,
+	## 2-3 çeşitte son biri dışarıda kalır (kesip biçerken aynı ölüm sesi art arda / dönüşümlü duyulmaz).
+	var vs: Array = _variants[name]
+	var son: Array = _last_key.get(name, [])
+	var aday := []
+	for v in vs:
+		if not son.has(v):
+			aday.append(v)
+	if aday.is_empty():
+		aday = vs
+	var key: String = aday[randi() % aday.size()]
+	son.append(key)
+	while son.size() > mini(2 if vs.size() >= 4 else 1, vs.size() - 1):
+		son.pop_front()
+	_last_key[name] = son
+	return key
 
 
 func play_at(name: String, pos: Vector2, vol_db := 0.0, pitch := 1.0, pitch_var := 0.06, min_gap := 0.03) -> Node:

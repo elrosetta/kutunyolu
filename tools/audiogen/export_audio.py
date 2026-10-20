@@ -29,7 +29,9 @@ TARGETS = [
     (r'^sanat_cekis$', -7.5), (r'^sanat_gum$', -6.5), (r'^sanat_hazir$', -15.0), (r'^sanat_(ors|kin)$', -9.0), (r'^sanat_', -10.5),
     # v32 Bengisu Usta (v32_usta.TARGET ile aynı)
     # v35 vahşet + v36 ölüm patlaması (v35.TARGET / v36.TARGET ile aynı)
-    (r'^vahset_patla_agir', -7.0), (r'^vahset_patla', -8.0), (r'^vahset_et', -11.0), (r'^vahset_kemik', -12.5),
+    # v37 / v37b: ölüm sesi ve öldürücü vuruş (v37.TARGET / v37b.TARGET ile aynı)
+    (r'^olum_vurus', -9.0),
+    (r'^vahset_patla_agir', -5.0), (r'^vahset_patla', -6.0), (r'^vahset_et', -11.0), (r'^vahset_kemik', -12.5),
     (r'^usta_nakis$', -13.0), (r'^usta_damga$', -12.0), (r'^usta_dovme$', -11.0),
     # v13 darbe hiyerarşisi / kademeli patlama / yıldırım (impact.py): kritik ve öldürücü ağırdan ~2 dB sıcak (v26: kritik
     # -8 → -6,5; kısa ve yoğun olduğundan master sınırına dayanır, ~-7,4 ölçülür),
@@ -88,6 +90,10 @@ if do_sfx:
     allsfx.update(v32_usta.build_all())
     import v35  # v35: vahşet sesleri (et, kemik, öldürüş, yırtılma, düşme) + METAL kritik (çan / plaka kipleri), v27'nin üstüne yazar
     allsfx.update(v35.build_all())
+    import v37  # v37: kılıç çarpışması kritik, olum_vurus (v35'in üstüne yazar)
+    allsfx.update(v37.build_all())
+    import v37b  # v37b: ölüm sesi "olum_2a" (vışkkkkk + vıcık): vahset_patla_1..6, vahset_patla_agir_1..3 (v37'nin üstüne yazar)
+    allsfx.update(v37b.build_all())
     impact.ONSET['darbe_kritik'] = 0.0
     amb = P.ambience()
     print('üretildi:', len(allsfx) + len(amb), 'ses', round(time.time() - t0, 1), 's')

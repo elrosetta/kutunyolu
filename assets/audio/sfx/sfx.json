@@ -1552,42 +1552,52 @@
  },
  "vahset_patla_1": {
   "loop": false,
-  "len": 0.31,
+  "len": 0.549,
   "hedef_db": -6.0
  },
  "vahset_patla_2": {
   "loop": false,
-  "len": 0.31,
+  "len": 0.499,
   "hedef_db": -6.0
  },
  "vahset_patla_3": {
   "loop": false,
-  "len": 0.318,
+  "len": 0.55,
   "hedef_db": -6.0
  },
  "vahset_patla_4": {
   "loop": false,
-  "len": 0.338,
+  "len": 0.47,
   "hedef_db": -6.0
  },
  "vahset_patla_agir_1": {
   "loop": false,
-  "len": 0.37,
+  "len": 0.6,
   "hedef_db": -5.0
  },
  "vahset_patla_agir_2": {
   "loop": false,
-  "len": 0.37,
+  "len": 0.598,
   "hedef_db": -5.0
  },
  "vahset_patla_agir_3": {
   "loop": false,
-  "len": 0.37,
+  "len": 0.587,
   "hedef_db": -5.0
  },
  "darbe_kritik_4": {
   "loop": false,
   "len": 0.552,
   "hedef_db": -6.5
+ },
+ "vahset_patla_5": {
+  "loop": false,
+  "len": 0.556,
+  "hedef_db": -6.0
+ },
+ "vahset_patla_6": {
+  "loop": false,
+  "len": 0.519,
+  "hedef_db": -6.0
  }
 }
