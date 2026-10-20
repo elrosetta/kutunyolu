@@ -6,12 +6,32 @@ extends CharacterBody2D
 const RUN := 155.0
 const ACC_GROUND := 2600.0
 const DEC_GROUND := 2400.0
-const ACC_AIR := 1500.0
-const JUMP_V := -430.0
-const GRAV := 1180.0
-const MAX_FALL := 560.0
+const ACC_AIR := 2400.0     # v34: 1500 → 2400 (havada güçlü yön verme)
+const JUMP_V := -565.0      # v34: -430 → -565 (tepeye ~0,3 sn; eski 0,4)
+const GRAV := 1180.0        # yuvarlanma / sürünme / ölüm / sanatlar (zıplama yayı GRAV_RISE / GRAV_FALL ile)
+const MAX_FALL := 620.0     # v34: 560 → 620
 const ROLL_V := 300.0
 const ROLL_T := 0.3
+
+## ------------------------------------------------------------------ v34 ZIPLAMA (Dead Cells usulü)
+## Geri bildirim: "Zıplama çok hantal; basamak çıkmak yorucu." Yükseliş hızlı ve kısa, tepede kısa asılı kalış, düşüş
+## yükselişten sert (yerçekimi ayrı), havada güçlü yön verme, tuşu erken bırakınca alçak zıplama. 1 karoluk basamağa
+## yürüyünce kendiliğinden çıkılır; 2-3 karoluk kenara zıplayınca eller yetişince otomatik tutunulur (hızlı tırmanış).
+## Tepe yüksekliği ≥ eski (LevelGen._moves modeli: tek / çift zıplama 4 karo yukarı, ±5 sütun).
+const GRAV_RISE := 1950.0       # yükselirken (tuş basılı)
+const GRAV_FALL := 2100.0       # düşerken (eski: her iki yönde 1180)
+const JUMP_CUT := 0.5           # yükselirken tuş bırakılırsa hız bu orana iner (alçak zıplama)
+const APEX := {"vy": 60.0, "g": 0.6}     # tepe: |vy| < 60 iken tuş basılıysa yerçekimi %60 (kısa asılı kalış)
+const TURN_AIR := 1.5           # havada ters yöne basınca ivme çarpanı (keskin dönüş)
+const STEP_UP := 28.0           # yürürken kendiliğinden çıkılan basamak (px; 1 karo = 24)
+const LEDGE_UP := 60.0          # havada tutunulan kenar: ayak hizasının en çok bu kadar üstü (eller)
+## Kahraman İnişi (havada S + Boşluk): hızla çakılır, yere değince şok dalgası (yükseklikle güçlenir); düşüş
+## sersemlemesi / hasarı yok. Yüksek normal düşüş (> stun_h px) kısa sersemletir, çok yüksekte (> dmg_h) az hasar.
+const HERO := {"antic": 0.06, "v": 880.0, "v_max": 1150.0, "acc": 2600.0, "steer": 0.25, "r": 56.0, "r_k": 44.0,
+	"pose": 0.32, "stun_h": 288.0, "stun_t": 0.45, "dmg_h": 432.0, "dmg_k": 0.05, "dmg_stun_t": 0.6}
+## kol pozları [a1 üst kol, a2 dirsek, w bilek, k derinlik, ext uzatma] (SWINGS ile aynı açı düzeni: 0 aşağı, pi/2 ileri)
+const HERO_POSE_DIVE := [2.75, 0.35, 0.55, 1.0, 1.0]
+const HERO_POSE_LAND := [0.42, 0.0, -3.0, 1.0, 1.25]   # yumruk yerde, bıçak geriye-yukarı
 
 ## ------------------------------------------------------------------ AKICILIK (v17)
 ## Dövüşün "akışı": girdi ara belleği, iptal pencereleri, saldırırken hareket, hedef yardımı, vuruş duraklaması.
@@ -27,7 +47,7 @@ const FLOW := {
 	# temastan sonra (bıçak düşmana varıp süpürme bittikten sonra, kilitte: isabeti görüp basınca, Kut Yankısı zamanlaması)
 	# yapılan basış her zaman kuyruğa girer; kilit en uzun dev silah bitirişinde ~0,33 sn
 	"buf_jump": 0.15,         # eski 0,13
-	"coyote": 0.11,           # eski 0,09
+	"coyote": 0.125,          # eski 0,09; v34 0,11 → 0,125 (kenardan 6 kare / 0,1 sn sonra da zıplanır)
 	"buf_roll": 0.2,          # yuvarlanma basışı (yuvarlanma / bekleme sürerken basılırsa biter bitmez)
 	"buf_sec": 0.15,          # yay / fırlatma / büyü / kalkan: saldırı toparlanmasında basılırsa saldırıyı keser (v22: 0,2 → 0,15)
 	"roll_gap": 0.05,         # yuvarlanma bitiminden yenisine bekleme (eski 0,12)
@@ -142,6 +162,27 @@ const TEMPO_V26 := {
 	"dev": [1.02, 1.05, 1.0, 1.06, 1.04, 0.0, 0.004],
 	"ay_palasi": [1.1, 1.26, 1.08, 1.22, 1.2, 0.008, 0.01],
 }
+
+## ------------------------------------------------------------------ TEMPO v34: ağır silahın hazırlığı kısalır
+## Geri bildirim (oynayarak): "Bazı iki elli kılıçların ve büyük çift ağızlı ağır silahların savuruşu o kadar yavaş ki
+## sinir bozuyor." Dead Cells'in ağır silahları gibi: ağırlık yavaşlıktan değil darbeden gelir. Basış→temas (hazırlık +
+## tutuş) en çok kısalır (en ağırda ~0,49 → ~0,3 sn), süpürme (görünüş) aynı, kilit / toparlanma biraz kısalır;
+## zincir ilerledikçe savuruş hızlanır (adım başına "ramp"); hazırlıkta süper zırh (sarsılmaz, yine de zıplamayla
+## kesilir); vuruş duraklaması ve öne adım biraz büyür (V34_AGIR). Hasar, saniyedeki hasar eski düzeyde kalsın diye
+## items.json'da indirildi (docs/TASARIM.md "v34"). Tek düğme TEMPO_V34K (0 = v33 temposu, 1 = v34).
+## Sütunlar: [ilk hazırlık ×, zincir hazırlığı ×, süpürme ×, kilit ×, toparlanma ×, tutuş ×, adım başına hızlanma,
+##            bitiriş hazırlığı ×]
+const TEMPO_V34K := 1.0
+const TEMPO_V34 := {
+	"uzun": [0.82, 0.88, 1.0, 0.95, 0.9, 0.8, 0.04, 0.95],
+	"agir": [0.66, 0.75, 1.0, 0.9, 0.85, 0.65, 0.06, 0.9],
+	"dev": [0.62, 0.7, 1.0, 0.85, 0.8, 0.55, 0.07, 0.85],
+	"gun_ay_ikizi": [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 0.0, 1.0],   # iki duruşlu (Ay duruşu düellocu): dokunulmadı
+}
+## hs: orta kademe vuruş duraklaması çarpanı, step: vuruş anı öne adım (px; eski 9), sa_wind: hazırlıkta süper zırhlı
+## sınıflar, sarj_k: items.json'da hasar ~%10-25 indiği için basılı tutulan (şarjlı) ağır vuruşun çarpanı (şarj süresi
+## kısalmadı; ağır vuruş eski hasarında kalır)
+const V34_AGIR := {"hs": 1.2, "step": 13.0, "sa_wind": ["agir", "dev"], "sarj_k": {"dev": 1.33, "agir": 1.27, "uzun": 1.1}}
 
 ## ------------------------------------------------------------------ SALDIRI HIZI (v20)
 ## Oyuncu statı (yüzde): evre sürelerini (hazırlık, süpürme, kilit, toparlanma, tutuş) ve dolayısıyla zincir aralığını
@@ -842,7 +883,14 @@ var air_hang := 0.0         # havada isabet: kısa asılı kalma (hava kombosu)
 var mantle_t := 0.0         # kenara tutunup çıkma
 var _mantle_a := Vector2.ZERO
 var _mantle_b := Vector2.ZERO
+var _mantle_dur := 0.16
 var _prev_vy := 0.0
+var hero_t := -1.0          # v34 Kahraman İnişi: >= 0 dalış sürüyor (havada; süre)
+var hero_pose_t := 0.0      # iniş pozu (diz yerde, yumruk toprakta)
+var fall_stun_t := 0.0      # yüksek düşüş sersemlemesi
+var _air_top := 0.0         # havadaki en yüksek ayak hizası (düşüş yüksekliği buradan)
+var last_fall_h := 0.0      # son inişin düşüş yüksekliği (px; test / öğretici)
+var hero_stats := {"n": 0, "hits": 0, "h": 0.0, "vy": 0.0, "stun": 0, "step": 0, "mantle": 0}   # test sayaçları
 const COMBO_RANKS := [[5, "ER", Color(0.9, 0.9, 0.95)], [12, "ALP", Color(0.6, 0.95, 1.0)], [22, "BAHADIR", Color(1.0, 0.85, 0.4)],
 	[35, "HAN", Color(1.0, 0.55, 0.3)], [55, "DESTAN", Color(1.0, 0.35, 0.6)]]
 var sprint := false        # Shift basılı tutuluyor: koşu
@@ -1427,30 +1475,71 @@ func _corner_correct() -> void:
 				return
 
 
-func _try_mantle(dir: float) -> void:
-	## Kenara tutunma: havada, duvara doğru basılı, eller kenar hizasındaysa otomatik tırmanış
-	if is_on_floor() or mantle_t > 0.0 or roll_t > 0.0 or not atk.is_empty() or aim_t >= 0.0 or level == null:
-		return
-	if dir == 0 or int(signf(dir)) != facing or velocity.y < -80.0:
-		return
-	var fx := global_position.x + facing * 10.0
-	var tx := int(floor(fx / 24.0))
-	var top := -1
-	for ty in range(int(floor((global_position.y - 50.0) / 24.0)), int(floor((global_position.y - 10.0) / 24.0)) + 1):
-		if level.cell(tx, ty) == 1 and level.cell(tx, ty - 1) == 0 and level.cell(tx, ty - 2) == 0:
-			top = ty
-			break
-	if top < 0:
-		return
-	var ledge_y := top * 24.0
-	if ledge_y < global_position.y - 52.0 or ledge_y > global_position.y - 8.0:
-		return
-	if level.solid_at(Vector2(global_position.x, ledge_y - 30.0)):
-		return
+func _ledge(f: int, max_h: float) -> Vector2:
+	## v34 kenar bulma (fizik sorgusuyla; karo ızgarasına bağlı değil): önde duvar var ve gövde en çok max_h px
+	## yükseltilince öne geçebiliyorsa varış noktası (ayak), yoksa Vector2.INF. Baş üstü kapalıysa (tavan) yok.
+	var gt := global_transform
+	if not test_move(gt, Vector2(f * 2.0, 0)):
+		return Vector2.INF
+	var h := 4.0
+	while h <= max_h + 0.01:
+		if test_move(gt, Vector2(0, -h)):
+			return Vector2.INF
+		var up := gt.translated(Vector2(0, -h))
+		var fw := Vector2(f * 9.0, 0)
+		if not test_move(up, fw):
+			# kenarın üstüne in: öne geçilen yerden aşağı yokla (tam ayak hizası)
+			var top := up.translated(fw)
+			var col := KinematicCollision2D.new()
+			var dy := h + 2.0
+			if test_move(top, Vector2(0, h + 2.0), col):
+				dy = col.get_travel().y
+			if dy >= h - 0.5:
+				return Vector2.INF   # öne geçilen yer kenar değil (boşluk)
+			return top.origin + Vector2(0, dy)
+		h += 4.0
+	return Vector2.INF
+
+
+func _begin_mantle(to: Vector2, dur: float) -> void:
 	_mantle_a = global_position
-	_mantle_b = Vector2(tx * 24.0 + 12.0 - facing * 4.0, ledge_y - 0.5)
-	mantle_t = 0.16
+	_mantle_b = to - Vector2(0, 0.5)
+	_mantle_dur = dur
+	mantle_t = dur
 	jumping = false
+	_air_top = minf(_air_top, to.y)
+
+
+func _try_step_up(dir: float) -> void:
+	## v34: yerde 1 karoluk basamağa doğru yürürken zıplamadan kendiliğinden çık (kısa kayma)
+	if not is_on_floor() or mantle_t > 0.0 or roll_t > 0.0 or crouched or not atk.is_empty() or aim_t >= 0.0 \
+			or block_t >= 0.0 or hurt_t > 0.0 or fall_stun_t > 0.0 or dir == 0 or int(signf(dir)) != facing:
+		return
+	var to := _ledge(facing, STEP_UP)
+	if to == Vector2.INF or global_position.y - to.y < 6.0:
+		return
+	_begin_mantle(to, 0.075)
+	hero_stats["step"] = int(hero_stats["step"]) + 1
+	vis_scale = Vector2(0.92, 1.08)
+	Ses.play("adim_tas", -14.0, 1.1, 0.06)
+
+
+func _try_mantle(dir: float) -> void:
+	## Kenara tutunma (v34: Dead Cells gibi kendiliğinden): havada kenara doğru basılıyken / ilerlerken ayağın en çok
+	## LEDGE_UP px üstündeki kenara eller yetişiyorsa hızlı tırmanış (yükselirken de; süre yüksekliğe göre 0,07-0,15 sn)
+	if is_on_floor() or mantle_t > 0.0 or roll_t > 0.0 or not atk.is_empty() or aim_t >= 0.0 or level == null or hero_t >= 0.0:
+		return
+	var toward := (dir != 0 and int(signf(dir)) == facing) or velocity.x * facing > 40.0
+	if not toward or velocity.y < -260.0 or crouched:
+		return
+	var to := _ledge(facing, LEDGE_UP)
+	if to == Vector2.INF:
+		return
+	var h := global_position.y - to.y
+	if h < 0.0:
+		return
+	_begin_mantle(to, 0.07 + 0.08 * clampf(h / LEDGE_UP, 0.0, 1.0))
+	hero_stats["mantle"] = int(hero_stats["mantle"]) + 1
 	Ses.play("zipla", -12.0, 0.8)
 
 
@@ -1518,6 +1607,8 @@ func _haz_return() -> void:
 	FX.ghost(anim.base, Color(1.0, 0.9, 0.8, 0.4), 0.25)
 	global_position = _haz_safe + Vector2(0, -1)
 	velocity = Vector2.ZERO
+	_air_top = global_position.y
+	_fall_peak = 0.0
 	hurt_t = maxf(hurt_t, 0.2)
 	inv_t = maxf(inv_t, 0.9)
 	_haz_t = 0.9
@@ -1632,17 +1723,29 @@ func _physics_process(delta: float) -> void:
 	if mantle_t > 0.0:
 		# kenara tutunup çık: kısa, kavisli kayma (önce yukarı, sonra öne)
 		mantle_t -= delta
-		var k := 1.0 - clampf(mantle_t / 0.16, 0.0, 1.0)
+		if Input.is_action_just_pressed("zipla"):
+			jump_buf = float(FLOW["buf_jump"])   # v34: tırmanırken basılan zıplama biter bitmez çıkar
+		var k := 1.0 - clampf(mantle_t / maxf(0.01, _mantle_dur), 0.0, 1.0)
 		var up := clampf(k * 1.6, 0.0, 1.0)
 		var fw := clampf((k - 0.35) / 0.65, 0.0, 1.0)
 		global_position = Vector2(lerpf(_mantle_a.x, _mantle_b.x, fw), lerpf(_mantle_a.y, _mantle_b.y, up))
 		velocity = Vector2.ZERO
-		anim.show_frame("land", 0 if k < 0.6 else 1)
-		vis_scale = Vector2(0.9, 1.1).lerp(Vector2.ONE, k)
+		if _mantle_dur > 0.08:
+			anim.show_frame("land", 0 if k < 0.6 else 1)
+			vis_scale = Vector2(0.9, 1.1).lerp(Vector2.ONE, k)
+		else:
+			anim.play("run")   # basamak: koşu adımı sürer
+		anim.set_facing(facing)
+		_update_weapon_visual()
 		_feel(delta, 0.0)
 		if mantle_t <= 0.0:
-			vis_scale = Vector2(1.15, 0.88)
-			FX.dust(global_position, Vector2(-facing, -0.5), 3, 0.24)
+			vis_scale = Vector2(1.15, 0.88) if _mantle_dur > 0.08 else Vector2(1.06, 0.95)
+			FX.dust(global_position, Vector2(-facing, -0.5), 3 if _mantle_dur > 0.08 else 1, 0.24)
+			# v34: koşu sürer (tırmanış akışı kesmez); yön tuşu basılı değilse durur
+			var d0 := Input.get_axis("sol", "sag")
+			velocity.x = facing * RUN * 0.85 if d0 != 0.0 and int(signf(d0)) == facing else 0.0
+			coyote = float(FLOW["coyote"])
+			_air_top = global_position.y
 		return
 	air_hang -= delta
 	for k in cd.keys():
@@ -1685,6 +1788,12 @@ func _physics_process(delta: float) -> void:
 	_resolve_roles()
 	if Input.is_action_just_pressed("zipla"):
 		jump_buf = float(FLOW["buf_jump"])
+	# v34 Kahraman İnişi (dalış) ve iniş pozu / yüksek düşüş sersemlemesi kendi akışlarını yönetir
+	if hero_t >= 0.0:
+		_hero_tick(delta, dir)
+		return
+	if (fall_stun_t > 0.0 or hero_pose_t > 0.0) and _land_hold(delta, dir):
+		return
 	# ağır saldırı tanıma: tuşun basılı kaldığı süre (basış anından)
 	if mel_act != "" and Input.is_action_pressed(mel_act):
 		_mel_down_t = 0.0 if Input.is_action_just_pressed(mel_act) or _mel_down_t < 0.0 else _mel_down_t + delta
@@ -1693,13 +1802,17 @@ func _physics_process(delta: float) -> void:
 		_heavy_armed = false
 	if not is_on_floor():
 		_fall_peak = maxf(_fall_peak, velocity.y)
+		_air_top = minf(_air_top, global_position.y)
 	if is_on_floor():
 		coyote = float(FLOW["coyote"])
 		air_jumps = 2 if Game.has_lutuf("umay") else 1
 		jumping = false
 		if not _was_floor:
 			_on_land()
+		_air_top = global_position.y
 	_was_floor = is_on_floor()
+	if fall_stun_t > 0.0 and _land_hold(delta, dir):
+		return   # v34: inişte yüksek düşüş sersemlemesi başladı
 
 	# yuvarlanma (alçak geçitlerde kendiliğinden sürer); Shift basılı tutulursa yuvarlanma biter bitmez koşuya geçer
 	# v17: yuvarlanma basışı ara belleğe alınır (yuvarlanma / bekleme sürerken basılırsa biter bitmez yuvarlanır)
@@ -1932,6 +2045,8 @@ func _physics_process(delta: float) -> void:
 	var acc := ACC_GROUND if is_on_floor() else ACC_AIR
 	if is_on_floor() and (dir == 0 or signf(dir) != signf(velocity.x)):
 		acc = DEC_GROUND
+	elif not is_on_floor() and dir != 0 and signf(dir) != signf(velocity.x) and absf(velocity.x) > 10.0:
+		acc *= TURN_AIR   # v34: havada keskin dönüş
 	if sprint and dir != 0:
 		acc = 1300.0  # koşuya yumuşak geçiş
 	on_ice = is_on_floor() and level != null and level.has_method("ice_at") and level.ice_at(global_position + Vector2(0, 3))
@@ -1963,27 +2078,37 @@ func _physics_process(delta: float) -> void:
 			jump_buf += delta
 	if jump_buf > 0.0 and atk.is_empty():
 		if is_on_floor() and Input.is_action_pressed("asagi"):
+			# v33: yerde aşağı + zıpla = tek yönlü platformdan / kapaktan in
 			drop_t = 0.25
 			jump_buf = 0.0
 			position.y += 2
+		elif not is_on_floor() and Input.is_action_pressed("asagi") and drop_t <= 0.0:
+			_hero_begin()   # v34: havada aşağı + zıpla = Kahraman İnişi (indiğin platformun hemen altında değil)
+			return
 		elif coyote > 0.0:
 			_jump(false)
 		elif air_jumps > 0:
 			air_jumps -= 1
 			_jump(true)
+	# v34 değişken yükseklik: yükselirken tuş bırakılırsa hız JUMP_CUT oranına iner (eski 0,55)
 	if jumping and velocity.y < -140.0 and not Input.is_action_pressed("zipla"):
-		velocity.y *= 0.55
+		velocity.y *= JUMP_CUT
 		jumping = false
 
 	var gmul := 1.0
+	# v34: yükselişte GRAV_RISE, düşüşte GRAV_FALL (eski: her iki yönde GRAV 1180)
+	var g_air := GRAV_RISE if velocity.y < 0.0 else GRAV_FALL
 	if air_hang > 0.0 and not is_on_floor() and not atk.get("c", {}).get("plunge", false):
 		gmul = 0.08
+		g_air = GRAV
 		velocity.y = minf(velocity.y, 30.0)
 	elif not atk.is_empty() and atk["phase"] != "rec" and not is_on_floor():
 		gmul = 0.4
-	elif not is_on_floor() and absf(velocity.y) < 60.0 and jumping:
-		gmul = 0.62  # tepe noktasında kısa asılı kalış
-	velocity.y = minf(velocity.y + GRAV * gmul * delta, MAX_FALL)
+		g_air = GRAV
+	elif not is_on_floor() and absf(velocity.y) < float(APEX["vy"]) and jumping:
+		gmul = float(APEX["g"])  # tepe noktasında kısa asılı kalış
+		g_air = GRAV_RISE
+	velocity.y = minf(velocity.y + g_air * gmul * delta, MAX_FALL)
 
 	if drink_t > 0.0:
 		drink_t -= delta
@@ -2002,6 +2127,7 @@ func _physics_process(delta: float) -> void:
 	move_and_slide()
 	_corner_correct()
 	_try_mantle(dir)
+	_try_step_up(dir)
 	_hazard_check(delta)
 	_update_anim(dir)
 	_update_weapon_visual()
@@ -2031,6 +2157,9 @@ func _safety(delta: float) -> void:
 		velocity = Vector2.ZERO
 		_set_crouch(false)
 		roll_t = 0.0
+		_air_top = last_safe.y
+		_fall_peak = 0.0
+		hero_t = -1.0
 		_still_t = 0.0
 		FX.dust(global_position, Vector2.UP, 6, 0.3)
 		Game.shake(2.0)
@@ -2113,6 +2242,26 @@ func _run_dust(delta: float) -> void:
 func _on_land() -> void:
 	var f := _fall_peak
 	_fall_peak = 0.0
+	last_fall_h = global_position.y - _air_top
+	# v34: çok yüksekten normal düşüş (Kahraman İnişi yapmadan) kısa sersemletir; daha da yüksekte az hasar
+	if last_fall_h > float(HERO["stun_h"]) and f >= MAX_FALL - 1.0 and atk.is_empty() and roll_t <= 0.0 and not dead:
+		var big := last_fall_h > float(HERO["dmg_h"])
+		fall_stun_t = float(HERO["dmg_stun_t"] if big else HERO["stun_t"])
+		hero_stats["stun"] = int(hero_stats["stun"]) + 1
+		velocity.x = 0.0
+		vis_scale = Vector2(1.35, 0.68)
+		FX.dust(global_position, Vector2.UP, 8, 0.32)
+		FX.anim("landing_dust", global_position, 0.0, 1.0, Color(0.85, 0.8, 0.8, 0.8), false)
+		InkDust.burst(global_position, facing, 0.6)
+		Ses.play("inis_2", -2.0, 0.85)
+		Game.shake(3.0)
+		Game.kick(Vector2.DOWN, 4.0)
+		if big:
+			var dmg := maxf(1.0, max_hp() * float(HERO["dmg_k"]))
+			Game.run["hp"] = maxf(1.0, float(Game.run["hp"]) - dmg)   # düşüş öldürmez
+			FX.number(center(), dmg, false, Color(1.0, 0.6, 0.5))
+		FX.text(center() + Vector2(0, -40), "sersemledin", Color(0.95, 0.85, 0.7), 8)
+		return
 	if f > 150.0:
 		var k := clampf((f - 150.0) / 400.0, 0.0, 1.0)
 		vis_scale = Vector2(1.0 + 0.3 * k + 0.1, 1.0 - 0.3 * k - 0.1)
@@ -2125,6 +2274,147 @@ func _on_land() -> void:
 		if k > 0.6:
 			Game.shake(1.5 + 2.0 * k)
 			Game.kick(Vector2.DOWN, 3.0)
+
+
+# ------------------------------------------------------------------ v34 Kahraman İnişi
+func _hero_begin() -> void:
+	## Havada S + Boşluk: kısa toplanma (HERO.antic), sonra hızla çakılış; zıplama tamponu ve süren saldırı biter
+	_cancel_attack()
+	hero_t = 0.0
+	jump_buf = 0.0
+	jumping = false
+	coyote = 0.0
+	air_hang = 0.0
+	vis_scale = Vector2(1.18, 0.86)
+	hero_stats["n"] = int(hero_stats["n"]) + 1
+	FX.ring(center(), 14.0, Color(0.2, 0.16, 0.26, 0.8), 0.18)
+	Ses.play("yuvarlan", -8.0, 0.7)
+
+
+func _hero_tick(delta: float, dir: float) -> void:
+	hero_t += delta   # (sayaçlar ana döngüde azaldı)
+	_air_top = minf(_air_top, global_position.y)
+	anim.set_facing(facing)
+	if hero_t < float(HERO["antic"]):
+		# toplanma: havada bir an durur, diz karna çekilir
+		velocity = Vector2(velocity.x * 0.85, -25.0)
+		anim.show_frame("roll", 1)
+	else:
+		velocity.y = minf(maxf(velocity.y, float(HERO["v"])) + float(HERO["acc"]) * delta, float(HERO["v_max"]))
+		velocity.x = move_toward(velocity.x, dir * RUN * float(HERO["steer"]), 1400.0 * delta)
+		anim.show_frame("fall", 2 if anim.frame_count("fall") > 2 else 0)
+		vis_scale = vis_scale.lerp(Vector2(0.82, 1.24), 0.35)
+		# mürekkep izi: koyu, kısa ömürlü gövde kopyaları + seyrek damlalar
+		if Engine.get_physics_frames() % 2 == 0:
+			FX.ghost(anim.base, Color(0.16, 0.12, 0.22, 0.55), 0.2)
+		if Engine.get_physics_frames() % 5 == 0:
+			FX.dust(center() + Vector2(randf_range(-4, 4), -10), Vector2(0, -1), 1, 0.2, Color(0.12, 0.1, 0.16, 0.6))
+	_fall_peak = maxf(_fall_peak, velocity.y)
+	hero_stats["vy"] = maxf(float(hero_stats["vy"]), velocity.y)
+	move_and_slide()
+	_update_weapon_visual()
+	_feel(delta, 0.0)
+	_look_ahead(delta)
+	_safety(delta)
+	if is_on_floor() and hero_t >= float(HERO["antic"]):
+		_hero_land()
+	_was_floor = is_on_floor()
+
+
+func _hero_land() -> void:
+	## Yere değiş: şok dalgası (yükseklikle büyür, düşmanları sersemletip iter), toz / mürekkep sıçrantısı, sarsıntı;
+	## düşüş sersemlemesi ve hasarı yok. Diz yerde, yumruk toprakta kısa poz; herhangi bir girdi pozu keser.
+	var h := maxf(0.0, global_position.y - _air_top)
+	last_fall_h = h
+	hero_stats["h"] = h
+	hero_t = -1.0
+	_fall_peak = 0.0
+	_air_top = global_position.y
+	hero_pose_t = float(HERO["pose"])
+	fall_stun_t = 0.0
+	land_t = 0.0
+	velocity = Vector2.ZERO
+	var k := clampf(h / 240.0, 0.35, 1.6)
+	var r := float(HERO["r"]) + float(HERO["r_k"]) * k
+	inv_t = maxf(inv_t, 0.2)
+	vis_scale = Vector2(1.42, 0.62)
+	Game.shake(2.5 + 3.5 * k)
+	Game.kick(Vector2.DOWN, 4.0 + 3.0 * k)
+	Game.hitstop(0.04 + 0.03 * k)
+	Game.rumble(0.3, 0.6 * minf(1.0, k), 0.14)
+	FX.ground_slam(global_position, facing, 0.45 + 0.35 * k, Color(0.3, 0.24, 0.6), false)   # mor-lacivert mürekkep (kan değil)
+	FX.shockwave(global_position + Vector2(0, -6), r * 1.2, 0.6 + 0.3 * k)
+	FX.ring(global_position + Vector2(0, -3), r, Color(0.2, 0.16, 0.26, 0.75), 0.32, 0.3)
+	FX.shock_line(global_position, r * 0.85, Color(0.18, 0.14, 0.22, 0.7))
+	FX.dust(global_position + Vector2(-6, 0), Vector2(-1, -0.25), 5, 0.34)
+	FX.dust(global_position + Vector2(6, 0), Vector2(1, -0.25), 5, 0.34)
+	InkDust.burst(global_position, facing, 0.8 + 0.4 * k)
+	Ses.play("inis_2", -2.0, 0.9)
+	Ses.play("darbe_cekic", -6.0 + 3.0 * minf(1.0, k), 0.95)
+	if k > 0.8:
+		Ses.play("sarsinti", -8.0)
+	var it := slot(mel_slot)
+	var melee_ok: bool = not it.is_empty() and String(it.get("kind", "")) in ItemGen.MELEE_KINDS
+	var n := 0
+	for e in get_tree().get_nodes_in_group("dusman"):
+		if not is_instance_valid(e) or e.dead:
+			continue
+		var dx: float = e.global_position.x - global_position.x
+		if absf(dx) > r or absf(e.global_position.y - global_position.y) > 44.0:
+			continue
+		var sd := signf(dx) if absf(dx) > 1.0 else float(facing)
+		var fall_k := 1.0 - 0.4 * clampf(absf(dx) / r, 0.0, 1.0)   # merkezde tam, kenarda %60
+		var opts := {"kb": 150.0 + 90.0 * k, "dir": sd, "launch": 160.0 + 100.0 * k, "stun": 0.45 + 0.35 * k, "sfx_done": true}
+		if melee_ok:
+			_deal(e, float(it["dmg"]) * (0.55 + 0.45 * k) * fall_k, it, opts)
+		else:
+			e.take_hit((6.0 + 6.0 * k) * fall_k, opts)
+		if is_instance_valid(e) and not e.dead and e.has_method("stun"):
+			e.stun(float(opts["stun"]))
+		combo_add(e)
+		n += 1
+	hero_stats["hits"] = int(hero_stats["hits"]) + n
+
+
+func _land_hold(delta: float, dir: float) -> bool:
+	## İniş pozu (Kahraman İnişi) ve yüksek düşüş sersemlemesi: yerde kıpırdamadan bekler. Poz 0,1 sn'den sonra
+	## herhangi bir girdiyle kesilir (yürü / zıpla / saldır / yuvarlan); sersemleme kesilmez. true: bu kare bitti.
+	if fall_stun_t > 0.0:
+		fall_stun_t -= delta
+		velocity.x = move_toward(velocity.x, 0.0, 2400.0 * delta)
+		velocity.y = minf(velocity.y + GRAV_FALL * delta, MAX_FALL)
+		move_and_slide()
+		anim.set_facing(facing)
+		anim.show_frame("land", 1)
+		vis_scale = vis_scale.lerp(Vector2(1.12, 0.86), 0.2)
+		if Engine.get_physics_frames() % 9 == 0:
+			FX.burst(center() + Vector2(0, -22), Color(1.0, 0.92, 0.6), 2, 40, 0.4, 0.14, -20, true)   # baş üstünde yıldızlar
+		_update_weapon_visual()
+		_feel(delta, 0.0)
+		_safety(delta)
+		return true
+	var since := float(HERO["pose"]) - hero_pose_t
+	var want := dir != 0.0 or jump_buf > 0.0 or roll_buf > 0.0 or Input.is_action_just_pressed("yuvarlan") \
+		or (mel_act != "" and Input.is_action_pressed(mel_act)) or (sec_act != "" and Input.is_action_just_pressed(sec_act))
+	hero_pose_t -= delta
+	if hero_pose_t <= 0.0 or (since >= 0.1 and want) or not is_on_floor() or hurt_t > 0.0:
+		hero_pose_t = 0.0
+		vis_scale = Vector2(0.9, 1.1)   # kalkış: gövde açılır
+		return false
+	velocity.x = 0.0
+	velocity.y = minf(velocity.y + GRAV_FALL * delta, MAX_FALL)
+	move_and_slide()
+	anim.set_facing(facing)
+	# poz: tek diz yerde (çömelik saldırı gövdesi, ön kol iskeletle yumruk toprağa); silahsızken derin iniş karesi
+	var armed := not slot(mel_slot).is_empty() and anim.frame_count("crouch_atk") > 0
+	anim.show_frame("crouch_atk" if armed else "land", 0)
+	# ilk anda en derin çöküş, sonra yavaşça doğrulur
+	var q := clampf(since / float(HERO["pose"]), 0.0, 1.0)
+	vis_scale = Vector2(1.12, 0.86).lerp(Vector2(1.04, 0.96), q * q)
+	vis_lean = float(facing) * 0.08 * (1.0 - q)
+	_update_weapon_visual()
+	_feel(delta, 0.0)
+	return true
 
 
 func _perfect_dodge(from: Node) -> void:
@@ -2273,7 +2563,7 @@ func _jump_cancels() -> bool:
 		return true
 	if _hit_cancel_ok():
 		return true  # v19 isabet iptali: vuruş oturdu, kilidin kalanı zıplamayla kesilir (hava kombosuna geçiş)
-	if ph != "wind" or atk.get("super_armor", false) or atk.has("dash_px"):
+	if ph != "wind" or (atk.get("super_armor", false) and not atk.get("sa_wind", false)) or atk.has("dash_px"):
 		return false
 	var w := _weight(atk["item"])
 	var lims: Array = FLOW["jump_cancel_k"]
@@ -2304,6 +2594,8 @@ func _strike_step(it: Dictionary, c: Dictionary, heavy_w: bool) -> float:
 	## düşmemek için kısalır. Yön hep oyuncunun baktığı yön.
 	var steps: Array = FLOW["step"]
 	var D := float(steps[1] if heavy_w else steps[0]) + float(atk.get("dash", 0.0)) * float(FLOW["step_dash"])
+	if _tempo_class(it) in V34_AGIR["sa_wind"]:
+		D += float(V34_AGIR["step"]) - float(steps[1])   # v34: ağır savuruş gövdeyi öne taşır
 	var F := _atk_fric(it)
 	var closest := INF
 	for e in _foes_near(D + 24.0):
@@ -2467,6 +2759,18 @@ static func tempo_phases(it: Dictionary, c: Dictionary, sw: Dictionary, chain: b
 	L *= 1.0 + TEMPO_V26K * (float(t26[3]) - 1.0)
 	R *= 1.0 + TEMPO_V26K * (float(t26[4]) - 1.0)
 	H += TEMPO_V26K * float(t26[6] if chain else t26[5])
+	# v34: ağır silahın hazırlığı / tutuşu kısalır, zincir ilerledikçe hızlanır (TEMPO_V34)
+	var t34: Array = TEMPO_V34.get(String(it.get("id", "")), TEMPO_V34.get(cls, []))
+	if not t34.is_empty() and TEMPO_V34K > 0.0:
+		var q := TEMPO_V34K
+		var ramp := 1.0 + q * float(t34[6]) * float(maxi(0, (_combo_for(it)["chain"] as Array).find(c)))
+		W *= (1.0 + q * (float(t34[1] if chain else t34[0]) - 1.0)) / ramp
+		M *= (1.0 + q * (float(t34[2]) - 1.0)) / ramp
+		L *= (1.0 + q * (float(t34[3]) - 1.0)) / ramp
+		R *= 1.0 + q * (float(t34[4]) - 1.0)
+		H *= (1.0 + q * (float(t34[5]) - 1.0)) / ramp
+		if c.get("last", false):
+			W *= 1.0 + q * (float(t34[7]) - 1.0)
 	if _contact_k(sw) <= float(sw["hit"][0]) + 0.001:
 		# temas anahtarı yok (çark, seri saplama): süpürme kilide katılır
 		L += M
@@ -2824,6 +3128,9 @@ func _start_attack(step: int) -> void:
 	atk["held"] = _mel_down_t >= 0.0
 	# v15 süper zırh: dev kılıç / dağ çekici savuruşları sarsılmaz (bayrağı take_hit / koordinatör okur)
 	atk["super_armor"] = bool(c.get("sa", false))
+	if not atk["super_armor"] and _tempo_class(it) in V34_AGIR["sa_wind"]:
+		atk["super_armor"] = true   # v34: ağır / dev silahın hazırlığı sarsılmaz (vuruş anında söner)
+		atk["sa_wind"] = true
 	var on_beat := _usul_press()
 	if yanki:
 		_yk_begin(on_beat)
@@ -3557,6 +3864,8 @@ func _update_attack(delta: float) -> void:
 	elif k < hit1:
 		if atk["phase"] == "wind":
 			atk["phase"] = "act"
+			if atk.get("sa_wind", false):
+				atk["super_armor"] = false
 			_on_strike_start()
 			if atk.is_empty():
 				return
@@ -4230,6 +4539,8 @@ func _melee_hits() -> void:
 			if around:
 				opts["dir"] = signf(e.center().x - global_position.x)
 			var mult := float(c["mult"]) * (1.0 + hold / 0.7 * 0.9)
+			if atk.get("heavy", false) and String(it.get("id", "")) != "gun_ay_ikizi":
+				mult *= float(V34_AGIR["sarj_k"].get(_tempo_class(it), 1.0))   # v34: şarjlı ağır vuruş eski hasarında
 			var hp: Vector2 = e.hurt_rect().intersection(box).get_center()
 			# darbe noktası: bıçak ucuna en yakın yer
 			var tip_g := arm_root.to_global(_hand_local + _blade_local * R * 0.85)
@@ -4399,6 +4710,8 @@ func _melee_hits() -> void:
 				# v18: orta kademe ağırlıkla: kılıç bitirişi 55 ms, dev silah 80 ms (hızlı zincirde hafif silah akışı bozulmasın,
 				# ağır silah "oturarak" vursun)
 				base_hs = lerpf(0.055, 0.08, clampf((_weight(it) - 0.3) / 0.7, 0.0, 1.0))
+			if _tempo_class(it) in V34_AGIR["sa_wind"]:
+				base_hs *= float(V34_AGIR["hs"])   # v34: ağır silahın ağırlığı yavaşlıktan değil darbeden
 			var hs := minf(0.12, (base_hs + (0.03 * hold if atk.get("heavy", false) else 0.0)) * hs_k) + (0.03 if killed else 0.0)
 			if c.get("last", false) and not atk.get("pause", false):
 				hs += float(V19["fin_hs"])   # v19: zincir bitirişi ayrı bir olay
@@ -5240,9 +5553,16 @@ func _wolf_process(delta: float) -> void:
 			velocity.y = JUMP_V * 1.08
 			jump_buf = 0.0
 			coyote = 0.0
+			jumping = true
 			vis_scale = Vector2(0.85, 1.18)
 			FX.dust(global_position, Vector2.UP, 4, 0.28)
-	velocity.y = minf(velocity.y + GRAV * delta, MAX_FALL)
+		if jumping and velocity.y < -140.0 and not Input.is_action_pressed("zipla") and pounce_t <= 0.0:
+			velocity.y *= JUMP_CUT   # v34: alçak zıplama (bir kez)
+			jumping = false
+	if is_on_floor():
+		jumping = false
+	# v34: kurt da yükselişte / düşüşte ayrı yerçekimiyle (insan biçimiyle aynı his)
+	velocity.y = minf(velocity.y + (GRAV_RISE if velocity.y < 0.0 else GRAV_FALL) * delta, MAX_FALL)
 	move_and_slide()
 	wolf_anim.set_facing(facing)
 	if wolf_atk.is_empty() and pounce_t <= 0.0:
@@ -5283,6 +5603,10 @@ func _update_weapon_visual() -> void:
 	elif charge_t > 0.2:
 		it = slot(mel_slot)
 		pose = [-0.5, 1.95, -0.15, 1.0, 1.0]
+	elif hero_pose_t > 0.0 or hero_t >= float(HERO["antic"]):
+		# v34 Kahraman İnişi: dalışta silah baş üstünde geride; inişte ön kol aşağı, yumruk toprakta, bıçak geriye kalkık
+		it = slot(mel_slot)
+		pose = HERO_POSE_DIVE if hero_t >= 0.0 else HERO_POSE_LAND
 	elif aim_t >= 0.0:
 		it = slot(sec_slot)
 		var pull := okc.pull()

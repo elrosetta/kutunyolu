@@ -253,6 +253,15 @@ func _run() -> void:
 		await _klip22()
 		get_tree().quit()
 		return
+	if OS.get_cmdline_user_args().has("--agir"):
+		_agir()
+		get_tree().quit()
+		return
+	for arg in OS.get_cmdline_user_args():
+		if String(arg).begins_with("--agir_klip="):
+			await _agir_klip(String(arg).trim_prefix("--agir_klip="))
+			get_tree().quit()
+			return
 	if OS.get_cmdline_user_args().has("--kontrol"):
 		await _kontrol()
 		_p("TAKILMA=%d" % stuck)
@@ -1640,6 +1649,79 @@ func _kontrol() -> void:
 	var bad := int(_k_tot["late"]) + int(_k_tot["auto"]) + int(_k_tot["alt"])
 	_p("KONTROL basış=%d savuruş=%d basılmamış=%d (geç/basışsız=%d kendiliğinden=%d alt_hamle=%d) oto_dönüş=%d oto_hamle=%d istenmeyen_ağır=%d" % [
 		int(_k_tot["presses"]), int(_k_tot["swings"]), bad, int(_k_tot["late"]), int(_k_tot["auto"]), int(_k_tot["alt"]), int(_k_tot["turn"]), int(_k_tot["lunge"]), int(_k_tot["heavy"])])
+
+
+## v34 ağır silah temposu (durumsuz, Player.tempo_phases + ItemGen): adım başına basış→temas, kilit, toparlanma,
+## zincir turu, saniyedeki hasar (aynı tohumla, kusursuz demir, 1. kademe). -- --dovus --agir
+const AGIR_WEAPONS := ["ulu_kilic", "bozgun_kilici", "dag_cekici", "kor_cekici", "gurz", "civili_topuz", "savas_baltasi", "ikiz_balta",
+	"kistin", "cevgen", "teber", "erlik_tirpani", "kayin_asasi", "gun_ay_ikizi", "alp_kilici", "pala", "yatagan", "ikiz_bicak", "kargi", "kement"]
+
+
+func _agir() -> void:
+	for w in AGIR_WEAPONS:
+		if Data.find_item(w).is_empty():
+			continue
+		ItemGen.rng.seed = 34
+		var it: Dictionary = ItemGen.roll(w, 1, "demir", 0, "")
+		# yuvarlamasız taban (nitelik / hız / hasar sapması yok): karşılaştırma items.json'daki taban değerlerle
+		var base: Dictionary = Data.find_item(w)
+		it["affixes"] = []
+		it["dmg"] = ItemGen.dmg_for(w, 1, "demir", 0)
+		it["aps"] = float(base["aps"]) * float(Data.material_def("demir")["speed"])
+		it["crit"] = float(base["crit"]) + float(Data.material_def("demir")["crit"])
+		var chain: Array = Player._combo_for(it)["chain"]
+		var steps := ""
+		var first := 0.0
+		for i in chain.size():
+			var c: Dictionary = chain[i]
+			var sw: Dictionary = Player.swing_def(c["s"])
+			var ph: Array = Player.tempo_phases(it, c, sw, i > 0, 1.0, "", 0.0)
+			var to_hit := float(ph[0]) + float(ph[4]) + float(ph[1])
+			if i == 0:
+				first = to_hit
+			steps += "%s %d/%d/%d " % [String(c["s"]), int(round(to_hit * 1000.0)), int(round(float(ph[2]) * 1000.0)), int(round(float(ph[3]) * 1000.0))]
+		_p("AGIR %s sinif=%s ilk_temas=%dms tur=%dms dmg=%.1f SnH=%.2f | adım temas/kilit/toparlanma(ms): %s" % [w, Player._tempo_class(it),
+			int(round(first * 1000.0)), int(round(ItemGen.zincir_sure(it) * 1000.0)), float(it["dmg"]), ItemGen.dps(it), steps])
+
+
+func _agir_klip(w: String) -> void:
+	## v34 görsel: tam zincir (her temasta yeni basış), 3 karede bir çekim; satırda basıştan geçen süre, evre, adım
+	## ve temas anları (--anlik=<klasör> ile, pencereli)
+	await _reset(w)
+	_track = false
+	for dx in [44.0, 70.0]:
+		_enemy(dx)
+	await _f(10)
+	var cur: Dictionary = {}
+	var n := 0
+	var rel := 2
+	var contacts: Array = []
+	var seen := false
+	Input.action_press("saldiri1")
+	for i in 200:
+		await _f()
+		if i == rel:
+			Input.action_release("saldiri1")
+		if not is_same(pl.atk, cur):
+			cur = pl.atk
+			seen = false
+			if not cur.is_empty():
+				n += 1
+		var hit := false
+		if not pl.atk.is_empty() and not seen and _at_contact():
+			seen = true
+			hit = true
+			contacts.append(i + 1)
+		if hit and n < Player._combo_for(pl.slot("melee"))["chain"].size() and not Input.is_action_pressed("saldiri1"):
+			Input.action_press("saldiri1")
+			rel = i + 2
+		if i % 3 == 0 or hit:
+			var ph: String = "-" if pl.atk.is_empty() else String(pl.atk.get("phase", ""))
+			await _snap("%s_%03d_%s%s" % [w, int(round((i + 1) * 1000.0 / 60.0)), ph, "_TEMAS" if hit else ""], "agir")
+		if n >= Player._combo_for(pl.slot("melee"))["chain"].size() and pl.atk.is_empty():
+			break
+	_release_all()
+	_p("agir_klip %s temas(ms)=%s" % [w, str(contacts.map(func(x: int) -> int: return int(round(x * 1000.0 / 60.0))))])
 
 
 func _klip22() -> void:
