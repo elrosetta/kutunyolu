@@ -208,12 +208,14 @@ func _cast(id: String, n_enemies := 3, extra_turn := false, snap := false) -> Di
 	var cost := SavasSanati.bedel_nisan(id)
 	var started := false
 	var frames := 0
+	var oyun := 0.0   # v34 birleştirme: oyun zamanı karesi (vuruş duraklaması / ağır çekimde Engine.time_scale < 1)
 	var ek_done := false
 	var tag := "%s_%03d.png"
 	Input.action_press("sanat")
 	for i in 400:
 		await _f()
 		frames += 1
+		oyun += Engine.time_scale
 		if i == 1:
 			Input.action_release("sanat")
 		if pl.sanat.aktif():
@@ -234,7 +236,7 @@ func _cast(id: String, n_enemies := 3, extra_turn := false, snap := false) -> Di
 	var dealt := 0.0
 	for e in foes:
 		dealt += hp0 / foes.size() - (e.hp if is_instance_valid(e) else 0.0)
-	var res := {"started": started, "frames": frames, "spent": spent, "cost": cost, "cd": pl.sanat.cd,
+	var res := {"started": started, "frames": frames, "oyun": oyun, "spent": spent, "cost": cost, "cd": pl.sanat.cd,
 		"hits": int(pl.sanat.stats["isabet"].get(id, 0)), "dealt": dealt}
 	return res
 
@@ -267,8 +269,8 @@ func _run() -> void:
 		var r := await _cast(id, 3, id == "kasirga")
 		var d := SavasSanati.def_of(id)
 		var hits := int(r["hits"]) - before_hits
-		_p("%s: basladi=%s kare=%d (%d ms) nisan=%.0f/%.0f bekleme=%.1f isabet=%d hasar=%.0f" % [id, str(r["started"]), int(r["frames"]),
-			int(round(float(r["frames"]) * 1000.0 / 60.0)), float(r["spent"]), float(r["cost"]), float(r["cd"]), hits, float(r["dealt"])])
+		_p("%s: basladi=%s kare=%d (%d ms; oyun zamanı %.0f kare) nisan=%.0f/%.0f bekleme=%.1f isabet=%d hasar=%.0f" % [id, str(r["started"]), int(r["frames"]),
+			int(round(float(r["frames"]) * 1000.0 / 60.0)), float(r["oyun"]), float(r["spent"]), float(r["cost"]), float(r["cd"]), hits, float(r["dealt"])])
 		if not r["started"]:
 			_err("%s başlamadı" % id)
 		var want: float = float(r["cost"])
@@ -282,8 +284,12 @@ func _run() -> void:
 			_err("%s isabet yok" % id)
 		if int(r["frames"]) > 330:
 			_err("%s çok uzun (%d kare)" % [id, int(r["frames"])])
-		if d.has("ritim_k") and int(r["frames"]) > 150:
-			_err("%s kombo çok uzun (%d kare)" % [id, int(r["frames"])])
+		# v34 birleştirme: kombo sanatının kendi süresi OYUN ZAMANIYLA en çok 150 kare (2,5 sn). Gerçek kare sayısı buna
+		# vuruş duraklaması / kritik ağır çekimi (Engine.time_scale < 1) ekler; bu, rastgele kritik sayısıyla koşudan koşuya
+		# oynar (ölçüm: Tulpar Dörtnalı oyun zamanı her koşuda 123 kare, gerçek 141-157; Yıldırım Ağı 95 / 112-151). Eski
+		# tek eşik (gerçek 150) bu yüzden ara sıra KALDI diyordu. Gerçek karede duraklama payı 30 kare (0,5 sn).
+		if d.has("ritim_k") and (float(r["oyun"]) > 150.0 or int(r["frames"]) > 180):
+			_err("%s kombo çok uzun (%d kare, oyun zamanı %.0f kare)" % [id, int(r["frames"]), float(r["oyun"])])
 		await _idle_check("sanat/" + id)
 	# ---------------------------------------------------------------- 1b) Göğe Yükseliş: kaldırma, kilit, çakılma
 	if only == "" or only == "goge_yukselis":

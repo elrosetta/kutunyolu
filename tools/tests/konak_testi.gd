@@ -259,7 +259,9 @@ func _usta() -> void:
 		var dq := int(it["quality"]) - q0
 		if bool(rk["iyi"]):
 			k_ok += 1
-			_check(dq >= 5 and dq <= 15 and float(it["dmg"]) > dmg0, "kalite +%d (5..15), hasar %s → %s" % [dq, ItemGen.fmt(dmg0), ItemGen.fmt(float(it["dmg"]))])
+			# v34 birleştirme: kalite %100'de kenetlenir (Usta._kalite_ekle): %96'dan +4 doğru sonuç (test eskiden KALDI diyordu)
+			var lo := mini(5, 100 - q0)
+			_check(dq >= lo and dq <= 15 and int(it["quality"]) <= 100 and float(it["dmg"]) > dmg0, "kalite +%d (%d..15, %%100 sınırı), hasar %s → %s" % [dq, lo, ItemGen.fmt(dmg0), ItemGen.fmt(float(it["dmg"]))])
 		else:
 			k_fail += 1
 			_check(dq == 0 and is_equal_approx(float(it["dmg"]), dmg0), "kalite tutmadı: değişmedi")

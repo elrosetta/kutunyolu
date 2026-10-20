@@ -454,13 +454,19 @@ func _run() -> void:
 		get_tree().quit()
 		return
 	# ---- yüksek düşüş: sersemleme / hasar
+	# v34 birleştirme: eşik 12 -> 17 karo (bölüm kuyuları 10-15 karo: ana yoldan düşen sersemlemez), hasar 23 karo
 	var f13 := await _fall(13.0)
-	var f19 := await _fall(19.0)
+	var f15 := await _fall(15.0)
+	var f18 := await _fall(18.0)
+	var f24 := await _fall(24.0)
 	_p("düşüş 13 karo: süre=%.3f sn sersem=%.2f sn hasar=%.1f" % [f13["t"], f13["stun"], f13["dmg"]])
-	_p("düşüş 19 karo: süre=%.3f sn sersem=%.2f sn hasar=%.1f" % [f19["t"], f19["stun"], f19["dmg"]])
+	_p("düşüş 15 karo: süre=%.3f sn sersem=%.2f sn hasar=%.1f" % [f15["t"], f15["stun"], f15["dmg"]])
+	_p("düşüş 18 karo: süre=%.3f sn sersem=%.2f sn hasar=%.1f" % [f18["t"], f18["stun"], f18["dmg"]])
+	_p("düşüş 24 karo: süre=%.3f sn sersem=%.2f sn hasar=%.1f" % [f24["t"], f24["stun"], f24["dmg"]])
 	_ok(f10["stun"] <= 0.0 and f10["dmg"] <= 0.0, "10 karo düşüş sersemletmemeli")
-	_ok(f13["stun"] > 0.0 and f13["dmg"] <= 0.0, "13 karo düşüş: kısa sersemleme, hasarsız olmalı")
-	_ok(f19["stun"] > 0.0 and f19["dmg"] > 0.0, "19 karo düşüş: sersemleme + az hasar olmalı")
+	_ok(f13["stun"] <= 0.0 and f15["stun"] <= 0.0, "13-15 karo düşüş (bölüm kuyusu) sersemletmemeli")
+	_ok(f18["stun"] > 0.0 and f18["dmg"] <= 0.0, "18 karo düşüş: kısa sersemleme, hasarsız olmalı")
+	_ok(f24["stun"] > 0.0 and f24["dmg"] > 0.0, "24 karo düşüş: sersemleme + az hasar olmalı")
 	# ---- Kahraman İnişi
 	var h13 := await _hero(13.0, true)
 	var h4 := await _hero(4.0)

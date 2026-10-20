@@ -25,10 +25,19 @@ const APEX := {"vy": 60.0, "g": 0.6}     # tepe: |vy| < 60 iken tuş basılıysa
 const TURN_AIR := 1.5           # havada ters yöne basınca ivme çarpanı (keskin dönüş)
 const STEP_UP := 28.0           # yürürken kendiliğinden çıkılan basamak (px; 1 karo = 24)
 const LEDGE_UP := 60.0          # havada tutunulan kenar: ayak hizasının en çok bu kadar üstü (eller)
+## v34 birleştirme: platformdan inişte (aşağı + zıpla, drop_t = 0,25) tek yönlü platform çarpışması yalnız ilk 0,1 sn
+## kapalı (drop_t > DROP_MASK). Eskiden 0,25 sn boyunca kapalıydı: v34 düşüş yerçekimiyle (2100) bu sürede ~65 px
+## (2,7 karo) düşülüyor, 2 karo alttaki platform (kuyu tırmanış bacasının ara basamağı) da geçiliyordu; erişim modeli
+## (LevelGen._moves: dikine iniş ilk tutunulacak yere dek) ile gerçek oyuncu ayrışıyordu. 0,1 sn ~12 px: üstünde
+## durulan platformdan (6 px kalın) geçmeye yeter. Kalan süre (drop_t) yalnız Kahraman İnişi'ni engeller.
+const DROP_MASK := 0.15
 ## Kahraman İnişi (havada S + Boşluk): hızla çakılır, yere değince şok dalgası (yükseklikle güçlenir); düşüş
 ## sersemlemesi / hasarı yok. Yüksek normal düşüş (> stun_h px) kısa sersemletir, çok yüksekte (> dmg_h) az hasar.
+## v34 birleştirme: stun_h 12 -> 17 karo, dmg_h 18 -> 23 karo. Bölüm kuyuları 10-15 karo (ana yolda %76 bölümde 13-15
+## karoluk düşüş vardı: oyuncu her bölümde zorla sersemliyordu); artık ana yoldan yürüyerek düşen sersemlemez, yalnız
+## yolun dışındaki çok yüksek düşüşte (ya da derin kuyuya zıplayarak girince) sersemler.
 const HERO := {"antic": 0.06, "v": 880.0, "v_max": 1150.0, "acc": 2600.0, "steer": 0.25, "r": 56.0, "r_k": 44.0,
-	"pose": 0.32, "stun_h": 288.0, "stun_t": 0.45, "dmg_h": 432.0, "dmg_k": 0.05, "dmg_stun_t": 0.6}
+	"pose": 0.32, "stun_h": 408.0, "stun_t": 0.45, "dmg_h": 552.0, "dmg_k": 0.05, "dmg_stun_t": 0.6}
 ## kol pozları [a1 üst kol, a2 dirsek, w bilek, k derinlik, ext uzatma] (SWINGS ile aynı açı düzeni: 0 aşağı, pi/2 ileri)
 const HERO_POSE_DIVE := [2.75, 0.35, 0.55, 1.0, 1.0]
 const HERO_POSE_LAND := [0.42, 0.0, -3.0, 1.0, 1.25]   # yumruk yerde, bıçak geriye-yukarı
@@ -1779,7 +1788,7 @@ func _physics_process(delta: float) -> void:
 		if Engine.get_physics_frames() % 3 == 0 and absf(velocity.x) > 40.0:
 			# kurt biçiminde görünen gövde kurt: insan gövdesinin hayaleti çizilmesin
 			FX.ghost(wolf_anim.base if wolf_t > 0.0 else anim.base, Color(0.45, 0.9, 1.0, 0.25), 0.2)
-	set_collision_mask_value(4, drop_t <= 0.0)
+	set_collision_mask_value(4, drop_t <= DROP_MASK)
 	# v27 savaş sanatı (T / LT): süren sanat hareketi ve saldırıyı kendisi yönetir
 	if sanat.tick(delta):
 		return
@@ -2258,7 +2267,7 @@ func _on_land() -> void:
 		Game.kick(Vector2.DOWN, 4.0)
 		if big:
 			var dmg := maxf(1.0, max_hp() * float(HERO["dmg_k"]))
-			Game.run["hp"] = maxf(1.0, float(Game.run["hp"]) - dmg)   # düşüş öldürmez
+			Game.run["hp"] = maxf(1.0, float(Game.run["hp"]) - dmg)   # düşüş öldürmez (lanet darbeyi sayar, düşüşü değil)
 			FX.number(center(), dmg, false, Color(1.0, 0.6, 0.5))
 		FX.text(center() + Vector2(0, -40), "sersemledin", Color(0.95, 0.85, 0.7), 8)
 		return
@@ -2374,6 +2383,10 @@ func _hero_land() -> void:
 		combo_add(e)
 		n += 1
 	hero_stats["hits"] = int(hero_stats["hits"]) + n
+	# v34 birleştirme: şok dalgası küpleri kırar, yanındaki çatlak duvara bir vuruş sayılır (Level.break_cracks:
+	# silah savuruşu ve patlama ile aynı yol; duvar yine iki vuruşta açılır)
+	if level and level.has_method("break_cracks"):
+		level.break_cracks(Rect2(global_position.x - r, global_position.y - 44.0, r * 2.0, 48.0))
 
 
 func _land_hold(delta: float, dir: float) -> bool:
@@ -5424,7 +5437,7 @@ func _wolf_process(delta: float) -> void:
 	coyote -= delta
 	jump_buf -= delta
 	drop_t -= delta
-	set_collision_mask_value(4, drop_t <= 0.0)   # v33: kurt biçiminde de tek yönlü platformdan inilir
+	set_collision_mask_value(4, drop_t <= DROP_MASK)   # v33: kurt biçiminde de tek yönlü platformdan inilir
 	if wolf_t <= 0.0:
 		_end_wolf()
 		return
@@ -5922,6 +5935,13 @@ func take_hit(dmg: float, from: Node, projectile: Node = null, forced := false) 
 			FX.sparks(center() + Vector2(facing * 10, -4), Vector2(facing, -0.5), Color(0.85, 0.8, 1.0), 6, 150.0)
 			inv_t = 0.2
 			return false
+	# v34 lanetli sandık: lanetliyken her darbe iki kat. v34 birleştirme: eskiden Level._lanet_tick her can kaybını
+	# (zehir, yüksek düşüş dahil: ikisi de öldürmez) sonradan bir kez daha düşüyor, fazlalık ölümcülse ikinci bir zorlu
+	# take_hit yapıyordu (aynı karede iki sarsılma; zehir / düşüş lanetle öldürebiliyordu). Şimdi yalnız darbe, tek
+	# geçişte: Umay / Deli Dumrul / dokunulmazlık (Kahraman İnişi dahil) aynı yoldan geçerli.
+	if level and int(level.get("lanet") if level.get("lanet") != null else 0) > 0 and dmg > 0.0:
+		FX.number(center() + Vector2(10, -20), dmg, false, Color(0.8, 0.5, 1.0))
+		dmg *= 2.0
 	if Adlar.earned("deli_dumrul") and not Game.run.get("dumrul_used", false) and float(Game.run["hp"]) - dmg < 1.0:
 		# Deli Dumrul: Azrail'e meydan okur; bölümde bir kez ölümden 1 canla döner
 		dmg = maxf(0.0, float(Game.run["hp"]) - 1.0)

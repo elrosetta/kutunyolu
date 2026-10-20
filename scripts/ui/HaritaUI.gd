@@ -9,6 +9,7 @@ const GOLD := Color(1.0, 0.82, 0.38)
 const BONE := Color(0.95, 0.88, 0.74)
 const SIZES := [Vector2.ZERO, Vector2(126, 76), Vector2(168, 100), Vector2(228, 136)]   # Kapalı / Küçük / Normal / Büyük
 const PPT := [0.0, 2.2, 2.6, 3.0]   # birim / karo (v33: küçük bölümde daha geniş pencere: Normal ~65 x 38 karo, 3-4 oda)
+const SAYAC_SIMGE := {"hazine": "esya", "tomar": "tomar", "gizli": "gizli", "kilit": "kilit"}   # tam harita sayacı
 
 
 # ------------------------------------------------------------------ küçük harita (oyun içi, sağ alt)
@@ -89,13 +90,25 @@ static func full(h: Control, vp: Vector2, lv: Node, sel: int, t: float, isin_t: 
 	var sub := "%d. derinlik  ·  keşif %%%d  ·  Kut Taşı %d / %d" % [int(Game.run.get("depth", 1)), int(round(hm.yuzde() * 100.0)), hm.bulunan().size(), hm.tasi.size()]
 	var fb := InkUI.font("body")
 	InkUI.draw_str(h, Vector2((vp.x - InkHUD.str_w(fb, sub, 9)) * 0.5, 43), sub, fb, 9, Color(BONE, 0.8), 1)
-	# v34 kalan ganimet sayacı (tamamlama dürtüsü): haritanın sağ üst köşesinde
-	var sy := hm.sayac_metni()
-	if sy != "":
-		var sw := InkHUD.str_w(fb, sy, 9)
+	# v34 kalan ganimet sayacı (tamamlama dürtüsü): haritanın sağ üst köşesinde. v34 birleştirme: her parçanın önünde
+	# haritadaki işaretiyle aynı simge (Tomar: yeni kayın kabuğu tomar "ui_tomar")
+	var parts: Array = hm.sayac_parcalari()
+	if not parts.is_empty():
+		var segs: Array = []
+		var sw := 0.0
+		for pp2 in parts:
+			var s2 := "%s %d/%d" % [String(pp2[1]), int(pp2[2]), int(pp2[3])]
+			segs.append(s2)
+			sw += 13.0 + InkHUD.str_w(fb, s2, 9)
+		sw += 12.0 * float(parts.size() - 1)
 		var sp := Vector2(pr.end.x - sw - 8.0, pr.position.y - 4.0)
-		InkUI.wash(h, Rect2(sp + Vector2(-8, -11), Vector2(sw + 16, 15)), 0.75)
-		InkUI.draw_str(h, sp, sy, fb, 9, GOLD, 1)
+		InkUI.wash(h, Rect2(sp + Vector2(-8, -12), Vector2(sw + 16, 17)), 0.75)
+		var sx := sp.x
+		for i in parts.size():
+			var tamam: bool = int(parts[i][2]) >= int(parts[i][3])
+			_glyph(h, SAYAC_SIMGE.get(String(parts[i][0]), "esya"), Vector2(sx + 5.0, sp.y - 3.5), 1.0, t, false, 1.0)
+			InkUI.draw_str(h, Vector2(sx + 13.0, sp.y), String(segs[i]), fb, 9, GOLD if not tamam else Color(BONE, 0.6), 1)
+			sx += 13.0 + InkHUD.str_w(fb, String(segs[i]), 9) + 12.0
 	# seçili taş
 	var found: Array = hm.bulunan()
 	var ly := pr.end.y + 10.0
@@ -189,7 +202,14 @@ static func _glyph(h: Control, tur: String, p: Vector2, k: float, t: float, sele
 			h.draw_line(p + Vector2(4.2 * k, 1.5 * k), p + Vector2(4.2 * k, 5.0 * k), Color(PAPER_INK, alpha), 2.4 * k, true)
 			h.draw_circle(p + Vector2(0, 1.5 * k), 1.8 * k, Color(col, (0.7 + 0.3 * sin(t * 4.0)) * alpha), true, -1.0, true)
 		"tomar":
-			InkUI.icon_at(h, "tilsim", p, 9.0 * k, Color(GOLD, alpha), false)
+			# v34 birleştirme: yerdeki / pazardaki / HUD'daki yeni kayın kabuğu tomarın arayüz simgesi (eski muska yedekte)
+			if TomarV2.ui(h, "ui_tomar", p, 14.0 * k, Color(1, 1, 1, alpha), false).size == Vector2.ZERO:
+				InkUI.icon_at(h, "tilsim", p, 9.0 * k, Color(GOLD, alpha), false)
+		"gizli":
+			# çatlak duvar (gizli cep): taş yama, zikzak çatlak
+			h.draw_rect(Rect2(p + Vector2(-3.0, -4.5) * k, Vector2(6.0, 9.0) * k), Color(PAPER_INK, alpha))
+			h.draw_rect(Rect2(p + Vector2(-2.0, -3.5) * k, Vector2(4.0, 7.0) * k), Color(0.62, 0.58, 0.52, alpha))
+			h.draw_polyline(PackedVector2Array([p + Vector2(-0.6, -3.5) * k, p + Vector2(0.9, -1.0) * k, p + Vector2(-0.8, 1.0) * k, p + Vector2(0.7, 3.5) * k]), Color(KUT, alpha), 1.0, true)
 		"esya":
 			InkUI.icon_at(h, "kilic", p, 9.0 * k, Color(BONE, alpha), false)
 		"pazar":

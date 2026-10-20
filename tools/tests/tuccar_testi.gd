@@ -79,7 +79,8 @@ func _run() -> void:
 
 # ------------------------------------------------------------------ ekonomi
 func _ekonomi() -> void:
-	var n_seed := 3
+	var n_seed := 6   # v34 birleştirme: 3 -> 6 (altın ölçümü gürültülüydü)
+	var HT: Script = load("res://tools/tests/harita_testi.gd")
 	for arg in OS.get_cmdline_user_args():
 		if String(arg).begins_with("--tuccar_tohum="):
 			n_seed = int(String(arg).trim_prefix("--tuccar_tohum="))
@@ -90,11 +91,13 @@ func _ekonomi() -> void:
 		var en := 0.0
 		var el := 0.0
 		var tr := 0.0
+		var deger := 0.0
 		var bz := 0
 		var wall_ok := true
 		for k in n_seed:
 			await _build(d)
 			var lv: Node = main.level
+			deger += float(HT.icerik(lv)["deger"])
 			for e in get_tree().get_nodes_in_group("dusman"):
 				if is_instance_valid(e) and not e.is_queued_for_deletion():
 					if e.elite:
@@ -112,8 +115,10 @@ func _ekonomi() -> void:
 		tr /= n_seed
 		tot_bz += bz
 		tot_lv += n_seed
-		# altın tanesi ortalaması 2 x altin_k; sıradan 2-4 tane (3), seçkin +10 (13), hazine 6; boss (2, 4, 6, 8. derinlik sonu) 30
-		var g := (en * 3.0 + el * 13.0 + tr * 6.0 + (30.0 if Game.BOSS_AFTER.has(d) else 0.0)) * 2.0 * Pazar.altin_k(d)
+		# v34 birleştirme: bölümün altını harita testinin içerik ölçümünden (harita_testi.icerik: yerdeki taneler, yaratık
+		# başına 1-2 tane (+%25) / seçkin +10, küp / gizli cep / lanetli sandık / kilitli oda); eski formül (sıradan 2-4 tane,
+		# v25 parça "T" hazinesi) v34 yoğunluğunu ve düşük yaratık altınını görmüyordu. Boss (2, 4, 6, 8. derinlik sonu) 30 tane.
+		var g := deger / n_seed + (30.0 if Game.BOSS_AFTER.has(d) else 0.0) * 2.0 * Pazar.altin_k(d)
 		_altin_d[d] = g
 		var pr := _fiyat_ort(d)
 		_p("EKONOMI %d | %.1f %.1f %.1f | %d | %d/%d %s | %d %d %d | %d | %d | %d" % [d, en, el, tr, int(g), bz, n_seed, "duvar_ok" if wall_ok else "DUVARDA", pr[0], pr[1], pr[2], Pazar.sifa_fiyat(d), Pazar.tomar_fiyat(d), Pazar.yenile_fiyat(0, d)])
@@ -235,6 +240,8 @@ func _oran() -> void:
 	var tot_up := 0
 	var tot_v := 0
 	var tot_vup := 0
+	var oran_top := 0.0   # v34 birleştirme: iyileşen silah fiyatı / bölüm altını ortalaması (hedef ~1: bölüm başına bir iyi mal)
+	var oran_n := 0
 	for d in range(1, 10):
 		var nw := 0
 		var nup := 0
@@ -277,11 +284,18 @@ func _oran() -> void:
 		var gl := g * TOPLAMA
 		var fu := fiyat_up / maxf(1.0, float(nup))
 		_p("ORAN %d | %%%d / %%%d | %%%d | %s | %d | %d | %.2f | %s" % [d, int(round(100.0 * nup / maxf(1.0, nw))), int(round(100.0 * npos / maxf(1.0, nw))), int(round(100.0 * nvup / float(n))), ("%%%d (%d)" % [int(round(100.0 * ngz_up / maxf(1.0, ngz))), ngz]) if ngz > 0 else "-", int(fu), int(gl), fu / maxf(1.0, gl), ItemGen.fmt(melee_dps / float(n))])
+		if nup > 0 and _altin_d.has(d):
+			oran_top += fu / maxf(1.0, gl)
+			oran_n += 1
 		tot_w += nw
 		tot_up += nup
 		tot_v += n
 		tot_vup += nvup
 	_p("ORAN toplam | silah malı açık iyileşme %%%d | ziyarette >= 1 iyileşme %%%d" % [int(round(100.0 * tot_up / maxf(1.0, tot_w))), int(round(100.0 * tot_vup / maxf(1.0, tot_v)))])
+	if oran_n > 0:
+		var om := oran_top / float(oran_n)
+		_p("ORAN alım | iyileşen silah fiyatı / bölüm altını ort %.2f -> bölüm başına %.2f iyi mal, bir bölüm biriktirince %.2f" % [om, 1.0 / om, 2.0 / om])
+		_check(om >= 0.8 and om <= 1.25, "Bezirgân alımı: bölüm başına ~1 iyi mal, biriktirince ~2 (fiyat / bölüm altını %.2f; 0,8-1,25)" % om)
 	Game.run = run0
 
 

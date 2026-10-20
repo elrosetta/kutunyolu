@@ -63,6 +63,19 @@ func _run() -> void:
 		_p("bak stil=%s x=%d sy=%d çıkış=%s%s" % [lv.style, x, lv.surface_y(x), str(lv.exit_pos / Level.TS), _area(lv.grid, Level.W, Level.H, x, lv.surface_y(x) - 1)])
 		get_tree().quit()
 		return
+	if OS.get_cmdline_user_args().has("--harita_fizik"):
+		# v34 birleştirme: gerçek oyuncu fiziğiyle erişim (tools/tests/erisim_testi.gd)
+		var fz: RefCounted = load("res://tools/tests/erisim_testi.gd").new()
+		fz.ht = self
+		if _arg_or("--fizik_tek", "") != "":
+			await fz.tek(_arg_or("--fizik_tek", ""))
+			get_tree().quit()
+			return
+		await fz.kos(int(_arg_or("--fizik_bolum", "120")), int(_arg_or("--fizik_bas", "0")))
+		_check(fz.erisilemez.is_empty(), "gerçek oyuncu fiziğiyle her hedef (Kut Kapısı, ödül odaları, Kut Taşları ve dönüş) erişilir (%d hedef, %d erişilemez; %d benzersiz hamle geometrisi, %d model hamlesi yapılamadı)" % [fz.hedef_say, fz.erisilemez.size(), fz.benzersiz, fz.yapilamaz.size()])
+		_p("SONUC %s%s" % ["GECTI" if _fail.is_empty() else "KALDI", "" if _fail.is_empty() else " (" + ", ".join(_fail) + ")"])
+		get_tree().quit()
+		return
 	_izgara(int(_arg_or("--harita_tohum", "12")))
 	await _bolumler(int(_arg_or("--harita_bolum", "6")))
 	await _merak_oyun()
@@ -136,6 +149,9 @@ static func yol_olcum(path: Array, W: int) -> Dictionary:
 	var ln := 0
 	var sure := 0.0
 	var dusus := 0
+	var dusus_max := 0     # v34 birleştirme: en uzun tek düşüş (karo) ve yüksek düşüş sersemlemesi (Player.HERO.stun_h)
+	var dusus_hist := {}
+	var sersem := 0
 	var tirmanis := 0
 	var basamak := 0
 	var zincir := 0
@@ -180,6 +196,10 @@ static func yol_olcum(path: Array, W: int) -> Dictionary:
 			continue
 		if dy >= 3:
 			dusus += 1
+			dusus_max = maxi(dusus_max, dy)
+			dusus_hist[dy] = int(dusus_hist.get(dy, 0)) + 1
+			if float(dy * 24) > float(Player.HERO["stun_h"]):
+				sersem += 1
 		elif dy <= -3:
 			tirmanis += 1
 		else:
@@ -192,7 +212,8 @@ static func yol_olcum(path: Array, W: int) -> Dictionary:
 		zincir_yon = yon
 		duz = 0
 		zincir_max = maxi(zincir_max, zincir)
-	return {"uzunluk": ln, "sure": sure, "dusus": dusus, "tirmanis": tirmanis, "basamak": basamak, "zincir": zincir_max, "basamak_zinciri": kz_max}
+	return {"uzunluk": ln, "sure": sure, "dusus": dusus, "tirmanis": tirmanis, "basamak": basamak, "zincir": zincir_max, "basamak_zinciri": kz_max,
+		"dusus_max": dusus_max, "dusus_hist": dusus_hist, "sersem": sersem}
 
 
 static func _area(g: PackedByteArray, W: int, H: int, x: int, y: int) -> String:
@@ -245,6 +266,10 @@ func _izgara(n_seed: int) -> void:
 	var sure_max := 0.0
 	var gen_max := 0.0
 	var pencere_var := 0
+	var d_hist := {}       # v34 birleştirme: ana yoldaki düşüş yükseklikleri (karo -> sayı)
+	var d_max := 0
+	var d_sersem := 0
+	var d_sersem_lv := 0
 	for style in LevelGen.STYLES:
 		var s_walk := 0
 		var s_ok3 := 0
@@ -316,6 +341,12 @@ func _izgara(n_seed: int) -> void:
 					m_sum[key] = float(m_sum.get(key, 0.0)) + float(ek[key])
 					s_m[key] = float(s_m.get(key, 0.0)) + float(ek[key])
 				zincir_max = maxi(zincir_max, int(yo["zincir"]))
+				for h in yo["dusus_hist"]:
+					d_hist[h] = int(d_hist.get(h, 0)) + int(yo["dusus_hist"][h])
+				d_max = maxi(d_max, int(yo["dusus_max"]))
+				d_sersem += int(yo["sersem"])
+				if int(yo["sersem"]) > 0:
+					d_sersem_lv += 1
 				kz_max = maxi(kz_max, int(yo["basamak_zinciri"]))
 				sure_min = minf(sure_min, float(yo["sure"]))
 				sure_max = maxf(sure_max, float(yo["sure"]))
@@ -380,6 +411,13 @@ func _izgara(n_seed: int) -> void:
 		float(m_sum.get("alan_w", 0)) / tot, float(m_sum.get("alan_h", 0)) / tot, float(m_sum.get("hava", 0)) / tot, float(m_sum.get("yol_karo", 0)) / tot, float(m_sum.get("yol_karo", 0)) / tot / KOSU_KARO,
 		float(m_sum.get("yol_sn", 0)) / tot, sure_min, sure_max, float(m_sum.get("dusus", 0)) / tot, float(m_sum.get("tirmanis", 0)) / tot, float(m_sum.get("basamak", 0)) / tot,
 		float(m_sum.get("zincir", 0)) / tot, zincir_max, float(m_sum.get("kzincir", 0)) / tot, kz_max, float(m_sum.get("gen_sn", 0)) / tot, gen_max])
+	var dk := d_hist.keys()
+	dk.sort()
+	var ds := ""
+	for h in dk:
+		ds += "%d:%d " % [h, int(d_hist[h])]
+	_p("DUSUS ana yol düşüşleri (karo:sayı) %s| en uzun=%d karo, sersemleten (> %.0f px) toplam=%d, bölüm=%d/%d" % [ds, d_max, float(Player.HERO["stun_h"]), d_sersem, d_sersem_lv, tot])
+	_check(d_sersem_lv * 10 <= tot, "ana yolda yüksek düşüş sersemlemesi seyrek (bölümlerin en çok %%10'u; %d/%d)" % [d_sersem_lv, tot])
 	_check(walk_ok == tot, "her bölümde ana yol yuvarlanmadan yürünür (%d/%d)" % [walk_ok, tot])
 	_check(roll_cells == 0, "girişten ulaşılan yalnızca-yuvarlanma hücresi yok (%d)" % roll_cells)
 	_check(ok_all == tot, "her bölümde giriş -> Kut Kapısı ve her ulaşılan hücreden dönüş (%d/%d)" % [ok_all, tot])
@@ -690,7 +728,7 @@ func _merak_oyun() -> void:
 	## v34 oynanış denetimi (gerçek fizik kareleri): küp kırılır ve altın düşer; çatlak duvar iki vuruşta açılır; anahtarsız
 	## kilitli kapı kapalı kalır, anahtar alınınca yaklaşınca açılır; lanetli sandık açılınca lanet (hasar 2 kat), 10
 	## öldürmede kalkar
-	var ok := {"kup": false, "kirik": false, "kilit": false, "lanet": false}
+	var ok := {"kup": false, "kirik": false, "kilit": false, "lanet": false, "inis_kup": false, "agir_duvar": false}
 	for k in 80:
 		var d: int = [1, 3, 5, 7, 9][k % 5]
 		var lv := _build(d, 7100 + k * 31)
@@ -767,6 +805,13 @@ func _merak_oyun() -> void:
 			await _frames(3)
 			await _phys(2)
 			var kayip := hp0 - float(Game.run["hp"])
+			# v34 birleştirme: lanet yalnız darbeyi iki katlar (zehir / yüksek düşüş öldürmez, iki kat sayılmaz)
+			var hp_z := float(Game.run["hp"])
+			pl.poison_t = 0.3
+			pl._poison_tick = 0.0
+			await _phys(4)
+			var zehir := hp_z - float(Game.run["hp"])
+			pl.poison_t = 0.0
 			var n_old := 0
 			for e in get_tree().get_nodes_in_group("dusman"):
 				if lv.lanet <= 0:
@@ -775,14 +820,76 @@ func _merak_oyun() -> void:
 					e.take_hit(1e7, {"kb": 0.0, "dir": signf(pl.global_position.x - e.global_position.x)})
 					n_old += 1
 					await _phys(20)
-			ok["lanet"] = yakin and l0 == Level.LANET_OLDUR and kayip > 15.0 and lv.lanet == 0
-			_p("OYUN lanetli sandık: yakın=%s lanet=%d darbe 10 -> kayıp %.1f, %d öldürme sonra lanet=%d" % [str(yakin), l0, kayip, n_old, lv.lanet])
+			ok["lanet"] = yakin and l0 == Level.LANET_OLDUR and kayip > 15.0 and lv.lanet == 0 and absf(zehir - 2.0) < 0.01
+			_p("OYUN lanetli sandık: yakın=%s lanet=%d darbe 10 -> kayıp %.1f, zehir tıkı 2 -> kayıp %.1f, %d öldürme sonra lanet=%d" % [str(yakin), l0, kayip, zehir, n_old, lv.lanet])
 			Game.run["lanet"] = 0
-		if ok["kup"] and ok["kirik"] and ok["kilit"] and ok["lanet"]:
+		# v34 birleştirme: gerçek oyuncu girdisiyle (Player -> Level.break_cracks) ağır silah savuruşu çatlak duvarı açar;
+		# Kahraman İnişi'nin şok dalgası küpü kırar
+		if not ok["agir_duvar"] and lv.kiriklar.size() > 1:
+			var kd2: Node = lv.kiriklar[1]
+			var wx: int = (kd2.cells[0] as Vector2i).x
+			var y1 := 0
+			for c in kd2.cells:
+				y1 = maxi(y1, (c as Vector2i).y)
+			_clear_foes(lv, kd2.rect().get_center(), 500.0)
+			Game.run["slots"]["melee"] = ItemGen.roll("ulu_kilic", 1, "demir", 0)
+			pl.on_equip()
+			pl.global_position = Vector2((wx - kd2.yon) * TS + 12.0 - kd2.yon * 4.0, (y1 + 1) * TS - 1.0)
+			pl.velocity = Vector2.ZERO
+			pl.facing = kd2.yon
+			await _phys(6)
+			var basis := 0
+			for i in 300:
+				if kd2.kirildi:
+					break
+				if i % 20 == 0:
+					Input.action_press("saldiri1")
+					basis += 1
+				elif i % 20 == 3:
+					Input.action_release("saldiri1")
+				await _phys(1)
+			Input.action_release("saldiri1")
+			ok["agir_duvar"] = kd2.kirildi
+			_p("OYUN ağır silah (ulu kılıç) çatlak duvar: açıldı=%s basış=%d" % [str(kd2.kirildi), basis])
+		if not ok["inis_kup"]:
+			for kp2 in lv.kupler:
+				if not is_instance_valid(kp2) or kp2.kirildi:
+					continue
+				var cx := int(kp2.global_position.x / TS)
+				var cy := int(kp2.global_position.y / TS) - 1
+				var acik := true
+				for yy in range(cy - 6, cy + 1):
+					if lv.cell(cx, yy) != 0:
+						acik = false
+				if not acik:
+					continue
+				_clear_foes(lv, kp2.global_position, 500.0)
+				pl.global_position = kp2.global_position + Vector2(-30.0, -6.0 * TS)
+				pl.velocity = Vector2.ZERO
+				pl._air_top = pl.global_position.y
+				pl.drop_t = 0.0
+				await _phys(3)
+				Input.action_press("asagi")
+				await _phys(1)
+				Input.action_press("zipla")
+				await _phys(2)
+				Input.action_release("zipla")
+				var n0 := int(pl.hero_stats["n"])
+				for i in 90:
+					await _phys(1)
+					if pl.hero_pose_t > 0.0:
+						break
+				Input.action_release("asagi")
+				await _phys(2)
+				var kirik: bool = not is_instance_valid(kp2) or kp2.kirildi
+				ok["inis_kup"] = kirik
+				_p("OYUN Kahraman İnişi küp: dalış=%d küp kırıldı=%s" % [int(pl.hero_stats["n"]) - n0 + (1 if pl.hero_pose_t > 0.0 else 0), str(kirik)])
+				break
+		if ok["kup"] and ok["kirik"] and ok["kilit"] and ok["lanet"] and ok["agir_duvar"] and ok["inis_kup"]:
 			break
 	main._start_play()
 	for key in ok:
-		_check(ok[key], "oynanış: %s" % {"kup": "küp kırılır, altın düşer", "kirik": "çatlak duvar iki vuruşta açılır, cep oyulur", "kilit": "kilitli kapı anahtarla açılır", "lanet": "lanetli sandık: hasar 2 kat, 10 öldürmede kalkar"}[key])
+		_check(ok[key], "oynanış: %s" % {"kup": "küp kırılır, altın düşer", "kirik": "çatlak duvar iki vuruşta açılır, cep oyulur", "kilit": "kilitli kapı anahtarla açılır", "lanet": "lanetli sandık: hasar 2 kat, 10 öldürmede kalkar", "agir_duvar": "ağır silah savuruşu çatlak duvarı açar", "inis_kup": "Kahraman İnişi küpü kırar"}[key])
 
 
 # ------------------------------------------------------------------ çekim kipleri

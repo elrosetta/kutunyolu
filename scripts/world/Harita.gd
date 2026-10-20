@@ -290,16 +290,25 @@ func isaretler() -> Array:
 	return out
 
 
-func sayac_metni() -> String:
-	## v34 tam harita sayacı: "Hazine 1/3 · Tomar 0/2 · Gizli 0/2 · Kilit 0/1" (bulunan / toplam; tamamlama dürtüsü)
+func sayac_parcalari() -> Array:
+	## v34 birleştirme: sayacın parçaları [anahtar, ad, bulunan, toplam] (HaritaUI her parçanın önüne simgesini çizer:
+	## Tomar için yeni kayın kabuğu tomar simgesi TomarV2 "ui_tomar")
 	var ilk: Dictionary = level.get("sayac_ilk") if level.get("sayac_ilk") != null else {}
 	if ilk.is_empty():
-		return ""
+		return []
 	var simdi: Dictionary = level.sayac()
-	var parca: Array = []
+	var out: Array = []
 	for k in [["hazine", "Hazine"], ["tomar", "Tomar"], ["gizli", "Gizli"], ["kilit", "Kilit"]]:
 		var top := int(ilk.get(k[0], 0))
 		if top <= 0:
 			continue
-		parca.append("%s %d/%d" % [k[1], top - mini(top, int(simdi.get(k[0], 0))), top])
+		out.append([k[0], k[1], top - mini(top, int(simdi.get(k[0], 0))), top])
+	return out
+
+
+func sayac_metni() -> String:
+	## v34 tam harita sayacı: "Hazine 1/3 · Tomar 0/2 · Gizli 0/2 · Kilit 0/1" (bulunan / toplam; tamamlama dürtüsü)
+	var parca: Array = []
+	for p in sayac_parcalari():
+		parca.append("%s %d/%d" % [p[1], int(p[2]), int(p[3])])
 	return "  ·  ".join(parca)

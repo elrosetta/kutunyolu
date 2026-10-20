@@ -51,7 +51,6 @@ var anahtar := 0              # taşınan anahtar
 var sayac_ilk: Dictionary = {}   # bölüm kurulunca hazine / tomar / gizli / sandık toplamları (tam harita sayacı)
 const LANET_OLDUR := 10       # lanetli sandık: bu kadar yaratık öldürülene dek alınan hasar iki kat
 var lanet := 0                # kalan öldürme (0: lanet yok)
-var _lanet_hp := -1.0
 var _lanet_aura: Node2D
 
 var rng := RandomNumberGenerator.new()
@@ -1462,7 +1461,6 @@ func lanet_baslat() -> void:
 	## v34 lanetli sandık açıldı: LANET_OLDUR yaratık öldürene dek alınan hasar iki kat
 	lanet = LANET_OLDUR
 	Game.run["lanet"] = lanet
-	_lanet_hp = float(Game.run.get("hp", 0.0))
 	_lanet_aura_kur()
 	if player:
 		FX.text(player.center() + Vector2(0, -50), "LANETLENDİN: %d öldür" % lanet, Color(0.85, 0.55, 1.0), 10)
@@ -1477,22 +1475,6 @@ func _lanet_aura_kur() -> void:
 	au.level = self
 	player.add_child(au)
 	_lanet_aura = au
-
-
-func _lanet_tick() -> void:
-	## Lanetliyken alınan her hasar bir kez daha düşülür (ölümcülse Player.take_hit yolundan: Umay / Deli Dumrul geçerli)
-	var hp := float(Game.run.get("hp", 0.0))
-	if lanet <= 0 or player == null or player.dead:
-		_lanet_hp = hp
-		return
-	if _lanet_hp >= 0.0 and hp < _lanet_hp - 0.01 and hp > 0.0:
-		var ek := _lanet_hp - hp
-		if hp - ek > 0.0:
-			Game.run["hp"] = hp - ek
-			FX.number(player.center() + Vector2(10, -20), ek, false, Color(0.8, 0.5, 1.0))
-		else:
-			player.take_hit(ek, null, null, true)
-	_lanet_hp = float(Game.run.get("hp", 0.0))
 
 
 func _lanet_oldurme() -> void:
@@ -3620,5 +3602,4 @@ func _process(_delta: float) -> void:
 			harita.tick(_delta, player.global_position)
 		Game.run["bolum_sure"] = float(Game.run.get("bolum_sure", 0.0)) + _delta
 		_isin_tick(_delta)
-		_lanet_tick()   # v34
 	_hazard_tick(_delta)

@@ -136,7 +136,7 @@ func process(delta: float) -> void:
 	pl.coyote -= delta
 	pl.jump_buf -= delta
 	pl.drop_t -= delta
-	pl.set_collision_mask_value(4, pl.drop_t <= 0.0)   # v33: dönüşmüş biçimde de tek yönlü platformdan inilir
+	pl.set_collision_mask_value(4, pl.drop_t <= Player.DROP_MASK)   # v33: dönüşmüş biçimde de tek yönlü platformdan inilir
 	if t <= 0.0:
 		pl._end_don()
 		return

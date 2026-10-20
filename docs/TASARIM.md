@@ -6064,3 +6064,63 @@ yolun 2/3'ü gezilmiş tam harita: "?" ipuçları ve "Hazine 0/6 · Tomar 0/3 ·
   kaya koyu iç doku olarak görünür.
 * Pencere dalı yatay komşuluk ister; 2 satırlı Bozkır'da bazen yalnızca doğrudan (ara odasız) dolaşma bulunur.
 * Bot gizli duvarları kasıtlı aramaz (yalnızca yolda savururken rastlantıyla kırar), anahtar aramaz.
+
+## v34 birleştirme denetimi (hareket34 + tomar34 + harita4)
+
+Üç dal (`v34-hareket34` zıplama / Kahraman İnişi / ağır silah, `v34-tomar34` yeni tomar / Bezirgân oranları,
+`v34-harita4` merak uyandıran bölümler / yoğunluk) `main`'de birleşti; dallar arası etkileşimler sınandı ve giderildi:
+
+* **Yüksek düşüş sersemlemesi her bölümde zorunluydu** (`Player.HERO`): ana yoldaki kuyular 10-15 karo; 12 karo eşiğiyle
+  ana yolda 13-15 karoluk düşüş 72 bölümün 55'inde vardı (yürüyerek düşen oyuncu her bölümde sersemliyordu). Ölçüm
+  (`--harita` yeni `DUSUS` satırı, 120 bölüm): ana yol düşüşleri 3-15 karo, en uzun 15. Eşik `stun_h` 288 -> 408 px
+  (17 karo), hasar `dmg_h` 432 -> 552 px (23 karo): ana yoldan yürüyerek düşen hiç sersemlemez (0 / 120), derin kuyuya
+  zıplayarak girmek ya da yol dışındaki çok yüksek düşüş sersemletir; Kahraman İnişi hız (13 karo 0,35 / 0,63 sn) ve şok
+  dalgasıyla ödül olarak kalır. Yeni denetim: ana yolda sersemleten düşüş bölümlerin en çok %10'unda. `--zipla`: 10 / 13 /
+  15 karo sersemletmez, 18 karo 0,43 sn sersem (hasarsız), 24 karo 0,58 sn + 6,5 hasar.
+* **Platformdan inişte iki platform birden geçiliyordu** (`Player.DROP_MASK`, `DonForm`): aşağı + zıplamada tek yönlü
+  platform çarpışması 0,25 sn kapalıydı; v34 düşüş yerçekimiyle (2100) bu sürede ~65 px düşülüyor, 2 karo alttaki
+  platform (kuyu tırmanış bacasının ara basamağı) da geçiliyordu. Erişim modeli (`_moves`: dikine iniş ilk tutunulacak
+  yere dek) ile gerçek oyuncu ayrışıyordu (gerçek fizik testi 8. derinlikte bir ödül odasını "erişilemez" buldu). Çarpışma
+  artık yalnız ilk 0,1 sn kapalı (~12 px, 6 px kalın platformu geçmeye yeter); 0,25 sn'lik `drop_t` yalnız Kahraman
+  İnişi'ni engellemeye devam eder.
+* **Gerçek oyuncu fiziğiyle erişim** (yeni `tools/tests/erisim_testi.gd`: `--harita --harita_fizik [--fizik_bolum=N
+  --fizik_bas=K]`, `--fizik_tek=d,tohum,ax,ay,bx,by` kare izi): 120 tam bölümde (derinlik 1-9) girişten Kut Kapısı'na, her
+  ödül odasına ve Kut Taşı'na, ve her birinden Kut Kapısı'na model yolu çıkarılır; her hamle (düz yürüme dışında) gerçek
+  `Player` hamlenin başına konup tuşlara basılarak (yürü, zıpla, çift zıpla, kenardan / hedefe yürüyüp zıpla, platformdan
+  in ...) denenir; yapılamayan model hamlesi yasaklanıp yol yeniden aranır. Sonuç: **1836 hedefin 1836'sı erişilir**
+  (0 erişilemez); 44 006 model hamlesi, 13 479 benzersiz geometri. Gerçek oyuncunun yapamadığı 219 model hamlesi var
+  (%1,6; çoğu 3-5 sütun yana + 2 karo aşağı düşüş ve 5 sütunluk uzun zıplama: model iyimser) ama her birinin yanında
+  başka bir gerçek yol var. Koşu zıplamasının kısalması (95,6 px) erişimi bozmuyor.
+* **Kahraman İnişi küpleri ve çatlak duvarı görmüyordu** (`Player._hero_land`): şok dalgası artık `Level.break_cracks`
+  çağırır (yarıçap 56 + 44k px, ±44 px): küpler kırılır, yanındaki çatlak duvara bir vuruş sayılır (duvar yine iki
+  vuruşta açılır). Ağır silahlar yeni tempoda da her etkin karede `break_cracks` çağırıyor. `--harita` OYUN'a gerçek
+  girdiyle iki denetim: Ulu Kılıç savuruşu çatlak duvarı iki basışta açar; havada S + Boşluk küpü kırar.
+* **Lanet çift sayımı** (`Level._lanet_tick` kaldırıldı, `Player.take_hit`): lanet her can kaybını (zehir tıkı, yüksek
+  düşüş hasarı dahil: ikisi de öldürmez) sonradan bir kez daha düşüyor, fazlalık ölümcülse aynı karede ikinci bir zorlu
+  `take_hit` yapıyordu (iki sarsılma; zehir / düşüş lanetle öldürebiliyordu). Şimdi yalnız darbe, `take_hit` içinde
+  tek geçişte iki kat (mor sayı); dokunulmazlık (Kahraman İnişi'nin 0,2 sn'si dahil), Umay ve Deli Dumrul aynı yoldan.
+  OYUN: darbe 10 -> 20, zehir tıkı 2 -> 2.
+* **Haritadaki tomar işareti** (`HaritaUI._glyph`): eski muska simgesi yerine yeni kayın kabuğu tomarın `ui_tomar`
+  simgesi (`TomarV2.ui`; yoksa eski simge); lejant da aynı. Tam harita sayacı (`Harita.sayac_parcalari`) her parçanın
+  önüne haritadaki işaretini çizer (Hazine: eşya, **Tomar: ui_tomar**, Gizli: yeni çatlak duvar simgesi, Kilit);
+  tamamlanan parça soluk.
+* **Bezirgân fiyatı / yeni altın** (`data/tuccar.json` "taban" 60 / 46 / 52 -> 75 / 58 / 65): tuccar testinin bölüm altını
+  eski formülle (yaratık başına 2-4 tane, v25 "T" hazinesi) hesaplanıyordu; artık harita testinin içerik ölçümünden
+  (`harita_testi.icerik`: yaratık 1-2 tane, küp / gizli cep / lanetli sandık / kilitli oda) + boss, 6 tohum. Yoğunluk
+  sonrası iyileşen silahın fiyatı / bölüm altını ort. 0,75'e inmişti (bölüm başına ~1,3 iyi mal); fiyat x1,25 ile
+  **0,90: bölüm başına 1,1 iyi mal, bir bölüm biriktirince 2,2** (ORAN satırları 0,73-1,15). Yeni denetim: oran 0,8-1,25.
+* **`--sanat` ara sıra KALDI** (`sanat_testi`): kombo sınırı gerçek kare sayısıydı (150); vuruş duraklaması ve kritik
+  ağır çekimi (Engine.time_scale < 1) koşudan koşuya değişiyor. Ölçüm (yeni "oyun zamanı" sayacı, 7 koşu): Tulpar
+  Dörtnalı oyun zamanı her koşuda 122-124 kare, gerçek 141-157; Yıldırım Ağı 95 / 112-151. Sanatlar zamanında bitiyor
+  (yeni zıplama / düşüş fiziği değiştirmedi); sınır artık oyun zamanında 150 kare, gerçek karede +30 duraklama payı (180).
+* **`--konak` ara sıra KALDI** (test hatası): Usta'nın kalitesi %100'de kenetlenir (`Usta._kalite_ekle`); %96'dan +4
+  doğru sonuçtu, test 5-15 bekliyordu. Beklenti `min(5, 100 - kalite)`..15.
+* Sonuç (headless, betik hatası 0; yalnız motorun çıkıştaki RID sızıntısı satırları): `--harita` (20 tohum, 120 bölüm)
+  GECTI; `--harita --harita_fizik` (120 bölüm) GECTI; `--isinlan`, `--konak` (3 + 5 koşu), `--sanat --boss --muhur=0`
+  (3 + 4 koşu), `--tuccar --muhur=0`, `--tomar --boss` GECTI; `--mekanik --zipla --boss` OZET hata=0; `--dovus --boss
+  --kontrol` TAKILMA=0, basılmamış 0; `--dovus --boss --agir` tablo değişmedi; `--otomatik --muhur=0` derinlik 1 / 3 / 5
+  35 / 55 / 93 sn'de BOLUM_SONU (ölüm 0), `--derinlik=3 --bot_gercek` 92 sn; `--zeka`, `--mekanik --muhur=0` BITTI;
+  `--piksel_tara --otomatik --derinlik=3` TOPLAM 0; `--yurt --yurt-tur` kapıya varır.
+* Bilinen: erişim modeli (`_moves`) gerçek zıplamadan biraz iyimser (yukarıdaki 219 hamle; hedefler yine erişilir);
+  Rehber bot 5. derinlikte çok hasar alır (dövüşmeyen bot, eskisi gibi); bir `--otomatik --derinlik=5` koşusu yüklü
+  makinede 13 sn'de çıktı (CIKIS, betik hatası yok), yeniden koşuda 93 sn'de BOLUM_SONU.
