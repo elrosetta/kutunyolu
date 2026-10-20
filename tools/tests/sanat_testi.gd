@@ -11,10 +11,13 @@ extends Node
 ## Kare şeridinde Göğe Yükseliş bu dizilişle çekilir (goge_yukselis_NNN.png).
 ## Efekt önizlemesi (headless değil): -- --sanat --boss --sanat_fx=<klasör> : SanatFX bileşimleri oyuncu gizliyken tek
 ## tek, her 2 karede kırpılmış PNG (<klasör>/fx_<ad>_<kare>.png).
-## v31 kombo sanatları (Kurt Dansı, Evren Kuyruğu, Tengri Çarkı, Yer Yarığı, Akıncı Akını): 3 sıradan + 1 seçkin; açık alanda
-## ritim TAM (halka kapanırken T), alçak tavanda erken basış (kaçar); sıradanlar kilitlenir / kalkar (Akıncı: çivilenir),
-## seçkin kalkmaz, sonda hepsi yerde, duvar / tavan içinde değil, kilit kalmamış, tavanı aşan kare yok. Gerçek duvar
-## kenarında Tengri Çarkı (duvar sekmesi) ve Kurt Dansı (atılış duvara girmez). Kare şeridinde bu dizilişle çekilir.
+## v31 kombo sanatları (Kurt Dansı, Akıncı Akını) ve v32 özgün sanatlar (Pehlivan Savurması, Yıldırım Ağı, Tulpar Dörtnalı):
+## 3 sıradan + 1 seçkin; açık alanda ritim TAM (halka kapanırken T; Tulpar: dört vuruşun her halkasında), alçak tavanda
+## erken basış (kaçar). Sanata göre beklenti (KOMBO_KIP): kilit (3 sıradan kilitlenir / kalkar), tut (1 sıradan kavranıp
+## savrulur, üçü de vurulur), cek (3 sıradan kazıklanıp çekilir), dalga (kilit yok: üçü de dalgayla vurulur, 4 TAM),
+## civi (≥ 2 çivilenir). Seçkin kalkmaz / tutulmaz / çekilmez / savrulmaz, sonda hepsi yerde, duvar / tavan içinde değil,
+## kilit kalmamış, tavanı aşan kare yok. Gerçek duvar kenarında Pehlivan (fırlatılan duvara çakılır), Kurt Dansı ve
+## Tulpar (oyuncu duvara girmez). Kare şeridinde bu dizilişle çekilir.
 ## Çıktı: "[sanat] ..." satırları, sonda "[sanat] SONUC GECTI|KALDI hata=N" ve "[sanat] TAKILMA=n".
 
 var main: Node
@@ -30,14 +33,17 @@ var _meta_bak: Dictionary = {}
 
 const WEAPON := {"kasirga": "alp_kilici", "bir_cekis": "dag_cekici", "ay_hilali": "alp_kilici", "goge_yukselis": "kargi",
 	"bozkurt_atilisi": "yatagan", "kam_darbesi": "kement", "ok_yagmuru": "alp_kilici", "demir_durus": "ulu_kilic",
-	"kurt_dansi": "ikiz_bicak", "evren_kuyrugu": "teber", "tengri_carki": "kement", "yer_yarigi": "gurz", "akinci_akini": "alp_kilici"}
+	"kurt_dansi": "ikiz_bicak", "pehlivan_savurmasi": "teber", "yildirim_agi": "kement", "tulpar_dortnali": "gurz", "akinci_akini": "alp_kilici"}
 ## v31 kombo testinin dizilişi: 3 sıradan (dx) + seçkin (dx)
-const KOMBO := {"kurt_dansi": [[40.0, 92.0, 150.0], 66.0], "evren_kuyrugu": [[22.0, 50.0, -36.0], 38.0],
-	"tengri_carki": [[60.0, 120.0, -70.0], 150.0], "yer_yarigi": [[26.0, 54.0, -40.0], 82.0],
+const KOMBO := {"kurt_dansi": [[40.0, 92.0, 150.0], 66.0], "pehlivan_savurmasi": [[40.0, 100.0, -84.0], 72.0],
+	"yildirim_agi": [[40.0, 96.0, 150.0], 70.0], "tulpar_dortnali": [[30.0, 72.0, -42.0], 112.0],
 	"akinci_akini": [[70.0, 105.0, 140.0], 122.0]}
-## v31: kalkış eşiği (px; açık alan / alçak tavan) ve kilitlenmesi beklenen sıradan sayısı
-const KOMBO_KALK := {"kurt_dansi": [20.0, 8.0], "evren_kuyrugu": [40.0, 10.0], "tengri_carki": [18.0, 8.0], "yer_yarigi": [30.0, 10.0],
-	"akinci_akini": [-1.0, -1.0]}
+## beklenti kipi ve kalkış eşiği (px; açık alan / alçak tavan): kilit (3 sıradan), tut (1 sıradan kavranır), cek (3 sıradan
+## kazıklanıp yerde çekilir: kalkış yok), dalga (kilit yok), civi (çivilenir)
+const KOMBO_KIP := {"kurt_dansi": ["kilit", 20.0, 8.0], "pehlivan_savurmasi": ["tut", 24.0, 8.0], "yildirim_agi": ["cek", -1.0, -1.0],
+	"tulpar_dortnali": ["dalga", -1.0, -1.0], "akinci_akini": ["civi", -1.0, -1.0]}
+## ritim TAM'da beklenen sayı (Tulpar: dört vuruşun dördü)
+const KOMBO_TAM := {"tulpar_dortnali": 4}
 const ACTS := ["saldiri1", "saldiri2", "zipla", "yuvarlan", "sag", "sol", "yukari", "asagi", "techizat1", "techizat2", "sise", "kut", "sanat"]
 var CROP := Vector2i(640, 400)
 
@@ -289,7 +295,7 @@ func _run() -> void:
 			continue
 		await _kombo(id, false, false, "tam")
 		await _kombo(id, true, false, "erken")
-	if only == "" or only == "tengri_carki" or only == "kurt_dansi":
+	if only == "" or only in ["pehlivan_savurmasi", "kurt_dansi", "tulpar_dortnali"]:
 		await _duvar_testi()
 	# ---------------------------------------------------------------- 2) Kasırga ek tur
 	var tr := int(pl.sanat.stats["isabet"].get("kasirga", 0))
@@ -330,9 +336,10 @@ func _run() -> void:
 		_p("  " + l)
 	if SavasSanati.uygun("ay_hilali", ItemGen.roll("ikiz_bicak", 0, "demir", 0)) or not SavasSanati.uygun("kam_darbesi", ItemGen.roll("kement", 0, "demir", 0)):
 		_err("sınıf tablosu")
-	if not SavasSanati.uygun("tengri_carki", ItemGen.roll("kement", 0, "demir", 0)) or SavasSanati.uygun("evren_kuyrugu", ItemGen.roll("ikiz_bicak", 0, "demir", 0)) \
-			or not SavasSanati.uygun("kurt_dansi", ItemGen.roll("ikiz_bicak", 0, "demir", 0)) or SavasSanati.uygun("yer_yarigi", ItemGen.roll("kargi", 0, "demir", 0)):
-		_err("v31 sınıf tablosu")
+	if not SavasSanati.uygun("yildirim_agi", ItemGen.roll("kement", 0, "demir", 0)) or SavasSanati.uygun("pehlivan_savurmasi", ItemGen.roll("ikiz_bicak", 0, "demir", 0)) \
+			or not SavasSanati.uygun("kurt_dansi", ItemGen.roll("ikiz_bicak", 0, "demir", 0)) or SavasSanati.uygun("tulpar_dortnali", ItemGen.roll("kargi", 0, "demir", 0)) \
+			or not SavasSanati.uygun("pehlivan_savurmasi", ItemGen.roll("teber", 0, "demir", 0)) or not SavasSanati.uygun("tulpar_dortnali", ItemGen.roll("gurz", 0, "demir", 0)):
+		_err("v31 / v32 sınıf tablosu")
 	# ok yağmuru yay ister
 	SavasSanati.sec("ok_yagmuru")
 	await _reset("alp_kilici", "")
@@ -601,7 +608,8 @@ func _kombo(id: String, tavan: bool, snap := false, ritim := "") -> void:
 	var above_ceil := 0
 	var pl_ceil := 0
 	var started := false
-	var pressed_rit := false
+	var kuyruk := 0
+	var rit_done: Array = []
 	var hp0: Array = []
 	for e in normals:
 		hp0.append(e.hp)
@@ -616,12 +624,12 @@ func _kombo(id: String, tavan: bool, snap := false, ritim := "") -> void:
 		if pl.sanat.aktif():
 			started = true
 			var rit: Dictionary = pl.sanat.cur.get("rit", {})
-			if ritim != "" and not rit.is_empty() and not pressed_rit:
+			if ritim != "" and not rit.is_empty() and not rit_done.has(float(rit["at"])):
 				var tt := float(pl.sanat.cur["t"])
 				var at := float(rit["at"])
 				var fire := (tt >= at - 0.035) if ritim == "tam" else (tt >= at - float(rit["pre"]) + 0.04)
 				if fire and bool(rit.get("fx", false)):
-					pressed_rit = true
+					rit_done.append(at)
 					Input.action_press("sanat")
 					await _f(2)
 					Input.action_release("sanat")
@@ -644,19 +652,26 @@ func _kombo(id: String, tavan: bool, snap := false, ritim := "") -> void:
 		if snap and snap_dir != "":
 			await _crop_snap("%s/%s%s_%03d.png" % [snap_dir, id, "_tavan" if tavan else "", i])
 		if started and not pl.sanat.aktif() and i > 30:
-			break
-	var dur_f := frames
+			# v32: kare şeridinde sanat bittikten sonra kısa kuyruk (Pehlivan'ın fırlattığı düşmanın çakılışı görünsün)
+			kuyruk += 1
+			if not snap or kuyruk > 40:
+				break
+	var dur_f := frames - kuyruk
 	await _f(70)
 	var ks: Dictionary = pl.sanat.stats.get("kombo", {})
 	var bad_pos := 0
 	var on_floor := 0
 	var dealt := 0.0
+	var vurulan := 0
 	for k in normals.size():
 		var e: Enemy = normals[k]
 		if not is_instance_valid(e) or e.dead:
 			on_floor += 1
+			vurulan += 1
 			continue
 		dealt += float(hp0[k]) - e.hp
+		if float(hp0[k]) - e.hp > 0.0:
+			vurulan += 1
 		var in_solid: bool = lv.solid_at(e.center()) or lv.solid_at(e.global_position + Vector2(0, -3.0)) or lv.solid_at(e.global_position + Vector2(0, -e.size.y + 2.0))
 		if in_solid:
 			bad_pos += 1
@@ -670,24 +685,45 @@ func _kombo(id: String, tavan: bool, snap := false, ritim := "") -> void:
 	for r in rooted:
 		if r:
 			n_root += 1
-	_p("kombo %s (%s): kare=%d H=%.0f kilit=%d seçkin_kalkmadı=%d bitiş=%d ritim=%d (%s) kalkış=[%.0f %.0f %.0f] kilit_kare=[%d %d %d] çivi=%d seçkin_kalkış=%.0f yerde=%d/3 kötü_konum=%d tavan_üstü=%d oyuncu_tavan=%d hasar=%.0f seçkin_hasar=%.0f" % [
+	_p("kombo %s (%s): kare=%d H=%.0f kilit=%d seçkin_kalkmadı=%d bitiş=%d ritim=%d (%s) kalkış=[%.0f %.0f %.0f] kilit_kare=[%d %d %d] çivi=%d vurulan=%d/3 seçkin_kalkış=%.0f yerde=%d/3 kötü_konum=%d tavan_üstü=%d oyuncu_tavan=%d hasar=%.0f seçkin_hasar=%.0f" % [
 		id, tag, dur_f, float(ks.get("H", -1.0)), int(ks.get("kilit", 0)), int(ks.get("seckin", 0)), int(ks.get("bitis", 0)), int(ks.get("ritim", 0)), ritim,
-		float(lift[0]), float(lift[1]), float(lift[2]), int(locked[0]), int(locked[1]), int(locked[2]), n_root, el_lift, on_floor, bad_pos, above_ceil, pl_ceil,
+		float(lift[0]), float(lift[1]), float(lift[2]), int(locked[0]), int(locked[1]), int(locked[2]), n_root, vurulan, el_lift, on_floor, bad_pos, above_ceil, pl_ceil,
 		dealt, el_hp0 - (el.hp if is_instance_valid(el) else 0.0)])
 	if not started:
 		_err("%s (%s) başlamadı" % [id, tag])
-	var need: float = float((KOMBO_KALK[id] as Array)[1 if tavan else 0])
-	if need >= 0.0:
-		if int(ks.get("kilit", 0)) != 3:
-			_err("%s (%s) kilitlenen 3 değil" % [id, tag])
-		for k in 3:
-			if float(lift[k]) < need or int(locked[k]) < 6:
-				_err("%s (%s) sıradan %d kalkmadı / kilitlenmedi" % [id, tag, k])
-		if int(ks.get("seckin", 0)) < 1:
-			_err("%s (%s) seçkin sayılmadı" % [id, tag])
-	else:
-		if n_root < 2:
-			_err("%s (%s) sıradanlar çivilenmedi (%d)" % [id, tag, n_root])
+	var kip: Array = KOMBO_KIP[id]
+	var need: float = float(kip[2 if tavan else 1])
+	match String(kip[0]):
+		"kilit":
+			if int(ks.get("kilit", 0)) != 3:
+				_err("%s (%s) kilitlenen 3 değil" % [id, tag])
+			for k in 3:
+				if float(lift[k]) < need or int(locked[k]) < 6:
+					_err("%s (%s) sıradan %d kalkmadı / kilitlenmedi" % [id, tag, k])
+			if int(ks.get("seckin", 0)) < 1:
+				_err("%s (%s) seçkin sayılmadı" % [id, tag])
+		"tut":
+			# v32 Pehlivan: öndeki (ilk) sıradan kavranır ve savrulur (kalkar), üçü de vurulur (savrulan gövde çarpar / fırlatılan devirir)
+			if int(ks.get("kilit", 0)) != 1 or float(lift[0]) < need or int(locked[0]) < 6:
+				_err("%s (%s) kavrama yok (kilit=%d kalkış=%.0f kare=%d)" % [id, tag, int(ks.get("kilit", 0)), float(lift[0]), int(locked[0])])
+			if vurulan < 3 or int(ks.get("seckin", 0)) < 1:
+				_err("%s (%s) savrulan herkese çarpmadı (%d/3, seçkin=%d)" % [id, tag, vurulan, int(ks.get("seckin", 0))])
+		"cek":
+			# v32 Yıldırım Ağı: üç sıradan kazıklanır, çöküşte kilitlenip yerde çekilir (kalkış yok); seçkin ağda cızırdar, çekilmez
+			if int(ks.get("kilit", 0)) != 3:
+				_err("%s (%s) kazıklanıp çekilen 3 değil" % [id, tag])
+			for k in 3:
+				if int(locked[k]) < 4:
+					_err("%s (%s) sıradan %d çekilmedi" % [id, tag, k])
+			if int(ks.get("seckin", 0)) < 1:
+				_err("%s (%s) seçkin sayılmadı" % [id, tag])
+		"dalga":
+			# v32 Tulpar: kilit yok; dalgalar üçünü de vurur, seçkin sarsılır ama savrulmaz
+			if int(ks.get("kilit", 0)) != 0 or vurulan < 3 or int(ks.get("seckin", 0)) < 1:
+				_err("%s (%s) dalga herkesi vurmadı (kilit=%d vurulan=%d seçkin=%d)" % [id, tag, int(ks.get("kilit", 0)), vurulan, int(ks.get("seckin", 0))])
+		_:
+			if n_root < 2:
+				_err("%s (%s) sıradanlar çivilenmedi (%d)" % [id, tag, n_root])
 	if el_lift > 10.0:
 		_err("%s (%s) seçkin kalktı (%.0f)" % [id, tag, el_lift])
 	if int(ks.get("bitis", 0)) < 1:
@@ -696,8 +732,8 @@ func _kombo(id: String, tavan: bool, snap := false, ritim := "") -> void:
 		_err("%s (%s) düşmanlar yerde değil / duvar-tavan içinde (oyuncu=%s)" % [id, tag, str(pl_bad)])
 	if tavan and (above_ceil > 0 or pl_ceil > 0):
 		_err("%s tavanı aştı (düşman=%d oyuncu=%d)" % [id, above_ceil, pl_ceil])
-	if ritim == "tam" and int(ks.get("ritim", 0)) != 1:
-		_err("%s ritim TAM olmadı" % id)
+	if ritim == "tam" and int(ks.get("ritim", 0)) != int(KOMBO_TAM.get(id, 1)):
+		_err("%s ritim TAM olmadı (%d / %d)" % [id, int(ks.get("ritim", 0)), int(KOMBO_TAM.get(id, 1))])
 	if ritim == "erken" and (int(ks.get("ritim", 0)) != 0 or not bool(pl.sanat.cur.get("rit", {}).get("kacti", true))):
 		_err("%s erken basış ritmi tuttu" % id)
 	if dealt <= 0.0 or el_hp0 - (el.hp if is_instance_valid(el) else 0.0) <= 0.0:
@@ -734,19 +770,20 @@ func _duvar_bul() -> Vector2:
 
 
 func _duvar_testi() -> void:
-	## Duvar kenarı: Tengri Çarkı savurduğunu duvara çakar (sekme); Kurt Dansı'nda düşmanın arkası duvar: oyuncu duvara girmez
+	## Duvar kenarı: Pehlivan fırlattığını duvara çakar (PAT!, duvar sayacı); Kurt Dansı'nda düşmanın arkası duvar ve Tulpar
+	## dörtnalı duvara doğru: oyuncu duvara girmez
 	var w := _duvar_bul()
 	if w == Vector2.ZERO:
 		_p("duvar testi: uygun duvar yok (atlandı)")
 		return
 	var old_spot := spot
-	for id in ["tengri_carki", "kurt_dansi"]:
+	for id in ["pehlivan_savurmasi", "kurt_dansi", "tulpar_dortnali"]:
 		if only != "" and id != only:
 			continue
 		SavasSanati.sec(id)
-		spot = w + Vector2(-110.0, 0.0)
+		spot = w + Vector2(-110.0 if id != "tulpar_dortnali" else -150.0, 0.0)
 		await _reset(WEAPON[id])
-		var foes: Array = [_enemy(58.0), _enemy(86.0)] if id == "tengri_carki" else [_enemy(96.0)]
+		var foes: Array = [_enemy(40.0), _enemy(76.0)] if id == "pehlivan_savurmasi" else [_enemy(96.0)]
 		await _f(10)
 		Game.run["nisan"] = SavasSanati.nisan_max()
 		Input.action_press("sanat")
@@ -769,8 +806,8 @@ func _duvar_testi() -> void:
 		_p("duvar %s: duvar_x=%.0f duvar_sekmesi=%d oyuncu_en_sağ=%.0f kötü_konum=%d oyuncu_duvarda=%s" % [id, w.x, int(ks.get("duvar", 0)), max_x, bad, str(pl_bad)])
 		if bad > 0 or pl_bad:
 			_err("duvar %s: duvar içinde" % id)
-		if id == "tengri_carki" and int(ks.get("duvar", 0)) < 1:
-			_err("duvar sekmesi yok")
+		if id == "pehlivan_savurmasi" and int(ks.get("duvar", 0)) < 1:
+			_err("fırlatılan duvara çakılmadı")
 		await _idle_check("sanat/duvar_" + id)
 	spot = old_spot
 	await _reset("alp_kilici")
@@ -791,6 +828,15 @@ func _fx_onizleme() -> void:
 			for s in 6:
 				n.ek(SanatFX.line(Vector2(0, s * 26.0), Vector2(220, s * 26.0), 12), SanatFX.press(12, 22.0, 0.8, 0.1, 0.15), s, s, 0.0, 0.2, 0.6, 0.2),
 		"telegraf": func() -> void: SanatFX.telegraf(pl, "goge_yukselis", SavasSanati.renk("goge_yukselis"), 9, 1),
+		"telegraf_v32": func() -> void:
+			# v32: üç yeni tamga yan yana (HUD / telegraf aynı kaynaktan)
+			var ids := ["pehlivan_savurmasi", "yildirim_agi", "tulpar_dortnali"]
+			for i in 3:
+				var n := SanatFX.firca(c + Vector2(-60 + 110 * i, -30), int(SavasSanati.def_of(ids[i]).get("pal", 9)), 58)
+				if n:
+					for gs in SanatFX.glyph_strokes(ids[i], Vector2.ZERO, 34.0):
+						n.ek(gs[0], SanatFX.scale_w(gs[1], 7.5), SanatFX.S_INK, SanatFX.B_ORTA, 0.0, 0.2, 0.6, 0.2)
+						n.ek(gs[0], SanatFX.scale_w(gs[1], 3.0), SanatFX.S_COLOR, SanatFX.B_INCE, 0.02, 0.2, 0.6, 0.2),
 		"kesik_altin": func() -> void: SanatFX.kesik(c + Vector2(40, 0), PI * 0.25, 90.0, 12.0, 9, 0.12, 0.1, 57, true),
 		"goge_yuksel": func() -> void: SanatFX.goge_yuksel(g, 130.0, 1, 9),
 		"goge_kesik2": func() -> void: SanatFX.goge_kesik(c + Vector2(40, -10), 1, 2, 9, 60.0),
@@ -806,16 +852,18 @@ func _fx_onizleme() -> void:
 		"demir_karsi": func() -> void: SanatFX.demir_karsi(c + Vector2(40, 0), 1, 40.0),
 		"kurt_adim": func() -> void: SanatFX.kurt_adim(c + Vector2(-90, 0), c + Vector2(90, 0), 14, 0),
 		"kurt_patla": func() -> void: SanatFX.kurt_patla(c + Vector2(30, 0), 14, 2, true),
-		"evren_supur": func() -> void: SanatFX.evren_supur(g, 1, 44.0, 15),
-		"evren_sarmal": func() -> void: SanatFX.evren_sarmal(g, 130.0, 1, 15),
-		"evren_cark": func() -> void: SanatFX.evren_cark(c, 1, 15, 44.0),
-		"evren_kut": func() -> void: SanatFX.evren_kut(g + Vector2(30, 0), 1, 15, 3, false),
-		"tengri_patla": func() -> void: SanatFX.tengri_patla(c + Vector2(40, -10), 1, 16, true),
-		"yarik_tepme": func() -> void: SanatFX.yarik_tepme(g, 1, 17, [30.0, 60.0], 40.0),
-		"yarik_cat": func() -> void: SanatFX.yarik_cat(g + Vector2(30, 0), 1, 17, 3, false),
+		"pehlivan_tut": func() -> void: SanatFX.pehlivan_tut(c + Vector2(40, 0), 1, 15),
+		"pehlivan_savur": func() -> void: SanatFX.pehlivan_savur(c, 1, 15, 44.0, 0),
+		"pehlivan_firlat": func() -> void: SanatFX.pehlivan_firlat(c + Vector2(40, -10), 1, 15, true),
+		"pehlivan_pat": func() -> void: SanatFX.pehlivan_pat(g + Vector2(60, 0), 1, 15, false, false),
+		"kazik": func() -> void: SanatFX.kazik(g + Vector2(60, -4), 16, true),
+		"yildirim_vur": func() -> void: SanatFX.yildirim_vur(g + Vector2(40, 0), 1, 16, true),
+		"tulpar_vurus": func() -> void: SanatFX.tulpar_vurus(g, 1, 17, 86.0, 1, true),
+		"tulpar_at": func() -> void: SanatFX.tulpar_at(pl, 1, 17, 0, true),
+		"tulpar_hayt": func() -> void: SanatFX.tulpar_hayt(c, 1, 17, true),
 		"akin_birak": func() -> void: SanatFX.akin_birak(c + Vector2(20, 0), 1, 18, true),
 		"damgalar": func() -> void:
-			var ws := ["cit", "kut", "vus", "cat", "viz", "tam"]
+			var ws := ["cit", "pat", "cak", "hayt", "viz", "tam"]
 			for i in ws.size():
 				SanatFX.damga(c + Vector2(-150 + 100 * (i % 3), -70 + 80 * (i / 3)), ws[i], [14, 15, 16, 17, 18, 9][i], 1, 1.0),
 	}
@@ -856,10 +904,13 @@ func _fx_onizleme() -> void:
 	if kl:
 		kl.alive = false
 	await _f(20)
-	# v31 sürekli kipler: girdap, ritim halkası, delen ok
-	var gd := SanatFX.spawn("girdap", c + Vector2(50, -20), Color(0.48, 0.8, 1.0), 9.0, 16)
+	# v31 / v32 sürekli kipler: şimşek ağı + davul şeridi, ritim halkası, delen ok
+	var gd := SanatFX.spawn("ag", c, Color(0.48, 0.8, 1.0), 9.0, 16)
 	if gd:
-		gd.data = {"r0": 120.0, "r1": 46.0, "tr": 0.4, "spd": 9.0}
+		gd.data = {"pts": [c + Vector2(70, 10), c + Vector2(150, 12), c + Vector2(110, -50)], "tip": c + Vector2(20, -6)}
+	var dvl := SanatFX.spawn("davul", c + Vector2(0, -66), Color(1.0, 0.66, 0.32), 9.0, 17)
+	if dvl:
+		dvl.data = {"n": 4, "durum": [2, 1, 3, 0], "k": 2, "u": 0.4}
 	var rt := SanatFX.spawn("ritim", c, Color(1.0, 0.45, 0.62), 0.66, 14)
 	if rt:
 		rt.data = {"pre": 0.34, "ok": true}
@@ -871,9 +922,11 @@ func _fx_onizleme() -> void:
 	for i in 40:
 		await _f()
 		if i % 2 == 0:
-			await _crop_snap("%s/fx_girdap_%03d.png" % [fx_dir, i])
+			await _crop_snap("%s/fx_ag_davul_%03d.png" % [fx_dir, i])
 	if gd:
 		gd.alive = false
+	if dvl:
+		dvl.alive = false
 	await _f(20)
 	snap_dir = save_dir
 	pl.visible = true
@@ -900,9 +953,9 @@ func _snaps() -> void:
 			continue
 		if KOMBO.has(id):
 			# v31: 3 sıradan + 1 seçkin, ritim TAM ile tam dizi
-			CROP = Vector2i(760, 600)
+			CROP = Vector2i(760, 600) if id != "tulpar_dortnali" else Vector2i(960, 600)
 			crop_shift = 0.0
-			crop_world = spot + Vector2(float((KOMBO[id] as Array)[1]) * 0.5 - (25.0 if id == "akinci_akini" else 0.0), 0.0)
+			crop_world = spot + Vector2(float((KOMBO[id] as Array)[1]) * 0.5 - (25.0 if id == "akinci_akini" else 0.0) + (60.0 if id == "tulpar_dortnali" else 0.0), 0.0)
 			await _kombo(id, false, true, "tam")
 			crop_world = Vector2.INF
 			CROP = Vector2i(640, 400)

@@ -2,13 +2,13 @@
 
 importer="wav"
 type="AudioStreamWAV"
-uid="uid://dmh1836iasebi"
-path="res://.godot/imported/sanat_cat.wav-96c572220b801d790245d6b651f8e22d.sample"
+uid="uid://c684lqi6a7w0u"
+path="res://.godot/imported/sanat_pat.wav-96ef28feebad7ea7cd24cb7a34fee3cf.sample"
 
 [deps]
 
-source_file="res://assets/audio/sfx/sanat_cat.wav"
-dest_files=["res://.godot/imported/sanat_cat.wav-96c572220b801d790245d6b651f8e22d.sample"]
+source_file="res://assets/audio/sfx/sanat_pat.wav"
+dest_files=["res://.godot/imported/sanat_pat.wav-96ef28feebad7ea7cd24cb7a34fee3cf.sample"]
 
 [params]
 

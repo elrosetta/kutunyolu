@@ -1447,36 +1447,6 @@
   "len": 1.4,
   "hedef_db": -8.5
  },
- "sanat_evren": {
-  "loop": false,
-  "len": 1.145,
-  "hedef_db": -11.0
- },
- "sanat_kut": {
-  "loop": false,
-  "len": 1.85,
-  "hedef_db": -7.0
- },
- "sanat_tengri": {
-  "loop": false,
-  "len": 1.488,
-  "hedef_db": -11.0
- },
- "sanat_vus": {
-  "loop": false,
-  "len": 1.9,
-  "hedef_db": -7.5
- },
- "sanat_yarik": {
-  "loop": false,
-  "len": 1.45,
-  "hedef_db": -8.0
- },
- "sanat_cat": {
-  "loop": false,
-  "len": 2.05,
-  "hedef_db": -7.0
- },
  "sanat_akin": {
   "loop": false,
   "len": 1.3,
@@ -1506,5 +1476,55 @@
   "loop": false,
   "len": 1.6,
   "hedef_db": -11.0
+ },
+ "sanat_pesrev": {
+  "loop": false,
+  "len": 0.97,
+  "hedef_db": -12.0
+ },
+ "sanat_tutus": {
+  "loop": false,
+  "len": 0.95,
+  "hedef_db": -10.0
+ },
+ "sanat_savur": {
+  "loop": false,
+  "len": 0.5,
+  "hedef_db": -12.5
+ },
+ "sanat_firlat": {
+  "loop": false,
+  "len": 1.1,
+  "hedef_db": -11.0
+ },
+ "sanat_pat": {
+  "loop": false,
+  "len": 1.75,
+  "hedef_db": -7.0
+ },
+ "sanat_kazik": {
+  "loop": false,
+  "len": 0.769,
+  "hedef_db": -11.0
+ },
+ "sanat_ag": {
+  "loop": false,
+  "len": 0.6,
+  "hedef_db": -14.0
+ },
+ "sanat_cak": {
+  "loop": false,
+  "len": 2.0,
+  "hedef_db": -7.0
+ },
+ "sanat_davul": {
+  "loop": false,
+  "len": 1.3,
+  "hedef_db": -9.0
+ },
+ "sanat_dortnal": {
+  "loop": false,
+  "len": 1.5,
+  "hedef_db": -8.5
  }
 }

@@ -61,6 +61,8 @@ var sanat_hedef := Vector2.ZERO   # kilitliyken gidilecek ayak konumu (move_and_
 var sanat_dus := false   # çakılma: hızlı düşüş, yere değince sanat_indi
 var sanat_indi := false
 var sanat_egim := NAN    # v31 kombo sanatları: kilitliyken gövde eğimi hedefi (rad; NAN: olağan -0,35 × yön)
+var sanat_kazanc := 16.0 # v32 Pehlivan Savurması: kilit izleme kazancı ve hız tavanı (savrulan gövde hızlı yörüngeyi gecikmesiz izler); bırakılınca varsayılana döner
+var sanat_hiz := 1100.0
 var decoy := false    # Arçura hayaleti: tek vuruşta dağılır, ganimet düşürmez
 var guard_t := 0.0    # Balbal siperi
 var flank := 0        # kurt: 1 ise arkadan dolaşır
@@ -1394,12 +1396,14 @@ func _sanat_kilit(delta: float) -> void:
 			launch_t = 0.4
 		return
 	var to := sanat_hedef - global_position
-	velocity = (to * 16.0).limit_length(1100.0)
+	velocity = (to * sanat_kazanc).limit_length(sanat_hiz)
 	move_and_slide()
 	_tumble = lerpf(_tumble, (-0.35 * float(facing)) if is_nan(sanat_egim) else sanat_egim, clampf(delta * 6.0, 0.0, 1.0))
 	if sanat_tut <= 0.0:
 		launch_t = 0.4   # bırakıldı: olağan düşüş
 		sanat_egim = NAN
+		sanat_kazanc = 16.0
+		sanat_hiz = 1100.0
 
 
 func _post_move(player: Node) -> void:

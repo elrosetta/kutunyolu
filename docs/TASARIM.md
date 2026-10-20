@@ -4846,6 +4846,12 @@ Aynı takım silme sonrasında yeniden (73 koşu, `--verbose`; ayrıca son düze
 
 ## v31: yeni kombo savaş sanatları
 
+> **v32 notu:** Bu bölümdeki beş sanattan **Evren Kuyruğu, Tengri Çarkı ve Yer Yarığı** Göğe Yükseliş'in "kaldır → havada
+> vur → çak" iskeletini yinelediği için v32'de kaldırıldı; yerlerine Pehlivan Savurması, Yıldırım Ağı ve Tulpar Dörtnalı
+> geldi (bkz. "v32: özgün savaş sanatları"; eski kayıtlar kendiliğinden taşınır). Kurt Dansı, Akıncı Akını, Ritim basışı,
+> ortak kilit / tavan / duvar güvenliği ve aşağıdaki test altyapısı aynen sürüyor; kaldırılan üç sanatın satırları
+> tarihçe olarak bırakıldı.
+
 İstek: "Yeni savaş sanatları ekleyelim — Göğe Yükseliş gibi daha kombo tabanlı; onu çok sevdim." Beş yeni sanat: her
 biri tek T basışıyla baştan sona oynayan, çok vuruşlu, koreografili bir dizi (kaldırma, havada kilit, çekme, yerden /
 duvardan sekme, çakma, bitiriş süslemesi). v22 ilkesi aynı: dizinin her parçası basılan sanatın içinde; sanat bittikten
@@ -4880,9 +4886,9 @@ Hasar = kuşanılan silahın hasarı × çarpan (`Player._deal`; tomar, kritik, 
 | Sanat | Dizi | Nişan / bekleme | Hasar (sıradan bir düşmana) | Sınıflar | Alp Ata |
 |---|---|---|---|---|---|
 | **Kurt Dansı** (al, palet 14) «Börü'nün dansı» | 0,12 sn çömelme → çevredeki (210 px, görüş hattı) en çok **4 düşman** arasında zincir: her adım 0,06 sn'de hedefin öbür yanına atılış (dokunulmaz) + kesik; yoldaki herkes kesilir. Sıradanlar kesikte **donar** (yerden 6-22 px asılı), her kesik üstte al bir iz bırakır. Az düşmanda aynıları arasında gidip gelir. Sonra sırtı dönük **kına koyuş**: **"ÇIT!"** — bütün izler aynı anda patlar, sıradanlar havaya fırlar (~56 px, TAM 70) | 2 / 6,5 sn | kesik ×0,6 (4 adım) + patlama ×1,3 (+0,2 / ek kesik) | hançer, düello, kılıç | 65 Kut |
-| **Evren Kuyruğu** (yeşim, 15) «Ejderin savruluşu» | alçak **tam tur süpürme**: herkes biçilir, sıradanlar **yere serilir** (yatık kilit) → **yükselen sarmal**: oyuncunun çevresinde dönerek birlikte kalkarlar (92 px'e dek), 3 sarmal vuruşu → tepede silah baş üstüne → öne doğru **çark** gibi dalış: önüne çakılırlar **"KÜT!"**, **yerden sekerler**; çevreye alan hasarı | 2 / 7 sn | ×0,8 + 3 × ×0,4 + çakılma ×1,6 (alan ×1,2) | mızrak, uzun sap, ağır, dev | 70 Kut |
-| **Tengri Çarkı** (gök, 16) «Gök Tanrı'nın çarkı» | silah baş üstünde döner, önde **girdap** açılır; 190 px içindeki sıradanlar **sarmal yolla içine çekilir** ve havada döner (seçkin / ağır biraz sürüklenir) → girdapta **4 vuruşluk hokkabazlık** (yükselen, inen, yatay, saplama) → çark patlar **"VUŞ!"**: kilitliler dışarı savrulur (430 px/sn), **duvara çarpan seker** (`Enemy._wall_slam`) | 2 / 7 sn | 4 × ×0,4 + patlama ×1,4 (+ duvar) | kırbaç, kılıç, mızrak, uzun sap | 75 Kut |
-| **Yer Yarığı** (toprak, 17) «Toprak Ana'nın öfkesi» | ağır kaldırış → silah zemini döver: çevredeki sıradanlar **yerden seker** ve havada asılı kalır (70 px'e dek, önde dizili) → sıçrayış → havada **X** kesik → dikine dalış: hepsi yere çakılır **"ÇAT!"** ve zemin önüne doğru **yarılır**: yarık 640 px/sn ile 220 px ilerler (TAM 300), duvarda / uçurumda biter, yolundaki sıradanları fırlatır, seçkini sersemletir | 2 / 7 sn | ×0,5 + 2 × ×0,5 + çakılma ×1,6 (alan / yarık ×1,0) | ağır, dev, kılıç, uzun sap | 70 Kut |
+| ~~**Evren Kuyruğu**~~ (v32: kaldırıldı; yeşim, 15) «Ejderin savruluşu» | alçak **tam tur süpürme**: herkes biçilir, sıradanlar **yere serilir** (yatık kilit) → **yükselen sarmal**: oyuncunun çevresinde dönerek birlikte kalkarlar (92 px'e dek), 3 sarmal vuruşu → tepede silah baş üstüne → öne doğru **çark** gibi dalış: önüne çakılırlar **"KÜT!"**, **yerden sekerler**; çevreye alan hasarı | 2 / 7 sn | ×0,8 + 3 × ×0,4 + çakılma ×1,6 (alan ×1,2) | mızrak, uzun sap, ağır, dev | 70 Kut |
+| ~~**Tengri Çarkı**~~ (v32: kaldırıldı; gök, 16) «Gök Tanrı'nın çarkı» | silah baş üstünde döner, önde **girdap** açılır; 190 px içindeki sıradanlar **sarmal yolla içine çekilir** ve havada döner (seçkin / ağır biraz sürüklenir) → girdapta **4 vuruşluk hokkabazlık** (yükselen, inen, yatay, saplama) → çark patlar **"VUŞ!"**: kilitliler dışarı savrulur (430 px/sn), **duvara çarpan seker** (`Enemy._wall_slam`) | 2 / 7 sn | 4 × ×0,4 + patlama ×1,4 (+ duvar) | kırbaç, kılıç, mızrak, uzun sap | 75 Kut |
+| ~~**Yer Yarığı**~~ (v32: kaldırıldı; toprak, 17) «Toprak Ana'nın öfkesi» | ağır kaldırış → silah zemini döver: çevredeki sıradanlar **yerden seker** ve havada asılı kalır (70 px'e dek, önde dizili) → sıçrayış → havada **X** kesik → dikine dalış: hepsi yere çakılır **"ÇAT!"** ve zemin önüne doğru **yarılır**: yarık 640 px/sn ile 220 px ilerler (TAM 300), duvarda / uçurumda biter, yolundaki sıradanları fırlatır, seçkini sersemletir | 2 / 7 sn | ×0,5 + 2 × ×0,5 + çakılma ×1,6 (alan / yarık ×1,0) | ağır, dev, kılıç, uzun sap | 70 Kut |
 | **Akıncı Akını** (ak / kemik, 18) «Sınır boylarının baskını» | geriye **takla** (gövde havada geriye yatar) ve tepeden önündekilere **5 okluk yelpaze** → inince öne **atılarak 6 okluk seri** (oklar bir düşmanı delip arkadakine de saplanır) → durup yayı sonuna dek **gerer** (oka toplanan rüzgâr çizgileri, uçta parıltı) → **delen mürekkep oku "VIZ!"**: 980 px/sn, 420 px, en çok 8 düşmanı deler. Oklar sıradanları **yere çiviler** (kök 0,6-1 sn + kısa sersem); delen ok sıradanları geri savurur (duvara çakılır) | 2 / 7 sn | yelpaze 5 × ×0,3, seri 6 × ×0,25, delen ×1,4 (yayın hasarı) | yay (iki yuvadan birinde) | 60 Kut |
 
 Kilit açma v27 ile aynı: **Alp Ata** Kut bankasından öğretir (yukarıdaki bedeller), **Sanat Tomarı** (boss kesin, seçkin
@@ -5223,3 +5229,103 @@ konuşma animasyonu. Esc bir adım geri, Boşluk sonuçtan sonra aynı silahla h
   kayıt geri yüklenir.
 * Çekim: `--konak_ekran=dunya | usta | sonuc` (`--konak_derinlik=N`, `--goruntu`, `--bekle`). Görseller `docs/v32/konak/`.
 * `--otomatik --derinlik=N`: `[konak] derinlik= biyom= tohum= bezirgan=` ve `[otomatik] USTA ...`.
+
+## v32: özgün savaş sanatları
+
+İstek: "Savaş sanatlarından 2-3'ü Göğe Yükseliş'e çok benziyor; daha özgün olabilirler. Yay olanı (Akıncı Akını) ve
+kurt olanı (Kurt Dansı) beğendim; daha çok onlar gibi olsun." Dürüst bakış: v31'in **Evren Kuyruğu** (alçak süpürme →
+sarmalla kaldır → tepeden çak), **Yer Yarığı** (yerden sektir → havada X → dikine çak) ve **Tengri Çarkı** (girdaba çek →
+havada 4 vuruş → savur) üçü de Göğe Yükseliş'in "sıradanları havada kilitle, vur, bitirişte yere / duvara çak" iskeletinin
+çeşitlemesiydi; yalnız giriş ve bitiriş süsü değişiyordu. Üçü kaldırıldı; yerlerine (aynı kilit yuvası, bedel, sınıf ve
+palet) birbirinden ve kalan on sanattan **mekanik olarak** ayrı üç sanat geldi: kavra-savur-fırlat (düşman silah olur),
+tuzak-ağ-çöküş (bölge ve işaret), ritim-dörtnal (dört zamanlı basış ve biniş). Kurt Dansı / Akıncı Akını'nın ruhu korundu:
+okunur dizi, işaretleme ve patlama, ustalık basışı, seçkine özel kural. Göğe Yükseliş, Kurt Dansı, Akıncı Akını ve eski
+yedi sanat aynen. Kod: `scripts/actors/SavasSanati.gd` ("v32" bölümleri), `scripts/core/SanatFX.gd` (yeni kipler `ag`,
+`davul`; bileşimler), veri `data/sanatlar.json`, arayüz `scripts/ui/SanatUI.gd`.
+
+Eski kayıtlar: `meta.sanat_acik` / `meta.sanat_secili` içindeki `evren_kuyrugu` → `pehlivan_savurmasi`, `tengri_carki` →
+`yildirim_agi`, `yer_yarigi` → `tulpar_dortnali` (`SavasSanati._gocur`, ilk okumada; kayıt yeniden yazılır).
+
+### Sanatlar
+
+Hasar = kuşanılan silahın hasarı × çarpan (`Player._deal`; tomar, kritik, unsur aynen). Boss çarpanı `boss_k` 0,6. Hepsi
+2 nişan, 7 sn bekleme, süper zırhlı; Ritim penceresi v31 ile aynı (−0,13 / +0,08 sn; halka görünürken erken basış şansı
+yakar).
+
+| Sanat | Dizi | Seçkin / boss / ağır | Ritim (TAM ×1,35) | Hasar (tek sıradan düşmana) | Sınıflar | Alp Ata |
+|---|---|---|---|---|---|---|
+| **Pehlivan Savurması** (yeşim, 15) «Kırkpınar'ın tutuşu» | 0,14 sn peşrev (çömelip kollar açılır) → 0,1 sn öne atılış: öndeki en yakın **sıradan** düşman (90 px + R×0,3) belinden **kavranır** (kilit), kutudaki diğerleri omuz darbesi → 0,52 sn **çekiç savurması**: tutulan gövde oyuncunun çevresinde eğik elipste (önde belde, tepede baş üstünde, arkada belde, altta yere yakın) 1,75 tur döner, hızlanır; **savrulan gövde çarptığı herkesi biçer** (yarım turda bir), kendisi her tam turda tutuş hasarı alır → **fırlatış**: 430 px/sn ileri, hafif yukarı (22 px) uçar (kendi fırlatma kaydı `_firlatilan`: sanat bittikten sonra da sürer), yolundaki düşmanları **devirir** (sıradanlar havaya), duvara ya da yere çakılır: **"PAT!"** (duvarda `Enemy._wall_slam` de). Kimse tutulamazsa silah tek başına savrulur, bitirişte ağır iniş | tutulmaz ("tutulmaz"): omuz darbesi ×0,5 + sendeleme; savrulan / fırlatılan gövde çarpınca hasar alır, savrulmaz | fırlatış anında: hız ×1,2, kalkış 30 px, çakılma ve devirme ×1,35 | tutuş ×0,5 + tur ×0,3 + çakılma ×1,3 (tutulana); savrulan ×0,55 / yarım tur, devirme ×1,1 (diğerlerine) | mızrak, uzun sap, ağır, dev | 70 Kut |
+| **Yıldırım Ağı** (gök, 16) «Gök Tanrı'nın kazıkları» | 0,14 sn avuca toplanan çıtırtı → 3 × 0,09 sn **kazık** fırlatışı: en yakın (öndeki öncelikli, 240 px) **sıradan** düşmanlara saplanır (×0,35, işaret); boşta kalan kazık önde 62 / 134 / 206 px'te yere çakılır (önü kapalıysa arkaya) → 0,5 sn **şimşek ağı**: bıçağın ucu ve kazıklar arasında gerilir (üçgen + uçtan ışınlar); içindekiler (çokgenin içi ya da kenara gövde payı + 10 px) **yavaşlar** (hız ×0,45 / kare), her 0,16 sn cızırtı ×0,12, ağa giren sıradan işaretlenir; oyuncu yerinden kımıldamaz → **çöküş "ÇAK!"**: her kenar boyunca kalın şimşek, işaretli ve ağdaki herkese zincir ×0,8; sıradanlar kilitlenip 0,13 sn'de **yerde kayarak** oyuncunun önüne çekilir (15 px aralıklı) → **gökten inen yıldırımla** tepeden vuruş ×1,5 (öndeki kutu R+30) | kazık saplanmaz (zırha işlemez); ağdaysa cızırdar ve zincirle çarpılır, sersemler, **çekilmez** ("çekilmez") | çöküş anında: yıldırım ×1,35 ve **ikinci zincir**: bütün işaretlilere (seçkin dahil) ×0,4, aralarında şimşek | 0,35 + 3 × 0,12 + 0,8 + 1,5 = ×3,0 (TAM ×3,4) | kırbaç, kılıç, mızrak, uzun sap | 75 Kut |
+| **Tulpar Dörtnalı** (toprak, 17) «Kamın davulu atıdır» | 0,16 sn silah baş üstüne (ayağın önünde davul ensō'su) → **dört davul vuruşu** (0,34 sn arayla; her birinde 0,14 sn kalkış + iniş): inişte oyuncunun çevresinden **toynak dalgası** (yarıçap 64 / 86 / 108 / 130 px; ×0,4 / 0,52 / 0,64 / 0,76): sıradanlar dışa savrulur (kb 170) ve 0,3 sn sersemler; baş üstünde **davul şeridi** (dört ensō + kayan tokmak; vurulan dolu, TAM altın, kaçan çarpı); her vuruşun kendi **ritim halkası** var (0,28 / 0,26 sn önce belirir): halka kapanırken T → o vuruş **TAM** (×1,35, yarıçap ×1,3, altın varak) → 0,12 sn sonra **dörtnal**: 0,36 sn öne koşu 580 px/sn, 200 px (duvarda / uçurumda durur), dokunulmaz; yoldakiler ×1,5 (sıradanlar 240 px/sn yukarı fırlar, duvara çakılır) | savrulmaz ("savrulmaz"): yalnız hasar + duruş; dörtnalda sendeleme | **dördü de TAM'sa** biniş TAM: mürekkepten **Tulpar** (sırt, boyun, baş, iki evreli bacaklar, yele, kuyruk, ışıyan kanat; oyuncunun arkasında, her 0,09 sn yeni kare), **"HAYT!"**, 680 px/sn, 260 px, ezme ×1,35 ve 290 px/sn fırlatma. Değilse sade koşu (at yok, ×1,0) | 0,4 + 0,52 + 0,64 + 0,76 + 1,5 = ×3,8; hepsi TAM: ×5,1 | ağır, dev, kılıç, uzun sap | 70 Kut |
+
+Karşı oyun / ustalık: Pehlivan'da seçkin varken ya da sıradan menzilde değilken sanat zayıf (yalnız silah savrulur),
+duvar yakınında fırlatış en güçlüsü (PAT! + duvar sekmesi). Yıldırım Ağı'nda ağ yarım saniye yerde durur: dışında
+kalan düşman etkilenmez, içindekiler yavaşladığı için oyuncu zincir ve yıldırımı yerleştirir; kazık önce sıradanı seçer
+(zırha işlemez), seçkin ancak ağın içindeyse çarpılır. Tulpar'da dalga her vuruşta büyür: yakındakiler ilk, uzaktakiler
+son vuruşta; dört halkanın hepsini tutturmak (ezbere basış halkayı yakar) atı getirir.
+
+Güvenlik: tutulan gövdenin yörüngesi `_tut` / `_serbest_hedef` ile duvara girmez, dikey yarıçapı sütundaki tavana göre
+kısalır (`_oda`); fırlatma hızı `_firlat_vy` ile tavana göre; ağ kazıkları duvar içine ya da zemini olmayan yere
+çakılmaz (`_ya_zemin`); çekilenler yerde kayar (kalkış yok); dörtnal `_oyuncu_yer` ile duvar / uçurum önünde durur.
+Sanat kesilirse (ölüm, kavranma) kilitler bırakılır, ağ ve davul şeridi söner; uçan düşman uçuşunu bitirir.
+
+### Görseller (sumi-e fırça sistemi)
+
+Paletler aynı (`SanatFX.PAL_EK` 15 yeşim, 16 gök, 17 toprak). Yeni kipler: `ag` (şimşek ağı: bıçak ucu ve kazıklar
+arasında her 4 karede yeniden kırılan sumi şimşek + gök damarı + ak çekirdek, kenarda sulu yıkama ve kısa çatallar,
+kazıklarda dikili kazık ve dönen çıtırtı kılları), `davul` (dört ensō'luk davul şeridi + kayan tokmak).
+
+| Sanat | Bileşim |
+|---|---|
+| Pehlivan Savurması | peşrevde dize vurulan kuru avuç izleri + alçak yıkama; kavramada gövdeyi iki yandan saran kalın sumi parantezleri; her yarım turda oyuncunun çevresinde eğik elips yay (ön yarı koyu kalın kuru fırça + yeşim damar + ak çekirdek, arka yarı sulu yıkama, dışa savrulan kıllar); fırlatışta geri kalan hız çizgileri ve yıkama halkası; çakılışta sıçrantı, iki yana sürtme, küçük yarık, duvarda dikey sürtme, "PAT!" (TAM: altın varak) |
+| Yıldırım Ağı | avuca toplanan kırık kıllar + parıltı; her kazıkta elden hedefe ince şimşek (`simsek`), saplanma (kazık gövdesi, baş çaprazı, çıtırtı, sıçrantı; yere çakılınca toz); ağ kipi; çöküşte her kenarda kalın şimşek, sıçrantı, "ÇAK!"; yıldırım: gökten vuruş noktasına kalın kırık sumi + gök damarı + ak çekirdek, iki (TAM: üç) dal, yerde yıkama, sıçrantı, TAM'da altın varak; TAM zincirinde işaretliler arasında şimşekler |
+| Tulpar Dörtnalı | hazırlıkta ayağın önünde davul ensō'su; her vuruşta ayaktan iki yana büyüyen yassı elips halkalar (sıçratan kuru fırça, büyüyerek açılır), halka boyunca toynak izi noktaları ve yukarı toz kılları, TAM'da altın varak + ışıyan iç halka; davul şeridi; binişte arkaya savrulan hız çizgileri, yıkama, sıçrantı, "HAYT!"; **mürekkep Tulpar** (oyuncunun arkasında z −1: sırt-boyun, karın, baş, kulak, iki evreli dörtnal bacakları, savrulan yele ve kuyruk, geriye-yukarı iki kanat süpürmesi; TAM'da kanat ışır), toynak tozu |
+
+**Yansıma sözcükleri**: `sanat_fx` atlasında kaldırılan KÜT! / VUŞ! / ÇAT! hücrelerine aynı fırça diliyle **PAT!**,
+**HAYT!**, **ÇAK!** (yeni harfler P, H, Y). Üretim: `python tools/artgen/sanat_fx_ink.py`, HD: `KY_HD=2 python
+sanat_fx_ink.py` + `python hd_paket.py --paketle` (yalnız `sanat_fx.png` / `.webp` değişti; fırça dokusu bayt bayt aynı).
+
+**HUD tamgaları** (`glyph_strokes`): Pehlivan: kalınlaşan çekiç yayı + ucunda savrulan gövde + fırlatış çizgisi; Yıldırım
+Ağı: üç kazık arasında kırık şimşek üçgeni; Tulpar: at başı ve boynu (profil), kulak, yele, altta dört vuruş noktası.
+
+### Ses (`tools/audiogen/v27_sanat.py`, sentez)
+
+`sanat_pesrev` (derin soluk + dize vurulan iki avuç + toz), `sanat_tutus` (deri gıcırtısı + gövde toku + homurtu),
+`sanat_savur` (dönen ağır süpürme + ip ıslığı; yarım turda bir, perde yükselir), `sanat_firlat` (yukarı kıvrılan süpürme
++ homurtu), `sanat_pat` (ıslak şaplak + gövde + toprak + gürleme), `sanat_kazik` (elektrik cızırtısı + inen ton + kazık
+toku), `sanat_ag` (110 Hz harmonikli titreyen uğultu + ince çatırtı; ağda tıklarda alçak yinelenir), `sanat_cak`
+(yıldırım çatlaması: tık + geniş bant patlama + kırpma + gök gürlemesi), `sanat_davul` (çerçeve davul zarı + deri),
+`sanat_dortnal` (altı toynak vuruşu + rüzgâr + at soluğu). Eski `sanat_evren / kut / tengri / vus / yarik / cat`
+silindi. `python v27_sanat.py <adlar>` yalnız onları üretir.
+
+### Test
+
+* `-- --sanat --boss --muhur=0` (`tools/tests/sanat_testi.gd`): 13 sanat genel denetim (bedel, bekleme, isabet, hasar,
+  süre ≤ 150 kare). Kombo testi sanata göre beklenti (`KOMBO_KIP`): **tut** (Pehlivan: öndeki sıradan kavranır ve
+  savrulur ≥ 24 px / tavanda ≥ 8, ≥ 6 kare kilitli; üç sıradan da vurulur; seçkin "tutulmaz"), **cek** (Yıldırım Ağı:
+  üç sıradan kazıklanıp çekilir, ≥ 4 kare kilitli; seçkin ağda cızırdar, çekilmez), **dalga** (Tulpar: kilit yok, üç
+  sıradan da dalgayla vurulur, seçkin "savrulmaz"; TAM beklentisi **4**: test dört halkanın her birinde basar), açık
+  alanda ritim TAM, alçak tavanda erken basış (kaçar). Gerçek duvar kenarında Pehlivan (fırlatılan duvara çakılır:
+  `duvar` sayacı ≥ 1), Kurt Dansı ve Tulpar (oyuncu duvara girmez).
+* Sonuç: SONUC GECTI hata=0, TAKILMA=0. Pehlivan açık alanda tutulan 44 px kalkar, 42 kare kilitli, fırlatış H 257 px,
+  ritim TAM; alçak tavanda H 220, erken basış kaçar; duvar kenarında duvar sekmesi 1. Yıldırım Ağı üç sıradanı
+  kazıklayıp çeker (17 kare kilit, kalkış 16 px; tavanda 10), seçkin "çekilmez". Tulpar dört halkanın dördü TAM
+  (ritim=4), kilit yok, üç sıradan da vurulur, seçkin "savrulmaz"; tavanda kalkış 25 px. Hepsinde yerde=3/3,
+  tavan_üstü=0, oyuncu_tavan=0, kötü_konum=0.
+* Kare şeritleri: `--fixed-fps 60 -- --sanat --boss --pencere=1920x1080 --sanat_kare=<klasör> --sanat_tek=<id>`
+  (3 sıradan + 1 seçkin, ritim TAM); efekt önizlemesi `--sanat_fx=<klasör>` yeni bileşimleri (pehlivan_*, kazik,
+  yildirim_vur, tulpar_*, damgalar, ag + davul kipleri) de çeker.
+* Görseller (`docs/v32/sanat/`): `pehlivan_savurmasi_dizi.jpg`, `yildirim_agi_dizi.jpg`, `tulpar_dortnali_dizi.jpg`
+  (her 3. kare, 3 sıradan + 1 seçkin), `fx_onizleme.jpg` (yeni bileşimler), `hud_tamgalari.jpg`,
+  `yansima_sozcukleri.png` (PAT! / ÇAK! / HAYT! ve kalanlar), `sanat_ekrani.jpg` (13 sanatlık kayan liste).
+* Gerileme: `--dovus --boss --kontrol` TAKILMA=0, basılmamış 0; `--zeka --muhur=0` BITTI; `--otomatik --derinlik=1` ve
+  `--derinlik=5` (`--quit-after 9000`) bölüm sonu ve çıkış, ölüm 0; `--mekanik` BITTI; `--piksel_tara --otomatik
+  --derinlik=3` TOPLAM 0. Betik hatası yok.
+* Ayrıca: `SanatUI._nisan_pips`'in bilinen "Invalid polygon data" hatası giderildi (kısmen dolu tane artık
+  `Geometry2D.intersect_polygons` ile kesilir; sıfıra yakın alanlı ince dilimler ve ≥ %98 dolu tane ayrıca ele alınır).
+
+### Bilinen
+
+* Göç yalnız kimlikleri taşır; eski sanatlar için harcanmış Kut geri verilmez (yerine gelen sanat zaten açık sayılır).
+* Sanat ekranı görüntüsü listenin üst yarısını gösterir (kart: Ay Hilali); yeni sanatların kartı oyunda aşağı kaydırınca görünür.
+* `--ekran=sanat` / `--ekran=ogretmen` kartı hâlâ eski seçimi (Ay Hilali) açar; Main.gd'ye dokunulmadı (birleştirme riski).

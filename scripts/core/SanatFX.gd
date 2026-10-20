@@ -22,8 +22,11 @@ extends Node2D
 ##   parilti   bıçakta parlayan dört köşeli çelik yıldızı
 ##   v31 kombo sanatları:
 ##   ritim     daralan fırça halkası (kapandığı an T: bitiriş TAM); TAM'da altın, kaçırılınca solar
-##   girdap    Tengri Çarkı: merkeze kıvrılan gök mavisi sarmal kollar (ön koyu, arka eriyen) + yıkama
 ##   kesik_iz  Kurt Dansı: düşmanın üstünde asılı kalan al kesik (düşmanı izler; patlayınca söner)
+##   v32 özgün sanatlar:
+##   ag        Yıldırım Ağı: bıçak ucu ve kazıklar arasında titreyen şimşek ağı (kenarlar her 4 karede yeniden kırılır),
+##             kazıklarda dikili kazık ve dönen çıtırtı; çöküşte söner
+##   davul     Tulpar Dörtnalı: baş üstünde dört vuruşluk davul şeridi (bekleyen / vurulan / TAM altın / kaçan) + tokmak
 ##   delen     Akıncı Akını: ilerleyen delen mürekkep oku (uzun fırça mızrağı + kuru hız çizgileri); yolundakilere
 ##             kendi vurur (vurus_cb), duvarda kırılır
 ##   firca / leke  serbest bileşim (aşağıdaki statik bileşimler: kesik, kasirga_son, cekis_inis, goge_*, ...)
@@ -37,7 +40,7 @@ const ATLAS_JSON := "res://assets/fx/ink/sanat_fx.json"
 ## InkFX.PALETTES'e ek paletler (mürekkep, çekirdek, gövde, kenar, sıcak): 12 dökme demir (Demir Duruş), 13 sumi
 ## (yansız mürekkep yıkaması: lekeler sanatın renginde değil, gri-siyah su mürekkebi)
 const PAL_EK := {12: ["050608", "262b33", "6f7a88", "d2d9e2", "ffffff"], 13: ["030304", "121116", "2c2a30", "57535a", "f4efe6"],
-	# v31 kombo sanatları: 14 al (Kurt Dansı), 15 yeşim (Evren Kuyruğu), 16 gök (Tengri Çarkı), 17 toprak (Yer Yarığı),
+	# v31 kombo sanatları: 14 al (Kurt Dansı), 15 yeşim (v32 Pehlivan Savurması), 16 gök (v32 Yıldırım Ağı), 17 toprak (v32 Tulpar Dörtnalı),
 	# 18 ak / kemik (Akıncı Akını)
 	14: ["1c0410", "6e0a2e", "e02a62", "ff94b8", "fff0f5"], 15: ["03120a", "0c4228", "1fa060", "8fe8b0", "f2fff6"],
 	16: ["030a1c", "0b3470", "2a90e8", "a0dcff", "ffffff"], 17: ["140802", "552a0c", "c86a1c", "ffbe6a", "fff3dc"],
@@ -52,7 +55,7 @@ enum { V_SPLASH, V_STAMP, V_CUT, V_DRY }
 enum { B_ISLAK, B_ORTA, B_KURU, B_COK_KURU, B_SULU, B_INCE, B_KALIN_KURU, B_SICRAT }
 
 const INK := Color(0.035, 0.02, 0.05)
-const BRUSH_MODES := ["muhur", "hilal", "kasirga", "kalkan", "ok_iz", "firca", "yarik", "ritim", "girdap", "kesik_iz", "delen"]
+const BRUSH_MODES := ["muhur", "hilal", "kasirga", "kalkan", "ok_iz", "firca", "yarik", "ritim", "kesik_iz", "delen", "ag", "davul"]
 
 static var _bmats: Dictionary = {}
 static var _lmats: Dictionary = {}
@@ -215,7 +218,9 @@ func _physics_process(delta: float) -> void:
 				if _fade <= 0.0:
 					queue_free()
 					return
-		"girdap":
+		"ag", "davul":
+			if mode == "davul" and follow and is_instance_valid(follow):
+				global_position = follow.global_position + (data.get("off", Vector2(0, -66)) as Vector2)
 			if not alive:
 				_fade = maxf(0.0, _fade - delta * 5.0)
 				if _fade <= 0.0:
@@ -431,8 +436,10 @@ func _draw() -> void:
 			_draw_parilti()
 		"ritim":
 			_draw_ritim()
-		"girdap":
-			_draw_girdap()
+		"ag":
+			_draw_ag()
+		"davul":
+			_draw_davul()
 		"kesik_iz":
 			_draw_kesik_iz()
 		"delen":
@@ -1103,7 +1110,7 @@ static func demir_karsi(pos: Vector2, f: int, R: float) -> void:
 # ================================================================== v31 kombo sanatları
 # ------------------------------------------------------------------ ortak: damga (yansıma sözcüğü), yaprak, ritim
 static func damga(pos: Vector2, word: String, p: int, f: int, k := 1.0) -> void:
-	## Bitiriş yansıma sözcüğü (atlas: cit ÇIT!, kut KÜT!, vus VUŞ!, cat ÇAT!, viz VIZ!, tam TAM!): arkasında sıçrantı,
+	## Bitiriş yansıma sözcüğü (atlas: cit ÇIT!, viz VIZ!, tam TAM!; v32: pat PAT!, cak ÇAK!, hayt HAYT!): arkasında sıçrantı,
 	## önünde eğik siyah fırça yazısı (düşmanların üstünde, kısa süre)
 	var s := leke(pos, p, 60)
 	if s:
@@ -1242,223 +1249,358 @@ static func kurt_kin(c: Vector2, f: int, p: int) -> void:
 		g.data = {"s": 14.0}
 
 
-# ------------------------------------------------------------------ Evren Kuyruğu (yeşim)
-static func _pul(n: SanatFX, c: Vector2, ang: float, s: float, delay: float) -> void:
-	## Ejder pulu: küçük hilal dokunuş (kuru)
-	var d := Vector2.from_angle(ang)
-	var o := d.orthogonal()
-	n.ek(PackedVector2Array([c - o * s, c + d * s * 0.6, c + o * s]), PackedFloat32Array([s * 0.3, s * 0.7, s * 0.25]), S_INK, B_KURU, delay, 0.04, 0.08, 0.16)
-
-
-static func evren_toplan(gp: Vector2, f: int, p: int) -> void:
-	## Hazırlık: ayakların çevresine toplanan pullar ve alçak yıkama
+# ------------------------------------------------------------------ v32 Pehlivan Savurması (yeşim)
+static func pehlivan_hazir(gp: Vector2, f: int, p: int) -> void:
+	## Peşrev: ayakların iki yanına vurulan kuru avuç izleri (dizden vurma), alçak toz yıkaması
 	var n := firca(gp, p, 56)
 	if n:
-		for k in 6:
-			var sd := -1.0 if k % 2 == 0 else 1.0
-			var x := sd * (26.0 + 8.0 * k)
-			_pul(n, Vector2(x, -6.0 - 3.0 * (k % 3)), PI if sd > 0 else 0.0, 5.0, 0.015 * k)
-		n.ek(line(Vector2(-f * 60.0, -3.0), Vector2(f * 14.0, -4.0), 8, 0.0, 1.0), press(8, 3.0, 0.4, 0.5, 0.6), S_COLOR, B_INCE, 0.02, 0.1, 0.04, 0.12)
+		for sd in [-1.0, 1.0]:
+			for k in 3:
+				var x: float = sd * (14.0 + 6.0 * k)
+				n.ek(line(Vector2(x, -4.0 - 3.0 * k), Vector2(x + sd * 10.0, -16.0 - 4.0 * k), 4, sd * 2.0), press(4, 3.4 - 0.6 * k, 0.8, 0.3, 0.3), S_DRY, B_COK_KURU, 0.02 * k, 0.05, 0.05, 0.14)
+		n.ek(line(Vector2(-f * 36.0, -6.0), Vector2(f * 36.0, -6.0), 8, 0.0, 1.2), press(8, 3.0, 0.5, 0.5, 0.5), S_COLOR, B_INCE, 0.03, 0.08, 0.04, 0.12)
 	var l := leke(gp, SUMI, -1)
 	if l:
-		l.el("wash_b", Vector2(0, -6.0), 0.0, Vector2(96.0, 24.0), V_DRY, 0.0, 0.06, 0.06, 0.3)
+		l.el("wash", Vector2(0, -6.0), 0.0, Vector2(90.0, 22.0), V_DRY, 0.0, 0.06, 0.06, 0.3)
 
 
-static func evren_supur(gp: Vector2, f: int, R: float, p: int) -> void:
-	## Alçak tam tur: ayak hizasında yassı elips fırça (arkadan başlayıp öne dolanır), kuyruk ucunda kuru kıllar, toz kılları
-	var n := firca(gp + Vector2(0, -8.0), p, 57)
+static func pehlivan_tut(c: Vector2, f: int, p: int) -> void:
+	## Kavrama: gövdeyi iki yandan kavrayan kalın sumi parantezleri (kol gibi kıvrık), ortada küçük sıçrantı
+	var n := firca(c, p, 58)
+	if n:
+		for sd in [-1.0, 1.0]:
+			var pts := arc(Vector2(sd * 4.0, 0.0), 16.0, 20.0, -PI * 0.5 + (0.0 if sd > 0 else PI) + sd * 0.0, PI * 0.5 + (0.0 if sd > 0 else PI), 10)
+			var ws := swell(10, 7.0, 0.2, 0.7)
+			n.ek(pts, ws, S_INK, B_ISLAK, 0.0, 0.05, 0.1, 0.18)
+			n.ek(pts, scale_w(ws, 0.4), S_COLOR, B_ORTA, 0.005, 0.05, 0.1, 0.16)
+	sicrat(c, p, 30.0, 57, false)
+
+
+static func pehlivan_savur(pc: Vector2, f: int, p: int, R: float, half: int) -> void:
+	## Yarım tur: oyuncunun çevresinde eğik elips yay (önde alçak, arkada yüksek); ön yarı koyu, arka yarı sulu; dış kenarda
+	## savrulan kuru kıllar
+	var n := firca(pc, p, 57 if half % 2 == 0 else -1)
 	if n == null:
 		return
-	var rx := R + 32.0
-	var a0 := PI * 0.5 + (0.0 if f > 0 else PI) + PI
-	var pts := arc(Vector2.ZERO, rx, 10.0, a0, a0 + f * TAU * 1.04, 36)
-	var ws := press(36, 13.0, 0.5, 0.15, 0.25)
-	n.ek(pts, ws, S_INK, B_KALIN_KURU, 0.0, 0.2, 0.05, 0.2)
-	n.ek(pts, scale_w(ws, 0.34), S_COLOR, B_ORTA, 0.01, 0.2, 0.05, 0.18)
-	n.ek(pts, scale_w(ws, 0.12), S_HOT, B_INCE, 0.015, 0.2, 0.03, 0.12)
-	for k in 8:
-		var a := float(k) / 8.0 * TAU + randf_range(-0.2, 0.2)
-		var d := Vector2(cos(a), 0.0)
-		var y := 6.0
-		n.ek(line(Vector2(d.x * rx * 0.8, y), Vector2(d.x * (rx + randf_range(14, 30)), y - randf_range(8, 18)), 4, 0.0), press(4, 3.5, 1.0, 0.1, 0.1), S_DRY, B_SICRAT, 0.06 + 0.015 * k, 0.05, 0.03, 0.12)
-	var l := leke(gp, SUMI, -1)
-	if l:
-		l.el("wash", Vector2(0, -4.0), 0.0, Vector2(rx * 2.2, 26.0), V_DRY, 0.0, 0.08, 0.08, 0.36)
+	var rx := R + 44.0
+	var ry := 34.0
+	var a0 := PI * float(half) * (1.0 if f > 0 else -1.0) + (0.0 if f > 0 else PI)
+	var pts := arc(Vector2(0, -22.0), rx, ry, a0, a0 + PI * (1.0 if f > 0 else -1.0), 16)
+	var ws := press(16, 12.0, 0.4, 0.15, 0.3)
+	if half % 2 == 0:
+		n.ek(pts, ws, S_INK, B_KALIN_KURU, 0.0, 0.12, 0.05, 0.18)
+		n.ek(pts, scale_w(ws, 0.36), S_COLOR, B_ORTA, 0.008, 0.12, 0.05, 0.16)
+		n.ek(pts, scale_w(ws, 0.13), S_HOT, B_INCE, 0.012, 0.12, 0.03, 0.1)
+	else:
+		n.ek(pts, scale_w(ws, 1.3), S_WASH, B_SULU, 0.0, 0.12, 0.05, 0.18)
+		n.ek(pts, scale_w(ws, 0.5), S_DRY, B_COK_KURU, 0.0, 0.12, 0.04, 0.16)
+	for k in 5:
+		var q := pts[3 + k * 2]
+		var dv := (q - Vector2(0, -22.0)).normalized()
+		n.ek(line(q, q + dv * randf_range(14.0, 26.0), 3), press(3, 2.6, 1.0, 0.1, 0.1), S_DRY, B_SICRAT, 0.03 + 0.012 * k, 0.04, 0.03, 0.1)
 
 
-static func evren_sarmal(gp: Vector2, H: float, f: int, p: int) -> void:
-	## Yükselen sarmal: oyuncunun çevresinde iki tur yeşim fırça helezonu (önü koyu, arkası sulu), üstünde pullar
-	var n := firca(gp, p, 57)
-	var nb := firca(gp, p, -1)
-	if n == null or nb == null:
-		return
-	var turns := 2.2
-	var N := 44
-	var cur_pts := PackedVector2Array()
-	var cur_front := true
-	for i in N + 1:
-		var s := float(i) / N
-		var th := s * TAU * turns * float(f) + PI * 0.5
-		var q := Vector2(cos(th) * 34.0, -s * H + sin(th) * 6.0 - 4.0)
-		var front := sin(th) > 0.0
-		if i == 0:
-			cur_front = front
-		if front != cur_front or i == N:
-			cur_pts.append(q)
-			if cur_pts.size() >= 2:
-				var ws := swell(cur_pts.size() - 1, 9.0 + 3.0 * (1.0 - s), 0.2, 0.6)
-				var dl := 0.22 * s
-				if cur_front:
-					n.ek(cur_pts, ws, S_INK, B_KURU, dl, 0.04, 0.12, 0.2)
-					n.ek(cur_pts, scale_w(ws, 0.36), S_COLOR, B_ORTA, dl + 0.004, 0.04, 0.12, 0.18)
-					n.ek(cur_pts, scale_w(ws, 0.12), S_HOT, B_INCE, dl + 0.008, 0.04, 0.06, 0.12)
-				else:
-					nb.ek(cur_pts, scale_w(ws, 1.3), S_WASH, B_SULU, dl, 0.04, 0.12, 0.2)
-					nb.ek(cur_pts, scale_w(ws, 0.5), S_DRY, B_COK_KURU, dl, 0.04, 0.1, 0.18)
-			cur_pts = PackedVector2Array([q])
-			cur_front = front
-		else:
-			cur_pts.append(q)
-		if i % 5 == 2 and front:
-			_pul(n, q + Vector2(0, -6.0), -PI * 0.5 + randf_range(-0.4, 0.4), 4.5, 0.22 * s + 0.02)
-
-
-static func evren_cark(c: Vector2, f: int, p: int, R: float) -> void:
-	## Çark: önde dikine dönen büyük yeşim halka (baş üstünden öne, aşağı); ejderin kuyruğu
+static func pehlivan_firlat(c: Vector2, f: int, p: int, tam: bool) -> void:
+	## Bırakış: gövdenin ardında geri kalan kuru hız çizgileri, yıkama halkası, sıçrantı (TAM: altın varak)
 	var n := firca(c, p, 57)
-	if n == null:
-		return
-	var cc := Vector2(f * R * 0.35, 6.0)
-	var r := R + 18.0
-	var a0 := -PI * 0.5 - f * 0.9
-	var pts := arc(cc, r, r * 1.05, a0, a0 + f * PI * 1.35, 26)
-	var ws := press(26, 18.0, 0.4, 0.2, 0.4)
-	n.ek(pts, ws, S_INK, B_ISLAK, 0.0, 0.1, 0.1, 0.22)
-	n.ek(pts, scale_w(ws, 0.34), S_COLOR, B_ORTA, 0.006, 0.1, 0.1, 0.2)
-	n.ek(pts, scale_w(ws, 0.13), S_HOT, B_INCE, 0.01, 0.1, 0.05, 0.14)
-	for i in range(3, 24, 4):
-		var q := pts[i]
-		_pul(n, q + (q - cc).normalized() * 12.0, (q - cc).angle(), 5.0, 0.04 + 0.004 * i)
+	if n:
+		for k in 5:
+			var y := (float(k) - 2.0) * 7.0
+			n.ek(line(Vector2(-f * 6.0, y), Vector2(-f * randf_range(40.0, 70.0), y * 1.3), 5), press(5, 3.2, 1.0, 0.05, 0.1), S_DRY if k % 2 else S_INK, B_SICRAT, 0.01 * k, 0.05, 0.05, 0.14)
+		n.ek(arc(Vector2.ZERO, 18.0, 14.0, 0.0, TAU, 22), swell(22, 9.0, 0.7, 0.3), S_WASH, B_SULU, 0.0, 0.05, 0.05, 0.2)
+	sicrat(c + Vector2(f * 6.0, 0.0), p, 44.0, 57, false, tam)
 
 
-static func evren_kut(gp: Vector2, f: int, p: int, carp: int, tam: bool) -> void:
-	## Çakılış: yukarı-arkadan kıvrılıp yere inen kalın ejder kuyruğu (S eğrisi, ucu yerde en kalın), pullar, yer yarığı,
-	## iki yana yeşim sürtme, sıçrantı, "KÜT!" damgası
-	var big := carp > 0
+static func pehlivan_pat(gp: Vector2, dir: int, p: int, tam: bool, wall: bool) -> void:
+	## Çakılış: sıçrantı, yerde iki yana sürtme, küçük yarık, "PAT!" damgası (duvarda: dikey sürtme)
 	var n := firca(gp, p, 57)
 	if n:
-		var pts := PackedVector2Array()
-		var ws := PackedFloat32Array()
-		var N := 18
-		for i in N + 1:
-			var u := float(i) / N
-			var x := f * lerpf(-46.0, 14.0, u) + f * 24.0 * sin(u * PI * 1.4)
-			var y := lerpf(-128.0, -2.0, pow(u, 1.15))
-			pts.append(Vector2(x, y))
-			ws.append(lerpf(3.0, 26.0, pow(u, 1.4)))
-		n.ek(pts, ws, S_INK, B_ISLAK, 0.0, 0.06, 0.12, 0.24)
-		n.ek(pts, scale_w(ws, 0.36), S_COLOR, B_ORTA, 0.006, 0.06, 0.12, 0.22)
-		n.ek(pts, scale_w(ws, 0.12), S_HOT, B_INCE, 0.01, 0.06, 0.06, 0.14)
-		for i in range(2, N, 3):
-			var q := pts[i]
-			var tg := (pts[mini(i + 1, N)] - pts[i - 1]).normalized()
-			_pul(n, q - tg.orthogonal() * float(f) * (ws[i] * 0.5 + 4.0), tg.orthogonal().angle() + (PI if f > 0 else 0.0), 4.0 + ws[i] * 0.15, 0.05)
+		if wall:
+			for k in 3:
+				var x := -dir * (4.0 + 5.0 * k)
+				n.ek(line(Vector2(x, -46.0 + 6.0 * k), Vector2(x - dir * 2.0, -4.0), 6, 0.0, 1.5, k), press(6, 7.0 - 1.5 * k, 1.0, 0.1, 0.1), S_INK if k == 0 else S_DRY, B_SULU if k == 0 else B_KURU, 0.01 * k, 0.06, 0.08, 0.2)
 		for sd in [-1.0, 1.0]:
-			for k in 2:
-				var y2 := -1.5 - 4.0 * k
-				var g := line(Vector2(sd * 8.0, y2), Vector2(sd * (88.0 + 16.0 * (1 - k)), y2 + 1.0), 8, -sd * 2.0, 1.0, k)
-				var gw := press(8, 11.0 - 4.0 * k, 1.0, 0.05, 0.08)
-				n.ek(g, gw, S_INK, B_SULU if k == 0 else B_KURU, 0.02, 0.08, 0.1, 0.24)
-				n.ek(g, scale_w(gw, 0.3), S_COLOR, B_ORTA, 0.026, 0.08, 0.08, 0.2)
+			var g := line(Vector2(sd * 6.0, -2.0), Vector2(sd * randf_range(44.0, 64.0), -1.0), 6, -sd * 1.5, 1.0)
+			var gw := press(6, 8.0, 1.0, 0.05, 0.1)
+			n.ek(g, gw, S_INK, B_SULU, 0.0, 0.07, 0.08, 0.2)
+			n.ek(g, scale_w(gw, 0.3), S_COLOR, B_ORTA, 0.006, 0.07, 0.06, 0.16)
 	var l := leke(gp, p, -1)
 	if l:
-		l.el("crack", Vector2(0, -0.3 * 50.0), 0.0, Vector2(220.0, 50.0), V_STAMP, 0.0, 0.05, 0.3, 0.7)
+		l.el("crack", Vector2(0, -0.3 * 26.0), 0.0, Vector2(110.0, 26.0), V_STAMP, 0.0, 0.04, 0.2, 0.5)
 	var w := leke(gp, SUMI, -1)
 	if w:
-		w.el("wash", Vector2(0, -14.0), 0.0, Vector2(150.0, 54.0), V_DRY, 0.0, 0.07, 0.1, 0.45)
-	sicrat(gp + Vector2(0, -16.0), p, 80.0 if big else 62.0, 57, false, tam)
-	damga(gp + Vector2(f * 34.0, -70.0), "kut", p, f, (1.0 if big else 0.8) * (1.15 if tam else 1.0))
+		w.el("wash", Vector2(0, -10.0), 0.0, Vector2(100.0, 36.0), V_DRY, 0.0, 0.06, 0.08, 0.36)
+	sicrat(gp + Vector2(0, -16.0), p, 66.0 if tam else 54.0, 57, false, tam)
+	damga(gp + Vector2(dir * 26.0, -62.0), "pat", p, dir, 1.0 * (1.15 if tam else 1.0))
 
 
-# ------------------------------------------------------------------ Tengri Çarkı (gök)
-static func tengri_topla(pc: Vector2, f: int, p: int) -> void:
-	## Hazırlık: baş üstüne toplanan ince rüzgâr çizgileri ve küçük ensō
-	var n := firca(pc + Vector2(0, -40.0), p, 57)
+# ------------------------------------------------------------------ v32 Yıldırım Ağı (gök)
+static func yildirim_topla(hand: Vector2, p: int) -> void:
+	## Hazırlık: avuca toplanan kırık (şimşek) kıllar ve küçük parlama
+	var n := firca(hand, p, 58)
+	if n:
+		for k in 6:
+			var a := float(k) / 6.0 * TAU + randf_range(-0.3, 0.3)
+			var dv := Vector2.from_angle(a)
+			n.ek(line(dv * randf_range(26.0, 40.0), dv * 5.0, 5, 0.0, 4.0, k), press(5, 2.4, 1.0, 0.2, 0.2), S_HOT if k % 2 else S_COLOR, B_INCE, 0.012 * k, 0.07, 0.02, 0.08)
+	var g := spawn("parilti", hand, Color(0.8, 0.92, 1.0), 0.18)
+	if g:
+		g.data = {"s": 12.0}
+
+
+static func kazik(pos: Vector2, p: int, ground: bool) -> void:
+	## Kazık saplanması: kısa kalın dikey sumi (kazık), üstte küçük çapraz (baş), çevresinde çıtırdayan kıllar, sıçrantı;
+	## yere çakılınca toz
+	var n := firca(pos, p, 58)
+	if n:
+		n.ek(line(Vector2(0, -18.0), Vector2(0, 4.0), 4), press(4, 5.5, 1.0, 0.35, 0.2), S_INK, B_ORTA, 0.0, 0.03, 0.4, 0.2)
+		n.ek(line(Vector2(-6.0, -14.0), Vector2(6.0, -16.0), 3), press(3, 3.0, 1.0, 0.4, 0.3), S_COLOR, B_INCE, 0.01, 0.03, 0.38, 0.18)
+		for k in 4:
+			var a := -PI * 0.5 + (float(k) - 1.5) * 0.7 + randf_range(-0.2, 0.2)
+			var dv := Vector2.from_angle(a)
+			n.ek(line(dv * 6.0, dv * randf_range(14.0, 24.0), 4, 0.0, 3.0, k), press(4, 2.0, 1.0, 0.1, 0.1), S_HOT, B_INCE, 0.02 + 0.01 * k, 0.04, 0.03, 0.08)
+	var l := leke(pos, p, 57)
+	if l:
+		l.el("splat_c", Vector2(0, -2.0), randf() * TAU, Vector2(24.0, 20.0), V_SPLASH, 0.0, 0.03, 0.05, 0.22)
+	if ground:
+		FX.dust(pos + Vector2(0, 3.0), Vector2.UP, 4, 0.26)
+
+
+func _draw_ag() -> void:
+	## Şimşek ağı: bıçak ucu ve kazıklar arasında her kenar kırık şimşek (her 4 karede yeniden çizilir, titrer), kenar
+	## boyunca sulu yıkama; kazıklarda dikili kazık ve dönen çıtırtı kılları; sönerken erir
+	var pts: Array = data.get("pts", [])
+	var tip: Vector2 = data.get("tip", global_position)
+	var a := _fade * clampf(t / 0.08, 0.0, 1.0)
+	var ds := 1.0 - a
+	var sd := int(t * 15.0)
+	var edges: Array = []
+	for q in pts:
+		edges.append([tip, q])
+	for i in pts.size():
+		for j in range(i + 1, pts.size()):
+			edges.append([pts[i], pts[j]])
+	var k := 0
+	for ed in edges:
+		var a0: Vector2 = (ed[0] as Vector2) - global_position
+		var b0: Vector2 = (ed[1] as Vector2) - global_position
+		var L := a0.distance_to(b0)
+		var nn := maxi(4, int(L / 14.0))
+		var wob := 5.0 + 0.004 * L
+		var pts2 := line(a0, b0, nn, 0.0, wob, sd + k * 7)
+		_bs(pts2, swell(nn, 14.0, 0.5, 0.4), S_WASH, B_SULU, 1.0, maxf(ds, 0.35))
+		var ws := press(nn, 4.2, 0.9, 0.7, 0.3)
+		_bs(pts2, ws, S_INK, B_KURU, 1.0, ds)
+		_bs(pts2, scale_w(ws, 0.5), S_COLOR, B_INCE, 1.0, ds)
+		_bs(pts2, scale_w(ws, 0.22), S_HOT, B_INCE, 1.0, ds + 0.2 * (0.5 + 0.5 * sin(t * 40.0 + float(k))))
+		# dallar: kenarda iki kısa çatal
+		for m in 2:
+			var u := 0.3 + 0.4 * float(m) + 0.1 * sin(t * 9.0 + float(k + m))
+			var q := a0.lerp(b0, u)
+			var dv := (b0 - a0).normalized().orthogonal() * (1.0 if (sd + k + m) % 2 == 0 else -1.0)
+			_bs(line(q, q + dv * (8.0 + 6.0 * float(m)) + (b0 - a0).normalized() * 6.0, 3, 0.0, 2.0, sd + m), press(3, 1.8, 1.0, 0.2, 0.2), S_HOT, B_INCE, 1.0, ds + 0.3)
+		k += 1
+	for i in pts.size():
+		var q: Vector2 = (pts[i] as Vector2) - global_position
+		_bs(line(q + Vector2(0, -18.0), q + Vector2(0, 4.0), 3), press(3, 5.0, 1.0, 0.35, 0.2), S_INK, B_ORTA, 1.0, ds)
+		_bs(line(q + Vector2(-6.0, -14.0), q + Vector2(6.0, -16.0), 2), press(2, 2.6, 1.0, 0.5, 0.3), S_COLOR, B_INCE, 1.0, ds)
+		for m in 3:
+			var ang := t * 7.0 + float(m) / 3.0 * TAU + float(i)
+			var dv := Vector2.from_angle(ang)
+			_bs(line(q + Vector2(0, -10.0) + dv * 7.0, q + Vector2(0, -10.0) + dv * 15.0, 2, 0.0, 2.0, sd + m), press(2, 1.6, 1.0, 0.2, 0.2), S_HOT, B_INCE, 1.0, ds + 0.25)
+
+
+static func yildirim_vur(hp: Vector2, f: int, p: int, tam: bool) -> void:
+	## Gökten inen yıldırım: yukarıdan vuruş noktasına kalın kırık sumi + gök damarı + ak çekirdek, iki dal, yerde yıkama,
+	## sıçrantı (TAM: altın varak ve ikinci ince dal)
+	var n := firca(hp, p, 58)
+	if n:
+		var main := line(Vector2(f * 26.0, -176.0), Vector2(0, -2.0), 12, -f * 10.0, 9.0, randi() % 50)
+		var ws := press(12, 12.0, 0.4, 0.5, 0.6)
+		n.ek(main, ws, S_INK, B_ISLAK, 0.0, 0.04, 0.12, 0.22)
+		n.ek(main, scale_w(ws, 0.42), S_COLOR, B_ORTA, 0.004, 0.04, 0.12, 0.2)
+		n.ek(main, scale_w(ws, 0.16), S_HOT, B_INCE, 0.008, 0.04, 0.08, 0.14)
+		for k in (3 if tam else 2):
+			var q := main[3 + k * 3]
+			var dv := Vector2(-f * (0.6 + 0.3 * float(k)), 0.8).normalized()
+			var br := line(q, q + dv * randf_range(30.0, 50.0), 5, 0.0, 5.0, k + 3)
+			n.ek(br, press(5, 4.0, 1.0, 0.1, 0.2), S_INK, B_KURU, 0.02, 0.04, 0.08, 0.16)
+			n.ek(br, press(5, 1.6, 1.0, 0.1, 0.2), S_HOT, B_INCE, 0.025, 0.04, 0.06, 0.12)
+		for sd in [-1.0, 1.0]:
+			var g := line(Vector2(sd * 6.0, -2.0), Vector2(sd * 54.0, -1.0), 6, -sd * 1.5, 1.0)
+			n.ek(g, press(6, 7.0, 1.0, 0.05, 0.1), S_INK, B_SULU, 0.03, 0.06, 0.08, 0.2)
+	var w := leke(hp, SUMI, -1)
+	if w:
+		w.el("wash", Vector2(0, -12.0), 0.0, Vector2(120.0, 40.0), V_DRY, 0.0, 0.06, 0.08, 0.4)
+	var l := leke(hp, p, 57)
+	if l:
+		l.el("splat_b", Vector2(0, -8.0), randf() * TAU, Vector2.ONE * 56.0, V_SPLASH, 0.03, 0.05, 0.08, 0.3)
+	if tam:
+		var v := leke(hp, ALTIN, 58)
+		if v:
+			v.el("varak", Vector2(0, -20.0), randf() * TAU, Vector2.ONE * 80.0, V_SPLASH, 0.04, 0.05, 0.14, 0.5)
+
+
+# ------------------------------------------------------------------ v32 Tulpar Dörtnalı (toprak)
+static func tulpar_hazir(gp: Vector2, f: int, p: int) -> void:
+	## Hazırlık: ayağın önünde küçük davul ensō'su ve iki kuru tokmak çizgisi
+	var n := firca(gp, p, 56)
+	if n:
+		var a0 := randf() * TAU
+		n.ek(arc(Vector2(f * 26.0, -4.0), 18.0, 7.0, a0, a0 + TAU * 0.9, 20), press(20, 4.0, 0.8, 0.2, 0.2), S_INK, B_KURU, 0.0, 0.1, 0.06, 0.16)
+		n.ek(arc(Vector2(f * 26.0, -4.0), 12.0, 4.5, a0 + 1.0, a0 + 1.0 + TAU * 0.8, 16), press(16, 1.6, 0.8, 0.3, 0.2), S_COLOR, B_INCE, 0.03, 0.08, 0.05, 0.14)
+	var l := leke(gp, SUMI, -1)
+	if l:
+		l.el("wash", Vector2(f * 20.0, -6.0), 0.0, Vector2(80.0, 20.0), V_DRY, 0.0, 0.06, 0.06, 0.3)
+
+
+static func tulpar_vurus(gp: Vector2, f: int, p: int, rad: float, k: int, tam: bool) -> void:
+	## Toynak dalgası: ayaktan iki yana büyüyen yassı elips halkalar (sıçratan kuru fırça), halka boyunca toynak izi
+	## noktaları, yukarı toz kılları; TAM: altın varak ve ışıyan iç halka
+	var n := firca(gp, p, 57)
+	if n:
+		n.grow = Vector2(0.35, 1.0)
+		var ry := 12.0 + 2.0 * float(k)
+		var pts := arc(Vector2(0, -4.0), rad, ry, PI, TAU, 26)
+		var ws := press(26, 8.0 + float(k), 0.5, 0.2, 0.4)
+		n.ek(pts, ws, S_INK, B_SICRAT, 0.0, 0.1, 0.06, 0.2)
+		n.ek(pts, scale_w(ws, 0.4), S_COLOR, B_KURU, 0.006, 0.1, 0.06, 0.18)
+		if tam:
+			n.ek(pts, scale_w(ws, 0.16), S_HOT, B_INCE, 0.01, 0.1, 0.04, 0.12)
+		var pts2 := arc(Vector2(0, -4.0), rad * 0.72, ry * 0.7, PI, TAU, 20)
+		n.ek(pts2, scale_w(swell(20, 7.0, 0.1, 0.6), 1.0), S_WASH, B_SULU, 0.02, 0.08, 0.06, 0.18)
+		for i in range(2, 24, 4):
+			var q := pts[i]
+			var o := Vector2(q.x, -2.0)
+			n.ek(PackedVector2Array([o + Vector2(-3.0, 0.0), o + Vector2(0.0, -4.0), o + Vector2(3.0, 0.0)]), PackedFloat32Array([3.0, 4.5, 3.0]), S_INK, B_ISLAK, 0.03 + 0.004 * i, 0.03, 0.14, 0.14)
+			n.ek(line(o, o + Vector2(randf_range(-4, 4), -randf_range(16.0, 30.0)), 3, randf_range(-3, 3)), press(3, 2.6, 1.0, 0.1, 0.2), S_DRY, B_COK_KURU, 0.04 + 0.004 * i, 0.05, 0.03, 0.12)
+	var w := leke(gp, SUMI, -1)
+	if w:
+		w.el("wash", Vector2(0, -6.0), 0.0, Vector2(rad * 1.8, 24.0 + 4.0 * float(k)), V_DRY, 0.0, 0.08, 0.08, 0.36)
+	if tam:
+		var v := leke(gp, ALTIN, 58)
+		if v:
+			v.el("varak", Vector2(0, -22.0), randf() * TAU, Vector2.ONE * (60.0 + 8.0 * float(k)), V_SPLASH, 0.02, 0.05, 0.12, 0.42)
+
+
+func _draw_davul() -> void:
+	## Davul şeridi: dört küçük ensō (bekleyen: kuru halka; vurulan: dolu sumi; TAM: altın dolu + ışıma; kaçan: gri
+	## halka + çarpı), üstte vuruşa doğru kayan tokmak; sönerken erir
+	var n := int(data.get("n", 4))
+	var durum: Array = data.get("durum", [])
+	var k := int(data.get("k", -1))
+	var u := float(data.get("u", 0.0))
+	var a := _fade * clampf(t / 0.1, 0.0, 1.0)
+	var ds := 1.0 - a
+	var step := 15.0
+	var x0 := -step * float(n - 1) * 0.5
+	for i in n:
+		var c := Vector2(x0 + step * float(i), 0.0)
+		var st := int(durum[i]) if i < durum.size() else 0
+		var a0 := -PI * 0.5 + float(i) * 0.7
+		var ring := arc(c, 5.0, 5.0, a0, a0 + TAU * 0.92, 14)
+		match st:
+			0:
+				_bs(ring, press(14, 1.8, 0.8, 0.4, 0.2), S_DRY, B_KURU, 1.0, ds + 0.15)
+			1:
+				_bs(ring, press(14, 3.6, 0.9, 0.5, 0.2), S_INK, B_ISLAK, 1.0, ds)
+				_bs(arc(c, 2.0, 2.0, 0.0, TAU, 8), press(8, 3.0, 1.0, 1.0, 0.1), S_INK, B_ISLAK, 1.0, ds)
+			2:
+				_bs(ring, press(14, 3.6, 0.9, 0.5, 0.2), S_GOLD, B_ISLAK, 1.0, ds)
+				_bs(arc(c, 2.4, 2.4, 0.0, TAU, 8), press(8, 3.4, 1.0, 1.0, 0.1), S_HOT, B_ISLAK, 1.0, ds)
+				for m in 4:
+					var dv := Vector2.from_angle(float(m) / 4.0 * TAU + 0.4 + t * 1.5)
+					_bs(line(c + dv * 7.0, c + dv * 10.0, 2), press(2, 1.4, 1.0, 0.2, 0.2), S_GOLD, B_INCE, 1.0, ds + 0.2)
+			_:
+				_bs(ring, press(14, 1.8, 0.8, 0.4, 0.2), S_DRY, B_KURU, 1.0, ds + 0.4)
+				_bs(line(c + Vector2(-4.0, -4.0), c + Vector2(4.0, 4.0), 2), press(2, 1.8, 1.0, 0.3, 0.2), S_INK, B_KURU, 1.0, ds + 0.2)
+				_bs(line(c + Vector2(4.0, -4.0), c + Vector2(-4.0, 4.0), 2), press(2, 1.8, 1.0, 0.3, 0.2), S_INK, B_KURU, 1.0, ds + 0.2)
+	# tokmak: bir sonraki vuruşa kayar, vuruş anında iner
+	var kk := clampf(float(k) + u, -1.0, float(n - 1))
+	var tx := x0 + step * kk
+	var dip := 1.0 - absf(fmod(maxf(kk + 1.0, 0.0), 1.0) * 2.0 - 1.0)
+	var ty := -16.0 + 6.0 * pow(dip, 3.0)
+	_bs(line(Vector2(tx, ty - 10.0), Vector2(tx, ty), 3), press(3, 2.6, 0.6, 1.0, 0.3), S_INK, B_ORTA, 1.0, ds)
+	_bs(arc(Vector2(tx, ty), 2.6, 2.6, 0.0, TAU, 8), press(8, 2.8, 1.0, 1.0, 0.1), S_COLOR, B_ISLAK, 1.0, ds)
+
+
+static func tulpar_at(pl: Node2D, f: int, p: int, nal: int, tam: bool) -> void:
+	## Mürekkep Tulpar: oyuncunun arkasında (z -1) birkaç darbelik dörtnala at: sırt-boyun çizgisi, karın, baş, iki
+	## evreli bacaklar (uzamış / toplanmış), savrulan yele ve kuyruk, kanat (TAM: ışıyan); öne hızla erir; toynak tozu.
+	## Oyuncuyu izler (follow); her 0,09 sn yeni kare (ard arda kareler hareket bulanıklığı gibi üst üste biner)
+	var n := firca(pl.global_position, p, -1)
 	if n == null:
 		return
-	for k in 6:
-		var a := float(k) / 6.0 * TAU + randf_range(-0.2, 0.2)
-		var d := Vector2(cos(a), sin(a) * 0.5)
-		n.ek(line(d * randf_range(56.0, 74.0), d * 10.0, 6, randf_range(-8, 8)), press(6, 3.0, 1.0, 0.2, 0.15), S_DRY, B_KURU, 0.015 * k, 0.12, 0.02, 0.1)
-		n.ek(line(d * 50.0, d * 10.0, 6), press(6, 1.2, 1.0, 0.2, 0.15), S_COLOR, B_INCE, 0.015 * k + 0.01, 0.12, 0.02, 0.1)
-	var a0 := randf() * TAU
-	n.ek(arc(Vector2.ZERO, 14.0, 8.0, a0, a0 + TAU * 0.9, 20), press(20, 4.0, 0.8, 0.2, 0.2), S_INK, B_KURU, 0.08, 0.08, 0.1, 0.16)
+	n.follow = pl
+	n.data = {"off": Vector2.ZERO}
+	var F := float(f)
+	var dt := 0.03
+	var hold := 0.05
+	var fade := 0.09
+	# sırt ve boyun
+	var back := PackedVector2Array([Vector2(-F * 46.0, -22.0), Vector2(-F * 22.0, -30.0), Vector2(F * 6.0, -30.0), Vector2(F * 24.0, -36.0), Vector2(F * 38.0, -56.0), Vector2(F * 44.0, -62.0)])
+	var bw := PackedFloat32Array([5.0, 9.0, 10.0, 9.0, 8.0, 5.0])
+	n.ek(back, bw, S_INK, B_ISLAK, 0.0, dt, hold, fade)
+	n.ek(back, scale_w(bw, 0.35), S_COLOR, B_ORTA, 0.004, dt, hold, fade)
+	# karın
+	var belly := PackedVector2Array([Vector2(-F * 36.0, -6.0), Vector2(-F * 12.0, -4.0), Vector2(F * 16.0, -8.0), Vector2(F * 26.0, -14.0)])
+	n.ek(belly, PackedFloat32Array([4.0, 7.0, 6.0, 3.0]), S_INK, B_KURU, 0.004, dt, hold, fade)
+	# baş ve kulak
+	var head := PackedVector2Array([Vector2(F * 42.0, -62.0), Vector2(F * 56.0, -54.0), Vector2(F * 64.0, -42.0)])
+	n.ek(head, PackedFloat32Array([7.0, 8.0, 3.0]), S_INK, B_ISLAK, 0.006, dt, hold, fade)
+	n.ek(PackedVector2Array([Vector2(F * 44.0, -62.0), Vector2(F * 46.0, -72.0)]), PackedFloat32Array([2.6, 0.8]), S_INK, B_KURU, 0.008, dt, hold, fade)
+	# bacaklar: iki evre
+	var legs: Array
+	if nal % 2 == 0:
+		legs = [[Vector2(F * 20.0, -8.0), Vector2(F * 48.0, 2.0)], [Vector2(F * 14.0, -8.0), Vector2(F * 36.0, 6.0)],
+			[Vector2(-F * 30.0, -6.0), Vector2(-F * 60.0, 4.0)], [Vector2(-F * 36.0, -6.0), Vector2(-F * 52.0, 8.0)]]
+	else:
+		legs = [[Vector2(F * 20.0, -8.0), Vector2(F * 32.0, 8.0)], [Vector2(F * 14.0, -8.0), Vector2(F * 10.0, 8.0)],
+			[Vector2(-F * 30.0, -6.0), Vector2(-F * 38.0, 8.0)], [Vector2(-F * 36.0, -6.0), Vector2(-F * 24.0, 6.0)]]
+	for i in legs.size():
+		var lg: Array = legs[i]
+		var pts := line(lg[0], lg[1], 4, F * (3.0 if i % 2 == 0 else -2.0))
+		n.ek(pts, press(4, 5.0 - float(i % 2), 1.0, 0.3, 0.3), S_INK, B_KURU if i % 2 == 0 else B_COK_KURU, 0.004 + 0.002 * i, dt, hold, fade)
+	# yele: boyundan geriye savrulan kuru kıllar
+	for k in 4:
+		var s := Vector2(F * (30.0 - 6.0 * k), -46.0 + 5.0 * k)
+		var e := s + Vector2(-F * randf_range(22.0, 36.0), -randf_range(2.0, 12.0) + 4.0 * k)
+		var pts := line(s, e, 5, -F * 5.0, 1.5, nal + k)
+		n.ek(pts, press(5, 3.2, 0.9, 0.1, 0.2), S_DRY if k % 2 else S_INK, B_COK_KURU, 0.01 + 0.004 * k, dt, hold, fade)
+		n.ek(pts, press(5, 1.3, 0.9, 0.1, 0.2), S_COLOR, B_INCE, 0.012 + 0.004 * k, dt, hold, fade)
+	# kuyruk
+	for k in 2:
+		var pts := line(Vector2(-F * 46.0, -22.0), Vector2(-F * (74.0 + 8.0 * k), -30.0 + 12.0 * k), 6, F * 8.0, 1.5, nal + 9 + k)
+		n.ek(pts, press(6, 4.0 - k, 0.8, 0.1, 0.2), S_DRY if k else S_INK, B_COK_KURU, 0.008, dt, hold, fade)
+	# kanat: sırttan geriye-yukarı iki uzun süpürme (TAM: ışıyan kenar)
+	for k in 2:
+		var pts := line(Vector2(-F * 8.0, -32.0), Vector2(-F * (62.0 + 10.0 * k), -(78.0 + 10.0 * k)), 8, F * (16.0 + 6.0 * k))
+		var ws := press(8, 13.0 - 3.0 * k, 0.6, 0.1, 0.5)
+		n.ek(pts, ws, S_WASH if not tam else S_INK, B_SULU, 0.01, dt, hold, fade)
+		n.ek(pts, scale_w(ws, 0.35), S_COLOR, B_KURU, 0.014, dt, hold, fade)
+		if tam:
+			n.ek(pts, scale_w(ws, 0.14), S_HOT, B_INCE, 0.018, dt, hold, fade)
+	# toynak tozu (ayrı, yerde kalır)
+	var d := firca(pl.global_position, p, 57)
+	if d:
+		for k in 3:
+			var o := Vector2(-F * (20.0 + 14.0 * k), -2.0)
+			d.ek(PackedVector2Array([o, o + Vector2(-F * 6.0, -5.0), o + Vector2(-F * 12.0, -8.0)]), PackedFloat32Array([5.0, 7.0, 3.0]), S_DRY, B_SICRAT, 0.01 * k, 0.03, 0.1, 0.18, Vector2(-F * 60.0, -30.0))
 
 
-func _draw_girdap() -> void:
-	## Girdap: merkeze kıvrılan beş kol (log sarmal), dönerek daralır; ön yarı koyu, arka yarı sulu; ortada yıkama
-	var tr := float(data.get("tr", 0.4))
-	var R := lerpf(float(data.get("r0", 110.0)), float(data.get("r1", 46.0)), 1.0 - pow(1.0 - clampf(t / tr, 0.0, 1.0), 2.0))
-	var spd := float(data.get("spd", 9.0))
-	var a := _fade * clampf(t / 0.08, 0.0, 1.0)
-	var dsb := 1.0 - a
-	_bs(arc(Vector2.ZERO, R * 0.45, R * 0.2, 0.0, TAU, 28), swell(28, R * 0.5, 0.8, 0.3), S_WASH, B_SULU, 1.0, maxf(dsb, 0.3))
-	for j in 5:
-		var ph := -t * spd + float(j) * TAU / 5.0
-		var pts := PackedVector2Array()
-		var front := 0.0
-		for i in 17:
-			var s := float(i) / 16.0
-			var th := ph + s * 2.6
-			var rr := R * (1.0 - 0.84 * s)
-			pts.append(Vector2(cos(th) * rr, sin(th) * rr * 0.42))
-			front += sin(th)
-		var fr := front / 17.0
-		var ds := dsb + (0.0 if fr > -0.1 else 0.45)
-		var ws := press(16, 9.0 * (1.0 - 0.08 * j), 0.9, 0.08, 0.12)
-		_bs(pts, ws, S_INK, B_KALIN_KURU if j % 2 == 0 else B_KURU, 1.0, ds)
-		_bs(pts, scale_w(ws, 0.32), S_COLOR, B_INCE, 1.0, ds)
-		if fr > 0.2 and j % 2 == 1:
-			_bs(pts.slice(0, 7), scale_w(ws.slice(0, 7), 0.15), S_HOT, B_INCE, 1.0, dsb)
-
-
-static func tengri_vurus(cc: Vector2, k: int, f: int, p: int) -> void:
-	## Hokkabazlık vuruşu: girdabın içinden geçen gök kesiği (her vuruş başka açıda)
-	var angs := [-0.95, 0.95, 0.05, -0.3]
-	var a: float = angs[k % 4]
-	if f < 0:
-		a = PI - a
-	kesik(cc, a, 86.0 if k < 3 else 100.0, 11.0 if k < 3 else 13.0, p, 0.12 * (1.0 if k % 2 == 0 else -1.0), 0.06, 58, false, true)
-	if k == 3:
-		sicrat(cc + Vector2(f * 10.0, 0.0), p, 44.0, 57, false)
-
-
-static func tengri_patla(cc: Vector2, f: int, p: int, tam: bool) -> void:
-	## Çark patlar: sekiz kollu gök çarkı (ışınsal kalın fırça), dışa savrulan kırık ensō yayları, yıkama, sıçrantı
-	var n := firca(cc, p, 58)
+static func tulpar_hayt(pc: Vector2, f: int, p: int, tam: bool) -> void:
+	## Biniş: arkaya savrulan kuru hız çizgileri, yıkama, sıçrantı (TAM: altın varak ve ışıyan halka)
+	var n := firca(pc, p, 57)
 	if n:
-		for i in 8:
-			var a := float(i) / 8.0 * TAU + 0.2 + randf_range(-0.08, 0.08)
-			var d := Vector2.from_angle(a)
-			var L := randf_range(66.0, 92.0) * (1.15 if tam else 1.0)
-			var pts := line(d * 12.0, d * L, 6, randf_range(-6, 6))
-			var ws := press(6, 10.0, 0.6, 0.06, 0.25)
-			n.ek(pts, ws, S_INK, B_KURU if i % 2 else B_ISLAK, 0.0, 0.06, 0.08, 0.2)
-			n.ek(pts, scale_w(ws, 0.36), S_COLOR, B_ORTA, 0.005, 0.06, 0.08, 0.18)
-			n.ek(pts, scale_w(ws, 0.14), S_HOT, B_INCE, 0.01, 0.06, 0.04, 0.12)
-	var r := firca(cc, p, 58)
-	if r:
-		r.grow = Vector2(0.65, 1.45)
-		for i in 4:
-			var a0 := float(i) / 4.0 * TAU + randf_range(-0.2, 0.2)
-			var pts2 := arc(Vector2.ZERO, 56.0, 50.0, a0, a0 + 1.0, 10)
-			var ws2 := swell(10, 9.0, 0.1, 0.6)
-			r.ek(pts2, ws2, S_INK, B_KALIN_KURU, 0.02, 0.05, 0.1, 0.22)
-			r.ek(pts2, scale_w(ws2, 0.34), S_COLOR, B_INCE, 0.025, 0.05, 0.1, 0.2)
-	var w := leke(cc, SUMI, -1)
+		for k in 6:
+			var y := (float(k) - 2.5) * 8.0
+			n.ek(line(Vector2(-f * 8.0, y), Vector2(-f * randf_range(46.0, 80.0), y * 1.2), 5), press(5, 3.6, 1.0, 0.05, 0.1), S_DRY if k % 2 else S_INK, B_SICRAT, 0.01 * k, 0.05, 0.05, 0.14)
+		if tam:
+			n.ek(arc(Vector2.ZERO, 26.0, 20.0, 0.0, TAU, 24), swell(24, 6.0, 0.7, 0.3), S_HOT, B_INCE, 0.0, 0.06, 0.06, 0.2)
+	var w := leke(pc, SUMI, -1)
 	if w:
-		w.el("wash", Vector2.ZERO, randf() * TAU, Vector2.ONE * 150.0, V_DRY, 0.0, 0.06, 0.08, 0.42)
-	sicrat(cc, p, 70.0, 57, false, tam)
+		w.el("wash", Vector2(-f * 20.0, 4.0), 0.0, Vector2(120.0, 46.0), V_DRY, 0.0, 0.06, 0.08, 0.36)
+	sicrat(pc + Vector2(-f * 10.0, 0.0), p, 44.0, 57, false, tam)
 
 
 static func duvar_carp(pos: Vector2, nrm: Vector2, p: int) -> void:
@@ -1473,71 +1615,6 @@ static func duvar_carp(pos: Vector2, nrm: Vector2, p: int) -> void:
 				d = d - nrm * d.dot(nrm) * 1.2
 			n.ek(line(Vector2.ZERO, d * randf_range(18.0, 34.0), 4, randf_range(-3, 3)), press(4, 4.0, 1.0, 0.1, 0.1), S_INK, B_KURU, 0.0, 0.04, 0.06, 0.18)
 	FX.dust(pos, nrm, 5, 0.3)
-
-
-# ------------------------------------------------------------------ Yer Yarığı (toprak)
-static func yarik_tepme(gp: Vector2, f: int, p: int, xs: Array, R: float) -> void:
-	## Zemin dövülür: önde küçük yarık, zemin boyunca iki yana koşan toprak çizgisi, seken her düşmanın altında yukarı
-	## fışkıran toz fırçaları, havaya kalkan taş kıymıkları
-	var hit := gp + Vector2(f * R * 0.7, 0.0)
-	var l := leke(hit, p, -1)
-	if l:
-		l.el("crack", Vector2(0, -0.3 * 34.0), 0.0, Vector2(150.0, 34.0), V_STAMP, 0.0, 0.04, 0.2, 0.5)
-	var n := firca(gp, p, 57)
-	if n == null:
-		return
-	for sd in [-1.0, 1.0]:
-		var g := line(Vector2(f * R * 0.7, -2.0), Vector2(f * R * 0.7 + sd * (R + 76.0), -1.0), 10, 0.0, 1.0)
-		var gw := press(10, 6.0, 1.0, 0.05, 0.08)
-		n.ek(g, gw, S_INK, B_KURU, 0.0, 0.12, 0.05, 0.18)
-		n.ek(g, scale_w(gw, 0.35), S_COLOR, B_INCE, 0.005, 0.12, 0.04, 0.16)
-	for x in xs:
-		var bx := float(x)
-		for k in 3:
-			var ox := bx + (float(k) - 1.0) * 7.0
-			n.ek(line(Vector2(ox, -2.0), Vector2(ox + randf_range(-6, 6), -randf_range(38.0, 58.0)), 5, randf_range(-3, 3)), press(5, 5.0 - k, 1.0, 0.05, 0.1), S_DRY if k != 1 else S_INK, B_COK_KURU, 0.02 * k, 0.08, 0.04, 0.16)
-	for k in 6:
-		var a := -PI * 0.5 + randf_range(-0.9, 0.9)
-		var d := Vector2.from_angle(a)
-		var o := Vector2(f * R * 0.7 + randf_range(-20, 20), -4.0)
-		n.ek(PackedVector2Array([o, o + d * 4.0, o + d * 8.0]), PackedFloat32Array([5.0, 6.0, 3.0]), S_INK, B_ISLAK, 0.0, 0.02, 0.18, 0.15, d * randf_range(120.0, 220.0))
-
-
-static func yarik_x(c: Vector2, f: int, k: int, p: int, r: float) -> void:
-	## Havada X: toprak rengi iki çapraz kesik
-	if k == 0:
-		kesik(c, (PI * 0.25 if f > 0 else PI * 0.75), r * 1.8, 15.0, p, 0.12 * f, 0.1, 57, false, true)
-	else:
-		kesik(c + Vector2(0, -2), (-PI * 0.25 if f > 0 else -PI * 0.75), r * 1.8, 15.0, p, -0.12 * f, 0.1, 57, false, true)
-
-
-static func yarik_cat(gp: Vector2, f: int, p: int, carp: int, tam: bool) -> void:
-	## Dikine yarış: yukarıdan yere kalın toprak-sumi darbe, yer yarığı, sıçrantı, "ÇAT!"
-	cekis_inis(gp, f, p, 92.0, 70.0)
-	var n := firca(gp, p, 57)
-	if n:
-		n.ek(line(Vector2(-f * 4.0, -2.0), Vector2(f * 60.0, -1.0), 8, 0.0, 2.0), press(8, 4.0, 1.0, 0.1, 0.1), S_HOT, B_INCE, 0.03, 0.1, 0.12, 0.2)
-	damga(gp + Vector2(f * 30.0, -72.0), "cat", p, f, (1.0 if carp > 0 else 0.8) * (1.15 if tam else 1.0))
-
-
-static func yarik_parca(pos: Vector2, dir: int, p: int, k: int) -> void:
-	## İlerleyen yarığın bir parçası: kısa yarık lekesi, kızgın toprak çizgisi, havaya sıçrayan kıymık
-	var l := leke(pos, p, -1)
-	if l:
-		l.el("crack", Vector2(0, -0.3 * 22.0), 0.0 if k % 2 == 0 else PI, Vector2(70.0, 22.0), V_STAMP, 0.0, 0.03, 0.25, 0.6)
-	var n := firca(pos, p, 56)
-	if n:
-		n.ek(line(Vector2(-dir * 14.0, -2.0), Vector2(dir * 12.0, -1.0), 4, 0.0, 1.5, k), press(4, 3.0, 1.0, 0.3, 0.3), S_HOT, B_INCE, 0.0, 0.03, 0.18, 0.25)
-		for i in 2:
-			var d := Vector2.from_angle(-PI * 0.5 + dir * randf_range(-0.2, 0.7))
-			var o := Vector2(randf_range(-6, 6), -3.0)
-			n.ek(PackedVector2Array([o, o + d * 3.0, o + d * 6.0]), PackedFloat32Array([4.0, 5.0, 2.5]), S_INK, B_ISLAK, 0.0, 0.02, 0.14, 0.14, d * randf_range(90.0, 170.0))
-	FX.dust(pos, Vector2(dir * 0.3, -1.0), 2, 0.26)
-
-
-static func yarik_son(pos: Vector2, dir: int, p: int) -> void:
-	sicrat(pos + Vector2(0, -8.0), p, 40.0, 57, false)
-	FX.dust(pos, Vector2(dir * 0.4, -1.0), 5, 0.3)
 
 
 # ------------------------------------------------------------------ Akıncı Akını (ak)
@@ -1785,35 +1862,37 @@ static func glyph_strokes(id: String, c: Vector2, s: float) -> Array:
 				out.append([PackedVector2Array([c + Vector2(x + s * 0.38, -s * 0.85), c + Vector2(x + s * 0.02, -s * 0.05), c + Vector2(x - s * 0.3, s * 0.6)]),
 					PackedFloat32Array([0.25, 1.25, 0.12])])
 			out.append([PackedVector2Array([c + Vector2(-s * 0.9, s * 0.9), c + Vector2(s * 0.9, s * 0.8)]), PackedFloat32Array([0.9, 0.3])])
-		"evren_kuyrugu":
-			# kıvrılan ejder kuyruğu (S): baş kalın, kuyruk ince + iki pul
-			var ep := PackedVector2Array()
-			var ew := PackedFloat32Array()
-			for i in 17:
-				var u := float(i) / 16.0
-				ep.append(c + Vector2(lerpf(-0.8, 0.8, u) * s, sin(u * PI * 1.8 + 0.3) * s * 0.5))
-				ew.append(lerpf(1.5, 0.12, u))
-			out.append([ep, ew])
-			out.append([PackedVector2Array([c + Vector2(-s * 0.45, -s * 0.5), c + Vector2(-s * 0.3, -s * 0.78)]), PackedFloat32Array([0.8, 0.2])])
-			out.append([PackedVector2Array([c + Vector2(s * 0.15, s * 0.42), c + Vector2(s * 0.32, s * 0.72)]), PackedFloat32Array([0.8, 0.2])])
-		"tengri_carki":
-			# üç kollu çark (her kol merkezden dışa kıvrılır) + ortada nokta
-			for k in 3:
-				var tp := PackedVector2Array()
-				var tw := PackedFloat32Array()
-				for i in 11:
-					var u := float(i) / 10.0
-					var a := float(k) / 3.0 * TAU + u * 2.0
-					tp.append(c + Vector2(cos(a), sin(a)) * s * (0.18 + 0.78 * u))
-					tw.append(lerpf(1.1, 0.12, u))
-				out.append([tp, tw])
-			out.append([PackedVector2Array([c + Vector2(-s * 0.08, 0), c + Vector2(s * 0.08, 0)]), PackedFloat32Array([1.6, 1.6])])
-		"yer_yarigi":
-			# yukarıdan inen kalın darbe, zemin çizgisi, zeminden ilerleyen kırık yarık
-			out.append([PackedVector2Array([c + Vector2(-s * 0.1, -s * 0.95), c + Vector2(-s * 0.05, -s * 0.25), c + Vector2(-s * 0.1, s * 0.45)]), PackedFloat32Array([0.5, 1.35, 1.0])])
-			out.append([PackedVector2Array([c + Vector2(-s * 0.95, s * 0.52), c + Vector2(s * 0.95, s * 0.48)]), PackedFloat32Array([0.4, 0.9])])
-			out.append([PackedVector2Array([c + Vector2(-s * 0.05, s * 0.55), c + Vector2(s * 0.25, s * 0.72), c + Vector2(s * 0.12, s * 0.84), c + Vector2(s * 0.5, s * 0.96), c + Vector2(s * 0.85, s * 0.9)]),
-				PackedFloat32Array([0.7, 0.5, 0.45, 0.3, 0.1])])
+		"pehlivan_savurmasi":
+			# çevrede dönen çekiç yayı (kalınlaşan 3/4 tur), ucunda savrulan gövde (kalın kısa darbe), ileri fırlatış çizgisi
+			var sp := PackedVector2Array()
+			var sw := PackedFloat32Array()
+			for i in 21:
+				var u := float(i) / 20.0
+				var a := PI * 0.7 + u * TAU * 0.78
+				sp.append(c + Vector2(cos(a) * 0.62, sin(a) * 0.5) * s)
+				sw.append(lerpf(0.25, 1.0, u))
+			out.append([sp, sw])
+			out.append([PackedVector2Array([c + Vector2(s * 0.5, -s * 0.52), c + Vector2(s * 0.7, -s * 0.18)]), PackedFloat32Array([1.6, 1.3])])
+			out.append([PackedVector2Array([c + Vector2(s * 0.36, s * 0.74), c + Vector2(s * 0.98, s * 0.56)]), PackedFloat32Array([0.8, 0.15])])
+		"yildirim_agi":
+			# üç kazık (üç köşe) ve aralarında kırık şimşek kenarları
+			var ks := [c + Vector2(0, -s * 0.78), c + Vector2(-s * 0.8, s * 0.62), c + Vector2(s * 0.8, s * 0.62)]
+			for i in 3:
+				var a: Vector2 = ks[i]
+				var b: Vector2 = ks[(i + 1) % 3]
+				var nn := (b - a).orthogonal().normalized() * (1.0 if i % 2 == 0 else -1.0)
+				out.append([PackedVector2Array([a, a.lerp(b, 0.3), (a + b) * 0.5 + nn * s * 0.16, a.lerp(b, 0.7) - nn * s * 0.1, b]), PackedFloat32Array([0.3, 0.6, 0.9, 0.6, 0.3])])
+			for q in ks:
+				out.append([PackedVector2Array([q + Vector2(0, -s * 0.17), q + Vector2(0, s * 0.17)]), PackedFloat32Array([1.5, 1.1])])
+		"tulpar_dortnali":
+			# at başı ve boynu (profil), kulak, yele; altta dört davul vuruşu noktası
+			out.append([PackedVector2Array([c + Vector2(-s * 0.85, s * 0.1), c + Vector2(-s * 0.35, -s * 0.3), c + Vector2(s * 0.1, -s * 0.72), c + Vector2(s * 0.55, -s * 0.6), c + Vector2(s * 0.9, -s * 0.25)]),
+				PackedFloat32Array([0.5, 1.1, 1.2, 1.0, 0.3])])
+			out.append([PackedVector2Array([c + Vector2(s * 0.12, -s * 0.74), c + Vector2(s * 0.2, -s * 0.98)]), PackedFloat32Array([0.6, 0.15])])
+			out.append([PackedVector2Array([c + Vector2(-s * 0.3, -s * 0.32), c + Vector2(-s * 0.72, -s * 0.5)]), PackedFloat32Array([0.6, 0.15])])
+			for k in 4:
+				var x := (float(k) - 1.5) * s * 0.46
+				out.append([PackedVector2Array([c + Vector2(x - s * 0.08, s * 0.8), c + Vector2(x + s * 0.08, s * 0.8)]), PackedFloat32Array([1.5, 1.5])])
 		"akinci_akini":
 			# gerili yay (yay ve kiriş) içinden geçen tek uzun ok, uçta kama, kuyrukta tüy
 			out.append([_arc_pts(c + Vector2(-s * 0.6, 0), s * 0.85, -1.15, 1.15, 12), _taper(12, 0.3, 1.1, 0.3)])

@@ -12,7 +12,8 @@ assets/fx/ink/sanat_fx.png  1024x1024 atlas (sanat_fx.json), InkFX atlas kodlama
     R işaretli uzaklık (0,5 kenar)  G koyu mürekkep  B çizim sırası  A erime gürültüsü
     Şekiller: splat_a, splat_b (büyük sıçrantı), wash (mürekkep yıkaması), gum ("GÜM!" fırça yazısı), varak (altın
     varak pulları), crack (yer yarığı, taban y = 0,8h); v31 yansıma sözcükleri (256x128, aynı fırça yazısı): cit "ÇIT!",
-    kut "KÜT!", vus "VUŞ!", cat "ÇAT!", viz "VIZ!", tam "TAM!" (eski kullanılmayan seal hücresi ve iki boş hücre)
+    viz "VIZ!", tam "TAM!" (eski kullanılmayan seal hücresi ve iki boş hücre); v32: kut / vus / cat hücrelerinde
+    pat "PAT!" (Pehlivan Savurması), hayt "HAYT!" (Tulpar Dörtnalı), cak "ÇAK!" (Yıldırım Ağı)
 
 Kullanım: cd tools/artgen && python sanat_fx_ink.py [--onizleme out.png]
 HD (2 kat): KY_HD=2 python sanat_fx_ink.py  ardından  python hd_paket.py --paketle
@@ -245,6 +246,15 @@ _HARF = {
                  ([(0.05, 1.0), (0.5, 0.99), (1.0, 0.96)], 0.8, 0.4, 1.0)]),
     'M': (1.12, [([(0.0, 1.0), (0.04, 0.0)], 0.7, 1.05, None), ([(0.04, 0.0), (0.5, 0.62)], 0.9, 0.55, None),
                  ([(0.5, 0.62), (0.96, 0.0)], 0.55, 0.95, None), ([(0.96, 0.0), (1.06, 1.0)], 1.05, 0.45, None)]),
+    # v32
+    'P': (0.84, [([(0.16, 0.0), (0.14, 0.55), (0.12, 1.0)], 0.75, 1.05, 1.0),
+                 ('yay', 0.44, 0.28, 0.3, -1.75, 1.75, 0.5, 0.8, 1.1)]),
+    'H': (0.92, [([(0.1, 0.0), (0.08, 0.55), (0.06, 1.0)], 0.8, 1.05, 1.0),
+                 ([(0.88, 0.0), (0.9, 0.55), (0.92, 1.0)], 0.7, 1.0, 0.95),
+                 ([(0.1, 0.52), (0.5, 0.5), (0.9, 0.5)], 0.7, 0.45, 0.8)]),
+    'Y': (0.92, [([(0.0, 0.0), (0.25, 0.28), (0.5, 0.55)], 1.0, 0.5, 0.9),
+                 ([(1.0, 0.0), (0.75, 0.28), (0.5, 0.55)], 0.45, 0.9, 0.75),
+                 ([(0.5, 0.55), (0.49, 0.78), (0.47, 1.0)], 0.9, 0.5, 1.0)]),
 }
 
 
@@ -442,8 +452,8 @@ def build_atlas():
     put('wash', shape_wash(C, 223), 2 * C, 0)
     put('varak', shape_varak(C, 227), 3 * C, 0)
     put('gum', shape_gum(2 * C, C, 229), 0, C)
-    # v31: kullanılmayan seal hücresi ve iki boş hücre: yansıma sözcükleri (256x128)
-    for i, (nm, wd) in enumerate([('cit', 'ÇIT!'), ('kut', 'KÜT!'), ('viz', 'VIZ!'), ('tam', 'TAM!'), ('vus', 'VUŞ!'), ('cat', 'ÇAT!')]):
+    # v31: kullanılmayan seal hücresi ve iki boş hücre: yansıma sözcükleri (256x128); v32: kut / vus / cat -> pat / hayt / cak
+    for i, (nm, wd) in enumerate([('cit', 'ÇIT!'), ('pat', 'PAT!'), ('viz', 'VIZ!'), ('tam', 'TAM!'), ('hayt', 'HAYT!'), ('cak', 'ÇAK!')]):
         cx, cy = [(3 * C, C), (3 * C, C), (2 * C, C), (2 * C, C), (3 * C, 3 * C), (3 * C, 3 * C)][i]
         put(nm, shape_word(wd, C, C // 2, 271 + 7 * i), cx, cy + (C // 2) * (i % 2))
     put('crack', shape_crack(4 * C, C, 241), 0, 2 * C)

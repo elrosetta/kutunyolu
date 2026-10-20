@@ -15,10 +15,12 @@ extends RefCounted
 ## burada hesaplanır ve atk sözlüğüne yazılır (sw anahtarları önceki kare → bu kare, atk.plane düzlemi); kol, silah
 ## önkısalması, arkada çizilen bıçak (çark) ve mürekkep hilali (InkTrail) Player'ın kendi kodundan geçer.
 ##
-## v31 kombo sanatları (docs/TASARIM.md "v31: yeni kombo savaş sanatları"): Kurt Dansı, Evren Kuyruğu, Tengri Çarkı,
-## Yer Yarığı, Akıncı Akını. Tek T basışıyla baştan sona oynayan çok vuruşlu dizi; sıradan düşmanlar kilitlenir,
-## kaldırılır, çekilir, yere / duvara çakılır (Enemy.sanat_tut), seçkin / boss / ağır yalnız hasar + duruş alır.
-## Bitirişten hemen önce RİTİM: daralan fırça halkası kapanırken T'ye yeniden basılırsa bitiriş "TAM!" (×ritim_k).
+## v31 kombo sanatları (docs/TASARIM.md "v31: yeni kombo savaş sanatları"): Kurt Dansı, Akıncı Akını. Tek T basışıyla
+## baştan sona oynayan çok vuruşlu dizi; sıradan düşmanlar kilitlenir (Enemy.sanat_tut), seçkin / boss / ağır yalnız
+## hasar + duruş alır. Bitirişten hemen önce RİTİM: daralan fırça halkası kapanırken T'ye yeniden basılırsa "TAM!" (×ritim_k).
+## v32 özgün sanatlar (docs/TASARIM.md "v32: özgün savaş sanatları"; v31'in Göğe Yükseliş'e benzeyen üç kaldır-vur-çak
+## sanatının yerine): Pehlivan Savurması (kavra, çevrende savur, fırlat), Yıldırım Ağı (üç kazık, şimşek ağı, çöküş),
+## Tulpar Dörtnalı (dört davul vuruşu ritmi, dördü TAM'sa mürekkep ata biniş). Eski kayıtlar _gocur ile taşınır.
 
 const DATA_PATH := "res://data/sanatlar.json"
 static var _data: Dictionary = {}
@@ -33,7 +35,7 @@ var _last_pose: Array = []
 var _ev: Dictionary = {}      # v19_stats anlık görüntüsü (nişan ödülleri)
 var _pd_prev := 0.0
 var _rains: Array = []        # Ok Yağmuru: sürmekte olan sağanaklar
-var _yariklar: Array = []     # v31 Yer Yarığı: zeminde ilerleyen yarıklar (sanat bittikten sonra da sürer)
+var _firlatilan: Array = []   # v32 Pehlivan Savurması: fırlatılan düşmanlar (sanat bittikten sonra da uçar, çarpar, çakılır)
 var _msg_t := 0.0
 var _kasirga_fx: SanatFX
 var _art_hit_t := -9.0        # son sanat vuruşu (sanatın kendi kırdığı duruş nişan vermez)
@@ -90,7 +92,39 @@ static func renk(id: String) -> Color:
 	return Color(float(c[0]), float(c[1]), float(c[2]))
 
 
+## v32: kaldırılan v31 sanatlarının kayıttaki kimlikleri yerlerine gelen sanatlara taşınır (açık liste ve kuşanılan)
+const GOC := {"evren_kuyrugu": "pehlivan_savurmasi", "tengri_carki": "yildirim_agi", "yer_yarigi": "tulpar_dortnali"}
+static var _goc_meta: Dictionary = {}
+
+
+static func _gocur() -> void:
+	if is_same(_goc_meta, Game.meta):
+		return
+	_goc_meta = Game.meta
+	var changed := false
+	var a: Array = Game.meta.get("sanat_acik", [])
+	var out: Array = []
+	for id in a:
+		var nid := String(GOC.get(String(id), String(id)))
+		if nid != String(id):
+			changed = true
+		if not out.has(nid):
+			out.append(nid)
+	if out.size() != a.size():
+		changed = true
+	var sel := String(Game.meta.get("sanat_secili", ""))
+	if GOC.has(sel):
+		Game.meta["sanat_secili"] = String(GOC[sel])
+		changed = true
+	if changed:
+		Game.meta["sanat_acik"] = out
+		Game.save_meta()
+		print("[sanat] v32 kayıt göçü: eski sanat kimlikleri taşındı")
+
+
 static func acik_mi(id: String) -> bool:
+	if Game.meta.has("sanat_acik") or Game.meta.has("sanat_secili"):
+		_gocur()
 	var d := def_of(id)
 	if d.is_empty():
 		return false
@@ -117,6 +151,8 @@ static func kilitli() -> Array:
 
 
 static func secili() -> String:
+	if Game.meta.has("sanat_secili"):
+		_gocur()
 	var s := String(Game.meta.get("sanat_secili", ""))
 	if s == "" or not acik_mi(s):
 		for id in ids():
@@ -277,7 +313,7 @@ func tick(delta: float) -> bool:
 	fail_flash = maxf(0.0, fail_flash - delta * 3.0)
 	_watch_events()
 	_rain_tick(delta)
-	_yarik_tick(delta)
+	_firlat_tick(delta)
 	if def_t > 0.0 and Engine.get_physics_frames() % 6 == 0:
 		FX.burst(p.center() + Vector2(randf_range(-8, 8), randf_range(-14, 10)), Color(1.0, 0.55, 0.45), 1, 16, 0.5, 0.12, -40, true)
 	var pressed := Input.is_action_just_pressed("sanat")
@@ -591,7 +627,9 @@ func _vur(e: Node, mult: float, key: String, extra: Dictionary = {}, kind := "cu
 	var first := not hs.has(key)
 	hs[key] = true
 	var base_hs := float(extra.get("hs", 0.07))
-	if first:
+	if extra.get("sessiz", false) and not crit and not killed:
+		pass   # v32: sessiz tık vuruşu (ağ cızırtısı, tutuş turu): duraklama, sarsıntı, ses yok
+	elif first:
 		Game.hitstop(base_hs + (0.02 if crit else 0.0) + (0.02 if killed else 0.0))
 		Game.kick(Vector2(dirx, -0.1), 4.0)
 		Game.shake_dir(float(extra.get("sh", 0.3)), Vector2(dirx, 0.3))
@@ -636,12 +674,12 @@ func _step(delta: float, pressed: bool) -> void:
 			_demir(delta, pressed)
 		"kurt_dansi":
 			_kurt_dansi(delta)
-		"evren_kuyrugu":
-			_evren(delta)
-		"tengri_carki":
-			_tengri(delta)
-		"yer_yarigi":
-			_yer_yarigi(delta)
+		"pehlivan_savurmasi":
+			_pehlivan(delta)
+		"yildirim_agi":
+			_yildirim(delta)
+		"tulpar_dortnali":
+			_tulpar(delta)
 		"akinci_akini":
 			_akinci(delta)
 		_:
@@ -921,14 +959,15 @@ func _uzak_vur(e: Node, it: Dictionary, d: Dictionary, key: String, mult: float,
 	var crit: bool = o.get("crit_done", false)
 	var dir := Vector2(float(o.get("dir", p.facing)), -0.2)
 	var ipal := int(IPAL.get(int(d.get("pal", 7)), int(d.get("pal", 7))))
-	var big := key in ["hilal", "yarik", "delis"]
-	InkFX.hit(String({"hilal": "magic", "yarik": "blunt"}.get(key, "pierce")), hp, dir, ipal, 2 if big else 1, 1.0)
+	var big := key in ["hilal", "delis", "pat", "carpma"]
+	var kunt := key in ["pat", "carpma"]
+	InkFX.hit(String({"hilal": "magic", "pat": "blunt", "carpma": "blunt"}.get(key, "pierce")), hp, dir, ipal, 2 if big else 1, 1.0)
 	if crit:
 		InkFX.stamp(hp, ipal)
-	if key in ["yarik", "delis"]:
+	if key in ["delis", "pat", "carpma"]:
 		SanatFX.vurus_leke(hp, dir, int(d.get("pal", 7)), 2)
 	if Ses.has_method("hit"):
-		Ses.call("hit", 2 if crit else (1 if big else 0), hp, "kunt" if key == "yarik" else "")
+		Ses.call("hit", 2 if crit else (1 if big else 0), hp, "kunt" if kunt else "")
 	if big:
 		Game.hitstop(0.035 if key == "hilal" else 0.05)
 		Game.shake_dir(0.18 if key == "hilal" else 0.3, dir)
@@ -1200,6 +1239,8 @@ func _goge_birak(dus := true) -> void:
 			e.sanat_tut = 0.0
 			e.sanat_dus = false
 			e.sanat_egim = NAN
+			e.sanat_kazanc = 16.0
+			e.sanat_hiz = 1100.0
 			if dus and not e.is_on_floor():
 				e.launch_t = 0.4
 
@@ -1666,15 +1707,15 @@ func _kombo_basla() -> void:
 		"H": 0.0, "hedef": 0}
 
 
-func _seckin_say(e: Node) -> void:
-	## Kalkmayan (seçkin / boss / ağır) düşman: bir kez sayılır, "kalkmaz" yazısı
+func _seckin_say(e: Node, txt := "kalkmaz") -> void:
+	## Kalkmayan (seçkin / boss / ağır) düşman: bir kez sayılır, "kalkmaz" (v32: "tutulmaz" / "çekilmez" / "savrulmaz") yazısı
 	var sk: Array = cur.get("sk", [])
 	if sk.has(e) or not is_instance_valid(e) or e.dead:
 		return
 	sk.append(e)
 	cur["sk"] = sk
 	stats["kombo"]["seckin"] = int(stats["kombo"]["seckin"]) + 1
-	FX.text(e.center() + Vector2(0, -float(e.size.y) * 0.5 - 12.0), "kalkmaz", Color(0.9, 0.85, 0.7), 7)
+	FX.text(e.center() + Vector2(0, -float(e.size.y) * 0.5 - 12.0), txt, Color(0.9, 0.85, 0.7), 7)
 
 
 func _kilitle(e: Node) -> bool:
@@ -1783,6 +1824,8 @@ func _birak(e: Node, vel: Vector2, lt := 0.5, duvar := false) -> void:
 	e.sanat_tut = 0.0
 	e.sanat_dus = false
 	e.sanat_egim = NAN
+	e.sanat_kazanc = 16.0
+	e.sanat_hiz = 1100.0
 	e.velocity = vel
 	e.launch_t = lt
 	e._bounced = false
@@ -1841,6 +1884,8 @@ func _ritim(at: float, pre := 0.34) -> void:
 	## at (sanat zamanı) anında kapanan halka; pencerede T → bitiriş TAM. Pencereden önce (halka görünürken) basmak
 	## şansı yakar (ezbere basış ödüllenmez); halka görünmeden önceki basışlar yok sayılır.
 	cur["rit"] = {"at": at, "pre": pre, "ok": false, "kacti": false, "fx": false}
+	if log_on:
+		print("[sanat] ritim kur at=%.3f pre=%.2f t=%.3f" % [at, pre, float(cur["t"])])
 
 
 func _ritim_tick(pressed: bool) -> void:
@@ -2127,734 +2172,861 @@ func _kurt_cit(d: Dictionary) -> void:
 	_bitis_fx(targets, 0.3, 0.06, 0.55)
 
 
-# ------------------------------------------------------------------ v31 Evren Kuyruğu
-## Evren (ejder-yılan) kuyruğu: alçak tam tur süpürme sıradanları yere serer (kilit, gövde yatık), yükselen sarmalda
-## oyuncunun çevresinde dönerek birlikte kalkarlar (üç sarmal vuruşu), tepede silah baş üstünde, öne doğru çark gibi
-## inen dalışla önüne yere çakılırlar: "KÜT!", yerden sekerler; çevreye alan hasarı. Ritim: çark başlarken.
-const EK_WIND := 0.16
-const EK_SUPUR := 0.24
-const EK_SARMAL := 0.32
-const EK_TEPE := 0.11
-const EK_REC := 0.3
+# ------------------------------------------------------------------ v32 Pehlivan Savurması
+## Kırkpınar'ın tutuşu: öne atılıp öndeki SIRADAN düşmanı belinden kavrar (seçkin / boss / ağır tutulmaz: omuz darbesi
+## alır), çevresinde çekiç atar gibi 1,75 tur savurur (savrulan gövde başkalarına çarpar: onlar da biçilir), sonra ileri
+## fırlatır: fırlatılan düşman yolundakileri devirir, duvara ya da yere çakılır "PAT!" (sanat bittikten sonra da uçuşunu
+## tamamlar, Ay Hilali'nin hilali gibi). Kimse tutulamazsa yalnız silah savrulur, bitirişte ağır iniş. Ritim: fırlatış
+## anında (TAM: daha hızlı / uzağa, çarpma ×ritim_k). Yörünge tavana / duvara göre kısalır (_serbest_hedef, _oda).
+const PS_WIND := 0.14
+const PS_TUT := 0.1
+const PS_SAVUR := 0.52
+const PS_FIRLAT := 0.1
+const PS_REC := 0.3
 
 
-func _evren(delta: float) -> void:
+func _pehlivan(delta: float) -> void:
 	var t := float(cur["t"])
 	var d: Dictionary = cur["def"]
 	var R := _R()
 	var seg := String(cur.get("seg", ""))
+	var f := float(p.facing)
+	var pal := int(cur["pal"])
 	var two_h := Player.TWO_HANDED.has(String(cur["item"].get("id", "")))
+	var spin_body := "atk_spin_2h" if two_h else "atk_spin"
 	if seg == "":
 		_kombo_basla()
-		cur["y0"] = p.global_position.y
-		var kmax := float(d.get("kaldirma", 92.0))
-		cur["H"] = clampf(_tavan(p.global_position.x, p.global_position.y - 44.0, kmax + 8.0) - 8.0, 0.0, kmax)
+		cur["tutulan"] = null
+		cur["th"] = 0.0
 		_goge_seg("wind")
 		seg = "wind"
 	var st := t - float(cur["t0"])
-	var pal := int(cur["pal"])
-	var f := float(p.facing)
-	var spin_body := "atk_spin_2h" if two_h else "atk_spin"
 	match seg:
 		"wind":
+			# peşrev: çömelip kolları açar
 			_phase("wind")
-			var pose := _seq([[0.0, 0.6, 0.9, 0.3, 1.0, 90.0, 1.0, 0.0, 0], [EK_WIND, -1.15, 0.55, 0.25, 0.95, 96.0, 0.3, 0.0, 2]], st)
-			_pose(pose, "atk_sweep_low" if p.anim.has_anim("atk_sweep_low") else "atk_u_sweep", st / EK_WIND * 0.3, "sweep_low")
-			p.vis_scale = Vector2(1.0 + 0.12 * st / EK_WIND, 1.0 - 0.14 * st / EK_WIND)
+			var pose := _seq([[0.0, 0.6, 0.9, 0.3, 1.0, 90.0, 1.0, 0.0, 0], [PS_WIND, -0.95, 0.35, 0.3, 0.9, 92.0, 0.42, 0.0, 2]], st)
+			_pose(pose, "atk_sweep_low" if p.anim.has_anim("atk_sweep_low") else "atk_horiz", st / PS_WIND * 0.3, "sweep_low")
+			p.vis_scale = Vector2(1.0 + 0.14 * st / PS_WIND, 1.0 - 0.16 * st / PS_WIND)
 			if not cur.has("toz"):
 				cur["toz"] = true
-				SanatFX.evren_toplan(p.global_position, p.facing, pal)
-				_ses("sanat_evren", -4.0, 1.0, "savur_agir")
+				SanatFX.pehlivan_hazir(p.global_position, p.facing, pal)
+				_ses("sanat_pesrev", -4.0, 1.0, "savur_agir")
 			_move(delta, 1.0, 0.0)
-			if st >= EK_WIND:
-				_goge_seg("supur")
-		"supur":
-			# alçak tam tur: herkes biçilir, sıradanlar yere serilir
+			if st >= PS_WIND:
+				_pehlivan_hedef(d, R)
+				_goge_seg("tut")
+		"tut":
+			# atılıp kavrama: sona varınca hedef beldeyse tutulur, kutudaki diğerleri omuzlanır
 			_phase("act")
-			var u := clampf(st / EK_SUPUR, 0.0, 1.0)
-			var a1 := -1.15 + TAU * (1.0 - pow(1.0 - u, 1.6))
-			_pose([a1, 0.05, 0.0, 1.16, 96.0, 0.3, 0.0], "atk_sweep_low" if p.anim.has_anim("atk_sweep_low") else spin_body, 0.35 + 0.4 * u, "spin", true)
-			_trail_on(not cur.has("tr0"), 1.5, 2, 1.1)
-			cur["tr0"] = true
-			if not cur.has("supur_fx"):
-				cur["supur_fx"] = true
-				SanatFX.evren_supur(p.global_position, p.facing, R, pal)
-				_sw_ses(0.85, -4.0)
-			var box := Rect2(p.global_position.x - R - 28.0, p.global_position.y - 46.0, (R + 28.0) * 2.0, 50.0)
-			for e in _in_box(box, "supur"):
-				var lift := _kilitle(e)
-				_vur(e, float(d.get("hasar", 0.8)), "supur", {"kb": 0.0 if lift else 60.0, "stun": 0.0 if lift else 0.45, "hs": 0.05,
-					"tier": 1, "fx": 0.9, "sh": 0.3}, "blunt")
-				if lift and is_instance_valid(e) and not e.dead:
-					_sars(e, Vector2(0.0, 4.0), 0.0)
-					FX.dust(e.global_position, Vector2(-signf(e.global_position.x - p.global_position.x), -0.3), 4, 0.3)
-			# serilenler: yatık, yörüngedeki yerlerine kayar
-			_kilit_kare(delta)
-			var ks := _kilitli()
-			for i in ks.size():
-				var e: Node = ks[i]
-				var kd := _kd(e)
-				if not kd.has("th"):
-					kd["th"] = (0.0 if signf(e.global_position.x - p.global_position.x) == f else PI) + 0.4 * float(i)
-				var th := float(kd["th"])
-				var tgt := p.global_position + Vector2(cos(th) * 36.0, -2.0)
-				_tut(e, (kd["p0"] as Vector2).lerp(tgt, smoothstep(0.0, 1.0, u)), 1.25 * signf(cos(th) + 0.001))
-			p.vis_scale = Vector2(1.08, 0.9)
-			_move(delta, 1.0, 0.0)
-			if st >= EK_SUPUR:
-				# sarmal yüksekliği: oyuncunun ve her kilitlinin sütununda tavan
-				var H := float(cur["H"])
-				for e in _kilitli():
-					H = minf(H, _oda(e.global_position.x, float(cur["y0"]), float(e.size.y) + 6.0, H))
-					H = minf(H, _oda(p.global_position.x + f * 36.0, float(cur["y0"]), float(e.size.y) + 6.0, H))
-					H = minf(H, _oda(p.global_position.x - f * 36.0, float(cur["y0"]), float(e.size.y) + 6.0, H))
-				cur["H"] = H
-				stats["kombo"]["H"] = H
-				cur["y0"] = p.global_position.y
-				_goge_seg("sarmal")
-				_ritim(float(cur["t"]) + EK_SARMAL + EK_TEPE, 0.38)
-		"sarmal":
-			_phase("act")
-			var u := clampf(st / EK_SARMAL, 0.0, 1.0)
-			var H := float(cur["H"])
-			if not cur.has("hop"):
-				cur["hop"] = true
-				p.air_hang = 0.0
-				FX.dust(p.global_position, Vector2.UP, 8, 0.32)
-				SanatFX.evren_sarmal(p.global_position, H + 46.0, p.facing, pal)
-				_ses("sanat_yuksel", -5.0, 0.85, "sicrayis")
-			var a1 := -1.15 + TAU + TAU * 1.5 * u
-			_pose([a1, 0.05, 0.0, 1.12, 60.0, 0.45, 0.0], spin_body, fmod(u * 2.0, 1.0), "spin", true)
-			var hi := int(u * 3.0)
-			_trail_on(hi != int(cur.get("hi", -1)), 1.4, 1)
-			var ty := float(cur["y0"]) - H * (1.0 - pow(1.0 - u, 2.2))
-			p.velocity = Vector2(0.0, clampf((ty - p.global_position.y) / maxf(delta, 0.001), -1400.0, 600.0))
-			# yörünge: kilitliler oyuncunun çevresinde sarmalla kalkar
-			_kilit_kare(delta)
-			var ks := _kilitli()
-			for i in ks.size():
-				var e: Node = ks[i]
-				var kd := _kd(e)
-				var th := float(kd.get("th", 0.0)) + TAU * 1.25 * u
-				_tut(e, p.global_position + Vector2(cos(th) * 36.0, -3.0 + sin(th) * 5.0), sin(th) * 0.9)
-				e.facing = -int(signf(cos(th) + 0.001))
-			# üç sarmal vuruşu
-			for k in 3:
-				var at: float = [0.15, 0.5, 0.85][k]
-				if u >= float(at) and not cur.has("sv%d" % k):
-					cur["sv%d" % k] = true
-					cur["hi"] = k
-					_sw_ses(1.05 + 0.08 * k, -6.0)
-					var key := "sarmal%d" % k
-					var targets: Array = ks.duplicate()
-					for e in _in_box(Rect2(p.global_position.x - R - 12.0, p.global_position.y - 74.0, (R + 12.0) * 2.0, 80.0), key):
-						if not targets.has(e):
-							targets.append(e)
-					for e in targets:
-						if is_instance_valid(e) and not e.dead:
-							_vur(e, float(d.get("sarmal_hasar", 0.4)), key, {"kb": 0.0 if ks.has(e) else 40.0, "hs": 0.04, "tier": 1, "fx": 0.8, "sh": 0.18})
-							if ks.has(e):
-								_sars(e, Vector2(0.0, -5.0), 0.3)
-			_move_raw(delta)
-			if st >= EK_SARMAL:
-				_goge_seg("tepe")
-		"tepe":
-			_phase("act")
-			var a_end := -1.15 + TAU * 2.5
-			var pose := _seq([[0.0, a_end, 0.05, 0.0, 1.12, 60.0, 0.45, 0.0, 0], [EK_TEPE, 3.5 + TAU * 2.0, 0.2, 0.3, 0.95, 28.0, 0.6, 0.0, 2]], st)
-			_pose(pose, "atk_slam_jump", 0.45, "slam_2h")
-			p.velocity = Vector2(0.0, (float(cur["y0"]) - float(cur["H"]) - 4.0 - p.global_position.y) * 10.0)
-			_kilit_kare(delta)
-			var ks := _kilitli()
-			for i in ks.size():
-				var e: Node = ks[i]
-				_tut(e, p.global_position + Vector2(f * (30.0 + 16.0 * i), -4.0 - 5.0 * float(i % 2)), -0.5 * f)
-				e.facing = -p.facing
-			_move_raw(delta)
-			if st >= EK_TEPE:
-				_goge_seg("cark")
-		"cark":
-			# öne doğru çark: silah baştan öne iner, oyuncu öne-aşağı dalar; kilitliler önde yere çakılır
-			_phase("act")
-			var a0 := 3.5 + TAU * 2.0
-			var pose := _seq([[0.0, a0, 0.2, 0.3, 0.95, 28.0, 0.6, 0.0, 0], [0.12, a0 + 3.25, 0.0, -0.2, 1.22, 26.0, 0.62, 0.0, 1]], st)
-			_pose(pose, "atk_slam_jump", 0.5 + 0.25 * clampf(st / 0.12, 0.0, 1.0), "slam_2h")
-			if not cur.has("dus"):
-				cur["dus"] = true
-				_trail_on(true, 1.6, 2, 1.25)
-				SanatFX.evren_cark(p.center(), p.facing, pal, R)
-				_ses("sanat_yuksel", -6.0, 0.7, "sicrayis")
-				Game.kick(Vector2(f, 1), 4.0)
-				for e in _kilitli():
-					e.sanat_dus = true
-					e.sanat_indi = false
-			else:
-				_trail_on(false)
-			p.velocity = Vector2(f * 230.0, 940.0)
-			var ks := _kilitli()
-			for i in ks.size():
-				var e: Node = ks[i]
-				if e.sanat_dus:
-					e.sanat_hedef = _serbest_hedef(e, Vector2(p.global_position.x + f * (32.0 + 16.0 * i), e.global_position.y))
-					e.sanat_tut = maxf(float(e.sanat_tut), 0.3)
+			var pose := _seq([[0.0, -0.95, 0.35, 0.3, 0.9, 92.0, 0.42, 0.0, 0], [PS_TUT, 0.35, 0.15, 0.0, 1.3, 92.0, 0.42, 0.0, 1]], st)
+			_pose(pose, "atk_lunge" if p.anim.has_anim("atk_lunge") else "atk_horiz", 0.4 + 0.5 * clampf(st / PS_TUT, 0.0, 1.0), "lunge")
+			p.velocity.x = float(cur.get("dvx", 0.0)) * (1.0 - 0.5 * st / PS_TUT)
 			if Engine.get_physics_frames() % 2 == 0:
-				FX.ghost(p.anim.base, Color(cur["col"], 0.5), 0.2)
-			for e in _in_box(_box(-10.0, -50.0, R + 8.0, 10.0), "cark_yol"):
-				if not ks.has(e):
-					_vur(e, 0.5, "cark_yol", {"kb": 60.0, "hs": 0.03, "tier": 1, "fx": 0.8})
-			_move_raw(delta)
-			if (st >= 0.04 and p.is_on_floor()) or st > 0.9:
-				_evren_kut(d)
+				FX.ghost(p.anim.base, Color(cur["col"].darkened(0.3), 0.3), 0.18)
+			_move(delta, 1.0, 0.0, 0.0)
+			if st >= PS_TUT:
+				p.velocity.x = 0.0
+				_pehlivan_tut(d, R)
+				_goge_seg("savur")
+				_ritim(float(cur["t"]) + PS_SAVUR, 0.38)
+		"savur":
+			# çekiç atışı: tutulan gövde eğik elipste oyuncunun çevresinde döner (hızlanır), çarptığı herkes biçilir
+			_phase("act")
+			var u := clampf(st / PS_SAVUR, 0.0, 1.0)
+			var turs := float(d.get("tur", 1.75))
+			var th := TAU * turs * pow(u, 1.35)
+			cur["th"] = th
+			var a1 := 0.3 - th * f
+			_pose([a1, 0.1, 0.0, 1.2, 40.0 + 20.0 * sin(th), 0.5, 0.0], spin_body, fmod(th / TAU, 1.0), "spin", cos(th) < -0.2)
+			var half := int(th / PI)
+			_trail_on(half != int(cur.get("half", -1)), 1.2, 1, 0.9)
+			if half != int(cur.get("half", -1)):
+				cur["half"] = half
+				_ses("sanat_savur", -6.0, 0.9 + 0.1 * half, "savur_agir")
+				SanatFX.pehlivan_savur(p.center(), p.facing, pal, R, half)
+			_pehlivan_yorunge(delta, th, R, d)
+			p.vis_scale = Vector2(1.0 + 0.05 * sin(th * 2.0), 1.0 - 0.05 * sin(th * 2.0))
+			_move(delta, 1.0, 0.0, 2400.0)
+			if st >= PS_SAVUR:
+				_pehlivan_firlat(d, R)
+				_goge_seg("firlat")
+		"firlat":
+			_phase("act")
+			var pose := _seq([[0.0, 0.3, 0.1, 0.0, 1.3, 60.0, 0.5, 0.0, 0], [PS_FIRLAT, 0.0, 0.2, 0.1, 1.35, 70.0, 0.55, 10.0, 2]], st)
+			_pose(pose, "atk_lunge_long" if p.anim.has_anim("atk_lunge_long") else "atk_horiz", 0.6 + 0.3 * st / PS_FIRLAT, "lunge")
+			if st > 0.04:
+				p._end_trail()
+			_move(delta, 1.0, 0.0, 1600.0)
+			if st >= PS_FIRLAT:
 				_goge_seg("rec")
 		"rec":
 			_phase("rec")
-			var pose := _seq([[0.0, 0.4, 0.0, -0.2, 1.2, 26.0, 0.62, 18.0, 0], [0.14, 0.38, 0.07, -0.15, 1.08, 26.0, 0.64, 18.0, 2],
-				[EK_REC, 0.6, 0.9, 0.3, 1.0, 90.0, 1.0, 0.0, 0]], st)
-			_pose(pose, "atk_slam_jump", 0.75 + 0.25 * clampf(st / EK_REC, 0.0, 1.0), "slam_2h")
-			if st > 0.06:
-				p._end_trail()
+			var pose := _seq([[0.0, 0.0, 0.2, 0.1, 1.35, 70.0, 0.55, 10.0, 0], [PS_REC, 0.6, 0.9, 0.3, 1.0, 90.0, 1.0, 0.0, 0]], st)
+			_pose(pose, "atk_lunge_long" if p.anim.has_anim("atk_lunge_long") else "atk_horiz", 0.9, "lunge")
 			_move(delta, 1.0, 0.0)
-			if st >= EK_REC:
+			if st >= PS_REC:
 				_end()
 
 
-func _sek(e: Node, vx: float, want_h: float) -> void:
-	## Çakılan düşman yerden seker (kilit bırakılır); hâlâ düşüyorsa hızla iner, Enemy'nin kendi sekmesi (vy > 360)
-	(cur["kilit"] as Array).erase(e)
-	if not is_instance_valid(e) or e.dead:
-		return
-	e.sanat_tut = 0.0
-	e.sanat_egim = NAN
-	if e.sanat_dus and not e.is_on_floor():
-		e.sanat_dus = false
-		e.velocity = Vector2(vx * 0.5, 620.0)
-		e.launch_t = 0.5
-		e._bounced = false
+func _pehlivan_hedef(d: Dictionary, R: float) -> void:
+	## Öndeki en yakın sıradan düşman hedef; atılış onun önünde biter (duvar / uçurumsa yerinde kalır)
+	var f := float(p.facing)
+	var menzil := float(d.get("menzil", 90.0)) + R * 0.3
+	var best: Node = null
+	var bd := INF
+	for e in _yakindakiler(menzil + 30.0, 70.0, p.center()):
+		if not kaldirilir(e):
+			continue
+		var dx: float = (e.global_position.x - p.global_position.x) * f
+		if dx < -8.0 or dx > menzil or dx >= bd:
+			continue
+		bd = dx
+		best = e
+	cur["hedef"] = best
+	var dest := p.global_position.x + f * 36.0
+	if best != null:
+		dest = best.global_position.x - f * (float(best.size.x) * 0.5 + 8.0)
+		if (dest - p.global_position.x) * f < 0.0:
+			dest = p.global_position.x
+	if not _oyuncu_yer(dest):
+		dest = p.global_position.x
+	cur["dvx"] = (dest - p.global_position.x) / PS_TUT * 1.5
+	stats["kombo"]["hedef"] = 1 if best != null else 0
+	Game.kick(Vector2(f, 0), 3.0)
+
+
+func _pehlivan_tut(d: Dictionary, R: float) -> void:
+	## Kavrama anı: hedef beldeyse kilitlenir (tutuş), kutudaki diğerleri omuz darbesi alır; seçkin "tutulmaz"
+	var f := float(p.facing)
+	var hedef: Variant = cur.get("hedef")
+	var box := _box(-10.0, -60.0, R * 0.5 + 44.0, 8.0)
+	var hits := _in_box(box, "tut")
+	if hedef != null and is_instance_valid(hedef) and not hedef.dead and not hits.has(hedef) and absf(hedef.global_position.x - p.global_position.x) < R * 0.5 + 60.0:
+		hits.append(hedef)
+		(cur["hit"]["tut"] as Array).append(hedef)
+	for e in hits:
+		var grab: bool = cur["tutulan"] == null and e == hedef and kaldirilir(e)
+		if grab:
+			_kilitle(e)
+			cur["tutulan"] = e
+			var kd := _kd(e)
+			kd["sz"] = e.size
+			_vur(e, float(d.get("hasar", 0.5)), "tut", {"kb": 0.0, "hs": 0.07, "sh": 0.35, "tier": 1, "fx": 0.9}, "blunt")
+			if is_instance_valid(e) and not e.dead:
+				SanatFX.pehlivan_tut(e.center(), p.facing, int(cur["pal"]))
+				FX.ghost(e.anim.base, Color(cur["col"], 0.4), 0.22)
+			else:
+				cur["tutulan"] = null
+				(cur["kilit"] as Array).erase(e)
+		else:
+			if not kaldirilir(e):
+				_seckin_say(e, "tutulmaz")
+			_vur(e, float(d.get("hasar", 0.5)), "tut", {"kb": 150.0, "stagger": true, "stun": 0.4, "hs": 0.06, "sh": 0.3, "tier": 1, "fx": 0.9}, "blunt")
+	_ses("sanat_tutus", -3.0, 1.0, "darbe_kunt")
+	Game.kick(Vector2(f, 0), 4.0)
+	FX.dust(p.global_position, Vector2(f, -0.3), 5, 0.3)
+	if cur["tutulan"] == null and log_on:
+		print("[sanat] pehlivan: tutulan yok (silah savrulur)")
+
+
+func _pehlivan_yorunge(delta: float, th: float, R: float, d: Dictionary) -> void:
+	## Tutulan gövde: önde alçak, arkada yüksek eğik elips (rx ileri, ry tavana göre kısalır); savrulan gövde çarptığı
+	## herkesi biçer (yarım turda bir), kendisi her tam turda tutuş hasarı alır
+	_kilit_kare(delta)
+	var e: Variant = cur["tutulan"]
+	var f := float(p.facing)
+	var hitbox := Rect2()
+	if e != null and is_instance_valid(e) and not e.dead:
+		# önde belde (ayak -ry/2-2), tepede baş üstünde (-ry-2), arkada belde, altta yerde (-2); ry tavana göre kısalır
+		var rx := R + 36.0
+		var rise := _oda(p.global_position.x, p.global_position.y, float(e.size.y) + 6.0, 72.0)
+		var ry := clampf(rise - 4.0, 6.0, 42.0)
+		var c := p.global_position
+		# izleme gecikmesi (hedef × kazanç): hedef açısal hızın 1/kazanç'ı kadar önde verilir
+		var u := clampf((float(cur["t"]) - float(cur["t0"])) / PS_SAVUR, 0.0, 1.0)
+		var omega := TAU * float(d.get("tur", 1.75)) * 1.35 * pow(maxf(u, 0.02), 0.35) / PS_SAVUR
+		var thl := th + omega / 58.0
+		var tgt := c + Vector2(cos(thl) * rx * f, -(sin(thl) + 1.0) * ry * 0.5 - 2.0)
+		e.sanat_kazanc = 58.0   # savrulan gövde yörüngeyi gecikmesiz izler (Enemy._sanat_kilit)
+		e.sanat_hiz = 3200.0
+		_tut(e, tgt, th * f + PI * 0.5)
+		e.facing = -p.facing
+		e.sanat_egim = fmod(th * f + PI * 0.5, TAU)
+		hitbox = e.hurt_rect().grow(14.0)
+		var tur := int(th / TAU)
+		if tur >= 1 and not cur.has("tur%d" % tur):
+			cur["tur%d" % tur] = true
+			_vur(e, float(d.get("tutus_hasar", 0.3)), "tur%d" % tur, {"kb": 0.0, "hs": 0.02, "sh": 0.1, "tier": 0, "fx": 0.6, "sessiz": true}, "blunt")
 	else:
-		e.sanat_dus = false
-		e.velocity = Vector2(vx, _firlat_vy(e, want_h))
-		e.launch_t = 0.45
-		e._bounced = true
+		# tutulan yok: silahın kendi yayı (daha dar)
+		var rr := R + 10.0
+		hitbox = Rect2(p.global_position + Vector2(cos(th) * rr * f - 14.0, -(sin(th) + 1.0) * 24.0 - 30.0), Vector2(28.0, 34.0))
+	var half := int(th / PI)
+	var key := "sav%d" % half
+	for o in _in_box(hitbox, key):
+		if o == e:
+			continue
+		var dirx := signf(o.center().x - p.global_position.x)
+		var lift := kaldirilir(o)
+		_vur(o, float(d.get("savurma_hasar", 0.55)), key, {"kb": 170.0 if lift else 60.0, "dir": dirx if dirx != 0.0 else f, "stagger": true,
+			"stun": 0.35 if lift else 0.0, "hs": 0.05, "sh": 0.3, "tier": 1, "fx": 0.95}, "blunt")
+		if e != null and is_instance_valid(e) and not e.dead and is_instance_valid(o):
+			SanatFX.sicrat((e.center() + o.center()) * 0.5, int(cur["pal"]), 34.0, 57, false)
+			_sars(e, -Vector2(cos(th) * f, 0.0) * 6.0)
 
 
-func _evren_kut(d: Dictionary) -> void:
-	## Çark inişi: kilitlilere çakılma (+ritim), yerden sekme; çevreye alan hasarı; "KÜT!"
-	var gp := p.global_position
+func _pehlivan_firlat(d: Dictionary, R: float) -> void:
+	## Fırlatış: tutulan ileri-yukarı uçar (duvar sekmesi açık, yolundakileri devirir: _firlat_tick); tutulan yoksa ağır iniş
 	var kr := _ritim_k()
 	var f := float(p.facing)
+	var e: Variant = cur["tutulan"]
 	var targets: Array = [p]
-	var carp := 0
-	for e in _kilitli():
-		var killed := _vur(e, float(d.get("carpma_hasar", 1.6)) * kr, "kut", {"kb": 40.0, "stun": 0.8, "heavy": true, "hs": 0.12,
-			"sh": 0.8, "tier": 2, "fx": 1.3}, "blunt")
-		carp += 1
-		if not killed and is_instance_valid(e):
-			targets.append(e)
-			_sek(e, f * 70.0, 34.0 if kr <= 1.0 else 46.0)
-			SanatFX.yer_carpma(Vector2(e.global_position.x, gp.y), int(cur["pal"]))
-	var alan := float(d.get("alan", 78.0))
-	for e in _in_box(Rect2(gp.x - alan, gp.y - 56.0, alan * 2.0, 64.0), "kut_alan"):
-		if targets.has(e):
+	var pal := int(cur["pal"])
+	if e != null and is_instance_valid(e) and not e.dead:
+		var hiz := float(d.get("firlatma_hiz", 540.0)) * (1.2 if kr > 1.0 else 1.0)
+		var vy := _firlat_vy(e, 22.0 if kr <= 1.0 else 30.0)
+		e.sanat_egim = NAN
+		e.sanat_kazanc = 16.0
+		e.sanat_hiz = 1100.0
+		_birak(e, Vector2(f * hiz, vy), 0.9, true)
+		e._tumble = -0.9 * f
+		targets.append(e)
+		_firlatilan.append({"e": e, "t": 0.0, "hit": [], "d": d, "it": cur["item"], "kr": kr, "pal": pal, "dir": f, "p0": e.global_position})
+		SanatFX.pehlivan_firlat(e.center(), p.facing, pal, kr > 1.0)
+		_ses("sanat_firlat", -3.0, 1.0, "sanat_atilis")
+		Game.kick(Vector2(f, -0.2), 5.0)
+		Game.shake_dir(0.4, Vector2(f, 0))
+		FX.flash_light(e.center(), cur["col"], 140.0, 1.4, 0.18)
+		if kr > 1.0:
+			Game.slowmo(0.35, 0.12)
+		stats["kombo"]["bitis"] = int(stats["kombo"]["bitis"]) + 1
+		stats["kombo"]["H"] = -vy
+	else:
+		# boş tutuş: silahın ağır inişi
+		var gp := p.global_position
+		for o in _in_box(_box(-12.0, -60.0, R + 20.0, 8.0), "inis"):
+			var killed := _vur(o, float(d.get("firlatma_hasar", 1.3)) * kr, "inis", {"kb": 220.0, "stagger": true, "stun": 0.6, "heavy": true,
+				"hs": 0.1, "sh": 0.7, "tier": 2, "fx": 1.2}, "blunt")
+			if not killed and is_instance_valid(o):
+				targets.append(o)
+		InkFX.slam(gp + Vector2(f * R * 0.6, 0.0), p.facing, 0.9, _ip())
+		SanatFX.cekis_inis(gp + Vector2(f * R * 0.6, 0.0), p.facing, pal, 70.0, 64.0)
+		_ses("sanat_pat", -2.0, 0.9, "sanat_cekis")
+		_bitis_fx(targets, 0.3, 0.05, 0.6)
+	cur["tutulan"] = null
+
+
+func _firlat_tick(delta: float) -> void:
+	## Fırlatılan düşman (sanat bitmiş olabilir): yolundaki düşmanlara çarpar (onlar devrilir), duvara ya da yere çakılınca
+	## "PAT!" ve çarpma hasarı; 1,2 sn'de söner
+	if _firlatilan.is_empty() or p == null or not is_instance_valid(p):
+		return
+	for r in _firlatilan.duplicate():
+		var e: Variant = r["e"]
+		if e == null or not is_instance_valid(e) or e.dead:
+			_firlatilan.erase(r)
 			continue
-		_vur(e, float(d.get("alan_hasar", 1.2)) * kr, "kut_alan", {"kb": 220.0, "stun": 0.5, "heavy": true, "hs": 0.1, "sh": 0.6}, "blunt")
-	InkFX.slam(gp, p.facing, 1.05, _ip())
-	SanatFX.evren_kut(gp, p.facing, int(cur["pal"]), carp, kr > 1.0)
-	FX.shockwave(gp + Vector2(0, -6), 90.0, 1.0)
-	_ses("sanat_kut", -1.0, 1.0, "sanat_gum")
-	p.vis_scale = Vector2(1.26, 0.78)
-	_bitis_fx(targets, 0.3, 0.07, 0.8)
+		r["t"] = float(r["t"]) + delta
+		var d: Dictionary = r["d"]
+		var kr := float(r["kr"])
+		var dir := float(r["dir"])
+		var pal := int(r["pal"])
+		var box: Rect2 = (e.hurt_rect() as Rect2).grow(6.0)
+		var hit: Array = r["hit"]
+		for o in p.get_tree().get_nodes_in_group("dusman"):
+			if o == e or not is_instance_valid(o) or o.dead or hit.has(o):
+				continue
+			if box.intersects(o.hurt_rect()):
+				hit.append(o)
+				var lift := kaldirilir(o)
+				_uzak_vur(o, r["it"], d, "carpma", float(d.get("carpma_hasar", 1.1)) * kr, {"kb": 220.0, "dir": dir, "stagger": true,
+					"launch": 180.0 if lift else 0.0, "stun": 0.5, "heavy": true})
+				# fırlatılan gövde geçerken hasar almaz (take_hit'in geri itmesi uçuşu bozar); bedelini çakılışta öder
+				if is_instance_valid(o) and is_instance_valid(e):
+					SanatFX.sicrat((o.center() + e.center()) * 0.5, pal, 44.0, 57, false)
+					Game.hitstop(0.04)
+		if not is_instance_valid(e) or e.dead:
+			_firlatilan.erase(r)
+			continue
+		# duvar: ya hâlâ duvara yaslı ya da Enemy._wall_slam _slam_t'yi erkenden sıfırladı (kendi karesinde çarpıp geri sekmiş olabilir)
+		var wall: bool = e.is_on_wall() or (float(e._slam_t) <= 0.0 and float(r["t"]) < 0.6)
+		var landed: bool = float(r["t"]) > 0.06 and (wall or e._bounced or float(e.launch_t) <= 0.0 or (e.is_on_floor() and float(e.velocity.y) >= 0.0))
+		if landed or float(r["t"]) > 1.2:
+			var c: Vector2 = e.center()
+			_uzak_vur(e, r["it"], d, "pat", float(d.get("firlatma_hasar", 1.3)) * kr, {"kb": 40.0, "dir": dir, "stagger": true, "stun": 0.7, "heavy": true})
+			if wall:
+				stats["kombo"]["duvar"] = int(stats["kombo"].get("duvar", 0)) + 1
+				var n: Vector2 = e.get_wall_normal() if e.is_on_wall() else Vector2(-dir, 0)
+				SanatFX.duvar_carp(c - n * 8.0, n, pal)
+			SanatFX.pehlivan_pat(Vector2(c.x, (e.global_position.y if is_instance_valid(e) else c.y)), int(dir), pal, kr > 1.0, wall)
+			_ses("sanat_pat", -1.0, 1.0)
+			Game.shake_dir(0.5, Vector2(dir, 0.4))
+			Game.rumble(0.6, 0.4, 0.14)
+			_firlatilan.erase(r)
 
 
-# ------------------------------------------------------------------ v31 Tengri Çarkı
-## Gök Tanrı'nın çarkı: silah baş üstünde döner, önde bir girdap açılır; çevredeki (190 px) sıradanlar sarmal yolla
-## girdabın içine çekilir ve havada döner (seçkin / ağır yalnızca biraz sürüklenir), dört vuruşluk hokkabazlık, sonra
-## çark patlar: "VUŞ!", kilitliler dışarı savrulur (duvara çarpan seker: Enemy._wall_slam). Ritim: patlamadan hemen önce.
-const TC_WIND := 0.16
-const TC_CEK := 0.26
-const TC_DOLU := 0.48
-const TC_VUR := [0.05, 0.17, 0.29, 0.41]
-const TC_REC := 0.36
+# ------------------------------------------------------------------ v32 Yıldırım Ağı
+## Gök Tanrı'nın kazıkları: üç yıldırım kazığı art arda fırlatılır: en yakın SIRADAN düşmanlara saplanır (zırha
+## işlemez: seçkin / boss / ağır kazık almaz), boşta kalan kazık önde yere çakılır. Bıçağın ucuyla kazıkların arasında
+## şimşek ağı gerilir (0,5 sn): içindekiler (seçkin dahil) yavaşlar ve cızırdar (küçük tık hasarı), ağa girenler de
+## işaretlenir. Sonra ağ çöker: "ÇAK!" zincir şimşek herkesi çarpar, işaretli sıradanlar oyuncunun önüne çekilir
+## (yerde kayarak, _tut), gökten inen yıldırımla tepeden vuruş. Ritim: çöküş anında (TAM: vuruş ×ritim_k + ikinci zincir
+## bütün işaretlilere, seçkinler dahil). Oyuncu ağ sürerken yerinden kımıldamaz (süper zırh).
+const YA_WIND := 0.14
+const YA_AT := 0.09
+const YA_CEK := 0.13
+const YA_VUR := 0.16
+const YA_REC := 0.3
 
 
-func _tengri_merkez(R: float) -> Vector2:
-	## Girdap merkezi (zemin ayak çizgisinde; düşmanlar bunun L px üstünde döner): önde, duvardan geri çekilir
-	var f := float(p.facing)
-	var gx := p.global_position.x + f * (R * 0.45 + 34.0)
-	var y := p.global_position.y
-	for i in 8:
-		if _govde_serbest(Vector2(gx, y), Vector2(30.0, 44.0)):
-			break
-		gx -= f * 6.0
-	return Vector2(gx, y)
-
-
-func _tengri(delta: float) -> void:
+func _yildirim(delta: float) -> void:
 	var t := float(cur["t"])
 	var d: Dictionary = cur["def"]
 	var R := _R()
 	var seg := String(cur.get("seg", ""))
 	var f := float(p.facing)
+	var pal := int(cur["pal"])
 	var whip := Player._tempo_class(cur["item"]) == "kirbac"
-	var spin_body := "atk_w_whirl" if whip and p.anim.has_anim("atk_w_whirl") else "atk_spin"
 	if seg == "":
 		_kombo_basla()
-		cur["C"] = _tengri_merkez(R)
-		cur["L"] = float(d.get("kaldirma", 30.0))
-		cur["ucan"] = []
+		cur["kazik"] = []
+		cur["isaret"] = []
+		cur["agda"] = []
+		cur["tick"] = 0
 		_goge_seg("wind")
 		seg = "wind"
 	var st := t - float(cur["t0"])
-	var pal := int(cur["pal"])
-	var C: Vector2 = cur["C"]
+	var n := int(d.get("kazik", 3))
 	match seg:
 		"wind":
 			_phase("wind")
-			var pose := _seq([[0.0, 0.6, 0.9, 0.3, 1.0, 90.0, 1.0, 0.0, 0], [TC_WIND, 2.9, 0.1, 0.0, 1.05, 90.0, 0.36, 0.0, 2]], st)
-			_pose(pose, spin_body, st / TC_WIND * 0.25, "spin")
-			if not cur.has("girdap"):
-				cur["girdap"] = true
-				var g := SanatFX.spawn("girdap", C + Vector2(0, -float(cur["L"]) - 18.0), cur["col"], 9.0, pal)
+			var pose := _seq([[0.0, 0.6, 0.9, 0.3, 1.0, 90.0, 1.0, 0.0, 0], [YA_WIND, 2.5, 0.3, 0.2, 0.95, 70.0, 0.5, 0.0, 2]], st)
+			_pose(pose, "atk_whip" if whip and p.anim.has_anim("atk_whip") else "atk_up", st / YA_WIND * 0.3, "whip_crack" if whip else "cross_x")
+			if not cur.has("topla"):
+				cur["topla"] = true
+				SanatFX.yildirim_topla(p.arm_root.to_global(p._hand_local), pal)
+				_ses("sanat_ag", -9.0, 1.3)
+			_move(delta, 1.0, 0.0)
+			if st >= YA_WIND:
+				cur["kazik"] = _ya_kaziklar(d)
+				_goge_seg("at")
+		"at":
+			# üç fırlatış: her biri 0,09 sn'lik bilek savruluşu
+			_phase("act")
+			var k := mini(int(st / YA_AT), n - 1)
+			var lt := st - float(k) * YA_AT
+			var keys := [[0.0, 2.5, 0.3, 0.2, 0.95, 70.0, 0.5, 0.0, 0], [0.04, 0.6, 0.0, 0.0, 1.35, 70.0, 0.5, 0.0, 1], [YA_AT, 2.2, 0.3, 0.2, 1.0, 70.0, 0.5, 0.0, 2]]
+			_pose(_seq(keys, lt), "atk_whip" if whip and p.anim.has_anim("atk_whip") else "atk_up", clampf(lt / YA_AT, 0.0, 1.0), "whip_crack" if whip else "cross_x")
+			if not cur.has("at%d" % k):
+				cur["at%d" % k] = true
+				_ya_firlat(k, d)
+			_move(delta, 1.0, 0.0, 2400.0)
+			if st >= float(n) * YA_AT:
+				_goge_seg("ag")
+				_ritim(float(cur["t"]) + float(d.get("ag_sure", 0.5)), 0.38)
+				var g := SanatFX.spawn("ag", p.center(), cur["col"], 9.0, pal)
 				if g:
-					g.data = {"r0": 120.0, "r1": 46.0, "tr": TC_WIND + TC_CEK, "spd": 9.0}
-					g.z_index = 2
-				_fx_ekle(g)
-				cur["girdap_n"] = g
-				SanatFX.tengri_topla(p.center(), p.facing, pal)
-				_ses("sanat_tengri", -3.0, 1.0, "savur_ruh")
-			_move(delta, 1.0, 0.0)
-			if st >= TC_WIND:
-				_tengri_yakala(d)
-				_goge_seg("cekim")
-		"cekim":
+					g.data = {"pts": _ya_noktalar(), "tip": _ya_uc()}
+					g.z_index = 56
+					cur["ag_fx"] = g
+					_fx_ekle(g)
+				_ses("sanat_ag", -3.0, 1.0)
+		"ag":
+			# ağ gerili: bıçak ucu önde sabit; içindekiler yavaşlar, cızırdar, işaretlenir
 			_phase("act")
-			var u := clampf(st / TC_CEK, 0.0, 1.0)
-			var a1 := 2.9 + TAU * 1.3 * u
-			_pose([a1, 0.05, 0.0, 1.12, 90.0, 0.36, 0.0], spin_body, fmod(u * 2.0, 1.0), "spin", true)
-			var half := int(u * 4.0)
-			_trail_on(half != int(cur.get("half", -1)), 1.3, 1, 0.95)
-			cur["half"] = half
-			_tengri_yorunge(delta, u, 0.0)
-			# seçkin / ağır: biraz sürüklenir
-			for e in cur.get("cekilen", []):
-				if is_instance_valid(e) and not e.dead and not e.is_boss:
-					var dx: float = C.x - e.global_position.x
-					if absf(dx) > 24.0:
-						e.velocity.x = move_toward(e.velocity.x, signf(dx) * 150.0, 1200.0 * delta)
-			_move(delta, 1.0, 0.0)
-			if st >= TC_CEK:
-				_goge_seg("dolu")
-				_ritim(float(cur["t"]) + TC_DOLU, 0.38)
-		"dolu":
-			# dört vuruş: yükselen, inen, yatay, saplama (girdaba doğru)
+			_pose([1.0 + 0.04 * sin(t * 30.0), 0.1, 0.0, 1.3, 70.0, 0.5, 0.0], "atk_thrust" if p.anim.has_anim("atk_thrust") else "atk_horiz", 0.99, "thrust")
+			_ya_ag(delta, d)
+			p.vis_scale = Vector2(1.0, 1.0) + Vector2(0.015, -0.015) * sin(t * 44.0)
+			_move(delta, 1.0, 0.0, 2400.0)
+			if st >= float(d.get("ag_sure", 0.5)):
+				_ya_cok(d)
+				_goge_seg("cek")
+		"cek":
+			# zincir çekişi: işaretli sıradanlar önüne kayar; silah başın üstüne kalkar
 			_phase("act")
-			var k := 0
-			for i in TC_VUR.size():
-				if st >= float(TC_VUR[i]) - 0.05:
-					k = i
-			var p0 := float(TC_VUR[k]) - 0.05
-			var lt := st - p0
-			var keys: Array = [
-				[[0.0, 0.1, 0.3, -0.4, 1.0, 120.0, 0.45, 0.0, 0], [0.05, 2.6, 0.0, 0.1, 1.25, 120.0, 0.45, 0.0, 1], [0.12, 3.1, 0.05, 0.15, 1.1, 126.0, 0.48, -25.0, 2]],
-				[[0.0, 3.05, 0.05, 0.1, 1.08, 60.0, 0.45, 0.0, 0], [0.05, 0.85, 0.0, 0.0, 1.25, 60.0, 0.45, 0.0, 1], [0.12, 0.3, 0.2, 0.05, 1.05, 64.0, 0.48, 25.0, 2]],
-				[[0.0, 0.4, 1.65, -1.4, 0.95, 100.0, 0.34, 0.0, 0], [0.05, 1.75, 0.0, 0.0, 1.3, 98.0, 0.3, 0.0, 1], [0.12, 2.3, 0.0, 0.18, 1.12, 106.0, 0.36, 38.0, 2]],
-				[[0.0, -0.62, 2.12, 0.0, 0.8, 88.0, 0.38, 0.0, 0], [0.05, 1.9, 0.0, 0.0, 1.55, 88.0, 0.36, 0.0, 1], [0.12, 1.75, 0.05, 0.0, 1.45, 88.0, 0.36, 0.0, 2]]]
-			var bodies := ["atk_up", "atk_down", "atk_horiz", "atk_thrust"]
-			_pose(_seq(keys[k], lt), bodies[k] if p.anim.has_anim(bodies[k]) else "atk_horiz", clampf(lt / 0.12, 0.0, 1.0), ["cross_x", "cross_x", "iai", "thrust"][k], false)
-			var fresh := k != int(cur.get("vk", -1))
-			if fresh:
-				cur["vk"] = k
-				_trail_on(true, 1.3, 2 if k == 3 else 1)
-				_sw_ses(1.0 + 0.08 * k, -6.0)
-			else:
-				_trail_on(false)
-			var uu := st / TC_DOLU
-			_tengri_yorunge(delta, 1.0, uu)
-			if st >= float(TC_VUR[k]) and not cur.has("tv%d" % k):
-				cur["tv%d" % k] = true
-				var key := "dolu%d" % k
-				var ks := _kilitli()
-				var cc := C + Vector2(0, -float(cur["L"]) - 18.0)
-				var targets: Array = ks.duplicate()
-				for e in _in_box(Rect2(C.x - 46.0, C.y - float(cur["L"]) - 66.0, 92.0, float(cur["L"]) + 70.0), key):
-					if not targets.has(e):
-						targets.append(e)
-				SanatFX.tengri_vurus(cc, k, p.facing, pal)
-				for e in targets:
-					if is_instance_valid(e) and not e.dead:
-						_vur(e, float(d.get("hasar", 0.4)), key, {"kb": 0.0 if ks.has(e) else 40.0, "hs": 0.045 if k < 3 else 0.06,
-							"tier": 1, "fx": 0.85, "sh": 0.22})
-						if ks.has(e):
-							var out := ((e.center() as Vector2) - cc).normalized()
-							_sars(e, out * 9.0 + Vector2(0, [-6.0, 6.0, 0.0, -4.0][k]), [0.4, -0.5, 0.3, -0.3][k])
-			_move(delta, 1.0, 0.0)
-			if st >= TC_DOLU:
-				_tengri_patla(d)
+			var pose := _seq([[0.0, 1.0, 0.1, 0.0, 1.3, 70.0, 0.5, 0.0, 0], [YA_CEK, 3.4, 0.25, 0.3, 0.95, 30.0, 0.6, 0.0, 2]], st)
+			_pose(pose, "atk_overhead_2h" if p.anim.has_anim("atk_overhead_2h") else "atk_up", 0.1 + 0.3 * st / YA_CEK, "overhead_2h")
+			_kilit_kare(delta)
+			var ks := _kilitli()
+			for i in ks.size():
+				var e: Node = ks[i]
+				var kd := _kd(e)
+				var slot := int(kd.get("slot", i))
+				_tut(e, Vector2(p.global_position.x + f * (R * 0.45 + 14.0 + 15.0 * float(slot)), p.global_position.y - 1.0), -0.7 * f)
+				e.facing = -p.facing
+				if Engine.get_physics_frames() % 2 == 0:
+					FX.ghost(e.anim.base, Color(cur["col"], 0.35), 0.16)
+			_move(delta, 1.0, 0.0, 2400.0)
+			if st >= YA_CEK:
+				_goge_seg("vur")
+		"vur":
+			_phase("act")
+			var pose := _seq([[0.0, 3.4, 0.25, 0.3, 0.95, 30.0, 0.6, 0.0, 0], [0.07, 0.45, 0.0, -0.2, 1.25, 26.0, 0.62, 0.0, 1], [YA_VUR, 0.4, 0.0, -0.15, 1.15, 26.0, 0.62, 10.0, 2]], st)
+			_pose(pose, "atk_overhead_2h" if p.anim.has_anim("atk_overhead_2h") else "atk_down", 0.4 + 0.5 * clampf(st / YA_VUR, 0.0, 1.0), "overhead_2h")
+			_trail_on(not cur.has("tr"), 1.4, 2)
+			cur["tr"] = true
+			if st < 0.06:
+				_kilit_kare(delta)
+				for e in _kilitli():
+					_tut(e, e.global_position, -0.7 * f)
+			elif not cur.has("vurdu"):
+				cur["vurdu"] = true
+				_ya_vur(d, R)
+			_move(delta, 1.0, 0.0, 2400.0)
+			if st >= YA_VUR:
 				_goge_seg("rec")
 		"rec":
 			_phase("rec")
-			var pose := _seq([[0.0, 1.75, 0.05, 0.0, 1.45, 88.0, 0.36, 0.0, 0], [0.12, 1.5, 0.2, 0.1, 1.2, 92.0, 0.5, 0.0, 2],
-				[TC_REC, 0.6, 0.9, 0.3, 1.0, 90.0, 1.0, 0.0, 0]], st)
-			_pose(pose, "atk_thrust" if p.anim.has_anim("atk_thrust") else "atk_horiz", 0.8 + 0.2 * clampf(st / TC_REC, 0.0, 1.0), "thrust")
+			var pose := _seq([[0.0, 0.4, 0.0, -0.15, 1.15, 26.0, 0.62, 10.0, 0], [YA_REC, 0.6, 0.9, 0.3, 1.0, 90.0, 1.0, 0.0, 0]], st)
+			_pose(pose, "atk_overhead_2h" if p.anim.has_anim("atk_overhead_2h") else "atk_down", 0.9 + 0.1 * clampf(st / YA_REC, 0.0, 1.0), "overhead_2h")
 			if st > 0.06:
 				p._end_trail()
-			# dışarı savrulanlar: duvara çarpan seker (Enemy._wall_slam); mürekkep izi
-			for e in cur.get("ucan", []):
-				if is_instance_valid(e) and not e.dead and e.is_on_wall() and not cur.has("duvar_%d" % e.get_instance_id()):
-					cur["duvar_%d" % e.get_instance_id()] = true
-					stats["kombo"]["duvar"] = int(stats["kombo"]["duvar"]) + 1
-					var n: Vector2 = e.get_wall_normal()
-					SanatFX.duvar_carp(e.center() - n * float(e.size.x) * 0.5, n, pal)
 			_move(delta, 1.0, 0.0)
-			if st >= TC_REC:
+			if st >= YA_REC:
 				_end()
 
 
-func _tengri_yakala(d: Dictionary) -> void:
-	## Girdap tutar: menzildeki sıradanlar kilitlenir (sarmal yolun başlangıcı), seçkin / ağır sürüklenecekler listesi;
-	## dönme yüksekliği her kilitlinin girdap sütununda tavana göre kısalır
-	var C: Vector2 = cur["C"]
-	var cek: Array = []
-	var L := float(cur["L"])
-	for e in _yakindakiler(float(d.get("menzil", 190.0)), 100.0, p.center()):
-		if _kilitle(e):
-			var kd := _kd(e)
-			var rel: Vector2 = e.global_position - C
-			kd["r0"] = maxf(24.0, rel.length())
-			kd["th0"] = atan2(rel.y * 2.0, rel.x)
-			L = minf(L, _oda(C.x, C.y, float(e.size.y) + 8.0, L + 18.0) - 18.0)
-		elif not e.is_boss:
-			cek.append(e)
-	cur["L"] = maxf(0.0, L)
-	cur["cekilen"] = cek
-	stats["kombo"]["H"] = float(cur["L"])
-	stats["kombo"]["hedef"] = (cur["kilit"] as Array).size() + cek.size()
+func _ya_uc() -> Vector2:
+	## Ağın oyuncudaki ucu: bıçağın ucu
+	return p.arm_root.to_global(p._hand_local + p._blade_local * _R() * 0.9)
 
 
-func _tengri_yorunge(delta: float, u: float, uu: float) -> void:
-	## Kilitliler girdapta: çekişte sarmal yolla merkeze (u), hokkabazlıkta küçük yörüngede döner (uu)
-	_kilit_kare(delta)
-	var C: Vector2 = cur["C"]
-	var L := float(cur["L"])
-	var ez := 1.0 - pow(1.0 - u, 2.0)
-	var ks := _kilitli()
-	for i in ks.size():
-		var e: Node = ks[i]
-		var kd := _kd(e)
-		var r0 := float(kd.get("r0", 40.0))
-		var rr := lerpf(r0, 16.0 + 7.0 * float(i % 2), ez)
-		var th := float(kd.get("th0", 0.0)) + PI * 1.7 * u + PI * 3.0 * uu + float(i) * 0.15 * u
-		var tgt := C + Vector2(cos(th) * rr, sin(th) * rr * 0.35 - (L - 4.0 * float(i % 2)) * ez)
-		_tut(e, tgt, sin(th) * 0.7)
-		e.facing = -int(signf(cos(th) + 0.001))
+func _ya_kaziklar(d: Dictionary) -> Array:
+	## Kazık hedefleri: en yakın (öndeki öncelikli) sıradan düşmanlar; boşta kalan kazık önde (ya da arkada) yere çakılır
+	var n := int(d.get("kazik", 3))
+	var f := float(p.facing)
+	var cand := _yakindakiler(float(d.get("menzil", 240.0)), 110.0, p.center())
+	var es: Array = []
+	for e in cand:
+		if kaldirilir(e):
+			es.append(e)
+	es.sort_custom(func(a: Node, b: Node) -> bool:
+		var da: float = absf(a.center().x - p.global_position.x) + (60.0 if (a.center().x - p.global_position.x) * f < -6.0 else 0.0)
+		var db: float = absf(b.center().x - p.global_position.x) + (60.0 if (b.center().x - p.global_position.x) * f < -6.0 else 0.0)
+		return da < db)
+	var out: Array = []
+	for i in mini(n, es.size()):
+		var e: Node = es[i]
+		out.append({"e": e, "pos": e.center()})
+	# boşta kalan kazıklar: önde (62 / 134 / 206 px) yere; önü kapalıysa arkaya; o da kapalıysa hemen öne
+	var slots := [62.0, 134.0, 206.0]
+	var gi := 0
+	while out.size() < n:
+		var found := false
+		for sd in [f, -f]:
+			var x: float = p.global_position.x + float(sd) * float(slots[mini(gi, 2)])
+			var gy := _ya_zemin(x)
+			if gy > 0.0:
+				out.append({"e": null, "pos": Vector2(x, gy - 3.0)})
+				found = true
+				break
+		if not found:
+			out.append({"e": null, "pos": p.global_position + Vector2(f * 24.0, -3.0)})
+		gi += 1
+	stats["kombo"]["hedef"] = es.size()
+	return out
 
 
-func _tengri_patla(d: Dictionary) -> void:
-	## Çark patlar: "VUŞ!", kilitliler dışarı savrulur (duvar sekmesi açık); girdaptaki seçkinler de vurulur
-	var kr := _ritim_k()
-	var C: Vector2 = cur["C"]
-	var cc := C + Vector2(0, -float(cur["L"]) - 18.0)
-	var targets: Array = [p]
-	var ks := _kilitli()
+func _ya_zemin(x: float) -> float:
+	## x sütununda oyuncunun ayak hizasına yakın zemin (160 px aşağıya dek); duvar içindeyse / zemin yoksa -1
+	var lv: Node = p.level
+	if lv == null or not lv.has_method("ground_y_below"):
+		return p.global_position.y
+	if lv.solid_at(Vector2(x, p.global_position.y - 30.0)):
+		return -1.0
+	var g: float = lv.ground_y_below(Vector2(x, p.global_position.y - 40.0), 160.0)
+	return g
+
+
+func _ya_noktalar() -> Array:
+	var out: Array = []
+	for kz in cur.get("kazik", []):
+		var e: Variant = kz["e"]
+		if e != null and is_instance_valid(e) and not e.dead:
+			kz["pos"] = e.center()
+		out.append(kz["pos"])
+	return out
+
+
+func _ya_firlat(k: int, d: Dictionary) -> void:
+	## k. kazık: elden hedefe ince şimşek, saplanma (sıradan: hasar + işaret) ya da yere çakılma
+	var kz: Array = cur["kazik"]
+	if k >= kz.size():
+		return
+	var e: Variant = kz[k]["e"]
+	var pos: Vector2 = kz[k]["pos"]
+	var hand := p.arm_root.to_global(p._hand_local)
 	var pal := int(cur["pal"])
-	for i in ks.size():
-		var e: Node = ks[i]
-		var killed := _vur(e, float(d.get("son_hasar", 1.4)) * kr, "patla", {"kb": 0.0, "hs": 0.1, "sh": 0.6, "tier": 2, "fx": 1.2})
-		if not killed and is_instance_valid(e):
-			targets.append(e)
-			var sx := signf(e.global_position.x - C.x)
-			if absf(e.global_position.x - C.x) < 4.0:
-				sx = float(p.facing) * (1.0 if i % 2 == 0 else -1.0)
-			_birak(e, Vector2(sx * float(d.get("savurma", 430.0)) * (1.12 if kr > 1.0 else 1.0), _firlat_vy(e, 48.0)), 0.7, true)
-			(cur["ucan"] as Array).append(e)
-	for e in _in_box(Rect2(cc.x - 64.0, cc.y - 50.0, 128.0, 96.0), "patla"):
-		if targets.has(e):
+	SanatFX.simsek(hand, pos, pal, 6.0, k * 7 + 1, 0.1)
+	SanatFX.kazik(pos, pal, e == null)
+	_ses("sanat_kazik", -4.0, 1.0 + 0.08 * k, "sanat_dans")
+	Game.kick(Vector2(float(p.facing), 0), 2.0)
+	if e != null and is_instance_valid(e) and not e.dead:
+		_vur(e, float(d.get("hasar", 0.35)), "kazik%d" % k, {"kb": 20.0, "hs": 0.03, "sh": 0.15, "tier": 1, "fx": 0.8}, "pierce")
+		if is_instance_valid(e) and not e.dead:
+			(cur["isaret"] as Array).append(e)
+
+
+func _ya_kenarlar() -> Array:
+	## Ağın kenarları: bıçak ucu → her kazık, kazıklar arası
+	var pts := _ya_noktalar()
+	var tip := _ya_uc()
+	var out: Array = []
+	for q in pts:
+		out.append([tip, q])
+	for i in pts.size():
+		for j in range(i + 1, pts.size()):
+			out.append([pts[i], pts[j]])
+	return out
+
+
+func _ya_icinde(e: Node, pts: Array, edges: Array) -> bool:
+	var c: Vector2 = e.center()
+	if pts.size() >= 3:
+		var poly := PackedVector2Array([_ya_uc()])
+		for q in pts:
+			poly.append(q)
+		if Geometry2D.is_point_in_polygon(c, poly):
+			return true
+	var tol := float(e.size.x) * 0.5 + 10.0
+	for ed in edges:
+		var q := Geometry2D.get_closest_point_to_segment(c, ed[0], ed[1])
+		if q.distance_to(c) < tol:
+			return true
+	return false
+
+
+func _ya_ag(delta: float, d: Dictionary) -> void:
+	## Ağ gerili: içindekiler yavaşlar (hız ×0,45), her 0,16 sn cızırtı hasarı, ağa giren sıradan işaretlenir
+	var pts := _ya_noktalar()
+	var edges := _ya_kenarlar()
+	var g: Variant = cur.get("ag_fx")
+	if is_instance_valid(g) and g is SanatFX:
+		(g as SanatFX).data["pts"] = pts
+		(g as SanatFX).data["tip"] = _ya_uc()
+	var agda: Array = cur["agda"]
+	var icinde: Array = []
+	for e in p.get_tree().get_nodes_in_group("dusman"):
+		if not is_instance_valid(e) or e.dead:
 			continue
-		_vur(e, float(d.get("son_hasar", 1.4)) * kr, "patla", {"kb": 260.0, "stagger": true, "stun": 0.5, "hs": 0.1, "sh": 0.6})
-	var g: Variant = cur.get("girdap_n")
+		if _ya_icinde(e, pts, edges):
+			icinde.append(e)
+			if not agda.has(e):
+				agda.append(e)
+				if kaldirilir(e) and not (cur["isaret"] as Array).has(e):
+					(cur["isaret"] as Array).append(e)
+			if not e.is_boss:
+				e.velocity.x *= 0.45
+	cur["icinde"] = icinde
+	var tick := int((float(cur["t"]) - float(cur["t0"])) / 0.16)
+	if tick != int(cur["tick"]):
+		cur["tick"] = tick
+		for e in icinde:
+			_vur(e, float(d.get("ag_hasar", 0.12)), "ag%d" % tick, {"kb": 0.0, "hs": 0.0, "sh": 0.0, "tier": 0, "fx": 0.6, "sessiz": true}, "magic")
+			if is_instance_valid(e) and not e.dead:
+				FX.sparks(e.center() + Vector2(randf_range(-6, 6), randf_range(-10, 6)), Vector2(randf_range(-1, 1), -0.6), cur["col"].lightened(0.4), 3, 120.0)
+		if not icinde.is_empty():
+			_ses("sanat_ag", -10.0, 1.5 + 0.1 * (tick % 3), "")
+
+
+func _ya_cok(d: Dictionary) -> void:
+	## Ağ çöker: "ÇAK!" her kenar boyunca kalın şimşek; işaretliler ve ağdakiler zincirle çarpılır; sıradanlar kilitlenip
+	## çekilecek, seçkin "çekilmez"
+	var pal := int(cur["pal"])
+	var edges := _ya_kenarlar()
+	var pts := _ya_noktalar()
+	var cc := Vector2.ZERO
+	for q in pts:
+		cc += q
+	cc = cc / float(maxi(1, pts.size()))
+	for i in edges.size():
+		SanatFX.simsek(edges[i][0], edges[i][1], pal, 11.0, i * 13 + 5, 0.2)
+	var targets: Array = []
+	for e in cur["isaret"]:
+		if is_instance_valid(e) and not e.dead and not targets.has(e):
+			targets.append(e)
+	for e in cur.get("icinde", []):
+		if is_instance_valid(e) and not e.dead and not targets.has(e):
+			targets.append(e)
+	for e in p.get_tree().get_nodes_in_group("dusman"):
+		if is_instance_valid(e) and not e.dead and not targets.has(e) and _ya_icinde(e, pts, edges):
+			targets.append(e)
+	var slot := 0
+	var ft: Array = [p]
+	for e in targets:
+		var lift := kaldirilir(e)
+		var killed := _vur(e, float(d.get("zincir_hasar", 0.8)), "zincir", {"kb": 0.0 if lift else 30.0, "stun": 0.0 if lift else 0.5, "stagger": not lift,
+			"hs": 0.08, "sh": 0.45, "tier": 2, "fx": 1.1}, "magic")
+		if killed or not is_instance_valid(e):
+			continue
+		ft.append(e)
+		if lift:
+			if _kilitle(e):
+				var kd := _kd(e)
+				kd["slot"] = slot
+				slot += 1
+		else:
+			_seckin_say(e, "çekilmez")
+	var g: Variant = cur.get("ag_fx")
 	if is_instance_valid(g) and g is SanatFX:
 		(g as SanatFX).alive = false
-	SanatFX.tengri_patla(cc, p.facing, pal, kr > 1.0)
-	SanatFX.damga(cc + Vector2(p.facing * 18.0, -52.0), "vus", pal, p.facing, 1.0 if kr <= 1.0 else 1.2)
-	FX.shockwave(cc, 110.0, 1.0)
-	FX.flash_light(cc, cur["col"], 200.0, 2.0, 0.25)
-	_ses("sanat_vus", -1.0, 1.0, "sanat_kam")
-	_bitis_fx(targets, 0.32, 0.06, 0.7)
+	SanatFX.damga(cc + Vector2(0.0, -56.0), "cak", pal, p.facing, 1.0 if _ritim_k() <= 1.0 else 1.15)
+	SanatFX.sicrat(cc, pal, 60.0, 57, true, _ritim_k() > 1.0)
+	FX.flash_light(cc, cur["col"], 220.0, 2.2, 0.22)
+	_ses("sanat_cak", -1.0, 1.0, "simsek_catirti")
+	Game.shake_dir(0.55, Vector2(0, 1))
+	Game.rumble(0.6, 0.4, 0.14)
+	if ft.size() > 1:
+		Game.slowmo(0.3, 0.12)
+		ImpactFrame.play(ft, 1.0, 2)
 
 
-# ------------------------------------------------------------------ v31 Yer Yarığı
-## Toprak Ana'nın yarığı: silahın ağır inişi zemini döver, öndeki ve çevredeki sıradanlar yerden sekip havada asılı kalır
-## (seçkin / ağır yalnızca sarsılır); oyuncu sıçrayıp havada X keser, sonra dikine iner: düşmanlar yere çakılır,
-## "ÇAT!" ve zemin önüne doğru yarılır: yarık 220 px ilerler (duvarda / uçurumda biter), yolundakileri fırlatır.
-## Ritim: dalış başlarken (TAM: yarık 300 px, çakılma ×ritim_k).
-const YY_WIND := 0.15
-const YY_TEPME := 0.1
-const YY_SICRA := 0.17
-const YY_X := 0.22
-const YY_DWIND := 0.07
-const YY_REC := 0.34
+func _ya_vur(d: Dictionary, R: float) -> void:
+	## Gökten inen yıldırımla tepeden vuruş: öndeki herkes (+ çekilenler); TAM: ikinci zincir bütün işaretlilere
+	var kr := _ritim_k()
+	var f := float(p.facing)
+	var pal := int(cur["pal"])
+	var ks := _kilitli()
+	var targets: Array = ks.duplicate()
+	for e in _in_box(_box(-8.0, -70.0, R + 30.0, 8.0), "vur"):
+		if not targets.has(e):
+			targets.append(e)
+	var ft: Array = [p]
+	var hp := p.global_position + Vector2(f * (R * 0.5 + 14.0), 0.0)
+	for e in targets:
+		if not is_instance_valid(e) or e.dead:
+			continue
+		var lock := ks.has(e)
+		var killed := _vur(e, float(d.get("son_hasar", 1.5)) * kr, "vur", {"kb": 40.0 if lock else 200.0, "stagger": true, "stun": 0.6, "heavy": true,
+			"hs": 0.1, "sh": 0.7, "tier": 2, "fx": 1.25})
+		if not killed and is_instance_valid(e):
+			ft.append(e)
+			if lock:
+				_birak(e, Vector2(f * 50.0, -150.0), 0.4)
+	for e in ks:
+		if (cur["kilit"] as Array).has(e):
+			_birak(e, Vector2(f * 50.0, -150.0), 0.4)
+	InkFX.slam(hp, p.facing, 0.9, _ip())
+	SanatFX.yildirim_vur(hp, p.facing, pal, kr > 1.0)
+	FX.shockwave(hp + Vector2(0, -8), 80.0, 0.9)
+	_ses("sanat_cak", -3.0, 0.8, "simsek_catirti")
+	_sw_ses(0.8, -5.0)
+	if kr > 1.0:
+		# TAM: ikinci zincir: bütün işaretliler (seçkin dahil) arasında şimşek
+		var prev := hp
+		for e in cur["isaret"]:
+			if not is_instance_valid(e) or e.dead:
+				continue
+			SanatFX.simsek(prev, e.center(), pal, 8.0, randi(), 0.16)
+			prev = e.center()
+			_vur(e, float(d.get("tam_zincir_hasar", 0.4)), "tam_zincir", {"kb": 0.0, "hs": 0.03, "tier": 1, "fx": 0.8, "sessiz": true}, "magic")
+			if is_instance_valid(e) and not e.dead and not ft.has(e):
+				ft.append(e)
+	_bitis_fx(ft, 0.3, 0.06, 0.75)
 
 
-func _yer_yarigi(delta: float) -> void:
+# ------------------------------------------------------------------ v32 Tulpar Dörtnalı
+## Kamın davulu atıdır: silah zemine dört davul vuruşu indirir (0,34 sn arayla); her vuruşta oyuncunun çevresinden
+## büyüyen bir toynak dalgası yayılır (yarıçap her vuruşta artar): sıradanlar savrulup sersemler, seçkin / boss / ağır
+## yalnız hasar + duruş alır ("savrulmaz"). Her vuruşun ritim halkası vardır: halka kapanırken T → o vuruş TAM (×ritim_k,
+## daha geniş). Dördü de TAM'sa bitiriş TAM: oyuncu mürekkepten Tulpar'a biner ("HAYT!") ve öne dörtnala kalkar:
+## yolundakiler ezilir (sıradan havaya, duvara çakılır), daha hızlı ve uzun. TAM değilse de dörtnal var (×1,0, daha kısa).
+## Dörtnal duvarda / uçurumda durur (_oyuncu_yer). Ritim: ezbere basış (halka görünürken erken) o vuruşu yakar.
+const TD_WIND := 0.12
+const TD_VURUS := 0.36
+const TD_KALK := 0.14
+const TD_DORTNAL := 0.3
+const TD_REC := 0.14
+
+
+func _tulpar(delta: float) -> void:
 	var t := float(cur["t"])
 	var d: Dictionary = cur["def"]
 	var R := _R()
 	var seg := String(cur.get("seg", ""))
 	var f := float(p.facing)
+	var pal := int(cur["pal"])
+	var n := int(d.get("vurus", 4))
 	if seg == "":
 		_kombo_basla()
-		cur["y0"] = p.global_position.y
-		var kmax := float(d.get("kaldirma", 70.0))
-		cur["H"] = clampf(_tavan(p.global_position.x, p.global_position.y - 44.0, kmax + 8.0) - 8.0, 0.0, kmax)
+		cur["tam_n"] = 0
+		cur["durum"] = []
+		for i in n:
+			(cur["durum"] as Array).append(0)
+		var dv := SanatFX.spawn("davul", p.center(), cur["col"], 9.0, pal)
+		if dv:
+			dv.follow = p
+			dv.data = {"off": Vector2(0, -66), "n": n, "durum": cur["durum"], "k": -1, "u": 0.0}
+			dv.z_index = 58
+			cur["davul_fx"] = dv
+			_fx_ekle(dv)
 		_goge_seg("wind")
 		seg = "wind"
+		# ilk vuruşun halkası hazırlıkla birlikte kurulur (halka kapanışı = ilk iniş)
+		cur["k"] = 0
+		cur["at_k"] = float(cur["t"]) + TD_WIND + TD_KALK
+		_ritim(float(cur["at_k"]), 0.28)
 	var st := t - float(cur["t0"])
-	var pal := int(cur["pal"])
 	match seg:
 		"wind":
 			_phase("wind")
-			var pose := _seq([[0.0, 0.6, 0.9, 0.3, 1.0, 34.0, 1.0, 0.0, 0], [YY_WIND, 3.45, 0.28, 0.34, 0.97, 30.0, 0.6, 0.0, 2]], st)
-			_pose(pose, "atk_overhead_2h", st / YY_WIND * 0.35, "overhead_2h")
-			p.vis_scale = Vector2(1.0 - 0.05 * st / YY_WIND, 1.0 + 0.06 * st / YY_WIND)
-			if not cur.has("glint") and st > 0.07:
-				cur["glint"] = true
-				var tip := p.arm_root.to_global(p._hand_local + p._blade_local * _R())
-				SanatFX.cekis_topla(tip, pal)
-				_ses("sanat_hazir", -7.0, 0.62, "sarj_dolu")
+			var pose := _seq([[0.0, 0.6, 0.9, 0.3, 1.0, 34.0, 1.0, 0.0, 0], [TD_WIND, 3.4, 0.28, 0.34, 0.97, 30.0, 0.6, 0.0, 2]], st)
+			_pose(pose, "atk_overhead_2h" if p.anim.has_anim("atk_overhead_2h") else "atk_up", st / TD_WIND * 0.35, "overhead_2h")
+			if not cur.has("toz"):
+				cur["toz"] = true
+				SanatFX.tulpar_hazir(p.global_position, p.facing, pal)
+				_ses("sanat_davul", -8.0, 0.7, "kam_davul")
 			_move(delta, 1.0, 0.0)
-			if st >= YY_WIND:
-				_goge_seg("tepme")
-		"tepme":
+			if st >= TD_WIND:
+				_goge_seg("davul")
+		"davul":
+			# dört vuruş: her vuruşun zamanı halkasının kapanışı (at): kalkış at-TD_KALK'ta, iniş at'ta; dalga ve TAM kararı
+			# halkanın geç penceresi (RIT_SONRA) kapanınca verilir (geç basış da sayılır); sonraki halka hemen kurulur
+			# (vuruştan hemen sonra basmaya devam etmek sonrakini yakar: ezbere mash ödüllenmez)
 			_phase("act")
-			var pose := _seq([[0.0, 3.45, 0.28, 0.34, 0.97, 30.0, 0.6, 0.0, 0], [0.06, 0.62, 0.0, -0.1, 1.26, 27.0, 0.6, 0.0, 1],
-				[YY_TEPME, 0.4, 0.0, -0.18, 1.15, 26.0, 0.62, 12.0, 2]], st)
-			_pose(pose, "atk_overhead_2h", 0.5 + 0.2 * clampf(st / YY_TEPME, 0.0, 1.0), "overhead_2h")
-			_trail_on(not cur.has("tr0"), 1.5, 2)
-			cur["tr0"] = true
-			if st >= 0.055 and not cur.has("vurdu"):
-				cur["vurdu"] = true
-				_yarik_tepme(d, R)
-			_yarik_kilit(delta)
-			_move(delta, 1.0, 0.0)
-			if st >= YY_TEPME:
-				cur["y0"] = p.global_position.y
-				_goge_seg("sicra")
-				_ritim(float(cur["t"]) + YY_SICRA + YY_X + YY_DWIND, 0.38)
-		"sicra":
+			var k := int(cur.get("k", 0))
+			var at := float(cur.get("at_k", float(cur["t0"]) + TD_KALK))
+			var lt := t - (at - TD_KALK)
+			var keys := [[0.0, 0.45, 0.0, -0.18, 1.15, 26.0, 0.62, 10.0, 0], [TD_KALK - 0.04, 3.4, 0.28, 0.34, 0.97, 30.0, 0.6, 0.0, 2],
+				[TD_KALK, 0.5, 0.0, -0.1, 1.26, 27.0, 0.6, 0.0, 1], [TD_KALK + 0.06, 0.45, 0.0, -0.18, 1.15, 26.0, 0.62, 12.0, 2]]
+			if k == 0 and lt < TD_KALK:
+				keys[0] = [0.0, 3.4, 0.28, 0.34, 0.97, 30.0, 0.6, 0.0, 0]
+			_pose(_seq(keys, lt), "atk_overhead_2h" if p.anim.has_anim("atk_overhead_2h") else "atk_down", 0.2 + 0.5 * clampf(lt / TD_KALK, 0.0, 1.0), "overhead_2h")
+			_trail_on(lt >= TD_KALK - 0.04 and lt < TD_KALK - 0.02, 1.2, 1)
+			if lt < TD_KALK:
+				p.vis_scale = Vector2(1.0 - 0.05 * lt / TD_KALK, 1.0 + 0.07 * lt / TD_KALK)
+			if t >= at + RIT_SONRA and not cur.has("v%d" % k):
+				cur["v%d" % k] = true
+				cur["son_t"] = t
+				_tulpar_vur(k, d, R)
+				if k + 1 < n:
+					cur["k"] = k + 1
+					cur["at_k"] = at + TD_VURUS
+					cur["rit_sonra"] = t
+			if cur.has("rit_sonra") and t >= float(cur["rit_sonra"]):
+				cur.erase("rit_sonra")
+				_ritim(float(cur["at_k"]), maxf(0.1, float(cur["at_k"]) - t))
+			var dv: Variant = cur.get("davul_fx")
+			if is_instance_valid(dv) and dv is SanatFX:
+				(dv as SanatFX).data["k"] = k if not cur.has("v%d" % k) else k + 1
+				(dv as SanatFX).data["u"] = clampf((t - (at - TD_VURUS)) / TD_VURUS, 0.0, 1.0)
+			_move(delta, 1.0, 0.0, 2400.0)
+			if cur.has("v%d" % (n - 1)) and t >= float(cur["son_t"]) + 0.12:
+				_tulpar_bin(d)
+				_goge_seg("dortnal")
+		"dortnal":
 			_phase("act")
-			var u := clampf(st / YY_SICRA, 0.0, 1.0)
-			var pose := _seq([[0.0, 0.4, 0.0, -0.18, 1.15, 26.0, 0.62, 12.0, 0], [YY_SICRA, 3.05, 0.05, 0.1, 1.08, 60.0, 0.45, 0.0, 2]], st)
-			_pose(pose, "atk_up", u * 0.4, "rise")
-			if not cur.has("hop"):
-				cur["hop"] = true
-				p.air_hang = 0.0
-				p._end_trail()
-				FX.dust(p.global_position, Vector2.UP, 6, 0.3)
-				_ses("sicrayis", -6.0, 0.9)
-			var Hp := float(cur.get("Hp", 0.0))
-			var ty := float(cur["y0"]) - Hp * (1.0 - pow(1.0 - u, 2.4))
-			p.velocity = Vector2(f * 20.0, clampf((ty - p.global_position.y) / maxf(delta, 0.001), -1400.0, 600.0))
-			_yarik_kilit(delta)
-			_move_raw(delta)
-			if st >= YY_SICRA:
-				_goge_seg("hava_x")
-		"hava_x":
-			_phase("act")
-			var keys := [[0.0, 3.05, 0.05, 0.1, 1.08, 60.0, 0.45, 0.0, 0], [0.05, 0.85, 0.0, 0.0, 1.25, 60.0, 0.45, 0.0, 1],
-				[0.09, 0.3, 0.2, 0.05, 1.05, 64.0, 0.48, 25.0, 2], [0.11, 0.1, 0.3, -0.4, 1.0, 120.0, 0.45, 0.0, 0],
-				[0.16, 2.6, 0.0, 0.1, 1.25, 120.0, 0.45, 0.0, 1], [YY_X, 3.2, 0.05, 0.15, 1.1, 126.0, 0.48, -25.0, 2]]
-			var k := 0 if st < 0.11 else 1
-			_pose(_seq(keys, st), "atk_horiz" if k == 0 else "atk_up", clampf((st - 0.11 * k) / 0.11, 0.0, 1.0), "cross_x")
-			if k != int(cur.get("xk", -1)):
-				cur["xk"] = k
-				_trail_on(true, 1.4, 1)
-				_sw_ses(1.1 + 0.1 * k, -5.0)
-				SanatFX.yarik_x(p.center() + Vector2(f * (R * 0.55 + 14.0), -4.0), p.facing, k, pal, R + 18.0)
-			else:
-				_trail_on(false)
-			if st >= 0.05 + 0.11 * k and not cur.has("xv%d" % k):
-				cur["xv%d" % k] = true
-				var key := "x%d" % k
-				var ks := _kilitli()
-				var targets: Array = ks.duplicate()
-				for e in _in_box(_box(-14.0, -70.0, R + 22.0, 20.0), key):
-					if not targets.has(e):
-						targets.append(e)
-				for e in targets:
-					if is_instance_valid(e) and not e.dead:
-						_vur(e, float(d.get("x_hasar", 0.5)), key, {"kb": 0.0 if ks.has(e) else 40.0, "hs": 0.055, "tier": 1, "fx": 0.85, "sh": 0.25})
-						if ks.has(e):
-							_sars(e, Vector2(f * (9.0 + 3.0 * k), -6.0 if k == 0 else 7.0), (0.35 if k == 0 else -0.45) * f)
-			p.velocity = Vector2(0.0, (float(cur["y0"]) - float(cur.get("Hp", 0.0)) + sin(t * 7.0) * 1.5 - p.global_position.y) * 10.0)
-			_yarik_kilit(delta)
-			_move_raw(delta)
-			if st >= YY_X:
-				_goge_seg("dalis")
-		"dalis":
-			_phase("act")
-			var pose := _seq([[0.0, 3.2, 0.05, 0.15, 1.1, 30.0, 0.6, 0.0, 0], [YY_DWIND, 3.5, 0.2, 0.3, 0.95, 28.0, 0.6, 0.0, 2],
-				[YY_DWIND + 0.07, 0.4, 0.0, -0.2, 1.22, 26.0, 0.62, 0.0, 1]], st)
-			_pose(pose, "atk_slam_jump", 0.5 + 0.25 * clampf(st / (YY_DWIND + 0.07), 0.0, 1.0), "slam_2h")
-			if st < YY_DWIND:
-				p.velocity = Vector2(0.0, -30.0)
-				_yarik_kilit(delta)
-			else:
-				if not cur.has("dus"):
-					cur["dus"] = true
-					_trail_on(true, 1.5, 2, 1.2)
-					_ses("sanat_yuksel", -6.0, 0.62, "sicrayis")
-					Game.kick(Vector2(0, 1), 4.0)
-					SanatFX.goge_dalis(p.global_position, p.facing, pal)
-					for e in _kilitli():
-						e.sanat_dus = true
-						e.sanat_indi = false
-				else:
-					_trail_on(false)
-				p.velocity = Vector2(f * 10.0, 1000.0)
-				var ks := _kilitli()
-				for i in ks.size():
-					var e: Node = ks[i]
-					if e.sanat_dus:
-						e.sanat_hedef = Vector2(e.global_position.x, e.global_position.y)
-						e.sanat_tut = maxf(float(e.sanat_tut), 0.3)
-				if Engine.get_physics_frames() % 2 == 0:
-					FX.ghost(p.anim.base, Color(cur["col"], 0.5), 0.2)
-			_move_raw(delta)
-			if (st >= YY_DWIND and p.is_on_floor()) or st > 1.0:
-				_yarik_cat(d)
+			var kr := float(cur.get("kr", 1.0))
+			_pose([0.2 + 0.15 * sin(t * 40.0), 0.1, 0.0, 1.25, 80.0, 0.5, 0.0], "atk_lunge_long" if p.anim.has_anim("atk_lunge_long") else "atk_horiz", 0.6, "lunge")
+			var spd := float(d.get("dortnal_hiz", 580.0)) * (1.18 if kr > 1.0 else 1.0)
+			var git := float(cur.get("git", 0.0))
+			var boy := float(d.get("dortnal_boy", 200.0)) * (1.3 if kr > 1.0 else 1.0)
+			var ok := _oyuncu_yer(p.global_position.x + f * 26.0) and git < boy
+			p.velocity.x = f * spd if ok else 0.0
+			cur["git"] = git + absf(p.velocity.x) * delta
+			if ok and Engine.get_physics_frames() % 2 == 0:
+				FX.ghost(p.anim.base, Color(cur["col"], 0.45), 0.2)
+				FX.dust(p.global_position + Vector2(-f * 10.0, 0.0), Vector2(-f, -0.4), 2, 0.3)
+			var nal := int(st / 0.09)
+			if ok and nal != int(cur.get("nal", -1)):
+				cur["nal"] = nal
+				SanatFX.tulpar_at(p, p.facing, pal, nal, kr > 1.0)
+			_trail_on(false)
+			for e in _in_box(_box(-10.0, -64.0, R * 0.35 + 46.0, 8.0), "nal"):
+				var lift := kaldirilir(e)
+				_vur(e, float(d.get("son_hasar", 1.5)) * kr, "nal", {"kb": 220.0 if lift else 90.0, "dir": f, "stagger": true, "stun": 0.5, "heavy": true,
+					"launch": (240.0 if kr <= 1.0 else 290.0) if lift else 0.0, "hs": 0.07, "sh": 0.5, "tier": 2, "fx": 1.2}, "blunt")
+				if not lift:
+					_seckin_say(e, "savrulmaz")
+			p.inv_t = maxf(p.inv_t, 0.1)
+			_move(delta, 1.0, 0.0, 0.0)
+			if st >= TD_DORTNAL or (not ok and st > 0.08):
+				p.velocity.x *= 0.3
 				_goge_seg("rec")
 		"rec":
 			_phase("rec")
-			var pose := _seq([[0.0, 0.4, 0.0, -0.2, 1.22, 26.0, 0.62, 18.0, 0], [0.14, 0.38, 0.07, -0.15, 1.08, 26.0, 0.64, 18.0, 2],
-				[YY_REC, 0.6, 0.9, 0.3, 1.0, 90.0, 1.0, 0.0, 0]], st)
-			_pose(pose, "atk_slam_jump", 0.75 + 0.25 * clampf(st / YY_REC, 0.0, 1.0), "slam_2h")
-			if st > 0.06:
+			var pose := _seq([[0.0, 0.2, 0.1, 0.0, 1.25, 80.0, 0.5, 0.0, 0], [TD_REC, 0.6, 0.9, 0.3, 1.0, 90.0, 1.0, 0.0, 0]], st)
+			_pose(pose, "atk_lunge_long" if p.anim.has_anim("atk_lunge_long") else "atk_horiz", 0.9, "lunge")
+			if not cur.has("kay"):
+				cur["kay"] = true
 				p._end_trail()
-			_move(delta, 1.0, 0.0)
-			if st >= YY_REC:
+				FX.dust(p.global_position, Vector2(f, -0.3), 6, 0.32)
+			_move(delta, 1.0, 0.0, 1400.0)
+			if st >= TD_REC:
 				_end()
 
 
-func _yarik_tepme(d: Dictionary, R: float) -> void:
-	## Zemin dövülür: çevredeki sıradanlar yerden seker ve kilitlenir (önde dizilir), seçkin / ağır sarsılır
+func _tulpar_vur(k: int, d: Dictionary, R: float) -> void:
+	## k. davul vuruşu: toynak dalgası (yarıçap k ile büyür; halka kapanırken basıldıysa TAM: ×ritim_k, ×1,3 geniş)
+	var r: Dictionary = cur.get("rit", {})
+	var ok: bool = r.get("ok", false)
+	var kacti: bool = r.get("kacti", false)
+	cur.erase("rit")
+	var durum: Array = cur["durum"]
+	durum[k] = 2 if ok else (3 if kacti else 1)
+	if ok:
+		cur["tam_n"] = int(cur["tam_n"]) + 1
+	var kr := float(d.get("ritim_k", 1.35)) if ok else 1.0
+	var rad := (float(d.get("yaricap", 64.0)) + float(d.get("yaricap_artis", 22.0)) * float(k)) * (1.3 if ok else 1.0)
+	var mult := (float(d.get("hasar", 0.4)) + float(d.get("artis", 0.12)) * float(k)) * kr
 	var gp := p.global_position
 	var f := float(p.facing)
-	var ext := R + float(d.get("tepme_alan", 70.0))
-	var xs: Array = []
-	var H := float(cur["H"])
-	for e in _in_box(Rect2(gp.x - ext, gp.y - 72.0, ext * 2.0, 78.0), "tepme"):
-		var lift := _kilitle(e)
-		_vur(e, float(d.get("hasar", 0.5)), "tepme", {"kb": 0.0 if lift else 40.0, "stun": 0.0 if lift else 0.45, "hs": 0.07,
-			"tier": 1, "fx": 0.9, "sh": 0.4}, "blunt")
-		if lift and is_instance_valid(e) and not e.dead:
-			var kd := _kd(e)
-			var slot := (cur["kilit"] as Array).find(e)
-			kd["x"] = gp.x + f * (28.0 + 17.0 * float(slot))
-			H = minf(H, _oda(float(kd["x"]), gp.y, float(e.size.y) + 4.0, H))
-			H = minf(H, _oda(e.global_position.x, gp.y, float(e.size.y) + 4.0, H))
-			xs.append(e.global_position.x - gp.x)
-	cur["H"] = H
-	cur["Hp"] = maxf(0.0, minf(H, _oda(gp.x, gp.y, 46.0, H)))
-	cur["tepme_t"] = float(cur["t"])
-	stats["kombo"]["H"] = H
-	InkFX.slam(gp + Vector2(f * (R * 0.7), 0.0), p.facing, 0.85, _ip())
-	SanatFX.yarik_tepme(gp, p.facing, int(cur["pal"]), xs, R)
-	FX.shockwave(gp + Vector2(f * R * 0.7, -4.0), 70.0, 0.7)
-	Game.shake_dir(0.45, Vector2(0, 1))
-	Game.rumble(0.5, 0.4, 0.12)
-	_ses("sanat_yarik", -2.0, 1.0, "sanat_cekis")
-
-
-func _yarik_kilit(delta: float) -> void:
-	## Seken sıradanlar: 0,2 sn'de yükselir (kolay eğri), önde dizili, havada salınır
-	_kilit_kare(delta)
-	if not cur.has("tepme_t"):
-		return
-	var u := clampf((float(cur["t"]) - float(cur["tepme_t"])) / 0.22, 0.0, 1.0)
-	var ez := 1.0 - pow(1.0 - u, 2.6)
-	var H := float(cur["H"])
-	var ks := _kilitli()
-	for i in ks.size():
-		var e: Node = ks[i]
-		var kd := _kd(e)
-		var p0: Vector2 = kd["p0"]
-		var tx := lerpf(p0.x, float(kd.get("x", p0.x)), ez)
-		var ty := float(cur["y0"]) - H * ez + sin(float(cur["t"]) * 8.0 + float(i) * 1.9) * 2.0 * u - 3.0 * float(i % 2)
-		_tut(e, Vector2(tx, ty), lerpf(0.0, 0.6 * float(e.facing), ez))
-		e.facing = -p.facing
-
-
-func _yarik_cat(d: Dictionary) -> void:
-	## İniş: kilitlilere çakılma (+ritim) ve sekme, çevreye alan hasarı, "ÇAT!", ilerleyen yarık
-	var gp := p.global_position
-	var kr := _ritim_k()
-	var f := float(p.facing)
+	var pal := int(cur["pal"])
+	var key := "vurus%d" % k
 	var targets: Array = [p]
-	var carp := 0
-	var ks := _kilitli()
-	for e in ks:
-		var killed := _vur(e, float(d.get("carpma_hasar", 1.6)) * kr, "cat", {"kb": 40.0, "stun": 0.8, "heavy": true, "hs": 0.12,
-			"sh": 0.8, "tier": 2, "fx": 1.3}, "blunt")
-		carp += 1
+	for e in _in_box(Rect2(gp.x - rad, gp.y - 70.0, rad * 2.0, 78.0), key):
+		var lift := kaldirilir(e)
+		var dirx := signf(e.center().x - gp.x)
+		if dirx == 0.0:
+			dirx = f
+		var killed := _vur(e, mult, key, {"kb": 170.0 if lift else 40.0, "dir": dirx, "stagger": true, "stun": 0.3 if lift else 0.0, "heavy": true,
+			"hs": 0.035 + 0.005 * k, "sh": 0.3 + 0.08 * k, "tier": 2 if ok else 1, "fx": 0.9 + 0.1 * k}, "blunt")
+		if not lift and is_instance_valid(e):
+			_seckin_say(e, "savrulmaz")
 		if not killed and is_instance_valid(e):
 			targets.append(e)
-			_sek(e, f * 40.0, 30.0)
-			SanatFX.yer_carpma(Vector2(e.global_position.x, gp.y), int(cur["pal"]))
-	var alan := float(d.get("alan", 60.0))
-	for e in _in_box(Rect2(gp.x - alan, gp.y - 56.0, alan * 2.0, 64.0), "cat_alan"):
-		if targets.has(e):
-			continue
-		_vur(e, float(d.get("yarik_hasar", 1.0)) * kr, "cat_alan", {"kb": 200.0, "stun": 0.5, "heavy": true, "hs": 0.1, "sh": 0.6}, "blunt")
-	InkFX.slam(gp, p.facing, 1.1, _ip())
-	SanatFX.yarik_cat(gp, p.facing, int(cur["pal"]), carp, kr > 1.0)
-	FX.shockwave(gp + Vector2(0, -6), 96.0, 1.0)
-	_ses("sanat_cat", -1.0, 1.0, "sanat_gum")
-	p.vis_scale = Vector2(1.28, 0.76)
-	_bitis_fx(targets, 0.3, 0.07, 0.85)
-	# ilerleyen yarık: kilitliler (çakılıp sekenler) yeniden vurulmaz
-	var hit: Array = ks.duplicate()
-	_yariklar.append({"x": gp.x + f * 18.0, "y": gp.y, "dir": f, "git": 0.0, "boy": float(d.get("yarik_boy", 220.0)) * (1.35 if kr > 1.0 else 1.0),
-		"fx": 0.0, "hit": hit, "it": cur["item"], "d": d, "kr": kr, "k": 0})
+	InkFX.slam(gp + Vector2(f * R * 0.5, 0.0), p.facing, 0.6 + 0.1 * k, _ip())
+	SanatFX.tulpar_vurus(gp, p.facing, pal, rad, k, ok)
+	FX.shockwave(gp + Vector2(f * R * 0.3, -4.0), rad * 0.8, 0.5 + 0.12 * k)
+	Game.shake_dir(0.3 + 0.1 * k, Vector2(0, 1))
+	Game.rumble(0.4 + 0.1 * k, 0.3, 0.1)
+	Game.kick(Vector2(0, 1), 3.0 + float(k))
+	_ses("sanat_davul", -3.0 + 0.5 * k, 1.0 + 0.05 * k, "kam_davul")
+	if ok:
+		_ses("sanat_tam", -6.0, 1.0 + 0.04 * k, "sanat_hazir")
+	p.vis_scale = Vector2(1.18, 0.84)
+	stats["kombo"]["H"] = rad
+	if log_on:
+		print("[sanat] tulpar vuruş %d tam=%s yarıçap=%.0f çarpan=%.2f" % [k, str(ok), rad, mult])
 
 
-func _yarik_tick(delta: float) -> void:
-	## Zeminde ilerleyen yarık: 640 px/sn, her 24 px'te yarık parçası; duvarda ya da uçurumda biter
-	if _yariklar.is_empty() or p == null or not is_instance_valid(p):
-		return
-	var lv: Node = p.level
-	for y in _yariklar.duplicate():
-		var dir := float(y["dir"])
-		var gy := float(y["y"])
-		var x0 := float(y["x"])
-		var step := 640.0 * delta
-		var x1 := x0 + dir * step
-		var stop := false
-		if lv and lv.has_method("solid_at"):
-			if lv.solid_at(Vector2(x1 + dir * 6.0, gy - 10.0)) or not lv.solid_at(Vector2(x1, gy + 6.0)):
-				stop = true
-				x1 = x0
-		y["x"] = x1
-		y["git"] = float(y["git"]) + step
-		if float(y["git"]) >= float(y["boy"]):
-			stop = true
-		var d: Dictionary = y["d"]
-		var pal := int(d.get("pal", 17))
-		while float(y["fx"]) <= float(y["git"]) and not stop:
-			y["fx"] = float(y["fx"]) + 24.0
-			y["k"] = int(y["k"]) + 1
-			SanatFX.yarik_parca(Vector2(x1, gy), int(dir), pal, int(y["k"]))
-		var band := Rect2(minf(x0, x1) - 12.0, gy - 48.0, absf(x1 - x0) + 24.0, 50.0)
-		var hit: Array = y["hit"]
-		for e in p.get_tree().get_nodes_in_group("dusman"):
-			if not is_instance_valid(e) or e.dead or hit.has(e):
-				continue
-			if band.intersects(e.hurt_rect()):
-				hit.append(e)
-				var lift := kaldirilir(e)
-				_uzak_vur(e, y["it"], d, "yarik", float(d.get("yarik_hasar", 1.0)) * float(y["kr"]), {"kb": 40.0, "dir": dir,
-					"launch": 240.0 if lift else 0.0, "stun": 0.0 if lift else 0.45, "stagger": true})
-		if stop:
-			SanatFX.yarik_son(Vector2(x1, gy), int(dir), pal)
-			_yariklar.erase(y)
+func _tulpar_bin(d: Dictionary) -> void:
+	## Dörtnal başlar: dördü de TAM'sa Tulpar ("HAYT!"), değilse sade koşu
+	var tam := int(cur["tam_n"]) >= int(d.get("vurus", 4))
+	var kr := float(d.get("ritim_k", 1.35)) if tam else 1.0
+	cur["kr"] = kr
+	cur["git"] = 0.0
+	cur["nal"] = -1
+	var f := float(p.facing)
+	var pal := int(cur["pal"])
+	p.inv_t = maxf(p.inv_t, TD_DORTNAL + 0.1)
+	_trail_on(true, 1.3, 1)
+	SanatFX.tulpar_hayt(p.center(), p.facing, pal, tam)
+	if tam:
+		SanatFX.damga(p.center() + Vector2(-f * 26.0, -58.0), "hayt", pal, p.facing, 1.15)
+		FX.flash_light(p.center(), Color(1.0, 0.85, 0.45), 200.0, 2.0, 0.22)
+		Game.slowmo(0.35, 0.14)
+	_ses("sanat_dortnal", -2.0 if tam else -5.0, 1.0 if tam else 0.92, "sanat_atilis")
+	Game.kick(Vector2(f, 0), 5.0)
+	Game.shake_dir(0.4, Vector2(f, 0))
+	Game.rumble(0.7, 0.5, 0.16)
+	stats["kombo"]["bitis"] = int(stats["kombo"]["bitis"]) + 1
+	var dv: Variant = cur.get("davul_fx")
+	if is_instance_valid(dv) and dv is SanatFX:
+		(dv as SanatFX).alive = false
+	if log_on:
+		print("[sanat] tulpar dörtnal tam=%s (tam_n=%d)" % [str(tam), int(cur["tam_n"])])
 
 
 # ------------------------------------------------------------------ v31 Akıncı Akını
