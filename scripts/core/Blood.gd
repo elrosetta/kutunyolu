@@ -99,6 +99,23 @@ static func burst(pos: Vector2, dir: Vector2, col: Color, n: int, gibs := 0, fle
 	_mist(pos, d, col, 0.5)
 
 
+static func splat(pos: Vector2, col: Color, n: int, wall: bool) -> void:
+	## v35 vahşet: iri mürekkep kan lekesi kümesi (parça duvara / yere çarptı); duvarda bir kısmı aşağı süzülür
+	var b := sys()
+	if b == null:
+		return
+	for i in n:
+		var q := pos + (Vector2(0.0, randf_range(-7.0, 7.0)) if wall else Vector2(randf_range(-7.0, 7.0), 0.0))
+		var c := _tone(col, randf() * 0.6)
+		if wall:
+			var r := randf_range(2.0, 4.5)
+			b.stains._ink_add(q, Vector2(r * randf_range(0.6, 0.9), r), c, 1)
+			if randf() < 0.55:
+				b._drips.append([q, randf_range(8.0, 18.0), randf_range(0.8, 2.6), c, b.stains.add_run(q, c)])
+		else:
+			b.stains.add(q, c, randi_range(3, 5), true)
+
+
 static func drip(pos: Vector2, col: Color, n := 1) -> void:
 	## Yaralı gövdeden süzülen damla
 	var b := sys()

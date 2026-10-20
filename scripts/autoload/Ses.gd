@@ -31,7 +31,7 @@ const UI_PREFIXES := ["ui_", "npc_", "esya_kusan", "esya_degis", "tilsim", "sevi
 const LIMITS := {
 	"adim": 2, "inis": 1, "zipla": 1, "yuvarlan": 1, "altin": 4, "kut_tane": 4, "ui_gez": 2, "ui_sec": 2,
 	"savur": 3, "darbe": 5, "darbe_kritik": 2, "darbe_kritik_kunt": 2, "ok_vurus": 3, "ok_ucus": 3, "dusman_hazirlik": 3, "hazirlik": 3,
-	"patlama": 3, "sarsinti": 2, "olum_vurus": 2, "simsek_catirti": 2, "gok_gurleme": 2,
+	"vahset": 6, "patlama": 3, "sarsinti": 2, "olum_vurus": 2, "simsek_catirti": 2, "gok_gurleme": 2,
 }
 const DEFAULT_LIMIT := 3
 

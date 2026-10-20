@@ -92,6 +92,11 @@ func _ready() -> void:
 		var yt2: Node = load("res://tools/tests/yay_testi.gd").new()
 		yt2.set("main", self)
 		add_child(yt2)
+	if OS.get_cmdline_user_args().has("--vahset"):
+		# v35 vahşet testi (tools/tests/vahset_testi.gd): parçalanma şeritleri, 40 öldürüşte başarım, ceset odası
+		var vt: Node = load("res://tools/tests/vahset_testi.gd").new()
+		vt.set("main", self)
+		add_child(vt)
 	if OS.get_cmdline_user_args().has("--sanat"):
 		# v27 savaş sanatları testi (tools/tests/sanat_testi.gd): bedel, bekleme, isabet, sınıf kuralı, kilit ve kayıt
 		var sat: Node = load("res://tools/tests/sanat_testi.gd").new()
@@ -155,7 +160,7 @@ func _ready() -> void:
 			_build_boss("kara_boru_han")
 		elif String(arg).begins_with("--boss="):
 			_build_boss(String(arg).trim_prefix("--boss="))
-	if auto_test or showcase or _ekran != "" or firca or sus or bengu_t or OS.get_cmdline_user_args().has("--mekanik") or OS.get_cmdline_user_args().has("--dovus") or OS.get_cmdline_user_args().has("--yay") or OS.get_cmdline_user_args().has("--unsur") or OS.get_cmdline_user_args().has("--denge") or OS.get_cmdline_user_args().has("--tomar") or OS.get_cmdline_user_args().has("--zeka") or OS.get_cmdline_user_args().has("--tuccar") or OS.get_cmdline_user_args().has("--harita") or OS.get_cmdline_user_args().has("--sanat") or OS.get_cmdline_user_args().has("--konak") or OS.get_cmdline_user_args().has("--isinlan"):
+	if auto_test or showcase or _ekran != "" or firca or sus or bengu_t or OS.get_cmdline_user_args().has("--mekanik") or OS.get_cmdline_user_args().has("--dovus") or OS.get_cmdline_user_args().has("--yay") or OS.get_cmdline_user_args().has("--unsur") or OS.get_cmdline_user_args().has("--denge") or OS.get_cmdline_user_args().has("--tomar") or OS.get_cmdline_user_args().has("--zeka") or OS.get_cmdline_user_args().has("--tuccar") or OS.get_cmdline_user_args().has("--harita") or OS.get_cmdline_user_args().has("--sanat") or OS.get_cmdline_user_args().has("--konak") or OS.get_cmdline_user_args().has("--isinlan") or OS.get_cmdline_user_args().has("--vahset"):
 		hud.mode = "play"
 		get_tree().paused = false
 	else:
