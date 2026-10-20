@@ -5641,3 +5641,156 @@ ara duvar ve yanında tırmanış basamakları), `kapak_inis.jpg` (dal kuyusunun
 * Bot dövüşmez (`--bot_gercek` dışında): derin bölümde can azalırsa ödülleri bırakıp kapıya gider, yine de ölebilir.
 * Saf koşu süresi (35 sn) hedeflenen 45-90 sn'nin altında: ayak izi ve yol v32'ye göre küçüldü (oyuncu isteği); gerçek
   geçiş (savaş + ödül sapmaları) bot ölçümünde 58-98 sn.
+
+## v34: merak uyandıran bölümler ve yoğunluk
+
+Geri bildirim (v33'ü oynadıktan sonra): "Bölümler vasat. Daha merak uyandırıcı olmalı: oyuncu doğrudan çıkış kapısına
+çekilmemeli, 'bir şey mi kaçırdım?' demeli. Katların çoğu boş, boşuna yürüyorum: ne yaratık var ne kazanılacak bir şey.
+Mob yoğunluğunu artıralım."
+
+### Araştırma (Dead Cells)
+
+Kaynaklar: Sébastien Benard, "The level design of Dead Cells: a hybrid approach" (deepnight.net); deadcells.wiki.gg
+(Objects: Cursed Chest, Timed Door, Breakable wall / hidden areas, Keys / Rune doors). Çıkarılan ilkeler:
+
+* **Gözü yönlendir, yolu sakla (teaser)**: ödül çoğu kez ana yoldan GÖRÜNÜR ama ulaşılmazdır (parmaklık, yüksek
+  çıkıntı, kapalı kapı); oyuncu "oraya nasıl giderim" diye dolaşır. Ödül yolları bölümün başında ayrılır.
+* **Çıkış ödül değildir**: Dead Cells'de çıkış kapısı çoğu kez ana koridorun ucunda değil, bir yan geçitte / alt katta;
+  koridoru takip eden oyuncu önce bir çıkmaza / ödüle varır, kapıyı haritadan arar.
+* **Gizli alanlar**: yaklaşınca soluk ışık veren çatlak bloklar, vurunca açılır, ardında yiyecek / altın / tomar.
+* **Anahtar ve rün kapıları**: bölümde bulunan anahtar başka bir yerdeki kapıyı açar (geri dönüş, döngü).
+* **Lanetli sandık**: isteğe bağlı risk: büyük ödül + lanet (10 öldürmeye dek tek darbe ölüm).
+* **Harita tamamlama**: keşfedilmemiş açıklıklar haritada belli olur; tamamlama dürtüsü.
+
+### Üretici (`scripts/world/LevelGen.gd`)
+
+1. **Kut Kapısı sapağı** (`_cikis_sapagi`, `SAPAK_SANS` 0,95): ana yol v33'teki gibi yürünür, sonra son %60'ından bir
+   kesimden (stil yönünde: inişte aşağı ya da yana, tırmanışta yukarı ya da yana) boş bir komşu kesime SAPAK açılır;
+   Kut Kapısı o tek kapılı çıkmaz odadadır (kuyuysa **kapaklı**: yürürken düşülmez, aşağı + zıpla; yansa koridor; kapı
+   odaya sağdan giriliyorsa Kut Kapısı odanın sol ucunda). Eski yolun geri kalanı **uzantı** olur: görünür koridor
+   (aşağı iniyorsa açık düşüş) sürer ve bir **ödül odasında** biter (`UZANTI_ODUL`: seçkin bekçi / lanetli sandık /
+   hazine). Sapaktaki oda döngüye ve geniş salon birleşmesine katılmaz, ondan dal ayrılmaz.
+2. **Pencere dalı** (`_pencere_dali`; her bölümde 1, %40 ikinci): boş bir R kesimi yanındaki (yatay) ana yol / giriş /
+   uzantı odası A'ya **demir parmaklıklı pencereyle** bakar (koridorun ortasındaki 1 sütun x 4 karo ızgarada katı);
+   R'ye başka bir J odasından 0-1 ara odayla dolaşarak girilir. Puan: A yolda erken, J A'dan sonra, bir ara oda.
+   Ödül (tomar / hazine) parmaklığın yakınında (`_odul_mid`), pencere yanı daralmaz (ödül görünsün).
+3. **Dallar erken**: kavşak sırası yol başına ağırlıklı (`sıra / uzunluk + rastgele 0-0,55`); boss öncesi pazar
+   kuralı (çıkışa yakın) aynen. Pencere / uzantı dalları dal sayısını doldurursa istenen pazar bir ödül odasına geçer
+   (boss öncesi uzantının sonu, değilse sıradan dal).
+4. **Gizli cepler** (`_gizli_cepler`, bölüm başına 2-3 deneme): odanın kapısız yan duvarında taban hizasında 1 sütunluk
+   **çatlak duvar** (4 karo) ve ardında 4 x 4 cep; cep + 1 karo pay bütünüyle kaya olmalı. Cep üretimde OYULMAZ (Level
+   kırınca oyar): erişim / dönüş denetimi değişmez; kırılınca cebin tabanı odanın tabanıyla aynı, dönüş yürüyerek.
+   İçerik: altın (%50), zula (%20: eşya + altın; v25'in gizli yeraltı odası ganimeti artık burada, `_spawn_kesif`'in
+   yoldaki ikinci zulası kalktı), Kut (%15), şifa (%15), anahtar.
+5. **Kilitli oda** (`KILIT_SANS` 0,75): yan kapılı bir ödül odası (pazar / zamanlı / pencereli değil) kilitlenir;
+   anahtar başka odanın gizli cebinde, cep yoksa başka bir ödül odasının köşesinde ("K"); anahtar konamazsa kilit yok.
+   Kilitli odanın ödülüne +8 altın.
+6. Sınırlar gizli cepleri de kapsar (kamera / harita). Yeni dönüş alanları: `cepler`, `kilitli`, `pencereler`; ölçüm:
+   `sapak`, `uzanti`, `pencere`, `cep`, `kilit`, `dal_yeri`.
+
+### Bölüm (`scripts/world/Level.gd`) ve yeni düğümler
+
+* **Parmaklık** (`Parmaklik.gd`): kaya karosu silinir, dövme demir çubuklar + dünya katmanında çarpışma kutusu; ardındaki
+  ödülün sıcak ışığı sızar.
+* **Çatlak duvar** (`KirikDuvar.gd`): kayadan açık taş örgü yaması, koyu zikzak çatlak, ışık alan kırık kenarlar,
+  çatlaklardan sızan soluk Kut ışığı (yaklaşınca belirginleşir: Dead Cells'in parıldayan blokları). İki vuruş:
+  `Player` her savuruşta zaten `Level.break_cracks(kutu)` çağırıyordu (boştu; v34'te dolu), patlamalar da kırar.
+  Kırılınca karolar havaya döner (`Level.set_air`: ızgara, zemin karosu, komşu maskeleri, sarkan örtü, harita sisi),
+  toz / duman / Kut flaşı, "Gizli cep!" yazısı, içerik cebin tabanına.
+* **Kilitli kapı** (`KilitliKapi.gd`) ve **anahtar** (`Anahtar.gd`): kapı 4 karo katı, altın kilit tamgası; anahtarsız
+  yaklaşınca "Kilitli: bölümde bir anahtar var"; anahtar (havada süzülen altın anahtar) alınınca kapıya yaklaşmak açar.
+* **Lanetli sandık** (`Sandik.gd`, "L"): zincirli kara sandık, mor kafatası mührü, W balonu ve uyarı. Açınca üst kademe
+  (+2) eşya, 14 altın, 5 Kut; oyuncu **lanetlenir**: `Level.LANET_OLDUR` (10) yaratık öldürene dek alınan her darbe
+  bir kez daha düşülür (iki kat; ölümcül fazlalık `Player.take_hit` yolundan: Umay / Deli Dumrul geçerli). Lanet koşu
+  içinde bölümden bölüme taşınır (`Game.run["lanet"]`), oyuncunun çevresinde mor halka ve "LANET n" yazısı.
+* **Küp** (`Kup.gd`): kırılan pişmiş toprak testi (1-3 altın, %30 Kut, %5 şifa). İçinde hiçbir şey olmayan odaya 2-3,
+  diğer dövüş odalarına %35 ihtimalle 1 (`_kupler_yerlestir`). Sonuç: **boş oda yok** (her odada yaratık / ganimet / küp /
+  tehlike / pencere / gizli duvar).
+* Kut Taşı adı: "Lanet Taşı" (lanetli sandık odası).
+
+### Yaratık yoğunluğu (`Level._spawn_enemies`, `data/world.json` "yogunluk")
+
+v33: dövüş odasının tabanı boyunca 15-22 karoda bir TEK yaratık (bazı dar odalarda hiç). v34: `aralik` 12-17 karoda bir
+**GRUP** (derinlikle `zorluk.json` yogunluk kadar sıklaşır, en az 7); **her ana yol ve dal odasında en az bir grup**
+(yerleşim denetimi ya da pazar temizliği boşaltırsa `_bos_oda_doldur` odanın içinde bir yaratık daha dener); grupların
+%40'ı **karışık** (yakın dövüşçü + 3 karo içeride uzak dövüşçü: okçu / büyücü / uçan atıcı); 7+ karo yüksek odada %25
+havada ek uçan; **ödül odalarında** %60 bekçi grubu (1. derinlikte %17, sonra %35 seçkin). Giriş noktasının 12 karo,
+Kut Taşlarının 4 karo çevresi ve Kut Kapısı önü yaratıksız (`_yaratik_yasak`; yerleşim denetimi oraya kaydırırsa
+yaratık kaldırılır); seçkin odasının bekçisi de taşın dibinden kayar. Bezirgân temizliği yalnızca pazar odasında.
+Altın: yaratık sayısı ~2 kat olduğu için sıradan yaratığın altını 2-4 -> 1-2 tane (+%25 bir tane), seçkin +10 aynı.
+
+### Harita (`Harita.gd`, `HaritaUI.gd`)
+
+* **"?" ipuçları** (`Harita.sorular`): bir kapının (koridor / kuyu / pencere) bir yanındaki oda görülmüş, öbür yanındaki
+  görülmemişse koridorun / kuyunun ortasında soluk, nabız atan soru işareti (küçük ve tam harita).
+* **Kalan ganimet sayacı** (tam harita sağ üst, `Harita.sayac_metni`): "Hazine 1/6 · Tomar 0/3 · Gizli 0/2 · Kilit 0/1"
+  (bulunan / toplam; hazine: kurulumdaki kaideli eşyalar, alınınca kaidede eski eşya kalsa da sayılır + lanetli sandık).
+* Yeni işaretler ve lejant (iki satır): lanetli sandık, kilit, anahtar, keşfedilmedi.
+* `Harita.karo_degisti`: kırılan duvar / açılan kilit / kapanan zamanlı kapı haritada yeniden boyanır.
+
+### Bot (`Rehber.gd`)
+
+Kalabalık bölümde yolun önündeki (80 px) yaratığa 0,22 sn'de bir saldırır (`_savas`; kapaktan inerken değil);
+anahtarsız kilitli odayı hedeflemez; yolu bulunamayan ödül odasından vazgeçer (`vazgec`, eskiden aynı hedefi seçip
+kıpırdanıyordu).
+
+### Ölçüm
+
+`--harita` (6 stil x 20 tohum = 120 bölüm; BOLUM: derinlik 1-9 x 6 = 54 tam bölüm). Önce = v33 kodu aynı tohumlarla,
+aynı ölçüm kodu (yeni ICERIK satırı v33 bölümünde de çalışır).
+
+| | v33 | v34 |
+|---|---|---|
+| yaratık / bölüm (derinlik 1-9, 54 bölüm) | 13,1 (10,3-16,3) | **25,9** (17,2-37,8; x2,0), grup 17,5, karışık grup ~5 |
+| boş oda / bölüm | 1,81 (98 oda) | **0** |
+| yaratıksız ana yol odası / bekçisiz dal odası | 84 / 7 | 0 / 0 |
+| Kut Taşı dibinde / giriş dibinde yaratık | 50 / 0 | 0 / 0 |
+| altın tanesi / bölüm (yerde + yaratık beklentisi + küp / cep / sandık) | ~63 (değer ~290) | ~100 (değer ~460; x1,6) |
+| Kut Kapısı sapakta (ana koridorun ucunda değil) | %0 | %73 (uzantı ort. 3,0 oda, sonu ödül) |
+| pencere (görünen ödül) / gizli cep / kilitli oda / lanetli sandık / küp | 0 / 0 / 0 / 0 / 0 | 1,27 (%99 en az 1) / 2,1 / 0,44 (54 bölümde 0,15) / 0,15 / 4,7 |
+| oda / ana yol odası / dal | 14,2 / 11,4 / 3,0 | 15,6 / 9,2 / 3,4 |
+| dalların ayrıldığı yer (ana yol sırası / uzunluk) | rastgele (~0,5) | 0,44 (yol başına ağırlıklı) |
+| giriş -> Kut Kapısı yolu (karo, /koşu) | 224, 34,7 sn | 172, 26,6 sn (çıkış sapağı yolu kısaltır; keşif uzantıda) |
+| ızgara / hava karosu | 165 x 46 / 2275 | 165 x 47 / 2427 (+%7) |
+| erişim + dönüş, ana yol 3 karo baş boşluğu, yuvarlanma hücresi | 120 / 120, 120, 0 | 120 / 120, 120, 0 |
+| geçersiz yaratık / eşya katıda / tüccar duvar / açılmayan pazar | 0 / 0 / duvar_ok / 0 | 0 / 0 / duvar_ok / 0 |
+| üretim ort. / en çok | 0,55 / 1,06 sn | 0,49 / 0,76 sn |
+
+Bot (`--otomatik --fixed-fps 60 --quit-after 9000`, `--muhur=0`): 1. derinlik v33 61,6 sn -> v34 72,6 sn'de Kut
+Kapısı (keşif %79, 2 ödül odası, 3/4 taş); 3. derinlik 49,3 -> 59,8 sn; 5. derinlik 52,2 sn'de kapı (sonra 6.
+derinlikte öldü: dövüşmeyen bot, v33'te de). Bot altını (topladığı; çoğunu yürürken toplar, az dövüşür): 1. derinlik
+30 -> 21, 3. derinlik 25 -> 14. Tüccar fiyatları değişmedi (`data/tuccar.json` diğer dalın); tam dövüşen oyuncu için
+bölüm başına ~1,6 kat altın: 1. derinlikte ~180 değer (Kut Tomarı 230, şifa 34), bir tomar için ~1,3 bölüm (v33: ~2).
+
+### Test
+
+* `--harita`: yeni satırlar `MERAK TOPLAM` (sapak, uzantı, pencere, gizli cep, kilit, dalların ayrıldığı yer), `ICERIK`
+  (derinlik başına yaratık / grup / karışık / seçkin, boş oda, düşmansız ana yol odası, bekçisiz dal, altın tanesi ve
+  değeri, pencere / gizli / kilit / anahtar / lanetli / küp, girişe ve Kut Taşına yakın yaratık), `MERAK denetim` (her
+  gizli cep kırılınca cebin tabanından Kut Kapısı'na, girişten anahtara, açılan kilitli odaya yol; parmaklığın üstü kaya)
+  ve `OYUN` (gerçek fizik kareleriyle: küp kırılır ve altın düşer, çatlak duvar iki vuruşta açılır, anahtarsız kilit kapalı
+  kalır / anahtarla açılır, lanetli sandık açılır, darbe iki kat, 10 öldürmede lanet kalkar). Yeni denetimler: boş oda 0,
+  her ana yol odasında yaratık, girişte / taşta yaratık yok, merak yolları, oynanış.
+* `--harita_ekran=merak` (yeni çekim): pencere, çatlak duvar (önce / vuruş / açıldı), kalabalık oda, iki biyomda yarı ve
+  tam keşfedilmiş tam harita.
+* Sonuç: `--harita` (20 tohum / 6 bölüm) GECTI; `--isinlan`, `--konak`, `--tuccar --muhur=0` GECTI (`--konak` bir koşuda
+  Usta'nın kalite hizmetinin rastgele +4'ünde KALDI, yeniden koşuda GECTI: harita dışı, Usta kalite aralığı);
+  `--otomatik --derinlik=1/3/5 --muhur=0` (`--fixed-fps 60 --quit-after 9000`) Kut Kapısı'na varır; `--zeka --muhur=0`,
+  `--mekanik --muhur=0` BITTI; `--piksel_tara --otomatik --derinlik=3` TOPLAM 0; `--yurt --yurt-tur` kapıya varır.
+  Bütün koşularda SCRIPT ERROR 0 (yalnız motorun çıkıştaki RID sızıntısı satırları, eskiden beri).
+
+### Görseller (`docs/v34/harita/`)
+
+`pencere_parmaklik.jpg` (ana yol odasından parmaklık ardındaki hazine; sağ altta küçük haritada "?" ipuçları),
+`gizli_0_catlak.jpg`, `gizli_1_vurus.jpg`, `gizli_2_acildi.jpg` (çatlak duvar, ilk vuruş, açılan cep ve altın),
+`kalabalik_oda.jpg` (Kaf: dalıcı kartal + iki kalkanlı bekçi), `tam_yari_bozkir.jpg` / `tam_yari_sahmeran.jpg` (ana
+yolun 2/3'ü gezilmiş tam harita: "?" ipuçları ve "Hazine 0/6 · Tomar 0/3 · Gizli 0/2 · Kilit 0/1" sayacı),
+`tam_hepsi_bozkir.jpg` / `tam_hepsi_sahmeran.jpg` (bütünüyle keşfedilmiş: sapaktaki Kut Kapısı, uzantı, kilit, lejant).
+
+### Bilinen
+
+* Lanet, Dead Cells'teki gibi "tek darbe ölüm" değil, iki kat hasar (bot ve ilk derinlikler için okunur bir risk).
+* Parmaklığın ve çatlak duvarın görseli çizimdir (karo atlasında karşılığı yok); açık gök stillerinde parmaklığın üstündeki
+  kaya koyu iç doku olarak görünür.
+* Pencere dalı yatay komşuluk ister; 2 satırlı Bozkır'da bazen yalnızca doğrudan (ara odasız) dolaşma bulunur.
+* Bot gizli duvarları kasıtlı aramaz (yalnızca yolda savururken rastlantıyla kırar), anahtar aramaz.

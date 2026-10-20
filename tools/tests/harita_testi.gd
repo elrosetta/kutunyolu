@@ -65,6 +65,7 @@ func _run() -> void:
 		return
 	_izgara(int(_arg_or("--harita_tohum", "12")))
 	await _bolumler(int(_arg_or("--harita_bolum", "6")))
+	await _merak_oyun()
 	_p("SONUC %s%s" % ["GECTI" if _fail.is_empty() else "KALDI", "" if _fail.is_empty() else " (" + ", ".join(_fail) + ")"])
 	get_tree().quit()
 
@@ -243,6 +244,7 @@ func _izgara(n_seed: int) -> void:
 	var sure_min := 9999.0
 	var sure_max := 0.0
 	var gen_max := 0.0
+	var pencere_var := 0
 	for style in LevelGen.STYLES:
 		var s_walk := 0
 		var s_ok3 := 0
@@ -270,6 +272,8 @@ func _izgara(n_seed: int) -> void:
 			var m: Dictionary = r["metrics"]
 			if bool(m["ok"]):
 				ok_all += 1
+			if int(m.get("pencere", 0)) > 0:
+				pencere_var += 1
 			var gh := LevelGen._haz_as_air(g)
 			var rs := LevelGen.reach_set(g, W, H, hts)
 			var n_stand := 0
@@ -362,6 +366,9 @@ func _izgara(n_seed: int) -> void:
 			style, float(s_m.get("alan_w", 0)) / n_seed, float(s_m.get("alan_h", 0)) / n_seed, float(s_m.get("hava", 0)) / n_seed, float(s_m.get("yol_karo", 0)) / n_seed,
 			float(s_m.get("yol_karo", 0)) / n_seed / KOSU_KARO, float(s_m.get("yol_sn", 0)) / n_seed, float(s_m.get("dusus", 0)) / n_seed, float(s_m.get("tirmanis", 0)) / n_seed, float(s_m.get("basamak", 0)) / n_seed,
 			float(s_m.get("zincir", 0)) / n_seed, float(s_m.get("kzincir", 0)) / n_seed, float(s_m.get("gen_sn", 0)) / n_seed])
+	_p("MERAK TOPLAM sapak=%%%.0f uzantı_odası=%.2f pencere=%.2f (en az 1: %%%.0f) gizli_cep=%.2f kilit=%.2f dal_ayrılışı=%.2f (ana yol sırası / uzunluk; 0 baş, 1 son) ana_yol_odası=%.1f" % [
+		100.0 * float(m_sum.get("sapak", 0)) / tot, float(m_sum.get("uzanti", 0)) / tot, float(m_sum.get("pencere", 0)) / tot, 100.0 * float(pencere_var) / tot,
+		float(m_sum.get("cep", 0)) / tot, float(m_sum.get("kilit", 0)) / tot, float(m_sum.get("dal_yeri", 0)) / tot, float(m_sum.get("ana", 0)) / tot])
 	_p("IZGARA TOPLAM bölüm=%d yürüyerek(>=2)=%d 3karo=%d ana_yol_en_dar=%d en_iyi_yol_dağılımı=%s yuvarlanma_hücresi=%d (bölüm %d) 2karo_hücre=%d" % [tot, walk_ok, ok3, min_path_all, str(hist), roll_cells, roll_lv, tight_cells])
 	_p("IZGARA onarım ortalaması: koridor %.2f, çıkmaz %.2f, açılan tavan karosu %.1f" % [float(fixes[0]) / tot, float(fixes[1]) / tot, float(fixes[2]) / tot])
 	_p("IZGARA v32 ÇİZGE ortalama: oda=%.1f ana_yol=%.1f dal=%.2f çıkmaz=%.2f döngü=%.2f geniş=%.2f yüksek=%.2f dikey_adım=%.2f kesim_satırı=%.2f kapı=%.1f Kut_Taşı=%.2f zamanlı=%.2f ulaşım=%%%.1f (en az %%%.1f) düşey_aralık=%.0f karo | en az: taşı=%d çıkmaz=%d dikey=%d | erişim+dönüş=%d/%d" % [
@@ -431,6 +438,109 @@ static func spawn_problem(lv: Node, e: Node) -> String:
 	return ""
 
 
+static func _oda_id(lv: Node, p: Vector2) -> int:
+	var rm: Dictionary = lv.room_at(int(floor(p.x / Level.TS)), int(floor((p.y - 4.0) / Level.TS)))
+	return int(rm.get("id", -1))
+
+
+static func icerik(lv: Node) -> Dictionary:
+	## v34: oda başına içerik (yaratık, yerdeki ganimet / altın, küp, sandık, gizli duvar, pencere, tehlike karosu) ve
+	## altın tanesi tahmini. "Boş oda": hiçbiri olmayan oda (Kut Taşı ve Kut Kapısı sayılmaz). Eski (v33) bölümde de
+	## çalışır (v34 alanları yoksa sıfır).
+	var out := {"dusman": 0, "d_ana": 0, "d_dal": 0, "d_odul": 0, "grup": 0, "karisik": 0, "seckin": 0, "bos": 0, "ana_bos": 0, "dal_bos": 0,
+		"tane": 0, "tane_dusman": 0.0, "tane_gizli": 0.0, "tane_top": 0.0, "deger": 0.0, "pencere": 0, "kirik": 0, "kilit": 0, "anahtar": 0,
+		"lanetli": 0, "kup": 0, "giris_yakin": 0, "tasi_yakin": 0}
+	var say := {}   # oda kimliği -> içerik sayısı
+	var dus := {}   # oda kimliği -> yaratık sayısı
+	var TS := float(Level.TS)
+	var sp := Vector2(lv.spawn_cell) * TS
+	for e in lv.get_tree().get_nodes_in_group("dusman"):
+		if not is_instance_valid(e) or e.is_queued_for_deletion() or e.get("level") != lv:
+			continue
+		out["dusman"] += 1
+		if e.elite:
+			out["seckin"] += 1
+		out["tane_dusman"] += (1.75 if lv.get("kiriklar") != null else 3.0) + (10.0 if e.elite else 0.0)   # v34: 1-2 (+%25); v33: 2-4
+		var id := _oda_id(lv, e.global_position)
+		say[id] = int(say.get(id, 0)) + 1
+		dus[id] = int(dus.get(id, 0)) + 1
+		var ep: Vector2 = e.global_position
+		if absf(ep.x - sp.x) < 10.0 * TS and absf(ep.y - sp.y) < 5.0 * TS:
+			out["giris_yakin"] += 1
+		for t in lv.tasi:
+			if is_instance_valid(t) and t.global_position.distance_to(ep) < 4.0 * TS and absf(t.global_position.y - ep.y) < 3.0 * TS:
+				out["tasi_yakin"] += 1
+				if out["tasi_yakin"] <= 2:
+					print("[harita]   taşa yakın: %s%s oda=%s x=%d" % [e.kind, "*" if e.elite else "", String(lv.room_at(int(ep.x / TS), int((ep.y - 4.0) / TS)).get("role", "?")), int(ep.x / TS)])
+	for g in lv.get("gruplar") if lv.get("gruplar") != null else []:
+		out["grup"] += 1
+		if bool(g.get("karisik", false)):
+			out["karisik"] += 1
+	for c in lv.get_children():
+		if c is Pickup and is_instance_valid(c):
+			var id := _oda_id(lv, c.global_position)
+			say[id] = int(say.get(id, 0)) + 1
+			if String(c.kind) == "gold":
+				out["tane"] += 1
+	for key in ["kupler", "sandiklar", "kiriklar", "pencereler", "kilitler"]:
+		var arr = lv.get(key)
+		if arr == null:
+			continue
+		for n in arr:
+			if not is_instance_valid(n):
+				continue
+			match key:
+				"kupler":
+					out["kup"] += 1
+					out["tane_gizli"] += float(n.altin_ort())
+				"sandiklar":
+					out["lanetli"] += 1
+					out["tane_gizli"] += float(n.altin)
+				"kiriklar":
+					out["kirik"] += 1
+					out["tane_gizli"] += float(n.altin)
+					if String(n.icerik) == "anahtar":
+						out["anahtar"] += 1
+				"pencereler":
+					out["pencere"] += 1
+				"kilitler":
+					out["kilit"] += 1
+			for id in n.odalar():
+				say[id] = int(say.get(id, 0)) + 1
+	for x in range(lv.bounds.position.x, lv.bounds.end.x):
+		for y in range(lv.bounds.position.y, lv.bounds.end.y):
+			if lv.cell(x, y) == 3:
+				var rm: Dictionary = lv.room_at(x, y)
+				var id := int(rm.get("id", -1))
+				say[id] = int(say.get(id, 0)) + 1
+	var bos_ad: Array = []
+	for rm in lv.rooms:
+		if rm["role"] == "yok":
+			continue
+		var id := int(rm["id"])
+		var n_d := int(dus.get(id, 0))
+		match String(rm["role"]):
+			"ana", "giris", "cikis":
+				out["d_ana"] += n_d
+			"dal":
+				out["d_dal"] += n_d
+			"odul":
+				out["d_odul"] += n_d
+		if int(say.get(id, 0)) == 0 and String(rm.get("odul", "")) != "pazar":
+			out["bos"] += 1
+			bos_ad.append("%s#%d(%s)" % [rm["role"], id, String(rm.get("kind", ""))])
+		if String(rm["role"]) in ["ana", "cikis"] and n_d == 0:
+			out["ana_bos"] += 1
+			print("[harita]   düşmansız ana yol odası: %s#%d %s genişlik=%d" % [rm["role"], id, String(rm.get("kind", "")), int(rm["ix1"]) - int(rm["ix0"]) + 1])
+		if String(rm["role"]) == "dal" and n_d == 0:
+			out["dal_bos"] += 1
+	out["tane_top"] = float(out["tane"]) + float(out["tane_dusman"]) + float(out["tane_gizli"])
+	var d := int(Game.run.get("depth", 1))
+	out["deger"] = float(out["tane_top"]) * 2.0 * (1.0 + float(Pazar.data().get("altin", {}).get("artis", 0.3)) * (d - 1))
+	out["_bos_ad"] = " ".join(bos_ad)
+	return out
+
+
 func _bolumler(n_seed: int) -> void:
 	_p("BOLUM derinlik | bölüm | düşman | geçersiz | seçkin | taşınan / konmayan | eşya kaidesi / bölüm | eşya katıda | tehlike karo / bölüm | tüccar duvar")
 	var tot_mv := 0
@@ -441,6 +551,11 @@ func _bolumler(n_seed: int) -> void:
 	var bz_ok := true
 	var reasons := {}
 	var kinds_bad := {}
+	var ics := {}      # v34: derinlik başına oda içeriği toplamı (icerik)
+	var ic_top := {}
+	var bos_ornek := 0
+	var merak_den := {}
+	var merak_hata: Array = []
 	get_tree().paused = true
 	for d in range(1, 10):
 		var ne := 0
@@ -480,6 +595,62 @@ func _bolumler(n_seed: int) -> void:
 					nh += 1
 			if lv.bezirgan != null:
 				wall = wall and lv.bezirgan_ok()
+			var ic := icerik(lv)
+			for key in ic:
+				if String(key).begins_with("_"):
+					continue
+				ics[key] = float(ics.get(key, 0.0)) + float(ic[key])
+				ic_top[key] = float(ic_top.get(key, 0.0)) + float(ic[key])
+			# v34: gizli cepler kırılınca cebin tabanından Kut Kapısı'na yol; anahtar girişten ulaşılır; kilit açılınca
+			# kilitli odanın ödülüne yol
+			if lv.get("kiriklar") != null:
+				var W := Level.W
+				# pencere: parmaklığın üstünden / yanından geçilemez (üstü ve iki yandaki sütunların tavanı kaya)
+				for pk in lv.pencereler:
+					var top: Vector2i = pk.cells[0]
+					for c in pk.cells:
+						top = c if c.y < top.y else top
+					merak_den["pencere"] = int(merak_den.get("pencere", 0)) + 1
+					var acik := false
+					for yy in range(top.y - 6, top.y):
+						if lv.cell(top.x, yy) != 1:
+							acik = true
+					if acik:
+						var col := ""
+						for yy in range(top.y - 8, top.y + 5):
+							col += "%d" % lv.cell(top.x - 1, yy) + "%d" % lv.cell(top.x, yy) + "%d|" % lv.cell(top.x + 1, yy)
+						merak_hata.append("pencere üstü açık d%d tohum=%d x=%d y=%d %s" % [d, k, top.x, top.y, col])
+				for kk in lv.kilitler:
+					lv.anahtar = 1
+					kk.ac()
+					var rm: Dictionary = lv.rooms[int(kk.oda)]
+					var sp: Vector2i = LevelGen._floor_spot(lv.grid, W, Level.H, rm, LevelGen._odul_mid(rm))
+					merak_den["kilit"] = int(merak_den.get("kilit", 0)) + 1
+					if LevelGen.path_cells(lv.grid, W, Level.H, lv.spawn_cell.x, lv.spawn_cell.y, sp.x, sp.y).is_empty():
+						merak_hata.append("kilit d%d tohum=%d" % [d, k])
+				for kd in lv.kiriklar:
+					kd._kir()
+					var cp: Rect2i = kd.cep
+					var pc := LevelGen.path_cells(lv.grid, W, Level.H, cp.position.x + 1, cp.end.y - 1, lv.exit_cell.x, lv.exit_cell.y)
+					merak_den["cep"] = int(merak_den.get("cep", 0)) + 1
+					if pc.is_empty():
+						merak_hata.append("cep d%d tohum=%d x=%d y=%d" % [d, k, cp.position.x, cp.end.y - 1])
+				for an in lv.anahtarlar:
+					if not is_instance_valid(an):
+						continue
+					var sc := LevelGen.stand_cell(lv.grid, W, Level.H, an.global_position.x, an.global_position.y, Level.TS)
+					merak_den["anahtar"] = int(merak_den.get("anahtar", 0)) + 1
+					if LevelGen.path_cells(lv.grid, W, Level.H, lv.spawn_cell.x, lv.spawn_cell.y, sc.x, sc.y).is_empty():
+						merak_hata.append("anahtar d%d tohum=%d" % [d, k])
+				if lv.kilitler.size() > 0 and lv.anahtarlar.is_empty():
+					var var_mi := false
+					for kd in lv.kiriklar:
+						var_mi = var_mi or String(kd.icerik) == "anahtar"
+					if not var_mi:
+						merak_hata.append("anahtarsız kilit d%d tohum=%d" % [d, k])
+			if int(ic["bos"]) > 0 and bos_ornek < 4:
+				bos_ornek += 1
+				_p("  boş oda d%d tohum=%d stil=%s %s" % [d, k, lv.style, String(ic.get("_bos_ad", ""))])
 			lv.queue_free()
 			main.level = null
 			await _frames(1)
@@ -490,11 +661,128 @@ func _bolumler(n_seed: int) -> void:
 		tot_mv += nmv
 		tot_sk += nsk
 		_p("BOLUM %d | %d | %d | %d | %d | %d / %d | %.1f | %d | %.1f | %s" % [d, n_seed, ne, nb, nel, nmv, nsk, float(nit) / n_seed, nib, float(nh) / n_seed, "duvar_ok" if wall else "DUVARDA"])
+		var ns := float(n_seed)
+		_p("ICERIK %d | düşman/bölüm=%.1f (ana yol odası %.1f, dal %.1f, ödül %.1f) grup=%.1f karışık=%.1f seçkin=%.2f | boş oda=%.2f ana_yol_düşmansız=%.2f dal_bekçisiz=%.2f | altın tanesi: yerde=%.1f düşmandan~%.1f küp/zula/sandık~%.1f toplam~%.1f (değer ~%.0f) | pencere=%.2f gizli=%.2f kilit=%.2f anahtar=%.2f lanetli=%.2f küp=%.1f | girişe_yakın=%d taşa_yakın=%d" % [
+			d, float(ics.get("dusman", 0)) / ns, float(ics.get("d_ana", 0)) / ns, float(ics.get("d_dal", 0)) / ns, float(ics.get("d_odul", 0)) / ns, float(ics.get("grup", 0)) / ns, float(ics.get("karisik", 0)) / ns, float(ics.get("seckin", 0)) / ns,
+			float(ics.get("bos", 0)) / ns, float(ics.get("ana_bos", 0)) / ns, float(ics.get("dal_bos", 0)) / ns,
+			float(ics.get("tane", 0)) / ns, float(ics.get("tane_dusman", 0)) / ns, float(ics.get("tane_gizli", 0)) / ns, float(ics.get("tane_top", 0)) / ns, float(ics.get("deger", 0)) / ns,
+			float(ics.get("pencere", 0)) / ns, float(ics.get("kirik", 0)) / ns, float(ics.get("kilit", 0)) / ns, float(ics.get("anahtar", 0)) / ns, float(ics.get("lanetli", 0)) / ns, float(ics.get("kup", 0)) / ns,
+			int(ics.get("giris_yakin", 0)), int(ics.get("tasi_yakin", 0))])
+		ics = {}
 	get_tree().paused = false
+	var nl := 9.0 * n_seed
+	_p("ICERIK TOPLAM düşman/bölüm=%.1f boş_oda=%d (bölüm başına %.2f) ana_yol_düşmansız=%d dal_bekçisiz=%d altın_tanesi/bölüm~%.1f (değer ~%.0f) pencere/bölüm=%.2f gizli=%.2f kilit=%.2f lanetli=%.2f küp=%.1f girişe_yakın=%d taşa_yakın=%d" % [
+		float(ic_top.get("dusman", 0)) / nl, int(ic_top.get("bos", 0)), float(ic_top.get("bos", 0)) / nl, int(ic_top.get("ana_bos", 0)), int(ic_top.get("dal_bos", 0)),
+		float(ic_top.get("tane_top", 0)) / nl, float(ic_top.get("deger", 0)) / nl, float(ic_top.get("pencere", 0)) / nl, float(ic_top.get("kirik", 0)) / nl, float(ic_top.get("kilit", 0)) / nl,
+		float(ic_top.get("lanetli", 0)) / nl, float(ic_top.get("kup", 0)) / nl, int(ic_top.get("giris_yakin", 0)), int(ic_top.get("tasi_yakin", 0))])
+	_p("MERAK denetim: kırılan cep=%d anahtar=%d açılan kilit=%d hata=%d %s" % [int(merak_den.get("cep", 0)), int(merak_den.get("anahtar", 0)), int(merak_den.get("kilit", 0)), merak_hata.size(), str(merak_hata.slice(0, 4))])
+	_check(merak_hata.is_empty(), "gizli cepten Kut Kapısı'na, girişten anahtara ve açılan kilitli odaya yol var (%d hata)" % merak_hata.size())
+	_check(int(ic_top.get("bos", 0)) == 0, "boş oda yok (düşman / ganimet / küp / tehlike / pencere / gizli duvar; %d)" % int(ic_top.get("bos", 0)))
+	_check(int(ic_top.get("ana_bos", 0)) == 0, "her ana yol odasında en az bir yaratık grubu (düşmansız %d)" % int(ic_top.get("ana_bos", 0)))
+	_check(int(ic_top.get("giris_yakin", 0)) == 0 and int(ic_top.get("tasi_yakin", 0)) == 0, "girişin dibinde / Kut Taşı çevresinde yaratık yok (%d / %d)" % [int(ic_top.get("giris_yakin", 0)), int(ic_top.get("tasi_yakin", 0))])
 	_p("BOLUM TOPLAM düşman=%d geçersiz=%d taşınan=%d konmayan=%d nedenler=%s türler=%s eşya_katıda=%d" % [tot_e, tot_bad, tot_mv, tot_sk, str(reasons), str(kinds_bad), tot_item_bad])
 	_check(tot_bad == 0, "geçersiz düşman yerleşimi yok (%d / %d)" % [tot_bad, tot_e])
 	_check(tot_item_bad == 0, "eşya / tomar / sunak katı karoda değil (%d)" % tot_item_bad)
 	_check(bz_ok, "tüccar duvarda değil (duvar_ok)")
+
+
+func _merak_oyun() -> void:
+	## v34 oynanış denetimi (gerçek fizik kareleri): küp kırılır ve altın düşer; çatlak duvar iki vuruşta açılır; anahtarsız
+	## kilitli kapı kapalı kalır, anahtar alınınca yaklaşınca açılır; lanetli sandık açılınca lanet (hasar 2 kat), 10
+	## öldürmede kalkar
+	var ok := {"kup": false, "kirik": false, "kilit": false, "lanet": false}
+	for k in 80:
+		var d: int = [1, 3, 5, 7, 9][k % 5]
+		var lv := _build(d, 7100 + k * 31)
+		main._start_play()
+		await _phys(3)
+		var pl: Node = lv.player
+		Game.run["max_hp"] = 1000.0
+		Game.run["hp"] = 1000.0
+		var TS := float(Level.TS)
+		if not ok["kup"] and not lv.kupler.is_empty():
+			var kp: Node = lv.kupler[0]
+			var once := 0
+			for c in lv.get_children():
+				if c is Pickup and String(c.kind) == "gold":
+					once += 1
+			lv.break_cracks(kp.rect())
+			await _phys(2)
+			var sonra := 0
+			for c in lv.get_children():
+				if c is Pickup and String(c.kind) == "gold" and not c.is_queued_for_deletion():
+					sonra += 1
+			ok["kup"] = sonra > once
+			_p("OYUN küp: kırıldı=%s altın tanesi %d -> %d" % [str(not is_instance_valid(kp) or kp.kirildi), once, sonra])
+		if not ok["kirik"] and not lv.kiriklar.is_empty():
+			var kd: Node = lv.kiriklar[0]
+			var w0: Vector2i = kd.cells[0]
+			var r1: int = lv.cell(w0.x, w0.y)
+			kd.vur(kd.rect())
+			await _phys(15)
+			var r2: int = lv.cell(w0.x, w0.y)
+			kd.vur(kd.rect())
+			await _phys(3)
+			var r3: int = lv.cell(w0.x, w0.y)
+			var cep: Rect2i = kd.cep
+			ok["kirik"] = r1 == 1 and r2 == 1 and r3 == 0 and lv.cell(cep.position.x + 1, cep.end.y - 1) == 0 and kd.kirildi
+			_p("OYUN gizli duvar: karo %d -> %d -> %d, cep açık=%s içerik=%s" % [r1, r2, r3, str(lv.cell(cep.position.x + 1, cep.end.y - 1) == 0), kd.icerik])
+		if not ok["kilit"] and not lv.kilitler.is_empty():
+			var kk: Node = lv.kilitler[0]
+			_clear_foes(lv, Vector2(kk.cell) * TS, 99999.0)
+			var yan := -1 if lv.cell(kk.cell.x - 1, kk.cell.y - 1) == 0 else 1
+			pl.global_position = Vector2((kk.cell.x + yan) * TS + 12, kk.cell.y * TS - 1)
+			pl.velocity = Vector2.ZERO
+			await _phys(20)
+			var kapali: bool = not kk.acik and lv.cell(kk.cell.x, kk.cell.y - 2) == 1
+			# anahtar: gizli cepteyse duvarı kır, yerdeki anahtara dokun
+			for kd in lv.kiriklar:
+				if String(kd.icerik) == "anahtar":
+					kd._kir()
+			await _phys(2)
+			var an_ok := false
+			for an in lv.anahtarlar:
+				if is_instance_valid(an):
+					pl.global_position = an.global_position
+					await _phys(4)
+					an_ok = lv.anahtar > 0
+					break
+			pl.global_position = Vector2((kk.cell.x + yan) * TS + 12, kk.cell.y * TS - 1)
+			await _phys(10)
+			ok["kilit"] = kapali and an_ok and kk.acik and lv.cell(kk.cell.x, kk.cell.y - 2) == 0 and lv.anahtar == 0
+			_p("OYUN kilit: anahtarsız kapalı=%s anahtar alındı=%s açıldı=%s geçit=%d" % [str(kapali), str(an_ok), str(kk.acik), lv.cell(kk.cell.x, kk.cell.y - 2)])
+		if not ok["lanet"] and not lv.sandiklar.is_empty():
+			var sd: Node = lv.sandiklar[0]
+			_clear_foes(lv, sd.global_position, 400.0)
+			pl.global_position = sd.global_position + Vector2(10, 0)
+			await _phys(4)
+			var yakin: bool = lv.sandik_yakin() == sd
+			sd.ac()
+			await _phys(2)
+			var l0: int = lv.lanet
+			var hp0 := float(Game.run["hp"])
+			pl.inv_t = 0.0
+			pl.roll_t = 0.0
+			pl.take_hit(10.0, null)
+			await _frames(3)
+			await _phys(2)
+			var kayip := hp0 - float(Game.run["hp"])
+			var n_old := 0
+			for e in get_tree().get_nodes_in_group("dusman"):
+				if lv.lanet <= 0:
+					break
+				if is_instance_valid(e) and not e.dead and e.level == lv:
+					e.take_hit(1e7, {"kb": 0.0, "dir": signf(pl.global_position.x - e.global_position.x)})
+					n_old += 1
+					await _phys(20)
+			ok["lanet"] = yakin and l0 == Level.LANET_OLDUR and kayip > 15.0 and lv.lanet == 0
+			_p("OYUN lanetli sandık: yakın=%s lanet=%d darbe 10 -> kayıp %.1f, %d öldürme sonra lanet=%d" % [str(yakin), l0, kayip, n_old, lv.lanet])
+			Game.run["lanet"] = 0
+		if ok["kup"] and ok["kirik"] and ok["kilit"] and ok["lanet"]:
+			break
+	main._start_play()
+	for key in ok:
+		_check(ok[key], "oynanış: %s" % {"kup": "küp kırılır, altın düşer", "kirik": "çatlak duvar iki vuruşta açılır, cep oyulur", "kilit": "kilitli kapı anahtarla açılır", "lanet": "lanetli sandık: hasar 2 kat, 10 öldürmede kalkar"}[key])
 
 
 # ------------------------------------------------------------------ çekim kipleri
@@ -541,7 +829,118 @@ func _ekran_kur() -> void:
 			await _ekran_tam()
 		"dusus":
 			await _ekran_dusus()
+		"merak":
+			await _ekran_merak()
 	get_tree().quit()
+
+
+func _ekran_merak() -> void:
+	## v34 çekimleri: (1) parmaklıklı pencere ardındaki ödül (yol odasından), (2) çatlak duvar, iki vuruş, açılan gizli
+	## cep, (3) kalabalık oda (yaratıklar yerinde, oyuncu girişte), (4) yarı keşfedilmiş tam harita: "?" ipuçları,
+	## lanetli sandık / kilit / anahtar işaretleri ve kalan ganimet sayacı (iki biyom)
+	var tohum := int(_arg_or("--harita_tohum", "0"))
+	var yapildi := {"pencere": false, "kirik": false, "kalabalik": false}
+	var tam_n := 0
+	var tam_biyom := {}
+	for k in 60:
+		var d: int = [1, 3, 5, 7, 9][k % 5]
+		var lv := _build(d, 3500 + k * 53 + tohum)
+		main._start_play()
+		main.hud._card_t = 100.0
+		await _phys(3)
+		var pl: Node = lv.player
+		for i in lv.harita.tasi.size():
+			lv.harita.tasi_bul(i)
+		var TS := Level.TS
+		if not yapildi["pencere"] and not lv.pencereler.is_empty():
+			var pk: Node = lv.pencereler[0]
+			var A: Dictionary = lv.rooms[int(pk.oda_a)]
+			var c0: Vector2i = pk.cells[0]
+			var yon := 1 if int(A["ix1"]) < c0.x else -1   # pencere oyuncunun hangi yanında
+			var fy: int = c0.y + int(pk.cells.size())
+			_clear_foes(lv, Vector2(c0) * TS, 600.0)
+			pl.global_position = Vector2((c0.x - yon * 3) * TS + 12, fy * TS - 1)
+			pl.velocity = Vector2.ZERO
+			pl.facing = yon
+			Game.camera.snap()
+			await _phys(50)
+			await _snap("merak_pencere_%s_d%d" % [lv.style, d])
+			yapildi["pencere"] = true
+		if not yapildi["kirik"] and not lv.kiriklar.is_empty():
+			var kd: Node = lv.kiriklar[0]
+			var w0: Vector2i = kd.cells[0]
+			var fy2: int = kd.cells[kd.cells.size() - 1].y + 1
+			_clear_foes(lv, Vector2(w0) * TS, 600.0)
+			pl.global_position = Vector2((w0.x - kd.yon * 2) * TS + 12, fy2 * TS - 1)
+			pl.velocity = Vector2.ZERO
+			pl.facing = kd.yon
+			Game.camera.snap()
+			await _phys(50)
+			await _snap("merak_kirik_0_catlak_%s_d%d" % [lv.style, d])
+			var box: Rect2 = kd.rect().grow(4.0)
+			kd.vur(box)
+			await _phys(20)
+			await _snap("merak_kirik_1_vurus_%s_d%d" % [lv.style, d])
+			kd._vur_t = 0.0
+			kd.vur(box)
+			await _phys(30)
+			await _snap("merak_kirik_2_acildi_%s_d%d_%s" % [lv.style, d, kd.icerik])
+			_p("kırık duvar: d=%d stil=%s içerik=%s kırıldı=%s karo=%d" % [d, lv.style, kd.icerik, str(kd.kirildi), lv.cell(w0.x, w0.y)])
+			yapildi["kirik"] = true
+		if not yapildi["kalabalik"]:
+			# en kalabalık ana yol odası
+			var best: Dictionary = {}
+			var bn := 0
+			for rm in lv.rooms:
+				if not (rm["role"] in ["ana", "cikis"]):
+					continue
+				var n := 0
+				for e in get_tree().get_nodes_in_group("dusman"):
+					if is_instance_valid(e) and int(lv.room_at(int(e.global_position.x / TS), int((e.global_position.y - 4) / TS)).get("id", -1)) == int(rm["id"]):
+						n += 1
+				if n > bn:
+					bn = n
+					best = rm
+			if bn >= 5:
+				var x0 := int(best["ix0"]) + 1
+				pl.global_position = Vector2(x0 * TS + 12, lv.room_floor(best, x0) * TS - 1)
+				pl.velocity = Vector2.ZERO
+				pl.facing = 1
+				Game.camera.snap()
+				await _phys(8)
+				await _snap("merak_kalabalik_%s_d%d_%d" % [lv.style, d, bn])
+				yapildi["kalabalik"] = true
+		if tam_n < 2 and not tam_biyom.has(String(lv.biome.get("id", "?"))) and (not lv.sandiklar.is_empty() or not lv.kilitler.is_empty()) and not lv.pencereler.is_empty():
+			tam_biyom[String(lv.biome.get("id", "?"))] = true
+			# yarı keşif: ana yolun ilk 2/3'ü (çıkış sapağı ve dalların çoğu sisli: "?" ipuçları)
+			_clear_foes(lv, Vector2.ZERO, 99999.0)
+			var mr: Array = lv.main_rooms()
+			var sinir := int(mr.size() * 2 / 3)
+			var gezilen := func(x: int, y: int) -> bool:
+				var rm: Dictionary = lv.room_at(x, y)
+				if rm.is_empty():
+					return false
+				return int(rm.get("ana_i", -1)) >= 0 and int(rm["ana_i"]) <= sinir
+			lv.harita.hepsini_kesfet(gezilen)
+			var r0: Dictionary = mr[sinir]
+			pl.global_position = Vector2(((int(r0["ix0"]) + int(r0["ix1"])) / 2) * TS + 12, lv.room_floor(r0, (int(r0["ix0"]) + int(r0["ix1"])) / 2) * TS - 1)
+			await _phys(4)
+			main._harita_ac()
+			await _phys(6)
+			await _snap("merak_tam_yari_%s_d%d" % [lv.biome.get("id", "?"), d])
+			main._start_play()
+			await _phys(2)
+			# bütünüyle keşfedilmiş (işaretlerin hepsi)
+			lv.harita.hepsini_kesfet()
+			main._harita_ac()
+			await _phys(6)
+			await _snap("merak_tam_hepsi_%s_d%d" % [lv.biome.get("id", "?"), d])
+			_p("tam harita: d=%d stil=%s sayaç=%s soru=%d" % [d, lv.style, lv.harita.sayac_metni(), lv.harita.sorular().size()])
+			main._start_play()
+			tam_n += 1
+		if yapildi["pencere"] and yapildi["kirik"] and yapildi["kalabalik"] and tam_n >= 2:
+			break
+	_p("merak çekimleri: %s tam=%d" % [str(yapildi), tam_n])
 
 
 # ------------------------------------------------------------------ v32 çekimleri

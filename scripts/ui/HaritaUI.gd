@@ -89,6 +89,13 @@ static func full(h: Control, vp: Vector2, lv: Node, sel: int, t: float, isin_t: 
 	var sub := "%d. derinlik  ·  keşif %%%d  ·  Kut Taşı %d / %d" % [int(Game.run.get("depth", 1)), int(round(hm.yuzde() * 100.0)), hm.bulunan().size(), hm.tasi.size()]
 	var fb := InkUI.font("body")
 	InkUI.draw_str(h, Vector2((vp.x - InkHUD.str_w(fb, sub, 9)) * 0.5, 43), sub, fb, 9, Color(BONE, 0.8), 1)
+	# v34 kalan ganimet sayacı (tamamlama dürtüsü): haritanın sağ üst köşesinde
+	var sy := hm.sayac_metni()
+	if sy != "":
+		var sw := InkHUD.str_w(fb, sy, 9)
+		var sp := Vector2(pr.end.x - sw - 8.0, pr.position.y - 4.0)
+		InkUI.wash(h, Rect2(sp + Vector2(-8, -11), Vector2(sw + 16, 15)), 0.75)
+		InkUI.draw_str(h, sp, sy, fb, 9, GOLD, 1)
 	# seçili taş
 	var found: Array = hm.bulunan()
 	var ly := pr.end.y + 10.0
@@ -107,8 +114,12 @@ static func full(h: Control, vp: Vector2, lv: Node, sel: int, t: float, isin_t: 
 	# lejant
 	var lx := pr.position.x + 4.0
 	var lyy := ly + 16.0
-	var items := [["tasi", "Kut Taşı"], ["cikis", "Kut Kapısı"], ["tomar", "Tomar"], ["esya", "Eşya"], ["pazar", "Bezirgân"], ["sunak", "Sunak"], ["seckin", "Seçkin"], ["zamanli", "Zamanlı kapı"]]
+	var items := [["tasi", "Kut Taşı"], ["cikis", "Kut Kapısı"], ["tomar", "Tomar"], ["esya", "Eşya"], ["pazar", "Bezirgân"], ["sunak", "Sunak"], ["seckin", "Seçkin"], ["zamanli", "Zamanlı kapı"],
+		["sandik", "Lanetli sandık"], ["kilit", "Kilit"], ["anahtar", "Anahtar"], ["soru", "Keşfedilmedi"]]
 	for it in items:
+		if lx + 15.0 + PixUI.width(String(it[1])) > maxf(pr.end.x, vp.x * 0.5 + 280.0):
+			lx = pr.position.x + 4.0   # v34: lejant iki satıra sarılır
+			lyy += 12.0
 		_glyph(h, String(it[0]), Vector2(lx + 6, lyy + 6), 1.0, t, false, 1.0, false)
 		PixUI.text(h, Vector2(lx + 15, lyy + 1), String(it[1]), Color(BONE, 0.8), 1, HORIZONTAL_ALIGNMENT_LEFT, -1.0, 0)
 		lx += 15.0 + PixUI.width(String(it[1])) + 14.0
@@ -189,3 +200,25 @@ static func _glyph(h: Control, tur: String, p: Vector2, k: float, t: float, sele
 			InkUI.icon_at(h, "kafatasi", p, 9.0 * k, Color(1.0, 0.35, 0.3, alpha), false)
 		"zamanli":
 			InkUI.icon_at(h, "zaman", p, 9.0 * k, Color(BONE if acik else Color(0.5, 0.45, 0.45), alpha), false)
+		# v34 işaretleri
+		"soru":
+			# keşfedilmemiş açıklık: soluk, nabız atan soru işareti
+			var fq := InkUI.font("caps")
+			var a := (0.45 + 0.25 * sin(t * 3.0 + p.x * 0.1)) * alpha
+			var sz := int(round(9.0 * k))
+			var w := InkHUD.str_w(fq, "?", sz)
+			h.draw_circle(p, 4.6 * k, Color(PAPER_INK, 0.55 * alpha), true, -1.0, true)
+			InkUI.draw_str(h, Vector2(p.x - w * 0.5, p.y + 3.2 * k), "?", fq, sz, Color(BONE, a), 1)
+		"sandik":
+			var mor := Color(0.78, 0.45, 1.0)
+			h.draw_rect(Rect2(p + Vector2(-4.5, -2.5) * k, Vector2(9.0, 6.0) * k), Color(PAPER_INK, alpha))
+			h.draw_rect(Rect2(p + Vector2(-3.5, -1.5) * k, Vector2(7.0, 4.0) * k), Color(mor, alpha))
+			h.draw_line(p + Vector2(-4.5, -0.2) * k, p + Vector2(4.5, -0.2) * k, Color(PAPER_INK, alpha), 1.0, true)
+		"anahtar":
+			h.draw_arc(p + Vector2(-2.5, 0) * k, 2.2 * k, 0.0, TAU, 10, Color(GOLD, alpha), 1.4, true)
+			h.draw_line(p + Vector2(-0.3, 0) * k, p + Vector2(4.5, 0) * k, Color(GOLD, alpha), 1.4, true)
+			h.draw_line(p + Vector2(3.2, 0) * k, p + Vector2(3.2, 2.2) * k, Color(GOLD, alpha), 1.2, true)
+		"kilit":
+			h.draw_arc(p + Vector2(0, -1.5) * k, 2.4 * k, PI, TAU, 8, Color(GOLD, alpha), 1.3, true)
+			h.draw_rect(Rect2(p + Vector2(-3.2, -1.5) * k, Vector2(6.4, 5.0) * k), Color(GOLD, alpha))
+			h.draw_circle(p + Vector2(0, 0.8) * k, 0.9 * k, Color(PAPER_INK, alpha), true, -1.0, true)

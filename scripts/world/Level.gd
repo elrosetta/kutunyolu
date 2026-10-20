@@ -38,6 +38,21 @@ var isin_hp := 0.0
 var isin_sayi := 0            # bu bölümde tamamlanan ışınlanma
 var isin_bozuk := 0           # hasarla bozulan kanal
 var harita_istek := -1        # bot: harita ekranından seçilecek taş (Main "harita" kipi)
+# v34 merak uyandıran bölüm: gizli cepler (kırık duvar), parmaklıklı pencereler, kilitli kapı + anahtar, lanetli
+# sandık, küpler; yaratık grupları (ölçüm) ve lanet
+var kiriklar: Array = []      # KirikDuvar
+var pencereler: Array = []    # Parmaklik
+var kilitler: Array = []      # KilitliKapi
+var anahtarlar: Array = []    # Anahtar (yerdeki)
+var sandiklar: Array = []     # Sandik (lanetli)
+var kupler: Array = []        # Kup
+var gruplar: Array = []       # {oda, karisik, n}
+var anahtar := 0              # taşınan anahtar
+var sayac_ilk: Dictionary = {}   # bölüm kurulunca hazine / tomar / gizli / sandık toplamları (tam harita sayacı)
+const LANET_OLDUR := 10       # lanetli sandık: bu kadar yaratık öldürülene dek alınan hasar iki kat
+var lanet := 0                # kalan öldürme (0: lanet yok)
+var _lanet_hp := -1.0
+var _lanet_aura: Node2D
 
 var rng := RandomNumberGenerator.new()
 var grid := PackedByteArray()  # 0 hava, 1 katı, 2 platform
@@ -122,14 +137,18 @@ func build(seed_value: int) -> void:
 	_place_rooms()   # v32: ödül odaları ve pazar yeri önce (süsler tezgâhın üstüne binmesin)
 	_place_decor()
 	_spawn_player()
+	_gizemler()      # v34: gizli cepler, parmaklıklı pencereler, kilitli kapı (yaratıklardan önce: karolar ve ızgara)
 	_spawn_enemies()
 	_spawn_items()
 	_spawn_scrolls()
-	_spawn_kesif()   # v25: eski gizli oda / Ülgen sunağı ganimeti artık bölümün kendisinde
+	_spawn_kesif()   # v25: eski gizli oda / Ülgen sunağı ganimeti artık bölümün kendisinde (v34: zula gizli cepte)
 	_kut_taslari()   # v32: ışınlanma taşları, zamanlı kapılar, harita sisi
 	_build_particles()
 	_build_overlay_fx()
 	_place_bezirgan()
+	_bos_oda_doldur()     # v34: yaratıksız kalan ana yol / dal odasına bir yaratık
+	_kupler_yerlestir()   # v34: her odada "bir şey" (boş oda kalmaz)
+	sayac_ilk = sayac()
 	Ses.music(biome.get("id", "otuken"))
 
 
@@ -460,12 +479,29 @@ func _place_rooms() -> void:
 				"E":
 					var pool := _biome_pool()
 					var kind: String = pool[rng.randi_range(0, pool.size() - 1)]
+					# v34: bekçi Kut Taşı / giriş çevresine doğmaz (yakın bir sütuna kayar)
+					for dx in [0, 3, -3, 6, -6, 9, -9]:
+						if not _yaratik_yasak(tx + dx, ty - 1):
+							tx += dx
+							break
+					ty = _floor_below(tx, int(mk[2]))
 					spawn_enemy(kind, Vector2(tx * TS + TS / 2.0, ty * TS - 1), true, false, true)
 				"M":
 					drop_scroll(Vector2(tx * TS + 12, ty * TS))
 				"P":
 					_bz_plan = tx
 					_bz_y = ty
+				"L":
+					# v34 lanetli sandık
+					var sd := Sandik.new()
+					sd.level = self
+					sd.oda = int(ch.get("room", -1))
+					sd.position = Vector2(tx * TS + TS / 2.0, ty * TS)
+					add_child(sd)
+					sandiklar.append(sd)
+				"K":
+					# v34 anahtar (kilitli ödül odasının; gizli cep yoksa başka bir ödül odasında)
+					anahtar_birak(Vector2(tx * TS + TS / 2.0, ty * TS))
 
 
 func _floor_below(tx: int, y0: int) -> int:
@@ -1207,15 +1243,37 @@ func room_floor(rm: Dictionary, x: int) -> int:
 	return int(fl[clampi(x - int(rm["ix0"]), 0, fl.size() - 1)])
 
 
+func set_air(x: int, y: int) -> void:
+	## v34: karo havaya döner (gizli cep, kilitli kapı): ızgara, zemin karosu silinir, komşu maskeleri ve sarkan örtü
+	## (ot / kök) güncellenir, harita sisi yenilenir
+	if x < 1 or x >= W - 1 or y < 1 or y >= H - 1 or grid[idx(x, y)] == 0:
+		return
+	grid[idx(x, y)] = 0
+	if harita != null:
+		harita.karo_degisti(x, y)
+	if ground == null:
+		return
+	ground.erase_cell(Vector2i(x, y))
+	overlay.erase_cell(Vector2i(x, y - 1))
+	overlay.erase_cell(Vector2i(x, y + 1))
+	_maske_yenile(x, y)
+
+
 func set_solid(x: int, y: int) -> void:
 	## v32: karo katı yapılır (zamanlı kapı): ızgara + zemin karo katmanı (komşu maskesiyle)
 	if x < 0 or x >= W or y < 0 or y >= H:
 		return
 	grid[idx(x, y)] = 1
+	if harita != null:
+		harita.karo_degisti(x, y)
 	if ground == null:
 		return
+	_maske_yenile(x, y)
+
+
+func _maske_yenile(x: int, y: int) -> void:
 	for p in [Vector2i(x, y), Vector2i(x - 1, y), Vector2i(x + 1, y), Vector2i(x, y - 1), Vector2i(x, y + 1)]:
-		if cell(p.x, p.y) != 1:
+		if cell(p.x, p.y) != 1 or _parmak.has(p):
 			continue
 		var m := 0
 		if cell(p.x, p.y - 1) != 1:
@@ -1227,6 +1285,232 @@ func set_solid(x: int, y: int) -> void:
 		if cell(p.x - 1, p.y) != 1:
 			m |= 8
 		ground.set_cell(p, 0, Vector2i(m, (p.x + p.y) % 3))
+
+
+# ------------------------------------------------------------------ v34 merak: gizli cepler, pencereler, kilit, küpler
+var _parmak := {}   # parmaklık karoları (ızgarada katı, karosu yok)
+var _hazine_ilk: Array = []   # [Pickup, eşya]: kurulumdaki kaideli eşyalar (sayaç)
+
+
+func _gizemler() -> void:
+	## Üreticinin işaretlerinden düğümler: parmaklıklı pencereler, gizli cepler (kırık duvar), kilitli kapı (+ ödül odasına
+	## ek altın). Lanet koşu boyunca sürer (Game.run "lanet").
+	lanet = int(Game.run.get("lanet", 0))
+	if lanet > 0:
+		_lanet_aura_kur()
+	for pw in _gen.get("pencereler", []):
+		var pk := Parmaklik.new()
+		pk.level = self
+		pk.cells = pw["cells"]
+		pk.oda_a = int(pw["a"])
+		pk.oda_b = int(pw["b"])
+		var c0: Vector2i = (pw["cells"] as Array)[0]
+		var ymax := c0.y
+		for c in pw["cells"]:
+			ymax = maxi(ymax, int(c.y))
+			_parmak[c] = true
+		pk.position = Vector2(c0.x * TS, (ymax + 1) * TS)
+		add_child(pk)
+		pencereler.append(pk)
+	for cp in _gen.get("cepler", []):
+		var kd := KirikDuvar.new()
+		kd.level = self
+		kd.cells = cp["wall"]
+		kd.cep = cp["cep"]
+		kd.oda = int(cp["room"])
+		kd.yon = int(cp["yon"])
+		kd.icerik = String(cp["icerik"])
+		kd.kur()
+		var w0: Vector2i = (cp["wall"] as Array)[0]
+		kd.position = Vector2(w0.x * TS, int(cp["taban"]) * TS)
+		add_child(kd)
+		kiriklar.append(kd)
+	for kl in _gen.get("kilitli", []):
+		var kk := KilitliKapi.new()
+		kk.level = self
+		kk.cell = Vector2i(int(kl["x"]), int(kl["y"]))
+		kk.oda = int(kl["room"])
+		kk.position = Vector2(kk.cell.x * TS, kk.cell.y * TS)
+		add_child(kk)
+		kilitler.append(kk)
+		# kilitli odanın ödülüne ek: altın yığını (ödül işaretinin yanında)
+		var rm: Dictionary = rooms[kk.oda]
+		var om := LevelGen._odul_mid(rm)
+		var oy := _floor_below(om, int(rm["iy0"]))
+		for g in 8:
+			drop_orb("gold", Vector2(om * TS + 12 + randf_range(-26, 26), oy * TS - 20))
+
+
+func anahtar_birak(pos: Vector2) -> void:
+	var an := Anahtar.new()
+	an.level = self
+	an.position = pos
+	var rm := room_at(int(floor(pos.x / TS)), int(floor((pos.y - 8.0) / TS)))
+	an.oda = int(rm.get("id", -1))
+	add_child(an)
+	anahtarlar.append(an)
+
+
+func break_cracks(box: Rect2) -> void:
+	## Player.gd her savuruşta çağırır (v34: önceden boştu): kırık duvarlar ve küpler
+	for kd in kiriklar:
+		if is_instance_valid(kd):
+			kd.vur(box)
+	for kp in kupler:
+		if is_instance_valid(kp):
+			kp.vur(box)
+
+
+func _kupler_yerlestir() -> void:
+	## v34 "her odada bir şey": içinde yaratık / ganimet / gizli cep / pencere / sandık / tehlike olmayan odaya 2-3 küp;
+	## diğer dövüş odalarına %35 ihtimalle 1 küp. Taban hücresi: ayakta durulur, tehlike / kuyu ağzı değil, doğuş
+	## noktası, Kut Kapısı, Kut Taşları ve tezgâhtan uzak.
+	var dolu := {}
+	for e in get_tree().get_nodes_in_group("dusman"):
+		if is_instance_valid(e) and not e.is_queued_for_deletion() and e.get("level") == self:
+			dolu[int(room_at(int(e.position.x / TS), int((e.position.y - 4.0) / TS)).get("id", -1))] = true
+	for c in get_children():
+		if c is Pickup:
+			dolu[int(room_at(int(c.position.x / TS), int((c.position.y - 4.0) / TS)).get("id", -1))] = true
+	for arr in [kiriklar, pencereler, sandiklar, kilitler, anahtarlar]:
+		for n in arr:
+			for id in n.odalar():
+				dolu[int(id)] = true
+	for rm in rooms:
+		if rm["role"] == "yok" or String(rm.get("odul", "")) == "pazar":
+			continue
+		var id := int(rm["id"])
+		var haz := false
+		for x in range(int(rm["ix0"]), int(rm["ix1"]) + 1):
+			if cell(x, room_floor(rm, x)) == 3 or cell(x, room_floor(rm, x) + 1) == 3:
+				haz = true
+				break
+		var n := 0
+		if not dolu.has(id) and not haz:
+			n = rng.randi_range(2, 3)
+		elif rm["role"] in ["ana", "dal", "cikis", "giris"] and rng.randf() < 0.35:
+			n = 1
+		var tries := 0
+		var placed: Array = []
+		while n > 0 and tries < 24:
+			tries += 1
+			var x := rng.randi_range(int(rm["ix0"]) + 1, int(rm["ix1"]) - 1)
+			var sp: Vector2i = LevelGen._floor_spot(grid, W, H, rm, x)
+			if absi(sp.x - spawn_cell.x) < 4 and absi(sp.y - spawn_cell.y) < 3:
+				continue
+			if absi(sp.x - exit_cell.x) < 4 and absi(sp.y - exit_cell.y) < 3:
+				continue
+			if bezirgan_alani(sp.x, 2):
+				continue
+			var ok := cell(sp.x, sp.y) == 0 and (cell(sp.x, sp.y + 1) == 1 or cell(sp.x, sp.y + 1) == 2)
+			for t in _gen.get("tasi", []):
+				if absi(int(t.x) - sp.x) < 3 and absi(int(t.y) - sp.y) < 3:
+					ok = false
+			for q in placed:
+				if absi(int(q) - sp.x) < 2:
+					ok = false
+			for kd in kiriklar:
+				if absi(int((kd.cells[0] as Vector2i).x) - sp.x) < 2 and absi(int((kd.cells[0] as Vector2i).y) - sp.y) < 5:
+					ok = false
+			if not ok:
+				continue
+			var kp := Kup.new()
+			kp.level = self
+			kp.oda = id
+			kp.boy = rng.randf_range(0.8, 1.2)
+			kp.position = Vector2(sp.x * TS + TS / 2.0 + rng.randf_range(-5.0, 5.0), (sp.y + 1) * TS)
+			add_child(kp)
+			kupler.append(kp)
+			placed.append(sp.x)
+			n -= 1
+
+
+func sayac() -> Dictionary:
+	## v34 tam harita sayacı ("Hazine 1/3, Tomar 0/2"): kalan / toplam. Hazine: kaideli eşyalar + lanetli sandıklar;
+	## Tomar: Kut Tomarları; Gizli: kırılmamış gizli cepler; Anahtar: yerdeki anahtar + kilitli kapı
+	var hz := 0
+	var tm := 0
+	if sayac_ilk.is_empty():
+		# kurulum anı: kaideli eşyalar (alınınca kaidede eski eşya kalabilir: aynı eşya mı diye bakılır)
+		_hazine_ilk = []
+		for p in pickups:
+			if is_instance_valid(p) and p.kind == "item" and bool(p.pedestal):
+				_hazine_ilk.append([p, p.item])
+	for hp in _hazine_ilk:
+		if is_instance_valid(hp[0]) and not (hp[0] as Node).is_queued_for_deletion() and is_same(hp[0].item, hp[1]):
+			hz += 1
+	for p in pickups:
+		if not is_instance_valid(p) or p.is_queued_for_deletion():
+			continue
+		if p.kind == "tilsim":
+			tm += 1
+	for sd in sandiklar:
+		if is_instance_valid(sd) and not sd.acildi:
+			hz += 1
+	var gz := 0
+	for kd in kiriklar:
+		if is_instance_valid(kd) and not kd.kirildi:
+			gz += 1
+	var kl := 0
+	for kk in kilitler:
+		if is_instance_valid(kk) and not kk.acik:
+			kl += 1
+	return {"hazine": hz, "tomar": tm, "gizli": gz, "kilit": kl}
+
+
+func lanet_baslat() -> void:
+	## v34 lanetli sandık açıldı: LANET_OLDUR yaratık öldürene dek alınan hasar iki kat
+	lanet = LANET_OLDUR
+	Game.run["lanet"] = lanet
+	_lanet_hp = float(Game.run.get("hp", 0.0))
+	_lanet_aura_kur()
+	if player:
+		FX.text(player.center() + Vector2(0, -50), "LANETLENDİN: %d öldür" % lanet, Color(0.85, 0.55, 1.0), 10)
+
+
+func _lanet_aura_kur() -> void:
+	if _lanet_aura != null and is_instance_valid(_lanet_aura):
+		return
+	if player == null:
+		return
+	var au := Sandik.Aura.new()
+	au.level = self
+	player.add_child(au)
+	_lanet_aura = au
+
+
+func _lanet_tick() -> void:
+	## Lanetliyken alınan her hasar bir kez daha düşülür (ölümcülse Player.take_hit yolundan: Umay / Deli Dumrul geçerli)
+	var hp := float(Game.run.get("hp", 0.0))
+	if lanet <= 0 or player == null or player.dead:
+		_lanet_hp = hp
+		return
+	if _lanet_hp >= 0.0 and hp < _lanet_hp - 0.01 and hp > 0.0:
+		var ek := _lanet_hp - hp
+		if hp - ek > 0.0:
+			Game.run["hp"] = hp - ek
+			FX.number(player.center() + Vector2(10, -20), ek, false, Color(0.8, 0.5, 1.0))
+		else:
+			player.take_hit(ek, null, null, true)
+	_lanet_hp = float(Game.run.get("hp", 0.0))
+
+
+func _lanet_oldurme() -> void:
+	if lanet <= 0:
+		return
+	lanet -= 1
+	Game.run["lanet"] = lanet
+	if lanet <= 0 and player:
+		FX.text(player.center() + Vector2(0, -50), "Lanet kalktı", Color(0.9, 0.8, 1.0), 10)
+		FX.ring(player.center(), 40, Color(0.85, 0.6, 1.0), 0.5)
+		Ses.play("ruh_tasi", -6.0, 1.2)
+
+
+func sandik_yakin() -> Node:
+	for sd in sandiklar:
+		if is_instance_valid(sd) and sd.near and not sd.acildi:
+			return sd
+	return null
 
 
 # ------------------------------------------------------------------ karolar
@@ -2328,59 +2612,219 @@ func _spawn_player() -> void:
 
 
 func _spawn_enemies() -> void:
-	## Biyomun tüm türleri; v32: oda başına, dövüş odalarının (ana / dal / çıkış) tabanı boyunca 15-22 karoda bir
-	## (derinlikle sıklaşır); pusucular odanın yüksek yerlerine (platform / ada / seki üstü), uçanlar havaya. Giriş ve
-	## ödül odalarında sıradan yaratık yok (seçkin odasının bekçisi _place_rooms). Seçkinler ana yolun 3. odasından
-	## sonra, aralarında en az 4 yaratık; derinlikle (ve mühürle) bölüm başına birden çok.
-	var elites := 0
-	var since_elite := 99
-	var pool := _biome_pool()
+	## Biyomun tüm türleri, oda başına grup grup. v34 (geri bildirim: "katların çoğu boş, boşuna yürüyorum"): yoğunluk
+	## data/world.json "yogunluk": dövüş odalarının (ana / dal / çıkış; uzantı dahil) tabanı boyunca "aralik" karoda bir
+	## GRUP (v33: 15-22 karoda bir tek yaratık; derinlikle Zorluk.yogunluk kadar sıklaşır); her ana yol ve dal odasında
+	## en az bir grup; grupların "karisik" payı yakın + uzak dövüşçü (okçu / büyücü / uçan) ikilisi; yüksek odalarda
+	## "ucan_ek" ihtimalle havada bir uçan; ödül odalarında "odul_bekci" ihtimalle bekçi grubu (bazen seçkin). Giriş
+	## noktasının "giris_bos", Kut Taşlarının "tasi_bos" karo çevresi ve Kut Kapısı önü boş kalır. Pusucular odanın
+	## yüksek yerlerine (platform / ada / seki üstü). Seçkinler ana yolun 3. odasından sonra, aralarında en az 4 yaratık.
+	var cfg: Dictionary = Data.world.get("yogunluk", {})
+	var aralik: Array = cfg.get("aralik", [9, 13])
+	var en_az := int(cfg.get("en_az_aralik", 7))
 	var depth := int(Game.run.get("depth", 1))
-	var main_i := {}
+	var st := {"elites": 0, "since": 99, "pool": _biome_pool(), "depth": depth, "karisik": float(cfg.get("karisik", 0.45))}
+	gruplar = []
 	for rm in rooms:
-		if not (rm["role"] in ["ana", "dal", "cikis"]):
+		if not (rm["role"] in ["ana", "dal", "cikis", "giris"]):
 			continue
 		var ix0 := int(rm["ix0"])
 		var ix1 := int(rm["ix1"])
-		var perches: Array = []
-		for px in range(ix0, ix1 + 1):
-			var fy := room_floor(rm, px)
-			for py in range(int(rm["iy0"]), fy - 3):
-				if cell(px, py) != 0 and cell(px, py) != 3 and cell(px, py - 1) == 0 and cell(px, py - 2) == 0:
-					perches.append(Vector2i(px, py))
-		var x := ix0 + 5 + rng.randi_range(0, 5)
-		while x < ix1 - 4:
-			var kind: String = pool[rng.randi_range(0, pool.size() - 1)]
-			var ai: String = Data.enemy_def(kind).get("ai", Data.enemy_def(String(Data.enemy_def(kind).get("sprite", kind))).get("ai", "lunger"))
-			var count := 1
-			if Data.enemy_def(kind).get("sprite", kind) == "kara_boru" and ai == "lunger" and rng.randf() < 0.5:
-				count = 2
-			elif not (ai in ["pouncer", "flyer_ranged", "diver"]) and rng.randf() < Zorluk.suru(depth):
-				count = 2   # v22: derinde ikili gruplar (sürü)
-			for k in count:
-				var tx := mini(x + k * 2, ix1 - 2)
-				var is_elite := elites < Zorluk.seckin_sayi(depth) and int(rm.get("ana_i", 9)) >= 3 and since_elite >= 4 and rng.randf() < 0.3
-				if is_elite:
-					elites += 1
-					since_elite = 0
-				else:
-					since_elite += 1
-				var pos := Vector2(tx * TS + TS / 2.0, room_floor(rm, tx) * TS - 1)
-				if ai == "pouncer" and not perches.is_empty():
-					# en yakın yüksek yer
-					var best: Vector2i = perches[0]
-					var bd := 9999.0
-					for pc in perches:
-						var dd := absf(float(pc.x - tx))
-						if dd < bd:
-							bd = dd
-							best = pc
-					if bd < 20.0:
-						pos = Vector2(best.x * TS + TS / 2.0, best.y * TS - 1)
-				var en := spawn_enemy(kind, pos, is_elite, not is_elite and rng.randf() < Zorluk.ofkeli_sans(), true)
-				if en and en.sprite_kind == "kara_boru" and k == 1:
-					en.flank = 1  # ikinci kurt arkadan dolaşır
-			x += maxi(10, rng.randi_range(15, 22) - Zorluk.yogunluk(depth))
+		var placed := 0
+		var x := ix0 + 3 + rng.randi_range(0, 4)
+		while x < ix1 - 2:
+			if not _yaratik_yasak(x, room_floor(rm, x) - 1):
+				placed += _grup(rm, x, st, false)
+			x += maxi(en_az, rng.randi_range(int(aralik[0]), int(aralik[1])) - Zorluk.yogunluk(depth))
+		if placed == 0 and rm["role"] != "giris":
+			# en az bir grup: odanın yasak olmayan bir sütunu (orta önce)
+			var cols: Array = []
+			for tx in range(ix0 + 2, ix1 - 1):
+				cols.append(tx)
+			var mid := (ix0 + ix1) / 2
+			cols.sort_custom(func(a: int, b: int) -> bool: return absi(a - mid) < absi(b - mid))
+			for tx in cols:
+				if not _yaratik_yasak(tx, room_floor(rm, tx) - 1):
+					placed += _grup(rm, tx, st, false)
+					if placed > 0:
+						break
+		# yüksek odada havada bir uçan (Dead Cells'in katmanlı dövüşü: yerde yakın, havada uzak)
+		var hava := room_floor(rm, (ix0 + ix1) / 2) - int(rm["iy0"])
+		if hava >= 7 and rng.randf() < float(cfg.get("ucan_ek", 0.3)) and rm["role"] != "giris":
+			var uc := _tur_sec(st["pool"], "ucan")
+			var ux := rng.randi_range(ix0 + 4, maxi(ix0 + 4, ix1 - 4))
+			if uc != "" and not _yaratik_yasak(ux, room_floor(rm, ux) - 1):
+				var e := spawn_enemy(uc, Vector2(ux * TS + TS / 2.0, room_floor(rm, ux) * TS - 1), false, rng.randf() < Zorluk.ofkeli_sans(), true)
+				if _yerlesim_denetle(e):
+					gruplar.append({"oda": int(rm["id"]), "karisik": false, "n": 1})
+	# ödül odası bekçileri (pazar ve seçkin odası hariç: seçkin odasının bekçisi _place_rooms)
+	for rm in rooms:
+		if rm["role"] != "odul" or String(rm.get("odul", "")) in ["pazar", "seckin"]:
+			continue
+		if rng.randf() >= float(cfg.get("odul_bekci", 0.7)):
+			continue
+		var ix0 := int(rm["ix0"])
+		var ix1 := int(rm["ix1"])
+		var om := LevelGen._odul_mid(rm)
+		# bekçi ödülle kapı arasında (ödülün 4-6 karo kapı yanı)
+		var side := String(rm.get("_door_side", "sol"))
+		var tx := om - rng.randi_range(4, 6) if side != "sag" else om + rng.randi_range(4, 6)
+		tx = clampi(tx, ix0 + 2, ix1 - 2)
+		var sec: bool = rng.randf() < float(cfg.get("bekci_seckin", 0.35)) * (0.5 if depth <= 1 else 1.0)
+		if not _yaratik_yasak(tx, room_floor(rm, tx) - 1):
+			_grup(rm, tx, st, sec)
+
+
+func _bos_oda_doldur() -> void:
+	## v34: yerleşim denetimi (find_spawn kaydırması, yasak bölge, pazar temizliği) bir ana yol / dal odasını yaratıksız
+	## bıraktıysa: odanın ortasından dışa sütun sütun tek yaratık dener; yaratık bu odada kalmazsa kaldırılır
+	var say := {}
+	for e in get_tree().get_nodes_in_group("dusman"):
+		if is_instance_valid(e) and not e.is_queued_for_deletion() and e.get("level") == self:
+			var id := int(room_at(int(e.position.x / TS), int((e.position.y - 4.0) / TS)).get("id", -1))
+			say[id] = int(say.get(id, 0)) + 1
+	var pool := _biome_pool()
+	for rm in rooms:
+		if not (rm["role"] in ["ana", "cikis", "dal"]) or int(say.get(int(rm["id"]), 0)) > 0:
+			continue
+		var ix0 := int(rm["ix0"])
+		var ix1 := int(rm["ix1"])
+		var mid := (ix0 + ix1) / 2
+		var cols: Array = []
+		for tx in range(ix0 + 1, ix1):
+			cols.append(tx)
+		cols.sort_custom(func(a: int, b: int) -> bool: return absi(a - mid) < absi(b - mid))
+		var kind := _tur_sec(pool, "yakin")
+		if kind == "":
+			kind = String(pool[0])
+		for tx in cols:
+			var fy := room_floor(rm, tx)
+			if _yaratik_yasak(tx, fy - 1) or bezirgan_alani(tx, 4):
+				continue
+			var e := spawn_enemy(kind, Vector2(tx * TS + TS / 2.0, fy * TS - 1), false, false, true)
+			if e == null:
+				continue
+			if int(room_at(int(e.position.x / TS), int((e.position.y - 4.0) / TS)).get("id", -1)) != int(rm["id"]) or _yaratik_yasak(int(e.position.x / TS), int((e.position.y - 4.0) / TS)):
+				e.remove_from_group("dusman")
+				e.queue_free()
+				continue
+			gruplar.append({"oda": int(rm["id"]), "karisik": false, "n": 1})
+			break
+
+
+func _yaratik_yasak(tx: int, ty: int) -> bool:
+	## v34: giriş noktası, Kut Taşları ve Kut Kapısı çevresinde yaratık doğmaz (data/world.json "yogunluk")
+	var cfg: Dictionary = Data.world.get("yogunluk", {})
+	var gb := int(cfg.get("giris_bos", 12))
+	var tb := int(cfg.get("tasi_bos", 4))
+	if absi(tx - spawn_cell.x) < gb and absi(ty - spawn_cell.y) < 7:
+		return true
+	if absi(tx - exit_cell.x) < 4 and absi(ty - exit_cell.y) < 4:
+		return true
+	for c in _gen.get("tasi", []):
+		if absi(tx - int(c.x)) < tb and absi(ty - int(c.y)) < 5:
+			return true
+	return false
+
+
+func _ai_of(kind: String) -> String:
+	var d := Data.enemy_def(kind)
+	return String(d.get("ai", Data.enemy_def(String(d.get("sprite", kind))).get("ai", "lunger")))
+
+
+func _tur_sec(pool: Array, sinif: String) -> String:
+	## v34: havuzdan sınıfa göre tür ("uzak": okçu / büyücü / uçan atıcı; "ucan"; "yakin"); yoksa ""
+	var c: Array = []
+	for k in pool:
+		var ai := _ai_of(String(k))
+		var uzak: bool = ai in ["flyer_ranged", "illusionist", "archer", "caster", "charmer"]
+		var ucan: bool = ai in ["flyer_ranged", "diver", "swarm"]
+		if (sinif == "uzak" and uzak) or (sinif == "ucan" and ucan) or (sinif == "yakin" and not uzak and not ucan):
+			c.append(k)
+	if c.is_empty():
+		return ""
+	return String(c[rng.randi_range(0, c.size() - 1)])
+
+
+func _yerlesim_denetle(e: Enemy) -> bool:
+	## Yerleşim denetimi yaratığı yasak bölgeye (giriş / taş / kapı önü) taşıdıysa kaldırır. true: kaldı
+	if e == null:
+		return false
+	if _yaratik_yasak(int(floor(e.position.x / TS)), int(floor((e.position.y - 4.0) / TS))):
+		e.remove_from_group("dusman")
+		e.queue_free()
+		spawn_skipped += 1
+		return false
+	return true
+
+
+func _grup(rm: Dictionary, x: int, st: Dictionary, bekci_seckin: bool) -> int:
+	## Bir yaratık grubu: çapa tür (havuzdan), v22 sürü / kurt ikilisi, v34 karışık grup (yakın + uzak dövüşçü 3 karo
+	## içeride). Döndürür: konan yaratık sayısı.
+	var pool: Array = st["pool"]
+	var depth: int = st["depth"]
+	var ix0 := int(rm["ix0"])
+	var ix1 := int(rm["ix1"])
+	var kind: String = pool[rng.randi_range(0, pool.size() - 1)]
+	var ai := _ai_of(kind)
+	var kinds: Array = [kind]
+	if Data.enemy_def(kind).get("sprite", kind) == "kara_boru" and ai == "lunger" and rng.randf() < 0.5:
+		kinds.append(kind)
+	elif not (ai in ["pouncer", "flyer_ranged", "diver"]) and rng.randf() < Zorluk.suru(depth):
+		kinds.append(kind)   # v22: derinde ikili gruplar (sürü)
+	var karisik := false
+	if rng.randf() < float(st["karisik"]):
+		var uzak: bool = ai in ["flyer_ranged", "illusionist", "archer", "caster", "charmer"]
+		var es := _tur_sec(pool, "yakin" if uzak else "uzak")
+		if es != "":
+			kinds.append(es)
+			karisik = true
+	var perches: Array = []
+	for kk in kinds:
+		if _ai_of(String(kk)) == "pouncer":
+			for px in range(ix0, ix1 + 1):
+				var fy := room_floor(rm, px)
+				for py in range(int(rm["iy0"]), fy - 3):
+					if cell(px, py) != 0 and cell(px, py) != 3 and cell(px, py - 1) == 0 and cell(px, py - 2) == 0:
+						perches.append(Vector2i(px, py))
+			break
+	var n := 0
+	var dir := 1 if x < (ix0 + ix1) / 2 else -1   # eşlikçiler odanın içine doğru
+	for k in kinds.size():
+		var kk: String = kinds[k]
+		var tx := clampi(x + dir * k * (3 if karisik and k == kinds.size() - 1 else 2), ix0 + 1, ix1 - 1)
+		var is_elite := bekci_seckin and k == 0
+		if not is_elite:
+			var sira := int(rm.get("ana_i", -1))
+			if bool(rm.get("uzanti", false)):
+				sira = 99
+			is_elite = int(st["elites"]) < Zorluk.seckin_sayi(depth) and sira >= 3 and int(st["since"]) >= 4 and rng.randf() < 0.3
+			if is_elite:
+				st["elites"] = int(st["elites"]) + 1
+		if is_elite:
+			st["since"] = 0
+		else:
+			st["since"] = int(st["since"]) + 1
+		var pos := Vector2(tx * TS + TS / 2.0, room_floor(rm, tx) * TS - 1)
+		if _ai_of(kk) == "pouncer" and not perches.is_empty():
+			var best: Vector2i = perches[0]
+			var bd := 9999.0
+			for pc in perches:
+				var dd := absf(float(pc.x - tx))
+				if dd < bd:
+					bd = dd
+					best = pc
+			if bd < 20.0:
+				pos = Vector2(best.x * TS + TS / 2.0, best.y * TS - 1)
+		var en := spawn_enemy(kk, pos, is_elite, not is_elite and rng.randf() < Zorluk.ofkeli_sans(), true)
+		if not _yerlesim_denetle(en):
+			continue
+		if en.sprite_kind == "kara_boru" and k == 1 and kk == kind:
+			en.flank = 1  # ikinci kurt arkadan dolaşır
+		n += 1
+	if n > 0:
+		gruplar.append({"oda": int(rm["id"]), "karisik": karisik and n >= 2, "n": n})
+	return n
 
 
 func spawn_enemy(kind: String, pos: Vector2, is_elite := false, is_ofkeli := false, check := false) -> Enemy:
@@ -2523,7 +2967,8 @@ func _spawn_kesif() -> void:
 		for g in 4:
 			drop_orb("gold", Vector2(spot.x * TS + 12 + randf_range(-18, 18), spot.y * TS - 20))
 		used.append(spot.x)
-	if rng.randf() < 0.5 and not low.is_empty():
+	# v34: ikinci zula artık gizli cepte (kırık duvar "zula" içeriği); cep yoksa eskisi gibi yolda
+	if rng.randf() < 0.5 and not low.is_empty() and kiriklar.is_empty():
 		low.shuffle()
 		for c in low:
 			var ok := true
@@ -2735,6 +3180,8 @@ func explode(pos: Vector2, radius: float, dmg: float, by_player: bool) -> void:
 			away = d.normalized()
 	FX.explosion(pos, radius, Color(1.0, 0.85, 0.3), radius >= 50.0, away)
 	if by_player:
+		break_cracks(Rect2(pos - Vector2(radius, radius), Vector2(radius, radius) * 2.0))   # v34: gizli duvar / küp
+	if by_player:
 		for e in get_tree().get_nodes_in_group("dusman"):
 			if is_instance_valid(e) and not e.dead and e.center().distance_to(pos) < radius + 14.0:
 				e.take_hit(dmg, {"kb": 220.0, "dir": sign(e.center().x - pos.x), "stun": 0.4})
@@ -2794,16 +3241,15 @@ func spawn_roots(pos: Vector2, dmg: float, source: Node) -> void:
 	fx_root.add_child(r)
 
 
-func break_cracks(_rect: Rect2) -> void:
-	pass
-
-
 func on_enemy_died(e: Enemy) -> void:
 	if e == boss and e != null:
 		_on_boss_died(e)
 		return
 	_v12_on_kill(e)
-	for i in randi_range(2, 4) + (10 if e.elite else 0):   # v24: seçkin +6 -> +10 tane (tüccar ekonomisi)
+	_lanet_oldurme()   # v34
+	# v24: seçkin +6 -> +10 tane (tüccar ekonomisi). v34: yaratık sayısı ~1,9 kat: sıradan yaratığın altını 2-4 -> 1-2
+	# tane (+%25 bir tane daha); bölüm başına altın v33'ün ~1,5 katı (küp / gizli cep / lanetli sandık dahil)
+	for i in randi_range(1, 2) + (1 if randf() < 0.25 else 0) + (10 if e.elite else 0):
 		drop_orb("gold", e.center())
 
 
@@ -2952,7 +3398,8 @@ func _place_bezirgan() -> void:
 	var moved := 0
 	for e in get_tree().get_nodes_in_group("dusman"):
 		# v32: çok katlı bölüm: yalnızca tezgâhın katındakiler (üst / alt kattaki yaratıklar kalır)
-		if is_instance_valid(e) and not e.elite and absf(e.global_position.x - bezirgan.position.x) < temiz and absf(e.global_position.y - bezirgan.position.y) < 10.0 * TS:
+		# v34: yalnızca pazar odasındakiler (yandaki ana yol odası kalabalık kalsın)
+		if is_instance_valid(e) and not e.elite and absf(e.global_position.x - bezirgan.position.x) < temiz and absf(e.global_position.y - bezirgan.position.y) < 10.0 * TS and int(room_at(int(e.global_position.x / TS), int((e.global_position.y - 4.0) / TS)).get("id", -2)) == int(room_at(tx, ty - 1).get("id", -3)):
 			e.queue_free()
 			moved += 1
 	print("[tuccar] derinlik=%d bezirgan=1 x=%d boss_oncesi=%s mal=%d duvar_ok=%s kaldirilan=%d" % [d, tx, str(boss_once), bezirgan.offers.size(), str(bezirgan_ok()), moved])
@@ -2999,7 +3446,7 @@ func _kut_taslari() -> void:
 			"giris":
 				ad = "Yol Başı Taşı"
 			"odul":
-				ad = {"tomar": "Tomar Taşı", "hazine": "Hazine Taşı", "sunak": "Sunak Taşı", "pazar": "Pazar Taşı", "seckin": "Bekçi Taşı", "zamanli": "Zaman Taşı"}.get(String(rm.get("odul", "")), "Ödül Taşı")
+				ad = {"tomar": "Tomar Taşı", "hazine": "Hazine Taşı", "sunak": "Sunak Taşı", "pazar": "Pazar Taşı", "seckin": "Bekçi Taşı", "zamanli": "Zaman Taşı", "lanetli": "Lanet Taşı"}.get(String(rm.get("odul", "")), "Ödül Taşı")
 			"cikis":
 				ad = "Kapı Taşı"
 		if rol == "ana" and bool(rm.get("kavsak", false)):
@@ -3164,6 +3611,8 @@ func _process(_delta: float) -> void:
 		elif tap and bezirgan != null and bezirgan.near:
 			bezirgan.talk()
 			tuccar_requested.emit()
+		elif tap and sandik_yakin() != null:
+			sandik_yakin().ac()   # v34 lanetli sandık
 		elif tap and tasi_yakin() >= 0 and isin_t <= 0.0:
 			harita_requested.emit()   # v32: Kut Taşı'nın dibinde W: harita (hızlı ışınlanma)
 		# v32: harita sisi, zamanlı kapı süresi, ışınlanma kanalı
@@ -3171,4 +3620,5 @@ func _process(_delta: float) -> void:
 			harita.tick(_delta, player.global_position)
 		Game.run["bolum_sure"] = float(Game.run.get("bolum_sure", 0.0)) + _delta
 		_isin_tick(_delta)
+		_lanet_tick()   # v34
 	_hazard_tick(_delta)
