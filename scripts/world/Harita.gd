@@ -167,6 +167,63 @@ func hepsini_kesfet(oda_sec: Callable = Callable()) -> void:
 	_dirty = false
 
 
+func karo_degisti(x: int, y: int) -> void:
+	## v34: karo hava / katı oldu (gizli cep kırıldı, kilit açıldı, zamanlı kapı kapandı): görülmüşse yeniden boyanır,
+	## hava sayaçları güncellenir
+	if x < 0 or x >= W or y < 0 or y >= H:
+		return
+	var i := y * W + x
+	var b: Rect2i = level.bounds
+	var hava: bool = level.cell(x, y) != 1
+	if b.has_point(Vector2i(x, y)):
+		toplam_hava += 1 if hava else -1
+	if seen[i] == 1:
+		if not hava:
+			gorulen = maxi(0, gorulen - 1)   # eskiden hava sayılmıştı
+		seen[i] = 0
+		_see(x, y)   # yeni hava karosunu sayar ve boyar
+		tex.update(img)
+		_dirty = false
+
+
+func _oda_goruldu(rm: Dictionary) -> bool:
+	## Odanın ortası (taban hizası) görüldü mü
+	var fl: Array = rm.get("fl", [])
+	if fl.is_empty():
+		return true
+	var mx := (int(rm["ix0"]) + int(rm["ix1"])) / 2
+	return goruldu(mx, int(fl[mx - int(rm["ix0"])]) - 2)
+
+
+func sorular() -> Array:
+	## v34 "?" ipuçları: görülmüş bir kapı ağzının (koridor / kuyu / pencere) öbür yanındaki oda henüz görülmediyse
+	## koridorun / kuyunun ortasında soluk soru işareti (Dead Cells haritasının keşfedilmemiş açıklıkları)
+	var out: Array = []
+	var lv := level
+	for d in lv.doors:
+		if String(d["kind"]) == "sil":
+			continue
+		var A: Dictionary = lv.rooms[int(d["a"])]
+		var B: Dictionary = lv.rooms[int(d["b"])]
+		var ga := _oda_goruldu(A)
+		var gb := _oda_goruldu(B)
+		if ga == gb:
+			continue
+		var c := Vector2i.ZERO
+		var ag := Vector2i.ZERO   # görülmüş yandaki ağız
+		if String(d["dir"]) == "h":
+			var y := int(d["y"]) - 2
+			c = Vector2i((int(d["x"]) + int(d["x2"])) / 2, y)
+			ag = Vector2i(int(d["x"]) - 1, y) if ga else Vector2i(int(d["x2"]) + 1, y)
+		else:
+			var dx := int(d.get("dus_x", d["x"])) + 1
+			c = Vector2i(dx, (int(d["y"]) + int(d.get("y2", d["y"]))) / 2)
+			ag = Vector2i(dx, int(d["y"]) - 1) if ga else Vector2i(dx, int(d.get("y2", d["y"])) - 1)
+		if goruldu(ag.x, ag.y) or goruldu(c.x, c.y):
+			out.append({"tur": "soru", "cell": c, "ad": "?", "i": -1})
+	return out
+
+
 func isaretler() -> Array:
 	## Çizilecek işaretler: [{tur, cell, ad, i, ek}] (yalnızca karosu görülenler; Kut Taşı bulunduysa "tasi", görüldüyse "tasi_sonuk")
 	var out: Array = []
@@ -212,4 +269,37 @@ func isaretler() -> Array:
 		var c: Vector2i = z.cell
 		if goruldu(c.x, c.y - 2):
 			out.append({"tur": "zamanli", "cell": Vector2i(c.x, c.y - 2), "ad": z.etiket(), "i": -1, "acik": z.acik})
+	# v34: lanetli sandık, anahtar, kilitli kapı ve keşfedilmemiş açıklık ("?")
+	for sd in lv.get("sandiklar") if lv.get("sandiklar") != null else []:
+		if is_instance_valid(sd) and not sd.acildi:
+			var c := Vector2i(int(floor(sd.global_position.x / TS)), int(floor((sd.global_position.y - 4.0) / TS)))
+			if goruldu(c.x, c.y):
+				out.append({"tur": "sandik", "cell": c, "ad": "Lanetli Sandık", "i": -1})
+	for an in lv.get("anahtarlar") if lv.get("anahtarlar") != null else []:
+		if is_instance_valid(an) and not an.alindi:
+			var c := Vector2i(int(floor(an.global_position.x / TS)), int(floor((an.global_position.y - 4.0) / TS)))
+			if goruldu(c.x, c.y):
+				out.append({"tur": "anahtar", "cell": c, "ad": "Anahtar", "i": -1})
+	for kk in lv.get("kilitler") if lv.get("kilitler") != null else []:
+		if is_instance_valid(kk) and not kk.acik:
+			var c := Vector2i(kk.cell.x, kk.cell.y - 2)
+			if goruldu(c.x - 1, c.y) or goruldu(c.x + 1, c.y):
+				out.append({"tur": "kilit", "cell": c, "ad": "Kilitli kapı", "i": -1})
+	if not lv.doors.is_empty():
+		out.append_array(sorular())
 	return out
+
+
+func sayac_metni() -> String:
+	## v34 tam harita sayacı: "Hazine 1/3 · Tomar 0/2 · Gizli 0/2 · Kilit 0/1" (bulunan / toplam; tamamlama dürtüsü)
+	var ilk: Dictionary = level.get("sayac_ilk") if level.get("sayac_ilk") != null else {}
+	if ilk.is_empty():
+		return ""
+	var simdi: Dictionary = level.sayac()
+	var parca: Array = []
+	for k in [["hazine", "Hazine"], ["tomar", "Tomar"], ["gizli", "Gizli"], ["kilit", "Kilit"]]:
+		var top := int(ilk.get(k[0], 0))
+		if top <= 0:
+			continue
+		parca.append("%s %d/%d" % [k[1], top - mini(top, int(simdi.get(k[0], 0))), top])
+	return "  ·  ".join(parca)

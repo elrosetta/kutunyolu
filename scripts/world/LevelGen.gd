@@ -25,7 +25,8 @@ extends RefCounted
 ## generate(...) döndürür: grid, heights (ana yol odasının tabanı; eski surface_y için), style, chunks (ödül odası
 ## işaretleri: Level._place_rooms), rooms, doors, path (ana yol kesimleri), spawn / exit (karo), tasi (Kut Taşı
 ## karoları), zamanli (zamanlı kapı sütunları), kaide (eşya kaidesi karoları), bounds (dolu kesimlerin sıkı kutusu),
-## metrics.
+## metrics; v34: cepler (gizli cep: çatlak duvar karoları, cep alanı, içerik), kilitli (kilitli kapı sütunu), pencereler
+## (parmaklık karoları). Bkz. aşağıdaki v34 sabitleri.
 
 const STYLES := ["orman", "ucurum", "magara", "harabe", "bozkir", "kuyu"]
 ## v25: yürünen hücrelerin üstünde açık kalması gereken en az karo (ayakta durulan karo dahil; 3 karo = 72 px)
@@ -66,15 +67,32 @@ const ODULLER := ["tomar", "hazine", "sunak", "seckin", "zamanli", "tomar", "haz
 const ZAMANLI_SURE := 90.0
 
 ## Eski parça sözlüğü: ödül odası işaretleri (Level._place_rooms, tuccar_testi; "T" hazine kaidesi, "S" sunak, "E" seçkin,
-## "M" tomar kaidesi, "P" pazar tezgâhı, "Z" zamanlı kapı ödülü)
+## "M" tomar kaidesi, "P" pazar tezgâhı, "Z" zamanlı kapı ödülü; v34: "L" lanetli sandık, "K" anahtar)
 const CHUNKS := {
 	"hazine": ["   T   "],
 	"sunak": ["   S   "],
 	"seckin": ["  E T  "],
 	"tomar": ["   M   "],
 	"pazar": ["   P   "],
+	"lanetli": ["   L   "],
 	"zamanli": ["   Z   "],
 }
+
+## v34 merak uyandıran bölümler (Dead Cells: görünür ama ulaşılmaz ödüller, gizli duvarlar, anahtarlı kapı, lanetli
+## sandık; Kut Kapısı ana yolun ucunda değil):
+##   SAPAK_SANS: Kut Kapısı ana yolun son yarısındaki bir kavşaktan (stil yönünde, kapaklı kuyu ya da yan koridor)
+##   ayrılan çıkmaz odadadır; görünen koridor sapaktan sonra "uzantı" olarak sürer ve bir ödül odasında (seçkin bekçi /
+##   lanetli sandık / hazine) biter.
+##   PENCERE: ana yol odasının kapısız yanında demir parmaklıklı pencere; ardındaki ödül odasına yalnızca başka bir
+##   kavşaktan dolaşarak (0-1 ara oda) varılır.
+##   Gizli cepler (kırık duvar): oda kenarında çatlak mürekkep duvarı (1 sütun, 4 karo); vurulunca açılır, ardında 4 x 4
+##   cep (altın / Kut / şifa / eşya / anahtar). Cep üretimde oyulmaz (Level kırınca oyar): erişim denetimi değişmez.
+##   KILIT_SANS: yan kapılı bir ödül odasının koridoru kilitli (anahtar bölümde: önce gizli cepte, yoksa başka ödül odasında).
+const SAPAK_SANS := 0.95
+const PENCERE_EK := 0.4      # ikinci pencere dalı olasılığı
+const KILIT_SANS := 0.75
+const CEP_SAYI := [2, 3]
+const UZANTI_ODUL := ["seckin", "lanetli", "hazine", "lanetli", "seckin"]
 
 ## Son üretimin giriş / çıkış hücresi (eski imzalı reach_set / traps / _reachable sarmalayıcıları için)
 static var _son := {"sx": 5, "sy": 30, "gx": 250, "gy": 30}
@@ -160,6 +178,13 @@ static func _build(rng: RandomNumberGenerator, W: int, H: int, style: String, op
 				er = rng.randi_range(0, rows - 2)
 				sr = er + 1
 	var path := _ana_yol(rng, cols, rows, sr, er, yon)
+	# v34: Kut Kapısı sapağı: yol sapaktan sonra "uzantı" olarak sürer (sonu ödül), kapı yandaki çıkmaz odada
+	var uzanti: Array = []
+	if rng.randf() < SAPAK_SANS:
+		var sap := _cikis_sapagi(rng, path, cols, rows, yon)
+		if not sap.is_empty():
+			path = sap[0]
+			uzanti = sap[1]
 	var owner: Array = []   # [c][r] -> oda kimliği
 	for c in cols:
 		var col: Array = []
@@ -179,7 +204,10 @@ static func _build(rng: RandomNumberGenerator, W: int, H: int, style: String, op
 		rooms[id]["ana_i"] = i
 		if i > 0:
 			_add_door(doors, rooms, owner, path[i - 1], cell, "ana")
-	# --- dallar: kavşaklardan boş kesimlere 1-2 odalık yürüyüş, sonu çıkmaz (ödül)
+			if i == path.size() - 1 and not uzanti.is_empty():
+				# v34: Kut Kapısı odasına sapak: kuyuysa kapaklı (yürürken düşülmez: oyuncu seçer), yansa koridor
+				doors[doors.size() - 1]["kapak"] = true
+				rooms[id]["sapak"] = true
 	# ödül sırası: tomar ve hazine kesin, kalanı (sunak / seçkin / zamanlı) karışık; pazar istenirse en başa
 	var oduller: Array = ["tomar", "hazine"]
 	var rest: Array = ["sunak", "seckin", "zamanli"]
@@ -188,6 +216,39 @@ static func _build(rng: RandomNumberGenerator, W: int, H: int, style: String, op
 	oduller.append_array(["tomar", "hazine"])
 	if bool(opts.get("pazar", false)):
 		oduller.push_front("pazar")
+	var n_dal := 0
+	var n_cikmaz := 0
+	# --- v34 uzantı: sapaktan sonra süren görünür koridor (dal odaları), sonu ödül odası
+	var n_uzanti := uzanti.size()
+	if not uzanti.is_empty():
+		var prev: Vector2i = path[path.size() - 2]
+		rooms[int(owner[prev.x][prev.y])]["kavsak"] = true
+		var last := -1
+		for ui in uzanti.size():
+			var uc: Vector2i = uzanti[ui]
+			last = _new_room(rooms, owner, uc, "dal")
+			rooms[last]["uzanti"] = true
+			rooms[last]["uz_i"] = path.size() - 1 + ui   # ana yol sırasının devamı (pencere / dal puanlaması)
+			_add_door(doors, rooms, owner, prev, uc, "uzanti")
+			doors[doors.size() - 1]["ileri"] = uc
+			prev = uc
+		rooms[last]["role"] = "odul"
+		rooms[last]["odul"] = String(UZANTI_ODUL[rng.randi_range(0, UZANTI_ODUL.size() - 1)])
+		rooms[last]["dal_uz"] = uzanti.size()
+		n_dal += 1
+		n_cikmaz += 1
+	# --- v34 pencere dalları: ana yoldan parmaklık ardında görünen ödül, dolaşarak varılır
+	var n_pencere := 0
+	for t in 2:
+		if t == 1 and rng.randf() >= PENCERE_EK:
+			break
+		var odl := "tomar" if oduller.has("tomar") and rng.randf() < 0.5 else "hazine"
+		if _pencere_dali(rng, rooms, owner, doors, cols, rows, odl):
+			oduller.erase(odl)
+			n_pencere += 1
+			n_dal += 1
+			n_cikmaz += 1
+	# --- dallar: kavşaklardan boş kesimlere 1-2 odalık yürüyüş, sonu çıkmaz (ödül)
 	var dal_n: int = rng.randi_range(int(P["dal"][0]), int(P["dal"][1]))
 	var junctions: Array = []
 	for i in range(1, path.size() - 1):
@@ -196,15 +257,23 @@ static func _build(rng: RandomNumberGenerator, W: int, H: int, style: String, op
 		# boss öncesi: pazar çıkışa yakın kavşaktan ayrılır
 		junctions.reverse()
 	else:
-		_shuffle(rng, junctions)
+		# v34: dallar ERKEN ayrılır (Dead Cells: ödül yolları bölümün başında görünür; çıkışa koşan oyuncu "bir şey
+		# kaçırdım" der): kavşak sırası yol başına ağırlıklı, rastgele karışık
+		var keyed: Array = []
+		for i in junctions:
+			keyed.append([float(i) / float(path.size()) + rng.randf() * 0.55, i])
+		keyed.sort_custom(func(a: Array, b: Array) -> bool: return float(a[0]) < float(b[0]))
+		junctions.clear()
+		for kk in keyed:
+			junctions.append(int(kk[1]))
 	# yedek kavşaklar: çıkış ve giriş odası (ara odalardan dal çıkmazsa; en az 2 çıkmaz için)
 	junctions.append(path.size() - 1)
 	junctions.append(0)
-	var n_dal := 0
-	var n_cikmaz := 0
 	for ji in junctions:
-		if n_dal >= dal_n:
+		if n_dal - (1 if n_uzanti > 0 else 0) >= dal_n:
 			break
+		if ji == path.size() - 1 and n_uzanti > 0:
+			continue   # v34: sapaktaki Kut Kapısı odası tek kapılı çıkmaz kalır
 		var cur: Vector2i = path[ji]
 		var chain: Array = []
 		var ln := 1 + (1 if rng.randf() < 0.35 else 0)
@@ -235,19 +304,41 @@ static func _build(rng: RandomNumberGenerator, W: int, H: int, style: String, op
 		rooms[last]["odul"] = String(oduller.pop_front()) if not oduller.is_empty() else "hazine"
 		rooms[last]["dal_uz"] = chain.size()
 		n_cikmaz += 1
+	# v34: pazar istendiyse ve hiçbir dala düşmediyse (pencere / uzantı dalları sayıyı doldurdu) bir ödül odası pazar
+	# olur: boss öncesinde uzantının sonu (çıkışa yakın), değilse sıradan dal, yoksa uzantı / pencere odası
+	if oduller.has("pazar"):
+		var aday: Dictionary = {}
+		var puan := -1
+		for rm in rooms:
+			if rm["role"] != "odul":
+				continue
+			var p := 1
+			if bool(rm.get("pencere", false)):
+				p = 0
+			elif bool(rm.get("uzanti", false)):
+				p = 3 if bool(opts.get("pazar_kapi", false)) else 1
+			else:
+				p = 2
+			if p > puan:
+				puan = p
+				aday = rm
+		if not aday.is_empty():
+			aday["odul"] = "pazar"
+			oduller.erase("pazar")
 	# --- döngüler: kapısız komşu odalar arasında (ödül odaları tek kapılı kalır)
 	var n_dongu := 0
 	for c in cols:
 		for r in rows:
 			var a: int = owner[c][r]
-			if a < 0 or rooms[a]["role"] == "odul":
+			if a < 0 or rooms[a]["role"] == "odul" or bool(rooms[a].get("sapak", false)):
 				continue
 			for d in [Vector2i(1, 0), Vector2i(0, 1)]:
 				var n: Vector2i = Vector2i(c, r) + d
 				if n.x >= cols or n.y >= rows:
 					continue
 				var b: int = owner[n.x][n.y]
-				if b < 0 or b == a or rooms[b]["role"] == "odul" or _has_door(doors, a, b):
+				# v34: sapaktaki Kut Kapısı odası tek kapılı (uzantıdan döngüyle kapıya düşülmesin)
+				if b < 0 or b == a or rooms[b]["role"] == "odul" or bool(rooms[b].get("sapak", false)) or _has_door(doors, a, b):
 					continue
 				if rng.randf() < float(P["dongu"]):
 					_add_door(doors, rooms, owner, Vector2i(c, r), n, "dongu")
@@ -260,7 +351,7 @@ static func _build(rng: RandomNumberGenerator, W: int, H: int, style: String, op
 		var b: Vector2i = path[i + 1]
 		var ra: int = owner[a.x][a.y]
 		var rb: int = owner[b.x][b.y]
-		if ra == rb or rooms[ra]["role"] == "giris" or (rooms[ra]["cells"] as Array).size() > 1 or (rooms[rb]["cells"] as Array).size() > 1:
+		if ra == rb or rooms[ra]["role"] == "giris" or bool(rooms[rb].get("sapak", false)) or (rooms[ra]["cells"] as Array).size() > 1 or (rooms[rb]["cells"] as Array).size() > 1:
 			continue
 		if b.y == a.y and rng.randf() < float(P["genis"]):
 			_merge(rooms, owner, doors, ra, rb)
@@ -304,10 +395,25 @@ static func _build(rng: RandomNumberGenerator, W: int, H: int, style: String, op
 		# zamanlı kapı yalnızca yan kapılı odada (dikey kuyuya kapı kurulmaz)
 		if rm["role"] == "odul" and String(rm.get("_door_side", "sol")) in ["ust", "alt"] and String(rm["odul"]) == "zamanli":
 			rm["odul"] = "hazine"
-	# Kut Kapısı önü (çıkış odasının sağ ucu, 9 sütun) düz ve boş kalır: sütun / kaya / çukurcuk / tehlike yok
+	# v34 kilitli ödül odası: yan kapılı (pazar, zamanlı, pencereli değil); anahtar sonra (_anahtar_yeri)
+	var kilit_rm: Dictionary = {}
+	if rng.randf() < KILIT_SANS:
+		var kc: Array = []
+		for rm in rooms:
+			if rm["role"] == "odul" and String(rm.get("_door_side", "sol")) in ["sol", "sag"] and not (String(rm["odul"]) in ["pazar", "zamanli"]) and not bool(rm.get("pencere", false)):
+				kc.append(rm)
+		if not kc.is_empty():
+			kilit_rm = kc[rng.randi_range(0, kc.size() - 1)]
+			kilit_rm["kilit"] = true
+	# Kut Kapısı önü (çıkış odasının sağ ucu, 9 sütun) düz ve boş kalır: sütun / kaya / çukurcuk / tehlike yok.
+	# v34: kapı odaya sağdaki koridordan giriliyorsa (sapak) Kut Kapısı odanın SOL ucunda (kapıdan uzak yan)
 	for rm in rooms:
 		if rm["role"] == "cikis":
-			(rm["clear"] as Array).append(Rect2i(int(rm["ix1"]) - 9, 0, 10, 999))
+			rm["cikis_sol"] = bool(rm["_sag"]) and not bool(rm["_sol"])
+			if bool(rm["cikis_sol"]):
+				(rm["clear"] as Array).append(Rect2i(int(rm["ix0"]), 0, 10, 999))
+			else:
+				(rm["clear"] as Array).append(Rect2i(int(rm["ix1"]) - 9, 0, 10, 999))
 	# --- oyma
 	for rm in rooms:
 		if rm["role"] != "yok":
@@ -339,6 +445,34 @@ static func _build(rng: RandomNumberGenerator, W: int, H: int, style: String, op
 			chunks.append({"name": String(rm["odul"]), "x": int(rm["ix0"]), "marks": mk, "room": int(rm["id"])})
 		elif rm["role"] in ["ana", "dal"]:
 			_hazard_strips(grid, W, H, rng, rm, style)
+	# v34 gizli cepler (kırık duvar), kilitli kapı ve anahtarı
+	var cepler := _gizli_cepler(grid, W, H, rng, rooms)
+	var kilitli: Array = []
+	if not kilit_rm.is_empty():
+		var kd := _yan_kapi_sutunu(kilit_rm, doors)
+		var anahtar := false
+		var cc: Array = []
+		for cp in cepler:
+			if int(cp["room"]) != int(kilit_rm["id"]):
+				cc.append(cp)
+		if not cc.is_empty():
+			cc[rng.randi_range(0, cc.size() - 1)]["icerik"] = "anahtar"
+			anahtar = true
+		else:
+			# gizli cep yoksa: başka bir ödül odasının köşesinde (pazar / kilitli değil)
+			for ch in chunks:
+				var orm: Dictionary = rooms[int(ch["room"])]
+				if orm == kilit_rm or String(orm["odul"]) == "pazar":
+					continue
+				var kx := clampi(_odul_mid(orm) + (4 if _door_side(orm) != "sag" else -4), int(orm["ix0"]) + 2, int(orm["ix1"]) - 2)
+				var ks := _floor_spot(grid, W, H, orm, kx)
+				(ch["marks"] as Array).append(["K", ks.x, ks.y])
+				anahtar = true
+				break
+		if anahtar:
+			kilitli.append({"x": kd.x, "y": kd.y, "room": int(kilit_rm["id"])})
+		else:
+			kilit_rm["kilit"] = false
 	# Kut Taşları (3-4): giriş (girişin 9 karo sağı); ana yolun ortasına en yakın kavşak (yoksa orta oda); girişten en
 	# uzak 1-2 ödül odası (kapıya yakın)
 	var g_rm: Dictionary = rooms[0]
@@ -370,9 +504,9 @@ static func _build(rng: RandomNumberGenerator, W: int, H: int, style: String, op
 	for q in [0.25, 0.5, 0.75]:
 		var rm: Dictionary = main_rooms[clampi(int(round(q * (nm - 1))), 1, nm - 1)]
 		kaide.append(_floor_spot(grid, W, H, rm, _bos_sutun(rm, (int(rm["ix0"]) + int(rm["ix1"])) / 2 + rng.randi_range(-3, 3))))
-	# çıkış: çıkış odasının sağ ucu
+	# çıkış: çıkış odasının sağ ucu (v34: kapı odaya sağdan giriliyorsa sol ucu)
 	var e_rm: Dictionary = main_rooms[nm - 1]
-	var exit := _floor_spot(grid, W, H, e_rm, int(e_rm["ix1"]) - 4)
+	var exit := _floor_spot(grid, W, H, e_rm, int(e_rm["ix0"]) + 4 if bool(e_rm.get("cikis_sol", false)) else int(e_rm["ix1"]) - 4)
 	# heights: sütundaki ana yol odasının (ilk gelinen) tabanı; eski surface_y / süs / test çağrıları için
 	var heights: Array = []
 	heights.resize(W)
@@ -405,8 +539,224 @@ static func _build(rng: RandomNumberGenerator, W: int, H: int, style: String, op
 	var metrics := {"oda": rooms.size() - n_genis, "ana": path.size(), "dal": n_dal, "cikmaz": n_cikmaz, "dongu": n_dongu,
 		"genis": n_genis, "yuksek": 0, "dikey_adim": dikey_adim, "satir": rmax - rmin + 1, "kapi": doors.size() - n_genis,
 		"tasi": tasi.size(), "zamanli": zamanli.size(), "cols": cols, "rows": rows, "kuyu": n_kuyu, "acik_kuyu": n_acik}
+	# v34 ölçümleri: sapak / uzantı, pencere, gizli cep, kilit, dalların ayrıldığı yer (ana yol sırası / uzunluk)
+	var pencereler: Array = []
+	for dr in doors:
+		if dr["kind"] == "pencere" and dr.has("parmak"):
+			pencereler.append({"cells": dr["parmak"], "a": int(dr["a"]), "b": int(dr["b"])})
+	var kav_sum := 0.0
+	var kav_n := 0
+	for dr in doors:
+		if not (dr["kind"] in ["dal", "pencere_dal"]):
+			continue
+		for k in ["a", "b"]:
+			var jr: Dictionary = rooms[int(dr[k])]
+			if int(jr.get("ana_i", -1)) >= 0:
+				kav_sum += float(jr["ana_i"]) / float(maxi(1, path.size() - 1))
+				kav_n += 1
+	metrics["sapak"] = 1 if n_uzanti > 0 else 0
+	metrics["uzanti"] = n_uzanti
+	metrics["pencere"] = pencereler.size()
+	metrics["cep"] = cepler.size()
+	metrics["kilit"] = kilitli.size()
+	metrics["dal_yeri"] = kav_sum / maxf(1.0, float(kav_n))
+	var bnd := _sinirlar(grid, W, H)
+	for cp in cepler:
+		bnd = bnd.merge((cp["cep"] as Rect2i).grow(2)).intersection(Rect2i(0, 0, W, H))
 	return {"grid": grid, "heights": heights, "chunks": chunks, "rooms": rooms, "doors": doors, "path": path, "spawn": spawn,
-		"exit": exit, "tasi": tasi, "zamanli": zamanli, "kaide": kaide, "bounds": _sinirlar(grid, W, H), "metrics": metrics}
+		"exit": exit, "tasi": tasi, "zamanli": zamanli, "kaide": kaide, "bounds": bnd, "metrics": metrics,
+		"cepler": cepler, "kilitli": kilitli, "pencereler": pencereler}
+
+
+static func _cikis_sapagi(rng: RandomNumberGenerator, path: Array, cols: int, rows: int, yon: String) -> Array:
+	## v34: ana yolun son %60'ındaki j. kesimden (yolun sonuna en az bir oda kala) boş bir komşu kesime Kut Kapısı
+	## sapağı. Stil yönü korunur (inis: aşağı ya da yana; cikis: yukarı ya da yana). Döndürür [yeni yol (giriş .. j, sapak),
+	## uzantı (eski yolun j+1 .. sonu)] ya da boş dizi.
+	var n := path.size()
+	if n < 5:
+		return []
+	var seen := {}
+	for c in path:
+		seen[c] = true
+	var cands: Array = []   # [j, kesim, ağırlık]
+	for j in range(maxi(2, int(ceil(n * 0.4))), n - 1):
+		var cur: Vector2i = path[j]
+		for d in [Vector2i(0, 1), Vector2i(0, -1), Vector2i(1, 0), Vector2i(-1, 0)]:
+			var e: Vector2i = cur + d
+			if e.x < 0 or e.x >= cols or e.y < 0 or e.y >= rows or seen.has(e):
+				continue
+			var w := 1
+			match yon:
+				"inis":
+					if d.y < 0:
+						continue
+					w = 3 if d.y > 0 else 1
+				"cikis":
+					if d.y > 0:
+						continue
+					w = 3 if d.y < 0 else 1
+				_:
+					w = 2 if d.y != 0 else 1
+			for k in w:
+				cands.append([j, e])
+	if cands.is_empty():
+		return []
+	var pick: Array = cands[rng.randi_range(0, cands.size() - 1)]
+	var j: int = pick[0]
+	var np: Array = path.slice(0, j + 1)
+	np.append(pick[1])
+	return [np, path.slice(j + 1)]
+
+
+static func _pencere_dali(rng: RandomNumberGenerator, rooms: Array, owner: Array, doors: Array, cols: int, rows: int, odul: String) -> bool:
+	## v34 pencere dalı (Dead Cells'in "görünen ama ulaşılmayan" ödülü): boş R kesimi, yanındaki (yatay) bir yol odası
+	## A'ya PARMAKLIKLI PENCEREYLE bakar; R'ye başka bir J odasından (0-1 ara oda) dolaşarak girilir. A erken, J A'dan
+	## sonra gelsin (önce görülür, sonra yolu bulunur). true: kuruldu.
+	var best: Array = []
+	var best_s := -1e9
+	var sira := func(id: int) -> float:
+		var rm: Dictionary = rooms[id]
+		if int(rm.get("ana_i", -1)) >= 0:
+			return float(rm["ana_i"])
+		return float(rm.get("uz_i", 99))
+	var uygun := func(id: int) -> bool:
+		if id < 0:
+			return false
+		var rm: Dictionary = rooms[id]
+		return rm["role"] in ["giris", "ana"] or (rm["role"] == "dal" and bool(rm.get("uzanti", false)))
+	for c in cols:
+		for r in rows:
+			if owner[c][r] >= 0:
+				continue
+			var R := Vector2i(c, r)
+			for s in [-1, 1]:
+				var A := R + Vector2i(s, 0)
+				if A.x < 0 or A.x >= cols or not uygun.call(int(owner[A.x][A.y])):
+					continue
+				var a_id: int = owner[A.x][A.y]
+				for d in [Vector2i(0, 1), Vector2i(0, -1), Vector2i(1, 0), Vector2i(-1, 0)]:
+					var X: Vector2i = R + d
+					if X == A or X.x < 0 or X.x >= cols or X.y < 0 or X.y >= rows:
+						continue
+					var xo: int = owner[X.x][X.y]
+					if xo >= 0:
+						# doğrudan: R, J'ye komşu
+						if xo != a_id and uygun.call(xo):
+							var sc: float = 1.0 + (2.0 if float(sira.call(xo)) > float(sira.call(a_id)) else 0.0) - 0.15 * float(sira.call(a_id)) + rng.randf() * 0.8
+							if sc > best_s:
+								best_s = sc
+								best = [R, A, X, Vector2i(-1, -1)]
+						continue
+					# bir ara oda: X boş, X'in komşusu J (R ve A değil)
+					for d2 in [Vector2i(0, 1), Vector2i(0, -1), Vector2i(1, 0), Vector2i(-1, 0)]:
+						var J: Vector2i = X + d2
+						if J == R or J.x < 0 or J.x >= cols or J.y < 0 or J.y >= rows:
+							continue
+						var jo: int = owner[J.x][J.y]
+						if jo == a_id or not uygun.call(jo):
+							continue
+						var sc2: float = 2.5 + (2.0 if float(sira.call(jo)) > float(sira.call(a_id)) else 0.0) - 0.15 * float(sira.call(a_id)) + rng.randf() * 0.8
+						if sc2 > best_s:
+							best_s = sc2
+							best = [R, A, J, X]
+	if best.is_empty():
+		return false
+	var R2: Vector2i = best[0]
+	var A2: Vector2i = best[1]
+	var J2: Vector2i = best[2]
+	var X2: Vector2i = best[3]
+	rooms[int(owner[J2.x][J2.y])]["kavsak"] = true
+	var prev := J2
+	if X2.x >= 0:
+		_new_room(rooms, owner, X2, "dal")
+		_add_door(doors, rooms, owner, J2, X2, "dal")
+		prev = X2
+	var rid := _new_room(rooms, owner, R2, "odul")
+	rooms[rid]["odul"] = odul
+	rooms[rid]["pencere"] = true
+	rooms[rid]["pencere_yan"] = "sol" if A2.x < R2.x else "sag"
+	rooms[rid]["dal_uz"] = 2 if X2.x >= 0 else 1
+	_add_door(doors, rooms, owner, prev, R2, "dal")
+	_add_door(doors, rooms, owner, A2, R2, "pencere")
+	return true
+
+
+static func _yan_kapi_sutunu(rm: Dictionary, doors: Array) -> Vector2i:
+	## Yan kapılı ödül odasının koridorunda odaya bitişik sütun ve taban satırı (zamanlı / kilitli kapı: 4 karo geçit)
+	var side := _door_side(rm)
+	var fl: Array = rm["fl"]
+	var dx := int(rm["ix0"]) - 1 if side == "sol" else int(rm["ix1"]) + 1
+	var dy := int(fl[0]) if side == "sol" else int(fl[fl.size() - 1])
+	for di in rm["doors"]:
+		var d: Dictionary = doors[di]
+		if d["dir"] == "h" and d["kind"] != "sil" and d["kind"] != "pencere":
+			dy = int(d["y"])
+	return Vector2i(dx, dy)
+
+
+static func _gizli_cepler(g: PackedByteArray, W: int, H: int, rng: RandomNumberGenerator, rooms: Array) -> Array:
+	## v34 gizli cepler: odanın kapısız yan duvarında (taban hizası) 1 sütunluk ÇATLAK DUVAR (4 karo) ve ardında 4 x 4
+	## cep. Cep alanı (+1 karo pay) bütünüyle kaya olmalı (koridor / kuyu / başka oda yok). Cep oyulmaz (Level kırınca
+	## oyar). İçerik: altın (çoğu), Kut, şifa, eşya ("zula": eski gizli yeraltı odalarının ganimeti), anahtar sonra.
+	var want := rng.randi_range(int(CEP_SAYI[0]), int(CEP_SAYI[1]))
+	var cands: Array = []
+	for rm in rooms:
+		if rm["role"] in ["yok", "cikis"] or (rm["fl"] as Array).is_empty():
+			continue
+		for s in [-1, 1]:
+			if (s < 0 and bool(rm["_sol"])) or (s > 0 and bool(rm["_sag"])):
+				continue
+			cands.append([rm, s])
+	_shuffle(rng, cands)
+	var out: Array = []
+	var used: Array = []
+	for cd in cands:
+		if out.size() >= want:
+			break
+		var rm: Dictionary = cd[0]
+		var s: int = cd[1]
+		var fl: Array = rm["fl"]
+		var ex := int(rm["ix1"]) if s > 0 else int(rm["ix0"])        # odanın kenar sütunu
+		var fy: int = int(fl[ex - int(rm["ix0"])])
+		var ok := true
+		# kenar ve yanındaki sütun: tabanı aynı ve katı, üstünde 4 karo hava (çatlak yüzü görünsün, önü yürünür)
+		for kx in [ex, ex - s]:
+			if _cell(g, kx, fy, W, H) != 1:
+				ok = false
+			for y in range(fy - 4, fy):
+				if _cell(g, kx, y, W, H) != 0:
+					ok = false
+		if not ok:
+			continue
+		var wx := ex + s                       # çatlak duvar sütunu
+		var px0 := wx + s if s > 0 else wx - 4  # cep sütunları px0 .. px0+3
+		# duvar + cep + 1 sütun pay; tavan payı ve taban satırı dahil
+		var r := Rect2i(wx, fy - 5, 6, 6) if s > 0 else Rect2i(wx - 5, fy - 5, 6, 6)
+		if r.position.x < 2 or r.end.x > W - 2 or r.position.y < 2:
+			continue
+		for y in range(r.position.y, r.end.y):
+			for x in range(r.position.x, r.end.x):
+				if _cell(g, x, y, W, H) != 1:
+					ok = false
+		for u in used:
+			if (u as Rect2i).grow(2).intersects(r):
+				ok = false
+		if not ok:
+			continue
+		used.append(r)
+		var wall: Array = []
+		for y in range(fy - 4, fy):
+			wall.append(Vector2i(wx, y))
+		var roll := rng.randf()
+		var ic := "altin"
+		if roll < 0.2:
+			ic = "zula"
+		elif roll < 0.35:
+			ic = "kut"
+		elif roll < 0.5:
+			ic = "sifa"
+		out.append({"wall": wall, "cep": Rect2i(px0, fy - 4, 4, 4), "room": int(rm["id"]), "yon": s, "taban": fy, "icerik": ic})
+	return out
 
 
 static func _tasi_ekle(tasi: Array, c: Vector2i) -> void:
@@ -654,6 +1004,8 @@ static func _room_box(rng: RandomNumberGenerator, rm: Dictionary, doors: Array) 
 	var nv := 0
 	var has_l := false
 	var has_r := false
+	var pen_l := false   # v34: pencere yanı daralmaz (parmaklık ardındaki ödül yakından görünsün)
+	var pen_r := false
 	for di in rm["doors"]:
 		var d: Dictionary = doors[di]
 		if d["kind"] == "sil":
@@ -662,8 +1014,10 @@ static func _room_box(rng: RandomNumberGenerator, rm: Dictionary, doors: Array) 
 			nv += 1
 		elif int(d["b"]) == int(rm["id"]):
 			has_l = true
+			pen_l = pen_l or d["kind"] == "pencere"
 		else:
 			has_r = true
+			pen_r = pen_r or d["kind"] == "pencere"
 	rm["_sol"] = has_l
 	rm["_sag"] = has_r
 	rm["_nv"] = nv
@@ -677,8 +1031,10 @@ static func _room_box(rng: RandomNumberGenerator, rm: Dictionary, doors: Array) 
 		maxs = 2
 	elif (rm["cells"] as Array).size() == 1:
 		maxs = 6
-	rm["ix0"] = int(rm["ix0"]) + rng.randi_range(0, maxs)
-	rm["ix1"] = int(rm["ix1"]) - rng.randi_range(0, maxs)
+	var sl := rng.randi_range(0, maxs)
+	var sr := rng.randi_range(0, maxs)
+	rm["ix0"] = int(rm["ix0"]) + (0 if pen_l else sl)
+	rm["ix1"] = int(rm["ix1"]) - (0 if pen_r else sr)
 	var yk: Array = YUK.get("giris" if role == "giris" else String(rm["kind"]), [5, 8])
 	var fbs: Array = []
 	var hs: Array = []
@@ -773,6 +1129,8 @@ static func _door_geometry(rng: RandomNumberGenerator, rooms: Array, d: Dictiona
 		d["h"] = ch
 		(A["clear"] as Array).append(Rect2i(int(A["ix1"]) - 3, yd - ch - 1, 4, fa - yd + ch + 1))
 		(B["clear"] as Array).append(Rect2i(int(B["ix0"]), yd - ch - 1, 4, fbv - yd + ch + 1))
+		if d["kind"] == "pencere":
+			return   # v34: pencere ödül odasının kapısı değil (kapı yanı / zamanlı kapı / Kut Taşı yeri gerçek kapıdan)
 		if A["role"] == "odul":
 			A["_door_side"] = "sag"
 			A["_door_x"] = int(d["x"])
@@ -808,6 +1166,11 @@ static func _door_geometry(rng: RandomNumberGenerator, rooms: Array, d: Dictiona
 		d["flip"] = rng.randf() < 0.5
 		# ana yol yukarıdan aşağı iniyorsa düşüş deliği açık; dal / döngü / tırmanılan ana yol: tek yönlü kapak
 		d["acik"] = d["kind"] == "ana" and int(A["ana_i"]) >= 0 and int(B["ana_i"]) > int(A["ana_i"])
+		# v34: uzantı (sapaktan sonra süren yol) aşağı iniyorsa açık düşüş (yol gibi görünür); Kut Kapısı sapağı kapaklı
+		if d["kind"] == "uzanti" and d.get("ileri", Vector2i(-1, -1)) == d["cb"]:
+			d["acik"] = true
+		if bool(d.get("kapak", false)):
+			d["acik"] = false
 		for R in [A, B]:
 			(R["kuyular"] as Array).append([hx, hx + KUYU_W - 1])
 			(R["clear"] as Array).append(Rect2i(hx - 1, 0, KUYU_W + 2, 999))
@@ -833,6 +1196,15 @@ static func _carve_door(g: PackedByteArray, W: int, H: int, rooms: Array, d: Dic
 				_put(g, x, y, W, H, 0)
 		for x in range(int(d["x"]), int(d["x2"]) + 1):
 			_put(g, x, yd, W, H, 1)
+		if d["kind"] == "pencere":
+			# v34 parmaklıklı pencere: koridorun ortasındaki sütun ızgarada katı (geçilmez; erişim modeli de duvar
+			# sayar); Level karosunu siler, yerine görünür demir parmaklık + çarpışma kutusu koyar
+			var bx := (int(d["x"]) + int(d["x2"])) / 2
+			var cells: Array = []
+			for y in range(yd - ch, yd):
+				_put(g, bx, y, W, H, 1)
+				cells.append(Vector2i(bx, y))
+			d["parmak"] = cells
 	else:
 		var hx := int(d["x"])
 		var fyA: int = int(A["fl"][clampi(hx - int(A["ix0"]), 0, (A["fl"] as Array).size() - 1)])
@@ -1242,6 +1614,14 @@ static func _odul_shape(g: PackedByteArray, W: int, H: int, rng: RandomNumberGen
 				fl[x - ix0] = fy - 2
 		"sunak", "tomar":
 			_platforms(g, W, H, rng, rm, 1, 3, 3)
+		"lanetli":
+			# v34 lanetli sandık: alçak taş seki (1 karo) ve iki yanda tek yönlü çıkıntı (uzantının sonu: bekçili oda gibi)
+			for x in range(mid - 2, mid + 3):
+				if _in_clear(rm, x, fy - 1):
+					continue
+				_put(g, x, fy - 1, W, H, 1)
+				fl[x - ix0] = fy - 1
+			_platforms(g, W, H, rng, rm, 1, 3, 3)
 
 
 static func _odul_mid(rm: Dictionary) -> int:
@@ -1255,6 +1635,9 @@ static func _odul_mid(rm: Dictionary) -> int:
 		var sol := hx - 1 - ix0
 		var sag := ix1 - (hx + KUYU_W)
 		mid = (hx + KUYU_W + 1 + ix1) / 2 + 1 if sag >= sol else (ix0 + hx - 2) / 2
+	elif bool(rm.get("pencere", false)):
+		# v34: pencereli ödül odası: ödül parmaklığın yakınında (ana yoldan görünsün)
+		mid = ix0 + 7 if String(rm.get("pencere_yan", "sol")) == "sol" else ix1 - 6
 	return clampi(mid, ix0 + 5, ix1 - 4)
 
 
@@ -1284,14 +1667,10 @@ static func _odul_marks(g: PackedByteArray, W: int, H: int, rng: RandomNumberGen
 		"zamanli":
 			marks.append(["Z", mid, fy - 1])
 			# kapı: koridorun odaya bitişik sütunu (4 karo yüksek geçit kapanır)
-			var side := _door_side(rm)
-			var dx := ix0 - 1 if side == "sol" else ix1 + 1
-			var dy := int(fl[0]) if side == "sol" else int(fl[fl.size() - 1])
-			for di in rm["doors"]:
-				var d: Dictionary = doors[di]
-				if d["dir"] == "h" and d["kind"] != "sil":
-					dy = int(d["y"])
-			zamanli.append({"x": dx, "y": dy, "room": int(rm["id"]), "sure": ZAMANLI_SURE})
+			var kd := _yan_kapi_sutunu(rm, doors)
+			zamanli.append({"x": kd.x, "y": kd.y, "room": int(rm["id"]), "sure": ZAMANLI_SURE})
+		"lanetli":
+			marks.append(["L", mid, fy - 1])
 	return marks
 
 

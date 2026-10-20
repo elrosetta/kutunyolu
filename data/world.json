@@ -1394,5 +1394,16 @@
    ],
    "enemy": "erlik_han"
   }
- ]
+ ],
+ "yogunluk": {
+  "_not": "v34 bölüm yaratık yoğunluğu (Level._spawn_enemies). aralik: dövüş odasının tabanı boyunca iki grup arası karo (rastgele; derinlikle zorluk.json yogunluk kadar azalır, en az en_az_aralik); her ana yol / dal odasında en az bir grup. karisik: grubun yakın + uzak dövüşçü ikilisi olma olasılığı. ucan_ek: 7+ karo yüksek odada havada ek uçan. odul_bekci: ödül odasında bekçi grubu, bekci_seckin: bekçinin seçkin olma olasılığı (1. derinlikte yarısı). giris_bos / tasi_bos: giriş noktası ve Kut Taşı çevresinde yaratıksız karo (yatay). v33: 15-22 karoda bir tek yaratık (~13 / bölüm).",
+  "aralik": [12, 17],
+  "en_az_aralik": 7,
+  "karisik": 0.4,
+  "ucan_ek": 0.25,
+  "odul_bekci": 0.6,
+  "bekci_seckin": 0.35,
+  "giris_bos": 12,
+  "tasi_bos": 4
+ }
 }

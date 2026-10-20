@@ -6,6 +6,8 @@ extends RefCounted
 ## ekranı üzerinden: Main "harita" kipi). Takılınca yeniden plan yapar.
 ## v33: küçük bölümde kuyu kapağından aşağı + zıpla ile iner (aşağı basılı tutulur, Main bu sırada saldırmaz / rastgele
 ## zıplamaz), zıplama dokunuşu iki kare basılı kalır; keşif sıçraması yalnızca aynı hedefte 40 sn takılınca.
+## v34: kalabalık bölümde yolun önündeki yaratığa saldırır (_savas), anahtarsız kilitli odayı ve yolu bulunamayan
+## ödül odasını hedeflemez (vazgec).
 
 var level: Node
 var path: Array = []
@@ -13,6 +15,7 @@ var pi := 0
 var hedef := Vector2i(-1, -1)
 var hedef_tur := ""
 var ziyaret: Dictionary = {}     # ödül odası kimliği -> true
+var vazgec: Dictionary = {}      # v34: yolu bulunamayan ödül odası (kilitli / ulaşılmaz) -> true
 var replan_t := 0.0
 var stuck_t := 0.0
 var last_x := 0.0
@@ -20,6 +23,7 @@ var isin_sayac := 0
 var ui_isin := 0
 var hedef_sayac := 0
 var _jump_cd := 0.0
+var _savas_cd := 0.0
 var _kesif_t := 0.0
 var _basili: Array = []
 ## v33: dokunuş (zıpla) iki fizik karesi basılı kalır: Input.action_press'in "yeni basıldı"sı oyuncuya bir sonraki karede
@@ -35,6 +39,7 @@ func reset(lv: Node) -> void:
 	hedef = Vector2i(-1, -1)
 	hedef_tur = ""
 	ziyaret = {}
+	vazgec = {}
 	replan_t = 0.0
 	stuck_t = 0.0
 	hedef_sayac = 0
@@ -47,8 +52,10 @@ func _hedef_sec(pl: Node) -> void:
 	_kesif_t = 0.0   # v33: keşif sıçraması yalnızca aynı hedefte 40 sn ilerleyemeyince (küçük bölümde geri ışınlanmasın)
 	var cands: Array = []
 	for rm in level.rooms:
-		if rm["role"] != "odul" or ziyaret.has(int(rm["id"])):
+		if rm["role"] != "odul" or ziyaret.has(int(rm["id"])) or vazgec.has(int(rm["id"])):
 			continue
+		if _kilitli(int(rm["id"])):
+			continue   # v34: anahtarsız kilitli oda hedef olmaz
 		var c: Vector2i = LevelGen._floor_spot(level.grid, level.W, level.H, rm, LevelGen._odul_mid(rm))
 		cands.append([int(rm["id"]), c])
 	# v33: can %55'in altındaysa ödül odalarına sapmadan Kut Kapısı'na (dövüşmeyen bot derin bölümde ölmesin)
@@ -64,6 +71,32 @@ func _hedef_sec(pl: Node) -> void:
 		hedef_tur = "odul:%d" % int(best[0])
 		hedef = best[1]
 	hedef_sayac += 1
+
+
+func _kilitli(oda: int) -> bool:
+	## v34: oda kilitli kapının ardında ve anahtar yok
+	if int(level.get("anahtar") if level.get("anahtar") != null else 0) > 0:
+		return false
+	for kk in level.get("kilitler") if level.get("kilitler") != null else []:
+		if is_instance_valid(kk) and not kk.acik and int(kk.oda) == oda:
+			return true
+	return false
+
+
+func _savas(pl: Node, feet: Vector2) -> void:
+	## v34 (yoğun bölüm): yolun önündeki yakın yaratığa saldır (Main 23 karede bir saldırır; kalabalık odada bot
+	## yalnızca geçip gidiyordu). Önündeki 80 px, aynı kat; kapaktan inerken saldırmaz.
+	if iniyor or _savas_cd > 0.0:
+		return
+	var f := int(pl.get("facing"))
+	for e in level.get_tree().get_nodes_in_group("dusman"):
+		if not is_instance_valid(e) or bool(e.get("dead")):
+			continue
+		var d: Vector2 = e.global_position - feet
+		if d.x * f > -6.0 and absf(d.x) < 80.0 and absf(d.y) < 50.0:
+			_tap("saldiri1")
+			_savas_cd = 0.22
+			return
 
 
 func _plan(pl: Node) -> void:
@@ -114,6 +147,7 @@ func adim(main: Node, pl: Node, delta: float) -> void:
 		return
 	replan_t -= delta
 	_jump_cd -= delta
+	_savas_cd -= delta
 	_kesif_t += delta
 	var TS: float = float(level.TS)
 	var feet: Vector2 = pl.global_position
@@ -150,7 +184,9 @@ func adim(main: Node, pl: Node, delta: float) -> void:
 	if path.is_empty() or replan_t <= 0.0:
 		_plan(pl)
 		if path.is_empty():
-			# yol yok: hedefi değiştir, rastgele kıpırda
+			# yol yok: hedefi değiştir, rastgele kıpırda (v34: ulaşılamayan ödül odası bir daha seçilmez)
+			if hedef_tur.begins_with("odul:"):
+				vazgec[int(hedef_tur.trim_prefix("odul:"))] = true
 			_hedef_sec(pl)
 			_press("sag" if int(feet.x / TS) % 2 == 0 else "sol")
 			if _jump_cd <= 0.0:
@@ -179,6 +215,7 @@ func adim(main: Node, pl: Node, delta: float) -> void:
 	if pi >= path.size():
 		path = []
 		return
+	_savas(pl, feet)
 	var id2: int = path[pi]
 	var wp2 := Vector2((id2 % level.W) * TS + TS * 0.5, (id2 / level.W) * TS + TS - 1.0)
 	var dx := wp2.x - feet.x
