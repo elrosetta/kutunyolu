@@ -332,22 +332,22 @@
  },
  "darbe_kritik": {
   "loop": false,
-  "len": 0.52,
+  "len": 0.68,
   "hedef_db": -6.5
  },
  "darbe_kritik_1": {
   "loop": false,
-  "len": 0.52,
+  "len": 0.68,
   "hedef_db": -6.5
  },
  "darbe_kritik_2": {
   "loop": false,
-  "len": 0.52,
+  "len": 0.68,
   "hedef_db": -6.5
  },
  "darbe_kritik_3": {
   "loop": false,
-  "len": 0.52,
+  "len": 0.68,
   "hedef_db": -6.5
  },
  "darbe_kunt": {
@@ -1312,24 +1312,19 @@
   "len": 2.2,
   "hedef_db": -27.0
  },
- "darbe_kritik_4": {
-  "loop": false,
-  "len": 0.52,
-  "hedef_db": -6.5
- },
  "darbe_kritik_kunt_1": {
   "loop": false,
-  "len": 0.6,
+  "len": 0.68,
   "hedef_db": -6.5
  },
  "darbe_kritik_kunt_2": {
   "loop": false,
-  "len": 0.6,
+  "len": 0.68,
   "hedef_db": -6.5
  },
  "darbe_kritik_kunt_3": {
   "loop": false,
-  "len": 0.6,
+  "len": 0.68,
   "hedef_db": -6.5
  },
  "tamu_seli": {
@@ -1366,16 +1361,6 @@
   "loop": false,
   "len": 0.45,
   "hedef_db": -11.0
- },
- "darbe_kritik_5": {
-  "loop": false,
-  "len": 0.52,
-  "hedef_db": -6.5
- },
- "darbe_kritik_kunt_4": {
-  "loop": false,
-  "len": 0.6,
-  "hedef_db": -6.5
  },
  "kin_kapa": {
   "loop": false,
@@ -1526,5 +1511,95 @@
   "loop": false,
   "len": 1.5,
   "hedef_db": -8.5
+ },
+ "vahset_dusme_1": {
+  "loop": false,
+  "len": 0.14,
+  "hedef_db": -16.0
+ },
+ "vahset_dusme_2": {
+  "loop": false,
+  "len": 0.14,
+  "hedef_db": -16.0
+ },
+ "vahset_dusme_3": {
+  "loop": false,
+  "len": 0.14,
+  "hedef_db": -16.0
+ },
+ "vahset_dusme_4": {
+  "loop": false,
+  "len": 0.14,
+  "hedef_db": -16.0
+ },
+ "vahset_et_1": {
+  "loop": false,
+  "len": 0.206,
+  "hedef_db": -11.0
+ },
+ "vahset_et_2": {
+  "loop": false,
+  "len": 0.206,
+  "hedef_db": -11.0
+ },
+ "vahset_et_3": {
+  "loop": false,
+  "len": 0.206,
+  "hedef_db": -11.0
+ },
+ "vahset_et_4": {
+  "loop": false,
+  "len": 0.206,
+  "hedef_db": -11.0
+ },
+ "vahset_kemik_1": {
+  "loop": false,
+  "len": 0.12,
+  "hedef_db": -12.5
+ },
+ "vahset_kemik_2": {
+  "loop": false,
+  "len": 0.12,
+  "hedef_db": -12.5
+ },
+ "vahset_kemik_3": {
+  "loop": false,
+  "len": 0.12,
+  "hedef_db": -12.5
+ },
+ "vahset_kemik_4": {
+  "loop": false,
+  "len": 0.12,
+  "hedef_db": -12.5
+ },
+ "vahset_olum_1": {
+  "loop": false,
+  "len": 0.51,
+  "hedef_db": -8.5
+ },
+ "vahset_olum_2": {
+  "loop": false,
+  "len": 0.51,
+  "hedef_db": -8.5
+ },
+ "vahset_olum_3": {
+  "loop": false,
+  "len": 0.51,
+  "hedef_db": -8.5
+ },
+ "vahset_yirtil_1": {
+  "loop": false,
+  "len": 0.403,
+  "hedef_db": -12.0
+ },
+ "vahset_yirtil_2": {
+  "loop": false,
+  "len": 0.42,
+  "hedef_db": -12.0
+ },
+ "vahset_yirtil_3": {
+  "loop": false,
+  "len": 0.42,
+  "hedef_db": -12.0
  }
 }

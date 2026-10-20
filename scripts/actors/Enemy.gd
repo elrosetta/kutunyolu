@@ -219,6 +219,7 @@ func _ready() -> void:
 	# olduğundan biyom tonu uygulanmaz (yoklama: kendi çeşitlemesi yoksa taban türün v2 sprite'ı kullanılır)
 	var own_v2 := kind != sprite_kind and FileAccess.file_exists("res://assets/sprites/%s_%s.json" % [kind, Data.STIL])
 	anim.setup(kind if own_v2 else sprite_kind)
+	Gore.warm(anim)   # v35: parçalanma maskesi önceden (ilk öldürüşte takılma yok)
 	_ds_setup()
 	if def.has("tint") and not own_v2:
 		var tt: Array = def["tint"]
@@ -408,6 +409,7 @@ func take_hit(d: float, opts: Dictionary) -> bool:
 	if state == "dormant":
 		_wake()
 	hp -= d
+	_son_vurus = opts   # v35: öldürücü vuruşun ağırlığı (parçalanma gücü)
 	if not aggro:
 		_set_aggro()
 	var crit: bool = opts.get("crit", false)
@@ -458,6 +460,12 @@ func take_hit(d: float, opts: Dictionary) -> bool:
 			Ses.hit(tier, center())
 		elif crit:
 			Ses.play("darbe_kritik", 0.0)
+	# v35 vahşet: etli yaratıkta her vuruşa etli darbe + şapırtı; büyük / kritik vuruşa kemik çatırtısı (öldürüşte
+	# _die'nin parçalanma sesleri çalar)
+	if is_flesh() and hp > 0.0:
+		Ses.play("vahset_et", -6.0 if not big else -2.5, 1.0, 0.1, 0.03, center())
+		if big or opts.get("heavy", false):
+			Ses.play("vahset_kemik", -4.0 if not crit else -1.5, 1.0, 0.1, 0.04, center())
 		elif big:
 			Ses.play("darbe_agir", -1.0)
 		else:
@@ -597,11 +605,26 @@ func _die(dir := 1.0, kb := 100.0, crit := false) -> void:
 		var gy: float = level.ground_y_below(global_position + Vector2(0, -4))
 		if gy >= 0.0:
 			FX.decal("decal_blood_%d" % (randi() % 3), Vector2(global_position.x + dir * 6.0, gy + 2), 0.0, 10.0, 1.0 + (0.5 if elite else 0.0), Color(blood_col(), 0.85))
-	# gövde savrulur, ruh zerreleri göğe yükselir, sıçrantı yere düşer
-	if not _ds_death(Vector2(dir * maxf(140.0, kb * 1.3), -220.0 - kb * 0.4)):
+	# v35 vahşet: gövde öldürücü darbe yönünde parçalanır (etli: kanlı parçalar yerde kalır; taş: yığın; ruh / ateş:
+	# tül / kor olup söner); güç aşırı hasar, ağır vuruş, kritik, seçkin / boss ile artar. Olmazsa eski ceset yolu.
+	var gk := _gore_power(kb, crit)
+	var gn := clampi(3 + int(round((gk - 1.0) * 1.6)), 3, 6) if not is_boss else 6
+	var gm := Gore.material_of(sprite_kind, kind, is_flesh())
+	var made := 0
+	if gm != Gore.MAT_RUH:
+		made = Gore.dismember(anim.base, Vector2(dir if dir != 0.0 else float(facing), -0.35), gk, gn, blood_col(), gm, is_boss)
+	if made > 0:
+		if gm == Gore.MAT_ET:
+			Ses.play("vahset_olum", -1.0 + minf(gk - 1.0, 1.5) * 1.5, 1.0, 0.06, 0.03, center())
+			Ses.play("vahset_yirtil", -3.0, 1.0, 0.08, 0.04, center())
+			Ses.play("vahset_kemik", -3.0, 0.9, 0.1, 0.0, center())
+			Blood.splat(center(), blood_col(), 3 + int(gk * 2.0), false)
+	elif not _ds_death(Vector2(dir * maxf(140.0, kb * 1.3), -220.0 - kb * 0.4)):
 		FX.corpse(anim.base, Vector2(dir * maxf(140.0, kb * 1.3), -220.0 - kb * 0.4), blood_col())
+	if gm == Gore.MAT_RUH:
+		Gore.dismember(anim.base, Vector2(dir, -0.5), gk, 3, blood_col(), gm)
 	FX.blood(center(), Vector2(dir, -0.8), blood_col(), 16)
-	Blood.burst(center(), Vector2(dir, -0.6), blood_col(), 45 + (40 if elite else 0) + (90 if is_boss else 0), (randi_range(4, 6) + (4 if elite else 0) + (10 if is_boss else 0)), is_flesh())
+	Blood.burst(center(), Vector2(dir, -0.6), blood_col(), int((45 + (40 if elite else 0) + (90 if is_boss else 0)) * (1.0 + 0.4 * minf(gk - 1.0, 2.0))), (randi_range(4, 6) + (4 if elite else 0) + (10 if is_boss else 0) + int(gk * 2.0)), is_flesh())
 	# sade ölüm: kan + ceset + ruh zerresi okunur; eski koyu kırmızı duman diski ve her ölümde halka kaldırıldı
 	# (üst üste 10 katman ekranı bulandırıyordu)
 	FX.smoke(center(), 3, 0.4, Color(0.32, 0.3, 0.36, 0.45))
@@ -616,6 +639,23 @@ func _die(dir := 1.0, kb := 100.0, crit := false) -> void:
 	if level:
 		level.on_enemy_died(self)
 	queue_free()
+
+
+func _gore_power(kb: float, crit: bool) -> float:
+	## v35: parçalanma gücü 0,7..3: aşırı hasar (can kaç kat aşıldı), ağır vuruş / büyük itme, kritik, seçkin / boss
+	var over := clampf(-hp / maxf(1.0, max_hp), 0.0, 2.0)
+	var k := 1.0 + over * 0.7
+	if crit or _son_vurus.get("crit", false):
+		k += 0.6
+	if _son_vurus.get("heavy", false) or kb >= 250.0:
+		k += 0.5
+	elif kb < 40.0:
+		k -= 0.3   # zehir, kanama, tuzak: gövde yığılır, az savrulur
+	if elite:
+		k += 0.3
+	if is_boss:
+		k += 0.6
+	return clampf(k, 0.7, 3.0)
 
 
 func _set_aggro() -> void:
@@ -711,6 +751,7 @@ func _die_sfx() -> String:
 
 
 var _hit_tilt := 0.0
+var _son_vurus: Dictionary = {}   # v35: son alınan vuruşun seçenekleri (heavy / kb / crit)
 var _haz_cd := 0.0   # v25: tehlike çukuru yeniden vurmaz (sn)
 var _haz_bt := 0.0   # v25: çukurdan sektirilirken kalan süre (yapay zekâ beklemede)
 ## v18 duruş (Dead Cells esinli): hızlı zincirler yaratığı sonsuza dek kilitlemesin. Kısa sürede art arda sarsılan

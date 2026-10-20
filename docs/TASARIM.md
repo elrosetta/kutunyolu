@@ -6124,3 +6124,79 @@ yolun 2/3'ü gezilmiş tam harita: "?" ipuçları ve "Hazine 0/6 · Tomar 0/3 ·
 * Bilinen: erişim modeli (`_moves`) gerçek zıplamadan biraz iyimser (yukarıdaki 219 hamle; hedefler yine erişilir);
   Rehber bot 5. derinlikte çok hasar alır (dövüşmeyen bot, eskisi gibi); bir `--otomatik --derinlik=5` koşusu yüklü
   makinede 13 sn'de çıktı (CIKIS, betik hatası yok), yeniden koşuda 93 sn'de BOLUM_SONU.
+
+## v35: vahşet — parçalanma, kalıcı cesetler, sesler
+
+İstek: "Düşmanlar ölünce parçalara ayrılsın, kanlı gövdeleri yerde kalsın; vuruş sesleri de vahşet olsun. Kritik sesini hâlâ
+beğenmiyorum, düz METAL bir ses olsun (Dead Cells'teki gibi ama kopya değil)."
+
+### Parçalanma (`scripts/core/Gore.gd`, `Enemy._die`, `Enemy._gore_power`)
+
+* Ölen yaratığın o anki sprite karesi öldürücü darbe yönünde kesilir: ana kesik darbe yönünde (±20°) gövdenin ortasından,
+  sonra üst parçadan baş, alt parçayı bacaklara ayıran dik kesik, 4.+ kesikler en büyük parçadan (kol / omuz). Kesikler
+  dokunun opak sınır kutusu içinde (maske `Gore.warm` ile yaratık kurulurken hazırlanır, ilk öldürüşte takılma yok); boş
+  köşe parçaları atılır. Her parça dokuyu taşıyan bir `Polygon2D`; fizik tek düğümde toplu (yerçekimi, döşeme / tek yönlü
+  platform, duvar, tavan, en çok iki sekme, sürtünme, dönüş). RigidBody yok.
+* Güç (`_gore_power`, 0,7..3): 1 + aşırı hasar × 0,7 (+0,6 kritik, +0,5 ağır / itme ≥ 250, -0,3 zehir / tuzak, +0,3
+  seçkin, +0,6 boss). Parça sayısı 3 + (güç-1)×1,6 → 3-6 (boss 6). Büyük vuruş = daha çok parça, daha uzağa.
+* Etli parça uçarken kan izi bırakır, duvara hızla çarpınca iri mürekkep lekesi + akıntı (`Blood.splat`), yere düşünce
+  leke + `vahset_dusme`. Ölüm fışkırması (Blood.burst) güçle %40'a kadar artar.
+* Malzeme (`Gore.material_of`): etli → kanlı parçalar; `Gore.TAS` (balbal, bekci, buz_balbali, cini_golemi, agac_iyesi) →
+  taş / tahta yığını (kan yok, toz, `darbe_tas`); öbür NOT_FLESH (ruh, ateş) → eski kor kenarlı çözülme + yükselip sönen
+  üç mürekkep tülü / kor parçası.
+* Boss: v29 ölüm satırı oynar, 1,4 sn sonra son karesinden 6 parçaya ayrılır (güç 2,6, büyük fışkırma, sarsıntı).
+
+### Kalıcı cesetler
+
+Parça durunca donar (işlem listesinden çıkar, yalnızca statik çizim) ve rengi 6 sn'de koyulaşır; etliyse altında kan
+göllenir (gövde 2,5-4 sn, uzuv 0,8-1,8 sn boyunca 0,12-0,3 sn'de bir leke; `Blood` lekeleri birleşip büyür). Cesetler
+bölüm boyunca kalır: en çok 60 öldürüş / 200 parça, aşılınca en eski öldürüşün parçaları 1,2 sn'de söner. Etli yaratıkta
+eski ceset çözülmesi (`Corpse`, v29 ölüm kareleri) artık oynamaz; parçalanma yapılamazsa (doku yok) eski yol.
+
+### Vahşet sesleri (`tools/audiogen/v35.py`)
+
+| ses | içerik | nerede |
+|---|---|---|
+| `vahset_et_1..4` | Kenney impactPunch/Soft (perde 0,75-0,95) + ıslak şapırtı + alt gövde | her vuruş, etli yaratık (-6 / büyükte -2,5 dB) |
+| `vahset_kemik_1..4` | sıkışık tık dizisi + impactWood_light (perde 0,7) + çatırtı | büyük / ağır / kritik vuruş, öldürüş |
+| `vahset_olum_1..3` | alt güm + iki dalga ıslak sıçrantı + kemik kırılması | öldürüş (güçle +2 dB) |
+| `vahset_yirtil_1..3` | gerilen lif gürültüsü (500 → 2600 Hz) + knifeSlice + kopma + şapırtı | parçalanma |
+| `vahset_dusme_1..4` | tok ıslak "şlap" | parça yere düşer |
+
+Ses.LIMITS "vahset": 6. Kaynaklar: yalnızca yereldeki CC0 Kenney kayıtları + sentez (`assets/audio/LICENSES.txt`).
+
+### METAL kritik (`v35.crit_metal`, `darbe_kritik_1..3`, `darbe_kritik_kunt_1..3`)
+
+v26 / v27'nin yumruk, kirli doyurma ve alçak gövde katmanları kaldırıldı. Yeni ses: 3 ms çelik tıkı + 6 kHz üstü "tss";
+11 → 5 kHz kayan tarak süzgeçli sıyırma ("şiiing", 35-70 ms); çan / plaka kipleri (oranlar 1, 1,18, 1,51, 2, 2,51, 2,66,
+3,01, 4,17, 5,43; alt kipler 0,8-1,1 sn, üstler 0,15 sn T60), vuruşta perde %1,5-2,5 düşer, her kip 4-9 Hz dövünür
+(pırıltı); karşı bıçak (×1,31, kısa), kısa "klang" gövdesi (×0,42, 0,14 sn), küçük metal oda + tiz oda kuyruğu. 0,68 sn.
+Üç çeşit ölçüldü (`python tools/audiogen/v35.py --olc <png>`, `docs/v35/vahset/kritik_spektrogram.png`):
+
+| çeşit | temel | 1-5 kHz | 5k+ | merkez | kuyruk (0,2-0,5 sn / geçiş) |
+|---|---|---|---|---|---|
+| A şiiing | 2380 Hz | -0,5 | -9,6 | 3631 Hz | -23,1 dB |
+| B KLANG | 1960 Hz | -0,9 | -8,5 | 2962 Hz | -21,1 dB |
+| **C tiz çın** | 2720 Hz | -1,4 | -5,7 | 4117 Hz | **-16,8 dB** |
+
+Üçü de çeşit olarak çalar (`darbe_kritik_1..3`); tek dosya isteyen yer için `darbe_kritik` = C (en parlak, en uzun
+pırıltılı çınlama). Künt çeşit aynı tasarımın ×0,72 alçak sürümü (örs gibi ama metal). v27'nin `darbe_kritik_4/5`,
+`darbe_kritik_kunt_4` dosyaları kaldırıldı. Yönlendirme değişmedi (Krit veri yolu, `krit_duck`, tüm kritik yolları
+`Ses.hit(2)` üzerinden). Player.gd'ye dokunulmadı.
+
+### Test (`tools/tests/vahset_testi.gd`, `-- --vahset [--vahset_cek=<klasör>] [--vahset_cik]`)
+
+Üç öldürüş şeridi (sıradan / kritik / ağır + 3× aşırı hasar), 5 dalga × 8 = 40 öldürüş başarımı, ceset odası görüntüsü.
+Görüntüler: `docs/v35/vahset/serit_siradan.png`, `serit_kritik.png`, `serit_agir.png`, `oda_cesetler.png`.
+
+* Başarım (40 öldürüş, 177 parça kalıcı; aynı anda 8 canlı yaratık): headless 80 fps, ortalama kare 12,1 ms, en kötü
+  27,9 ms; pencereli 1280×720 (4K yakalama dokusu) ~43 fps (ortalama 25 ms; aynı sahnede parçasız taban ölçülmedi).
+  Duran parçalar işlem dışı: dalga sonunda hareketli parça 0-7.
+* `--dovus --boss --kontrol`: TAKILMA=0, basılmamış=0, oto_dönüş=0, istenmeyen_ağır=0. `--otomatik --derinlik=1/3
+  --muhur=0`, `--sanat --boss --muhur=0` (GECTI hata=0), `--piksel_tara` (TOPLAM 0): betik hatası 0.
+
+### Bilinen
+
+* Kesik yüzeyine ayrı "et" boyası yok; parça dokusu olduğu gibi, biraz kızıla çekilmiş ve zamanla koyulaşır.
+* Koyu sahnelerde koyu yaratık parçaları az seçilir (kan lekeleri ve izler okunur).
+* Parçalar yalnızca döşeme ızgarasıyla çarpışır (kırık duvar / kapı gibi düğüm engellerinden geçer).
