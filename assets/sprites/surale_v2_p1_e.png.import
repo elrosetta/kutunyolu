@@ -3,20 +3,21 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://d35mx8c7rnxee"
-path="res://.godot/imported/surale_v2_p1_e.png-d7b6295181e7ce01da71c006d4da0264.ctex"
+path.bptc="res://.godot/imported/surale_v2_p1_e.png-d7b6295181e7ce01da71c006d4da0264.bptc.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
 }
 
 [deps]
 
 source_file="res://assets/sprites/surale_v2_p1_e.png"
-dest_files=["res://.godot/imported/surale_v2_p1_e.png-d7b6295181e7ce01da71c006d4da0264.ctex"]
+dest_files=["res://.godot/imported/surale_v2_p1_e.png-d7b6295181e7ce01da71c006d4da0264.bptc.ctex"]
 
 [params]
 
-compress/mode=0
-compress/high_quality=false
+compress/mode=2
+compress/high_quality=true
 compress/lossy_quality=0.7
 compress/uastc_level=0
 compress/rdo_quality_loss=0.0

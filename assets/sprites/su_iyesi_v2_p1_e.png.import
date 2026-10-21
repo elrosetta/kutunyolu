@@ -3,20 +3,21 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://cewgph7y6muh8"
-path="res://.godot/imported/su_iyesi_v2_p1_e.png-27a85f8024bab6ad41bf5042c9e8149d.ctex"
+path.bptc="res://.godot/imported/su_iyesi_v2_p1_e.png-27a85f8024bab6ad41bf5042c9e8149d.bptc.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
 }
 
 [deps]
 
 source_file="res://assets/sprites/su_iyesi_v2_p1_e.png"
-dest_files=["res://.godot/imported/su_iyesi_v2_p1_e.png-27a85f8024bab6ad41bf5042c9e8149d.ctex"]
+dest_files=["res://.godot/imported/su_iyesi_v2_p1_e.png-27a85f8024bab6ad41bf5042c9e8149d.bptc.ctex"]
 
 [params]
 
-compress/mode=0
-compress/high_quality=false
+compress/mode=2
+compress/high_quality=true
 compress/lossy_quality=0.7
 compress/uastc_level=0
 compress/rdo_quality_loss=0.0

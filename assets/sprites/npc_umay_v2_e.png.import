@@ -3,20 +3,21 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://sei5gr2206eo"
-path="res://.godot/imported/npc_umay_v2_e.png-8d106b55211af2a95a793c1ad7067769.ctex"
+path.bptc="res://.godot/imported/npc_umay_v2_e.png-8d106b55211af2a95a793c1ad7067769.bptc.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
 }
 
 [deps]
 
 source_file="res://assets/sprites/npc_umay_v2_e.png"
-dest_files=["res://.godot/imported/npc_umay_v2_e.png-8d106b55211af2a95a793c1ad7067769.ctex"]
+dest_files=["res://.godot/imported/npc_umay_v2_e.png-8d106b55211af2a95a793c1ad7067769.bptc.ctex"]
 
 [params]
 
-compress/mode=0
-compress/high_quality=false
+compress/mode=2
+compress/high_quality=true
 compress/lossy_quality=0.7
 compress/uastc_level=0
 compress/rdo_quality_loss=0.0

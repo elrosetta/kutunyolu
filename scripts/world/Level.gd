@@ -100,6 +100,10 @@ var moon_shadow := 0.72  # ay gölgesindeki aktörde ay ışığının giden pay
 var _shadow_dir := Vector2(0, 1)  # ay ışığının gidiş yönü (karo engelleyicileri bu yöne göre seçilir)
 
 
+func _exit_tree() -> void:
+	Data.budama_planla()  # v38: eski bölümün paralaks dokuları VRAM'den bırakılır
+
+
 func build(seed_value: int) -> void:
 	rng.seed = seed_value
 	biome = Game.biome_for_depth(int(Game.run.get("depth", 1)))
@@ -1931,18 +1935,28 @@ func light_tex() -> GradientTexture2D:
 	return _light_tex
 
 
+var _isik_say := 0  # v38: kurulan sabit süs ışığı sayısı (Ayarlar.isik_siniri)
+
+
 func add_light(pos: Vector2, col: Color, radius: float, energy := 1.0, parent: Node = null, shadows := false) -> PointLight2D:
 	## shadows: arazi gölgesi düşürür (her gölgeli nokta ışığı kadrajdaki engelleyicileri 4 yöne çizer;
 	## yalnızca büyük, sabit ışıklar için: süs çıraları, ocak, Kut Kapısı). Büyük sabit süs ışıkları
 	## (decor_root altı, yarıçap >= 200) kendiliğinden gölgeli olur.
 	var l := PointLight2D.new()
+	# v38 Ayarlar > Işık ve parlama: sabit süs ışıkları (decor_root altı) sınırı aşınca kapalı kurulur (düğüm yine
+	# döner; çağıran enerjisini / rengini değiştirebilir). Gölge yalnızca "Tam"da.
+	var cap := Ayarlar.isik_siniri()
+	if cap > 0 and parent == decor_root and decor_root != null:
+		_isik_say += 1
+		if _isik_say > cap:
+			l.enabled = false
 	l.texture = light_tex()
 	l.texture_scale = radius / 64.0
 	l.color = col
 	l.energy = energy
 	l.height = 26.0
 	l.position = pos
-	if shadows or (parent == decor_root and decor_root != null and radius >= 200.0):
+	if (shadows or (parent == decor_root and decor_root != null and radius >= 200.0)) and Ayarlar.isik_golge():
 		l.shadow_enabled = true
 		l.shadow_filter = Light2D.SHADOW_FILTER_NONE
 		l.shadow_color = Color(0.05, 0.04, 0.08, 0.8)
@@ -1994,6 +2008,12 @@ func _build_lighting() -> void:
 	env.glow_bloom = float(art.get("glow_bloom", 0.04))
 	env.glow_hdr_threshold = float(art.get("glow_threshold", 0.9))
 	env.glow_blend_mode = Environment.GLOW_BLEND_MODE_SOFTLIGHT
+	# v38 Ayarlar > Işık ve parlama: Az = parlama kapalı; Hafif = yalnızca geniş (5.) seviye, şiddet dengelenir
+	match Ayarlar.parlama():
+		0:
+			env.glow_enabled = false
+		1:
+			pass
 	env.adjustment_enabled = true
 	env.adjustment_brightness = float(art.get("brightness", 1.0))
 	env.adjustment_saturation = float(art.get("saturation", 0.96))
@@ -2198,7 +2218,7 @@ func _build_overlay_fx() -> void:
 	vig.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var sm := ShaderMaterial.new()
 	sm.shader = load("res://shaders/vignette.gdshader")
-	if not OS.get_cmdline_user_args().has("--derecesiz"):
+	if not OS.get_cmdline_user_args().has("--derecesiz") and Ayarlar.parlama() > 0:
 		# v2: sahneyi okuyan renk derecelendirme + vinyet (aynı "hurt" nabzı); test: --derecesiz kapatır
 		sm.shader = load("res://shaders/grade_v2.gdshader")
 		var gr: Dictionary = art.get("grade", {})
@@ -2219,6 +2239,7 @@ func _build_overlay_fx() -> void:
 	red_rect.set_anchors_preset(Control.PRESET_FULL_RECT)
 	red_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	red_rect.color = Color(1, 0.1, 0.1, 0.0)
+	red_rect.visible = false  # v38: saydamken çizilmez (tam ekran boş dörtgen piksel doldurur)
 	cl.add_child(red_rect)
 	if art.has("fg"):
 		var fg := ForegroundV2.new()
@@ -3147,10 +3168,13 @@ func flash_white(a := 0.35) -> void:
 	if a <= 0.01:
 		return
 	red_rect.color = Color(1.0, 0.97, 0.9, a)
+	red_rect.visible = true
 	var tw := red_rect.create_tween()
 	tw.set_ignore_time_scale(true)
 	tw.tween_property(red_rect, "color:a", 0.0, 0.06)
-	tw.tween_callback(func() -> void: red_rect.color = Color(1, 0.1, 0.1, 0.0))
+	tw.tween_callback(func() -> void:
+		red_rect.color = Color(1, 0.1, 0.1, 0.0)
+		red_rect.visible = false)
 
 
 func explode(pos: Vector2, radius: float, dmg: float, by_player: bool) -> void:

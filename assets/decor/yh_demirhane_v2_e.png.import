@@ -3,20 +3,21 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://6ywuw6i0gphm"
-path="res://.godot/imported/yh_demirhane_v2_e.png-a5a2424ce26dd2402054d763778dbb85.ctex"
+path.bptc="res://.godot/imported/yh_demirhane_v2_e.png-a5a2424ce26dd2402054d763778dbb85.bptc.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
 }
 
 [deps]
 
 source_file="res://assets/decor/yh_demirhane_v2_e.png"
-dest_files=["res://.godot/imported/yh_demirhane_v2_e.png-a5a2424ce26dd2402054d763778dbb85.ctex"]
+dest_files=["res://.godot/imported/yh_demirhane_v2_e.png-a5a2424ce26dd2402054d763778dbb85.bptc.ctex"]
 
 [params]
 
-compress/mode=0
-compress/high_quality=false
+compress/mode=2
+compress/high_quality=true
 compress/lossy_quality=0.7
 compress/uastc_level=0
 compress/rdo_quality_loss=0.0
