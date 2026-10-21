@@ -171,7 +171,7 @@ def export_sheet(name, layout_json, render, cell, origin, texel, only=(), extra_
     stream = None
     if par is not None:
         import multiprocessing as mp
-        pool = mp.Pool(max(1, min(12, (os.cpu_count() or 4) - 1)))
+        pool = mp.Pool(max(1, min(int(os.environ.get('KY_PAR_N', '12')), (os.cpu_count() or 4) - 1)))   # v39: KY_PAR_N havuz boyu
         stream = pool.imap(par, jobs, chunksize=1)
     for r, an in enumerate(names):
         if old and an not in only:

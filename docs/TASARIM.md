@@ -6726,3 +6726,103 @@ yoksa duruşta saç öne salınmıyordu).
   kol) ayrı bir iş.
 * Yuvarlanma pozu (v20) yeni oranlarla yeniden üretildi ama yeniden kurgulanmadı.
 * Hayalet izi / darbe karesi kopyalarında kuşak kuyrukları yok (saç var).
+
+## v39: yeni yaratıklar
+
+Geri bildirim: "Çok daha fazla mob ekleyelim ki eğlenceli olsun; güzel görünsünler, saldırıları çeşitli olsun."
+
+### Denetim (v38)
+
+* 5 biyomda 43 sıradan tür vardı, ama yalnızca **11 çizim**: `bekci` 11 tür, `kara_boru` 7, `cor` 6, `agac_iyesi` 4, `arcura`
+  3, `tosbaga` 3 tür (biyom çeşitlemeleri, çoğu yalnızca ton / ad farkı). Yapay zekâda yakın dövüşçüler baskındı (shield 7,
+  charger 3, pouncer 3, lunger 2); biyom başına uzak saldırgan 1-2.
+* Eksikler: çağırıcı yok, yer altından gelen (burrow) yok, iyileştiren / koruyan yok, ışınlanıp arkadan vuran (stalker
+  dışında) yok, yer boyunca koşan şok dalgası / üstünden atlanacak saldırı yok, oyuncuyu çeken (zincir / dil) ve ağla tutan yok,
+  seken / geri dönen mermi yok, koni (soluk) alan saldırısı yok, yatay pike yapan uçan yok (dalıcılar dikey).
+
+### Yeni yaratıklar (15 çizim, 12 yeni yapay zekâ)
+
+Her biri kendi mürekkep-cel sayfasıyla (`tools/artgen/y39_<kimlik>.py`, dışa aktarım `export_v39.py`), kendi hazırlık sesiyle
+(`hazirlik_<kimlik>_1..2`) ve hamle sesleriyle (`v39_*`, `tools/audiogen/v39.py`).
+
+| Kimlik | Ad | Biyom | YZ | Hamleler (hazırlık) | Karşı oyun |
+|---|---|---|---|---|---|
+| `yer_cucesi` | Yeraltı Cücesi | Ötüken | burrower | kazma "!" 0,38 · yay çizen kaya "!" 0,45 · yere dalış → tümsek oyuncuya yürür → işaretli "!!" çıkış (iki yana fırlatır) | tümsek dokunulmaz: işaretten çekil, çıkıştan sonra 0,8 sn açık |
+| `sulmus` (+`sulmus_yavrusu`) | Şulmus | Ötüken (2.) | summoner | runa çemberi "!" 0,7 → 2 yavru (en çok 3 canlı; seçkin 3 / 4) · lanetli kafatası (düştüğü yerde zehir) · yaklaşınca geri sıçrar | önce çağırıcıyı öldür: yavruları dağılır, yavru ganimet bırakmaz |
+| `burkut` | Bürküt | Ötüken | swooper (uçan) | yanından yatay pike "!" 0,5 (zırhlı süzülüş, sonra yukarı kıvrılır) · tüy yelpazesi (5; seçkin 7) | pikenin altına yuvarlan, tüyleri yandan geç |
+| `tunga_hayaleti` | Tunga Hayaleti | Bozkır | lancer | yerde uyarı şeridi + kargı hücumu "!" 0,62 (bazen "!!") · geniş savuruş "!" 0,42 · ışık ciridi | şeridin dışına çık / üstünden atla; hücum duvarda biter, 0,7 sn kayar |
+| `tepegoz_yavrusu` | Tepegöz Yavrusu | Bozkır (4.) | slammer (ağır) | sıçrayıp çakılma "!!" 0,66 → iki yana koşan şok dalgası · üçlü sopa "!" 0,4 · kaya fırlatma | dalganın üstünden atla; çakılmadan sonra 1 sn açık; yavaş döner (arkasına geç) |
+| `aldaras` | Aldaraş | Bozkır | ricochet | dönen tunç orak "!" 0,45 (250 px gider, geri döner — iki kez geçer) · ikiz orak kasırgası (4 vuruş) · geri takla | orak dönerken onu tekrar atamaz: dönüşü bekle, kasırgadan geri çekil |
+| `agu_kurbagasi` | Ağu Kurbağası | Şahmeran | gasser | zehir bulutu "!" 0,6 (3 sn, 64 px yüksek) · dil kamçısı "!!" 0,42 (çeker + ısırır) · 2 zehir topu (gölcük bırakır) | buluttan uzak dur, dile yuvarlan; topları yandan geç |
+| `ag_ana` | Ağ Ana | Şahmeran | webber | ağ yumağı "!" 0,5 (değerse ağa düşersin: 4 basışla kurtul, örümcek koşup ısırır) · ısırık (zehir) · zırhlı sıçrayış | ağı yuvarlanarak geç; ağdayken bas |
+| `yilan_kami` | Yılan Kamı | Şahmeran (6.) | healer | yaralı / korumasız yoldaşa yeşil ışın "!" 0,8: %30 can + 4,5 sn koruma (hasar x0,5) · 3 güdümlü ruh · yaklaşınca ışınlanır | önce kamı öldür; korunan yaratık yeşil kıvılcım saçar |
+| `kar_cadisi` | Kar Cadısı | Kaf | blinker | kara dönüşür "!" 0,38 → **arkanda** belirir → üçlü pençe "!" 0,3 · buz kıymığı yelpazesi | ışınlanma sesini duyunca dön / yuvarlan; pençeden sonra açık |
+| `abasi` | Abası | Kaf (8.) | chainer (ağır) | kancalı zincir "!" 0,55 (200 px; değerse önüne çeker + ağır yumruk) · çift yumruk "!!" 0,7 + öne yürüyen buz dikenleri · zincir savurma (iki yan) | zincire yuvarlan / üstünden atla; yavaş döner |
+| `ejder_yavrusu` | Ak Ejder Yavrusu | Kaf | breather | ayaz soluğu "!" 0,65 (0,8 sn salınan koni) · kuyruk savurma (iki yan) · kanatlı sıçrayış "!!" | koninin dışına / arkasına geç |
+| `yasavul` | Erlik Yasavulu | Tamu | lancer (ateş) | şeritli teber hücumu (alev izi) · alevli savuruş · ateş ciridi | Tunga gibi; daha ağır ve dayanıklı |
+| `kor_solucani` | Kor Solucanı | Tamu | burrower (ateş) | ısırık · lav topu (alev gölü bırakır) · yer altından kor çatlakla gelip ağzıyla fırlar | Cüce gibi; tümsek ateş saçar |
+
+Ortak akış (`Enemy.gd` "v39 yeni yaratıklar", `_ai_v39`): `chase` (menzil bandı ve hamle seçimi) → `windup` (`_tele`, "!" / "!!",
+hazırlık ışıması `_v39_wind_fx`) → `act` (etkin evre, hamle tablosu `_v39_fire` / `_v39_act`; anahtar `<ai>/<hamle>`) →
+`recover` (hamleye göre ceza penceresi) → `_end_attack` (`V39_BEKLEME`). Özel durumlar `burrow` (yer altı, dokunulmaz) ve
+`hold` (ağ / zincir; Gulyabani'nin `get_grabbed` düzeni, Player değişmedi). Jetonlar, baskı altında zırh, sarsılma
+bağışıklığı, duruş, seçkin kükremesi v23 kurallarıyla aynı. **Tepki** (`TEPKI`, `_v39_react`): cüce / solucan yere dalar,
+çağırıcı / örümcek / Aldaraş geri sıçrar, kam ışınlanır, cadı arkana geçer, kurbağa zırhlı bulut, mızraklı / dev / Abası /
+ejder zırhlı savuruş. Seçkinler: fazladan yavru / tüy / kıymık / zehir topu / çok vuruş ve daha uzun koruma.
+
+Animasyon: sayfalar v29 kısa biçimde (`"durum"`: `windup/<hamle>`, `act/<hamle>`, `recover/<hamle>` → `atk_<hamle>` satırı,
+`mk` = [W, C, H] ile hazırlık derin kurulmada tutulur, temas karesi etkin evrenin başında); `idle`, `move` (yürüyüşte `vx`),
+`hurt`, özel `dig` / `burrow` / `blink` / `hop` / `flip`. Ölüm v36 patlaması (malzeme: `NOT_FLESH` — Tunga Hayaleti ruh, Kor
+Solucanı kor, yavru ruh; ötekiler et; `kan` rengi world.json'da).
+
+### Veri (`data/world.json`) ve yerleşim (`Level.gd`)
+
+* Yeni alanlar: `size` [g, y], `flying`, `heavy` (gövde veriden; eskiden sprite adına göre sabit), `ates` (ateş çeşitlemesi),
+  `kan` [r, g, b], `ses_can` / `ses_olum`, `agirlik` (havuz payı; yeniler 2), `min_derinlik` (biyomun ikinci derinliğinden),
+  `havuz: false` (çağrılan yavru havuza girmez).
+* Havuz: her biyoma 2-3 yeni tür, payı 2: biyom karşılaşmalarının ~%33-46'sı yeni yüz (Ötüken 7 → 10 tür, Bozkır 8 → 11, Şahmeran
+  8 → 11, Kaf 8 → 11, Tamu 8 → 10; min_derinlik'li türler yalnızca biyomun ikinci derinliğinde). Yoğunluk (v34, ~26 / bölüm) değişmedi.
+* Bütün uçanlar havada doğar (eskiden yalnızca `cor`); `swooper` uçan sınıfına, `summoner` / `healer` uzak sınıfına girer
+  (karışık grup: yakın + uzak); çağırıcı / şifacı / uçan / ağırlar ikili grup kurmaz.
+* Can / hasar 1. derinlik tabanı biyom komşularıyla aynı bantta (zorluk.json derinlik eğrisi ve `rol_can`: swooper / summoner /
+  healer 0,85, ricochet / blinker 0,95).
+
+### Mermiler (`Projectile.gd`)
+
+Yeni düşman mermisi biçimleri `orak` (dönen tunç hilal, geri döner), `kargi` (ışık / ateş ciridi), `ag` (ağ yumağı); düşman
+mermisinin isabet kancası (`on_hit`). Yay çizen mermiler `_v39_lob` (hedefe düşecek ilk hız), düştüğü yerde gölcük `on_explode`.
+
+### Test
+
+Başsız, `--fixed-fps 60`, betik hatası (SCRIPT ERROR) **0** (bütün koşular):
+* `--zeka --zeka_v39 --muhur=0` (`tools/tests/zeka_testi.gd`: yeni `KINDS_V39`, satırda görülen hamleler ve "takılma" =
+  idle / chase dışı durumda kesintisiz en uzun süre; Yılan Kamı'nın yanına yaralı, kıpırdamayan bir yoldaş konur): 15 türün
+  hepsi hazırlık → etkin → toparlanma döngüsünü tamamladı, her türün bütün hamleleri görüldü (heal dahil), en uzun takılma
+  2,7 sn (Kor Solucanı'nın yer altı yürüyüşü, beklenen); PASIF hasar/30 sn 56-397 (eski türler 320-475 bandında: uçan /
+  ejder / cadı daha az, Abası / Ağ Ana / Yasavul en çok), EZME hamle/10 sn 3,0-5,5, kilit %1-37.
+* `--harita` (120 bölüm): **SONUC GECTI**, geçersiz düşman yerleşimi 0 / 1380, düşman/bölüm 25,6 (ana dal 25,9: yoğunluk korundu), girişe /
+  taşa yakın 0. İlk koşuda 1 ana yol odası (köprü, tüccar tezgâhı odaya taşmış) düşmansız kaldı: `_bos_oda_doldur` artık
+  sığmayan türden sonra havuzun öbür türlerini ve tezgâh payı 0 ile ikinci geçişi dener; ikinci koşu düşmansız 0.
+* `--dovus --boss --kontrol`: KONTROL basış=272 basılmamış=0 oto_dönüş=0 oto_hamle=0 istenmeyen_ağır=0, TAKILMA=0.
+* `--otomatik --derinlik=1/3/5/7/9 --muhur=0 --quit-after 9000`: 1 ölüm 0 (can 54-119/130), 3 ölüm 0 (can 70/130), 5 / 7 / 9 her
+  birinde 1 ölüm (5: 69. sn Şahmeran, 7: 28. sn Kaf kuyu, 9: 3,5. sn uçurum — düşman öldürmeden, hasar almadan: düşüş);
+  ana dalda aynı koşular bu makinede başlamadan kapandı (süre=0), karşılaştırma yapılamadı.
+* `--vahset`: 40 ölüm, en kötü kare 11,2 ms, BITTI. `--piksel_tara`: TOPLAM 0.
+* `--perf --perf_faz=uretim,savas3,savas7`: dövüşte (23 düşman) dusman_fizik 0,82 / 0,92 ms, dusman_anim 0,29 ms (v38: 1,2-2,6 /
+  0,3-0,7), kare ort 7,6 / 7,1 ms, p99 12,4 / 12,1 ms. Bölüm kurma 370 ms (ana dal 399), spawn_enemies 34 ms (ana 23: iri türlerin
+  yerleşim denemeleri), ilk kare 62 ms (ana 42: 15 yeni sayfanın ilk yüklenişi).
+
+### Görseller (`docs/v39/mob/`)
+
+* `bestiary.jpg`: 15 çizim, her biri boşta + saldırı temas karesi (oyun sayfasından, ışıma x1,4).
+* `oyun_<kimlik>_saldiri.jpg` (12 tür; `oyun_abasi_hazirlik.jpg`): oyun içi, kendi biyomunda etkin hamle anı
+  (`--write-movie <x.avi> --resolution 1920x1080 -- --yaratik=<tür,...> --yaratik_cek=<klasör> --derinlik=N`,
+  `tools/tests/yaratik_testi.gd`: ilk hazırlıkta ve ilk etkin evrede birer kare). Kök görünümün dokusu temel 960x540 boyunda;
+  kareler vahset_testi gibi 1920x1080'e büyütüldü (1:1 değil).
+
+### Bilinen
+
+* Ağ / zincir yakalaması Gulyabani'nin tutuşunu kullanır (4 basış); oyuncu yürürken yavaşlatan ayrı bir ağ yok.
+* Tepegöz Yavrusu ve mızraklıların hücresi büyük (448 px); HD sayfaları 8064 px genişliğinde (16384 sınırının altında).
+* Sanat ajanlarının listelediği küçük kusurlar: Yasavul koyu zeminde çoğunlukla silüet + kor; kurbağanın bulutu tek kütle;
+  örümcek bacakları ince; Kar Cadısı'nın kürkü küçükte önlük gibi.

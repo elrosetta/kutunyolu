@@ -96,17 +96,23 @@ const BLOOD := {"tepegoz": Color(0.75, 0.25, 0.2), "sahmeran_ana": Color(0.5, 1.
 
 ## v36 düzeltme: etsizlik yaratık türüne (kind) göre; eskiden sprite adına bakılıyordu ve aynı sprite'ı paylaşan
 ## 30 canlı (al_atli, kan_yarasasi, kaf_kartali, yilan_muhafiz...) kan yerine mürekkep tülü saçıyordu
-const NOT_FLESH := ["balbal", "buz_balbali", "cini_golemi", "kayip_ruh", "agac_iyesi", "tozkoparan", "su_iyesi", "od_iyesi", "arcura", "sihirli_kandil", "isilti_bocegi"]
+const NOT_FLESH := ["balbal", "buz_balbali", "cini_golemi", "kayip_ruh", "agac_iyesi", "tozkoparan", "su_iyesi", "od_iyesi", "arcura", "sihirli_kandil", "isilti_bocegi",
+	"tunga_hayaleti", "kor_solucani", "sulmus_yavrusu"]   # v39: hayalet / kor / ruh yavrusu
 
 
 ## v23: uygulanan bütün yapay zekâ türleri (eskiden tornado / crawler / swarm / caster / kamikaze / mimic / charmer
 ## sprite'ın yapay zekâsına düşüyordu; cin (teleporter) hiç kıpırdamıyordu)
 const AI_TURLERI := ["lunger", "flyer_ranged", "brute", "hopper", "illusionist", "grabber", "pouncer", "shield", "charger",
-	"turtle", "archer", "stalker", "diver", "walker", "teleporter", "crawler", "swarm", "caster", "kamikaze", "tornado", "charmer", "mimic"]
+	"turtle", "archer", "stalker", "diver", "walker", "teleporter", "crawler", "swarm", "caster", "kamikaze", "tornado", "charmer", "mimic",
+	# v39 yeni yaratıklar (Enemy.gd "v39 yeni yaratıklar")
+	"burrower", "summoner", "swooper", "lancer", "slammer", "ricochet", "gasser", "webber", "healer", "blinker", "chainer", "breather"]
+const V39_AI := ["burrower", "summoner", "swooper", "lancer", "slammer", "ricochet", "gasser", "webber", "healer", "blinker", "chainer", "breather"]
 ## v23 tepki: kısa sürede kaç vuruş yiyince tepki verir (_react: geri sıçrar / ışınlanır / zırhlı intikam / kalkan darbesi)
 const TEPKI := {"lunger": 3, "pouncer": 3, "crawler": 3, "stalker": 3, "flyer_ranged": 2, "swarm": 2, "diver": 2,
 	"illusionist": 2, "caster": 2, "charmer": 2, "archer": 2, "brute": 5, "tornado": 4, "hopper": 3, "grabber": 4,
-	"mimic": 4, "shield": 3, "charger": 3, "turtle": 99, "kamikaze": 1}
+	"mimic": 4, "shield": 3, "charger": 3, "turtle": 99, "kamikaze": 1,
+	"burrower": 3, "summoner": 2, "swooper": 2, "lancer": 3, "slammer": 4, "ricochet": 2, "gasser": 3, "webber": 3,
+	"healer": 2, "blinker": 2, "chainer": 4, "breather": 3}
 
 
 func blood_col() -> Color:
@@ -114,6 +120,9 @@ func blood_col() -> Color:
 	## v36 düzeltme: renk yalnızca türün kendisine göre (paylaşılan sprite'ın rengi başka canlıya geçmez)
 	if BLOOD.has(kind):
 		return BLOOD[kind]
+	if def.has("kan"):   # v39: world.json "kan" [r, g, b]
+		var kc: Array = def["kan"]
+		return Color(float(kc[0]), float(kc[1]), float(kc[2]))
 	return Color(0.55, 0.04, 0.06)
 
 
@@ -203,6 +212,14 @@ func setup(k: String, is_elite: bool, _tier: int, is_ofkeli := false) -> void:
 		"surale":
 			size = Vector2(28, 62)
 			heavy = true
+	# v39: yeni yaratıkların gövdesi veriden (world.json "size" / "flying" / "heavy")
+	if def.has("size"):
+		var sz: Array = def["size"]
+		size = Vector2(float(sz[0]), float(sz[1]))
+	if def.has("flying"):
+		flying = bool(def["flying"])
+	if def.has("heavy"):
+		heavy = bool(def["heavy"])
 
 
 func _ready() -> void:
@@ -342,6 +359,11 @@ func take_hit(d: float, opts: Dictionary) -> bool:
 		d *= 1.25
 	if armor_break > 0:
 		d *= 1.0 + armor_mv / 100.0 * armor_break
+	if _v39_kalkan > Game.clock():
+		# v39 Yılan Kamı koruması: hasar yarıya iner (yeşil kıvılcım); şifacıyı önce öldür
+		d *= 0.5
+		if Engine.get_physics_frames() % 4 == 0:
+			FX.sparks(center(), Vector2.UP, Color(0.45, 1.0, 0.6), 4, 110.0)
 	# v19: duruşu kırık yaratık fazla hasar alır; infaz (Kut Alma) siperi / kalkanı / kabuğu aşar ve kesin öldürür
 	var exe: bool = opts.get("exec", false)
 	if evade_t > 0.0 and not exe:
@@ -584,6 +606,10 @@ func _die(dir := 1.0, kb := 100.0, crit := false) -> void:
 	_drop_token()
 	if grab_target and is_instance_valid(grab_target) and "grabbed_by" in grab_target and grab_target.grabbed_by == self:
 		grab_target.release_grab(Vector2(-facing * 120.0, -160.0))
+	for y in _v39_yavru:
+		# v39: Şulmus ölünce çağırdığı yavrular dağılır
+		if is_instance_valid(y) and not y.dead:
+			y.call_deferred("_die", 0.0, 30.0, false)
 	if ai == "kamikaze" and not decoy and level:
 		# v23 Işıltı Kamı: ölünce de patlar (küçük, gecikmeli): dibinde öldürmek bedava değil
 		_death_blast(level, center(), dmg * 0.7)
@@ -729,6 +755,8 @@ func _anchor_g(key: String, fallback: Vector2) -> Vector2:
 
 
 func _hurt_sfx() -> String:
+	if def.has("ses_can"):   # v39: veriden
+		return String(def["ses_can"])
 	match sprite_kind:
 		"bekci":
 			return "tas_can"
@@ -752,6 +780,8 @@ func _hurt_sfx() -> String:
 
 
 func _die_sfx() -> String:
+	if def.has("ses_olum"):
+		return String(def["ses_olum"])
 	match sprite_kind:
 		"bekci":
 			return "tas_olum"
@@ -1465,6 +1495,8 @@ func _physics_process_ic(delta: float) -> void:
 			_ai_charmer(delta, player, to_p, dist)
 		"mimic":
 			_ai_mimic(delta, player, to_p, dist)
+		"burrower", "summoner", "swooper", "lancer", "slammer", "ricochet", "gasser", "webber", "healer", "blinker", "chainer", "breather":
+			_ai_v39(delta, player, to_p, dist)
 		_:
 			_ai_custom(delta, player, to_p, dist)
 	guard_t = maxf(0.0, guard_t - delta)
@@ -1877,6 +1909,10 @@ func _react(_dir: float) -> void:
 		return
 	if ai == "kamikaze" and state != "windup":
 		_tele(0.45, true)
+		return
+	if ai in V39_AI:
+		if not (state in ["act", "hold", "burrow", "evade"]):
+			_v39_react()
 		return
 	if state in ["grab", "hold", "charge", "spin", "fuse", "dive", "swoop"]:
 		return
@@ -3631,3 +3667,815 @@ func _reveal() -> void:
 	FX.anim("smoke_puff", center(), 0.0, 0.8, Color(0.7, 0.6, 0.9), false)
 	FX.ring(center(), 24, Color(0.9, 0.8, 1.0), 0.25)
 	Ses.play("kam_davul", -6.0, 1.3)
+
+
+# ================================================================== v39 yeni yaratıklar (docs/TASARIM.md "v39: yeni yaratıklar")
+## Ortak akış: chase (menzil seçimi) -> windup (_tele; json "windup/<hamle>") -> act (etkin; "act/<hamle>") -> recover
+## ("recover/<hamle>"). Hamle adı get_meta("move"); hamlenin bütün ayrıntısı _v39_fire / _v39_act tablolarında
+## (anahtar "<ai>/<hamle>": aynı adlı hamleler farklı yaratıkta farklıdır). Özel durumlar: burrow (yer altında), hold
+## (ağa / dile / zincire yakalanmış oyuncu). Ateş çeşitlemesi world.json "ates": true (Erlik Yasavulu, Kor Solucanı).
+const V39_BEKLEME := {"burrower": [0.7, 1.3], "summoner": [1.4, 2.2], "swooper": [0.9, 1.5], "lancer": [0.8, 1.4],
+	"slammer": [0.7, 1.3], "ricochet": [0.6, 1.1], "gasser": [1.0, 1.7], "webber": [0.7, 1.3], "healer": [1.1, 1.8],
+	"blinker": [0.7, 1.2], "chainer": [0.9, 1.5], "breather": [0.9, 1.5]}
+var _v39_n := 0          # çok vuruşlu hamlede verilen vuruş sayısı
+var _v39_t := 0.0        # etkin evrede geçen süre
+var _v39_yavru: Array = []   # çağırıcının yavruları (ölünce dağılır)
+var _v39_kalkan := 0.0   # şifacının verdiği koruma (bitiş anı; hasar x0,5)
+
+
+func _v39_ates() -> bool:
+	return bool(def.get("ates", false))
+
+
+func _v39_go(m: String, t: float, armored := false) -> void:
+	set_meta("move", m)
+	velocity.x = 0.0 if not flying else velocity.x
+	_tele(t, armored)
+
+
+func _v39_set(s: String, t: float) -> void:
+	state = s
+	st = t
+	_v39_t = 0.0
+	_v39_n = 0
+	_ds_reset = true
+
+
+func _v39_band(delta: float, to_p: Vector2, dist: float, r0: float, r1: float, spd_k := 1.0) -> void:
+	## Menzil bandı: r0'dan yakınsa geri çekil, r1'den uzaksa yaklaş, arada dur (yer yaratığı)
+	var want := 0.0
+	if dist < r0:
+		want = -signf(to_p.x) * speed * spd_k
+	elif dist > r1:
+		want = signf(to_p.x) * speed * spd_k
+	if want != 0.0 and _blocked(signf(want)):
+		want = 0.0
+	velocity.x = move_toward(velocity.x, want, 600.0 * delta)
+	_face(to_p)
+	anim.play("move" if absf(velocity.x) > 8.0 else "idle")
+
+
+func _v39_lob(k: String, from: Vector2, to: Vector2, d: float, g := 520.0, tmin := 0.45, tmax := 0.95) -> Projectile:
+	## Yay çizen mermi: hedefe t saniyede düşecek ilk hız
+	var dd := to - from
+	var t := clampf(absf(dd.x) / 300.0, tmin, tmax)
+	return _spit(k, from, Vector2(dd.x / t, dd.y / t - 0.5 * g * t), d, 0.0, g, t + 1.5)
+
+
+func _v39_hand(fb := Vector2.ZERO) -> Vector2:
+	return _anchor_g("hand", center() + (fb if fb != Vector2.ZERO else Vector2(facing * 14.0, -size.y * 0.2)))
+
+
+func _v39_mouth() -> Vector2:
+	return _anchor_g("mouth", _v39_hand())
+
+
+func _v39_sfx(n: String, vol := -6.0, pitch := 1.0) -> void:
+	Ses.play(n if Ses.has(n) else "savur_agir", vol, pitch, 0.08, 0.04, center())
+
+
+func _v39_idle(delta: float, player: Node) -> bool:
+	if aggro and player != null and not player.dead:
+		return false
+	state = "idle"
+	if flying:
+		var hv := home + Vector2(sin(Game.clock() * 0.9 + _breath_ph) * 34.0, cos(Game.clock() * 1.3) * 10.0)
+		velocity = velocity.lerp((hv - global_position).limit_length(1.0) * speed * 0.5, clampf(2.0 * delta, 0.0, 1.0))
+	else:
+		velocity.x = move_toward(velocity.x, 0.0, 500.0 * delta)
+	anim.play("idle")
+	return true
+
+
+func _ai_v39(delta: float, player: Node, to_p: Vector2, dist: float) -> void:
+	var m := String(get_meta("move", ""))
+	match state:
+		"idle", "chase":
+			if _v39_idle(delta, player):
+				return
+			state = "chase"
+			_v39_chase(delta, player, to_p, dist)
+		"windup":
+			if flying:
+				velocity = velocity.lerp(Vector2.ZERO if m != "swoop" else Vector2(-facing * 40.0, -60.0), clampf(5.0 * delta, 0.0, 1.0))
+			else:
+				velocity.x = move_toward(velocity.x, 0.0, 900.0 * delta)
+			if ai in ["burrower"] and m == "emerge":
+				evade_t = maxf(evade_t, st + 0.05)   # yer altından çıkana dek dokunulmaz
+			if ai in ["swooper", "breather", "blinker", "ricochet"] and player:
+				_face(to_p)
+			st -= delta
+			_v39_wind_fx(m)
+			if st <= 0.0:
+				_v39_fire(m, player, to_p, dist)
+		"act":
+			st -= delta
+			_v39_t += delta
+			_v39_act(m, delta, player, to_p)
+			if state == "act" and st <= 0.0:
+				_v39_end(m)
+		"burrow":
+			_v39_burrow(delta, player, to_p)
+		"hold":
+			_v39_hold(delta, player)
+		"recover":
+			if flying:
+				velocity = velocity.lerp(Vector2(0, -70), clampf(3.0 * delta, 0.0, 1.0))
+			else:
+				velocity.x = move_toward(velocity.x, 0.0, 700.0 * delta)
+			st -= delta
+			if st <= 0.0:
+				contact = false
+				var b: Array = V39_BEKLEME.get(ai, [0.8, 1.4])
+				_end_attack(float(b[0]), float(b[1]))
+		_:
+			_v39_set("recover", 0.3)
+
+
+func _v39_end(m: String) -> void:
+	contact = false
+	var rec := {"emerge": 0.8, "lunge": 0.7, "slam": 1.0, "swoop": 0.5, "leap": 0.55, "hook": 0.6, "breath": 0.5,
+		"flurry": 0.5, "stab": 0.45, "summon": 0.6, "heal": 0.5, "tongue": 0.5, "dig": 0.0}
+	if m == "dig":
+		return
+	_v39_set("recover", float(rec.get(m, 0.4)))
+
+
+func _v39_wind_fx(m: String) -> void:
+	## Hazırlık ışıması: ağzın / elin önünde kıvılcım (her 4 karede bir), hamleye göre renk
+	if Engine.get_physics_frames() % 4 != 0:
+		return
+	var col := Color(1.0, 0.6, 0.25)
+	match m:
+		"summon", "skull", "heal", "wisp", "cloud", "bomb", "web":
+			col = Color(0.45, 1.0, 0.55)
+		"breath", "shards", "blink", "stab":
+			col = Color(0.6, 0.9, 1.0)
+		"lunge", "sweep", "throw":
+			col = Color(1.0, 0.55, 0.2) if _v39_ates() else Color(0.45, 1.0, 0.95)
+	FX.burst(_v39_hand(), col, 1, 30, 0.35, 0.16, -40, true)
+
+
+# ------------------------------------------------------------------ menzil ve hamle seçimi
+func _v39_chase(delta: float, player: Node, to_p: Vector2, dist: float) -> void:
+	var dy := absf(to_p.y)
+	var can: bool = cd <= 0.0 and level.los(center(), player.center())
+	match ai:
+		"burrower":
+			# Yeraltı Cücesi / Kor Solucanı: yakında kazma / ısırık; ortada fırlatma ya da yere dalıp altından çıkma
+			_v39_band(delta, to_p, dist, 0.0, 44.0)
+			if can and dist < 58.0 and dy < 40.0 and _token():
+				_v39_go("pick", 0.38)
+			elif can and dist > 90.0 and dist < 270.0 and dy < 120.0:
+				if randf() < 0.5 and _token(true):
+					_v39_go("throw", 0.45)
+				elif _token():
+					_v39_go("dig", 0.3)
+		"summoner":
+			# Şulmus: uzak durur, yavru çağırır (en çok 3 canlı), lanetli kafatası savurur
+			_v39_band(delta, to_p, dist, 130.0, 240.0, 1.1)
+			_v39_yavru = _v39_yavru.filter(func(y: Variant) -> bool: return is_instance_valid(y) and not y.dead)
+			if dist < 80.0 and _blink_cd <= 0.0 and is_on_floor():
+				_blink_cd = 2.5
+				_evade(240.0, 0.36, 0.0)
+				return
+			if can and dist < 320.0 and _token(true):
+				if _v39_yavru.size() < (4 if elite else 3) and (randf() < 0.6 or _v39_yavru.is_empty()):
+					_v39_go("summon", 0.7)
+				else:
+					_v39_go("skull", 0.5)
+		"swooper":
+			# Bürküt: yanında yukarıda süzülür; yatay pike ya da tüy savurma
+			var side := _side_of(player)
+			var tgt: Vector2 = player.global_position + Vector2(side * 150.0 + sin(Game.clock() * 1.1 + _breath_ph) * 30.0, -105.0)
+			velocity = velocity.lerp((tgt - global_position).limit_length(1.0) * speed, clampf(2.5 * delta, 0.0, 1.0))
+			_face(to_p)
+			anim.play("idle")
+			if can and dist < 290.0 and _token(true):
+				if randf() < 0.55:
+					set_meta("aim", player.center() + Vector2(player.velocity.x * 0.2, 0.0))
+					_v39_go("swoop", 0.5)
+				else:
+					_v39_go("feathers", 0.55)
+		"lancer":
+			# Tunga Hayaleti / Erlik Yasavulu: uzun mızrak; şeritli hücum, geniş savuruş, uzaktan cirit
+			_v39_band(delta, to_p, dist, 70.0, 210.0)
+			if can and dy < 40.0 and dist < 84.0 and _token():
+				_v39_go("sweep", 0.42)
+			elif can and dy < 30.0 and dist > 110.0 and dist < 250.0 and randf() < 0.6 and _token():
+				_v39_go("lunge", 0.62, randf() < 0.3)
+				Tehlike.spawn(level, "serit", global_position + Vector2(facing * 130.0, 0.0), 125.0, 0.62, 0.1, 0.0, self)
+			elif can and dist > 150.0 and dist < 330.0 and _token(true):
+				_v39_go("throw", 0.55)
+		"slammer":
+			# Tepegöz Yavrusu: yavaş döner; yere çakılıp iki yana şok dalgası, üçlü sopa, kaya fırlatma
+			_turn(to_p, 0.45, delta)
+			var want := 0.0
+			if dist > 52.0 and not _blocked(float(facing)) and signf(to_p.x) == float(facing):
+				want = facing * speed
+			velocity.x = move_toward(velocity.x, want, 400.0 * delta)
+			anim.play("move" if absf(velocity.x) > 8.0 else "idle")
+			if can and dist < 72.0 and dy < 50.0 and _token():
+				_v39_go("flurry", 0.4)
+			elif can and dist > 80.0 and dist < 240.0 and dy < 60.0 and randf() < 0.55 and _token():
+				_v39_go("slam", 0.66, true)
+			elif can and dist > 140.0 and dist < 320.0 and _token(true):
+				_v39_go("boulder", 0.6)
+		"ricochet":
+			# Aldaraş: çevik; seken ve geri dönen orak, ikiz orak kasırgası, geri takla
+			if has_meta("orak_out") and not is_instance_valid(get_meta("orak_out")):
+				remove_meta("orak_out")
+			_v39_band(delta, to_p, dist, 50.0, 190.0, 1.0)
+			if can and dist < 66.0 and dy < 40.0 and _token():
+				_v39_go("flurry", 0.36)
+			elif can and dist > 90.0 and dist < 300.0 and not has_meta("orak_out") and _token(true):
+				_v39_go("throw", 0.45)
+		"gasser":
+			# Ağu Kurbağası: zehir bulutu, dil kamçısı (çeker), yay çizen zehir topu
+			_v39_band(delta, to_p, dist, 0.0, 120.0, 0.8)
+			if can and dist < 92.0 and dy < 50.0 and _token():
+				_v39_go("cloud", 0.6)
+			elif can and dist > 95.0 and dist < 175.0 and dy < 30.0 and randf() < 0.6 and _token():
+				_v39_go("tongue", 0.42, true)
+			elif can and dist > 120.0 and dist < 320.0 and _token(true):
+				_v39_go("bomb", 0.5)
+		"webber":
+			# Ağ Ana: ağ atar (yakalar), ısırır, üstüne sıçrar
+			_v39_band(delta, to_p, dist, 0.0, 54.0, 1.0)
+			if can and dist < 60.0 and dy < 34.0 and _token():
+				_v39_go("bite", 0.3)
+			elif can and dist > 100.0 and dist < 270.0 and randf() < 0.55 and _token(true):
+				_v39_go("web", 0.5)
+			elif can and dist > 80.0 and dist < 200.0 and dy < 60.0 and _token():
+				_v39_go("leap", 0.5, true)
+		"healer":
+			# Yılan Kamı: uzak durur, yaralı ya da korumasız yoldaşı iyileştirir + korur, güdümlü yeşil ruhlar
+			_v39_band(delta, to_p, dist, 160.0, 260.0, 1.0)
+			if dist < 90.0 and _blink_cd <= 0.0:
+				_blink_away(player)
+				return
+			var ally := _v39_ally()
+			if cd <= 0.0 and ally != null and _token(true):
+				set_meta("ally", ally)
+				_v39_go("heal", 0.8)
+			elif can and dist < 320.0 and _token(true):
+				_v39_go("wisp", 0.5)
+		"blinker":
+			# Kar Cadısı: kar olup arkanda belirir ve üçlü pençe; uzaktan buz kıymığı yelpazesi
+			_v39_band(delta, to_p, dist, 0.0, 150.0, 1.0)
+			if can and dist < 60.0 and dy < 40.0 and _token():
+				_v39_go("stab", 0.32)
+			elif can and dist > 70.0 and dist < 280.0 and _blink_cd <= 0.0 and randf() < 0.55 and _token():
+				_v39_go("blink", 0.38)
+			elif can and dist > 110.0 and dist < 300.0 and _token(true):
+				_v39_go("shards", 0.55)
+		"chainer":
+			# Abası: yavaş döner; kancalı zincirle çeker, çift yumruk çakma (buz dikeni), zincir savurma
+			_turn(to_p, 0.5, delta)
+			var want := 0.0
+			if dist > 60.0 and not _blocked(float(facing)) and signf(to_p.x) == float(facing):
+				want = facing * speed
+			velocity.x = move_toward(velocity.x, want, 400.0 * delta)
+			anim.play("move" if absf(velocity.x) > 8.0 else "idle")
+			if can and dist < 78.0 and dy < 50.0 and _token():
+				if randf() < 0.5:
+					_v39_go("swing", 0.45)
+				else:
+					_v39_go("slam", 0.7, true)
+			elif can and dist > 90.0 and dist < 205.0 and dy < 40.0 and signf(to_p.x) == float(facing) and _token():
+				_v39_go("hook", 0.55)
+		"breather":
+			# Ak Ejder Yavrusu: ayaz soluğu (koni), kuyruk savurma, kanatlı sıçrayış
+			_v39_band(delta, to_p, dist, 0.0, 120.0, 1.0)
+			if can and dist < 62.0 and dy < 40.0 and _token():
+				_v39_go("tail", 0.36)
+			elif can and dist < 150.0 and dy < 50.0 and randf() < 0.65 and _token():
+				_v39_go("breath", 0.65)
+			elif can and dist > 100.0 and dist < 230.0 and _token():
+				_v39_go("hop", 0.45)
+
+
+func _v39_ally() -> Node:
+	## Şifacının hedefi: 300 px içinde canı en düşük (< %85) ya da korumasız yoldaş
+	var best: Node = null
+	var bk := 2.0
+	for o in get_tree().get_nodes_in_group("dusman"):
+		if o == self or not is_instance_valid(o) or o.dead or o.is_boss or o.decoy:
+			continue
+		if o.global_position.distance_squared_to(global_position) > 300.0 * 300.0:
+			continue
+		var k: float = o.hp / maxf(1.0, o.max_hp)
+		if o._v39_kalkan > Game.clock():
+			k += 1.0
+		if k < bk and (k < 0.85 or o._v39_kalkan < Game.clock()):
+			bk = k
+			best = o
+	return best
+
+
+# ------------------------------------------------------------------ hamlenin çıkışı (windup bitti)
+func _v39_fire(m: String, player: Node, to_p: Vector2, dist: float) -> void:
+	var key := ai + "/" + m
+	var fire := _v39_ates()
+	_v39_set("act", 0.3)
+	vis_scale = Vector2(1.14, 0.9)
+	match key:
+		"burrower/pick":
+			velocity.x = facing * 140.0
+			FX.slash(global_position + Vector2(facing * 6, -size.y * 0.6), facing, -2.3, 0.7, 34.0, 8.0, Color(1.0, 0.6, 0.3) if fire else Color(0.6, 1.0, 0.95), 0.16)
+			_v39_sfx("v39_kazma", -5.0)
+			_strike(54.0, 42.0, 1.0, Vector2(170.0, -120.0), 2.0)
+			if fire:
+				FX.fire(global_position + Vector2(facing * 30.0, -8.0), 5, 0.3, 6.0)
+		"burrower/throw":
+			if player:
+				var p := _v39_lob("fireball" if fire else "stone", _v39_hand(), player.center() + Vector2(player.velocity.x * 0.3, 0.0), dmg * 0.8)
+				p.trail_col = Color(1.0, 0.55, 0.2, 0.6) if fire else Color(0.8, 0.75, 0.6, 0.4)
+				if fire:
+					p.on_explode = func(pos: Vector2) -> void: Tehlike.spawn(level, "ates", pos, 26.0, 0.15, 1.6, dmg * 0.3, self)
+			_v39_sfx("v39_firlat", -6.0)
+		"burrower/dig":
+			state = "burrow"
+			st = 2.4
+			evade_t = 2.6
+			contact = false
+			_drop_token()
+			FX.dust(global_position, Vector2.UP, 10, 0.38, Color(0.45, 0.36, 0.3, 0.7))
+			_v39_sfx("v39_kaz", -4.0)
+		"burrower/emerge":
+			evade_t = 0.0
+			sa_t = 0.35
+			velocity = Vector2(0.0, -240.0)
+			st = 0.35
+			Game.shake(3.5)
+			FX.dust(global_position, Vector2.UP, 12, 0.42, Color(0.45, 0.36, 0.3, 0.75))
+			FX.burst(global_position, Color(1.0, 0.5, 0.2) if fire else Color(0.55, 0.5, 0.45), 14, 160, 0.5, 0.22, 500)
+			if fire:
+				FX.fire(global_position, 12, 0.4, 14.0)
+			_v39_sfx("v39_cik", -2.0)
+			_strike(34.0, 70.0, 1.2, Vector2(90.0, -380.0), 0.0, true)
+		"summoner/summon":
+			st = 0.4
+			var n := 2 if not elite else 3
+			for k in n:
+				var sx := -1.0 if k % 2 == 0 else 1.0
+				var pos := global_position + Vector2(sx * (34.0 + k * 10.0), -40.0)
+				var y: Enemy = level.spawn_enemy("sulmus_yavrusu", pos, false, false, true)
+				if y:
+					y.aggro = true
+					y.cd = 0.6 + k * 0.3
+					y.set_meta("yavru", true)
+					_v39_yavru.append(y)
+					FX.anim("smoke_puff", y.center(), 0.0, 0.7, Color(0.4, 1.0, 0.5), false)
+			FX.ring(global_position, 40.0, Color(0.45, 1.0, 0.55, 0.8), 0.35, 0.3)
+			_v39_sfx("v39_cagir", -3.0)
+		"summoner/skull":
+			if player:
+				var p := _v39_lob("curse", _v39_hand(), player.center(), dmg, 420.0)
+				p.trail_col = Color(0.5, 1.0, 0.5, 0.6)
+				p.on_explode = func(pos: Vector2) -> void: Tehlike.spawn(level, "zehir", pos, 28.0, 0.1, 2.0, dmg * 0.3, self)
+			_v39_sfx("v39_kafatasi", -5.0)
+		"swooper/swoop":
+			st = 0.85
+			var aim: Vector2 = get_meta("aim", player.center() if player else center())
+			var dir := (aim - center()).normalized()
+			if absf(dir.y) > 0.75:
+				dir = Vector2(signf(dir.x) if dir.x != 0.0 else float(facing), signf(dir.y) * 0.75).normalized()
+			velocity = dir * 470.0
+			contact = true
+			contact_k = 1.1
+			_did_hit = false
+			sa_t = 0.6
+			_v39_sfx("v39_cigilik", -3.0)
+		"swooper/feathers":
+			if player:
+				var base: float = (player.center() - _v39_hand()).angle()
+				var n := 5 if not elite else 7
+				for k in n:
+					var a := base + (float(k) - (n - 1) * 0.5) * 0.16
+					var p := _spit("feather", _v39_hand(), Vector2.from_angle(a) * 300.0, dmg * 0.55, 0.0, 120.0, 2.2)
+					p.trail_col = Color(1.0, 0.85, 0.5, 0.4)
+			FX.burst(center(), Color(0.55, 0.4, 0.25), 8, 120, 0.4, 0.2, 200)
+			_v39_sfx("v39_kanat", -3.0)
+		"lancer/lunge":
+			st = 0.45
+			velocity.x = facing * 430.0
+			contact = true
+			contact_k = 1.25
+			_did_hit = false
+			sa_t = 0.45
+			_v39_sfx("v39_hucum", -3.0)
+		"lancer/sweep":
+			velocity.x = facing * 90.0
+			FX.slash(global_position + Vector2(facing * 4, -size.y * 0.55), facing, -2.6, 0.9, 74.0, 10.0, Color(1.0, 0.55, 0.2) if fire else Color(0.5, 1.0, 0.95), 0.2)
+			_strike(92.0, 60.0, 1.0, Vector2(230.0, -170.0))
+			if fire:
+				FX.fire(global_position + Vector2(facing * 50.0, -26.0), 8, 0.35, 20.0)
+			_v39_sfx("v39_savur", -4.0)
+		"lancer/throw":
+			if player:
+				var p := _v39_lob("kargi", _v39_hand(), player.center() + Vector2(player.velocity.x * 0.25, 0.0), dmg * 0.9, 260.0, 0.45, 0.85)
+				p.set_meta("col", Color(1.0, 0.55, 0.2) if fire else Color(0.5, 1.0, 0.95))
+				p.trail_col = Color(1.0, 0.55, 0.2, 0.6) if fire else Color(0.5, 1.0, 0.95, 0.6)
+				if fire:
+					p.fx_kind = "od"
+			_v39_sfx("v39_cirit", -5.0)
+		"slammer/slam":
+			st = 0.25
+			Game.shake(5.0)
+			vis_scale = Vector2(1.35, 0.7)
+			FX.ground_slam(global_position, facing, 1.1, Color(1.0, 0.85, 0.6), false)
+			FX.dust(global_position, Vector2.UP, 12, 0.4)
+			_strike(56.0, size.y, 1.2, Vector2(160.0, -260.0), 0.0, true)
+			for s in [-1.0, 1.0]:
+				var w := _spit("ground_wave", global_position + Vector2(s * 30.0, -14.0), Vector2(s * 250.0, 0.0), dmg * 0.7, 0.0, 0.0, 1.5)
+				w.set_meta("col", Color(1.0, 0.75, 0.45))
+			_v39_sfx("v39_cakma", 0.0)
+		"slammer/flurry":
+			st = 0.82
+		"slammer/boulder":
+			if player:
+				var p := _v39_lob("stone_big", _v39_hand(), player.center(), dmg * 1.1, 560.0)
+				p.on_explode = func(pos: Vector2) -> void:
+					FX.dust(pos, Vector2.UP, 8, 0.36)
+					Game.shake(2.0)
+			_v39_sfx("v39_firlat", -3.0, 0.8)
+		"ricochet/throw":
+			if player:
+				var p := _spit("orak", _v39_hand(), (player.center() - _v39_hand()).normalized() * 360.0, dmg * 0.8, 0.0, 0.0, 3.0)
+				p.return_px = 250.0 if not elite else 320.0
+				p.owner_node = self
+				p.trail_col = Color(1.0, 0.75, 0.35, 0.5)
+				set_meta("orak_out", p)
+			_v39_sfx("v39_orak", -4.0)
+		"ricochet/flurry":
+			st = 0.85
+		"gasser/cloud":
+			st = 0.5
+			var c := global_position + Vector2(facing * 52.0, 0.0)
+			var t := Tehlike.spawn(level, "zehir", c, 50.0, 0.12, 3.0, dmg * 0.3, self)
+			t.h = 64.0
+			for k in 6:
+				FX.smoke(c + Vector2(randf_range(-40, 40), randf_range(-50, -6)), 2, 0.7, Color(0.45, 0.85, 0.3, 0.55))
+			FX.anim("acid_splash", c + Vector2(0, -20), 0.0, 1.2, Color(0.6, 1.0, 0.4))
+			_v39_sfx("v39_bulut", -3.0)
+		"gasser/tongue":
+			st = 0.32
+			var tip := global_position + Vector2(facing * 130.0, -size.y * 0.5)
+			Cizgi.make(self, _v39_mouth(), tip, Color(0.85, 0.45, 0.6), 3.0, 0.22)
+			_v39_sfx("v39_dil", -4.0)
+			if player and _strike(132.0, size.y * 0.9, 0.45, Vector2.ZERO, 6.0) and player.has_method("shove"):
+				player.shove(Vector2(-facing * 420.0, -120.0))
+				set_meta("bite_after", 0.24)
+		"gasser/bomb":
+			if player:
+				for k in (2 if not elite else 3):
+					var tgt: Vector2 = player.global_position + Vector2((k - 0.5) * 50.0 + player.velocity.x * 0.3, -6.0)
+					var p := _v39_lob("spore", _v39_mouth(), tgt, dmg * 0.6, 520.0)
+					p.homing = 0.0
+					p.on_explode = func(pos: Vector2) -> void: Tehlike.spawn(level, "zehir", pos, 30.0, 0.1, 2.4, dmg * 0.3, self)
+			_v39_sfx("v39_tukur", -5.0)
+		"webber/bite":
+			velocity.x = facing * 160.0
+			if _strike(56.0, 32.0, 1.0, Vector2(120.0, -80.0), 4.0) and player.has_method("apply_poison"):
+				player.apply_poison(2.5)
+			_v39_sfx("isirik", -4.0, 0.8)
+		"webber/web":
+			if player:
+				var p := _spit("ag", _anchor_g("hand", center()), (player.center() + player.velocity * 0.2 - center()).normalized() * 300.0, dmg * 0.35, 0.0, 60.0, 1.6)
+				p.on_hit = func(pl: Node) -> void: _v39_snare(pl)
+				p.trail_col = Color(0.95, 0.95, 0.9, 0.5)
+			_v39_sfx("v39_ag", -4.0)
+		"webber/leap", "breather/hop":
+			st = 0.9
+			if player:
+				var dx: float = clampf(player.global_position.x - global_position.x, -200.0, 200.0)
+				velocity = Vector2(dx * 1.7, -330.0)
+			contact = true
+			contact_k = 1.0
+			_did_hit = false
+			sa_t = 0.6
+			_v39_sfx("sicrayis", -4.0, 0.8)
+		"healer/heal":
+			st = 0.4
+			var al: Variant = get_meta("ally", null)
+			if al != null and is_instance_valid(al) and not al.dead:
+				var a: Node = al
+				a.hp = minf(a.max_hp, a.hp + a.max_hp * 0.3)
+				a._v39_kalkan = Game.clock() + (6.0 if elite else 4.5)
+				Cizgi.make(self, _v39_hand(), a.center(), Color(0.45, 1.0, 0.6), 4.0, 0.4, true)
+				FX.ring(a.center(), 26.0, Color(0.45, 1.0, 0.6, 0.85), 0.4)
+				FX.text(a.center() + Vector2(0, -a.size.y * 0.5 - 18.0), "korundu", Color(0.55, 1.0, 0.65), 7)
+			_v39_sfx("v39_sifa", -3.0)
+		"healer/wisp":
+			if player:
+				for k in 3:
+					var a: float = (player.center() - _v39_hand()).angle() + (k - 1) * 0.55
+					var p := _spit("spore", _v39_hand(), Vector2.from_angle(a) * 110.0, dmg * 0.7, 1.4, 0.0, 4.0)
+					p.trail_col = Color(0.45, 1.0, 0.6, 0.6)
+			_v39_sfx("v39_ruh", -5.0)
+		"blinker/blink":
+			_v39_blink_behind(player)
+			return
+		"blinker/stab":
+			st = 0.72
+		"blinker/shards":
+			if player:
+				var base: float = (player.center() - _v39_hand()).angle()
+				for k in (3 if not elite else 5):
+					var p := _spit("ice", _v39_hand(), Vector2.from_angle(base + (k - 1) * 0.2) * 270.0, dmg * 0.6, 0.0, 0.0, 2.0)
+					p.trail_col = Color(0.7, 0.9, 1.0, 0.5)
+			_v39_sfx("v39_buz", -4.0)
+		"chainer/hook":
+			st = 0.42
+			var tip := global_position + Vector2(facing * 200.0, -size.y * 0.55)
+			Cizgi.make(self, _v39_hand(), tip, Color(0.4, 0.42, 0.5), 2.5, 0.3, false, true)
+			_v39_sfx("v39_zincir", -3.0)
+			var box := Rect2(global_position.x + (30.0 if facing > 0 else -200.0), global_position.y - size.y * 0.85, 170.0, size.y * 0.7)
+			if player and not player.dead and box.intersects(player.hurt_rect()) and player.grabbed_by == null and player.take_hit(dmg * 0.45, self):
+				player.get_grabbed(self)
+				grab_target = player
+				_v39_set("hold", 0.4)
+				set_meta("move", "hook")
+				FX.text(player.center() + Vector2(0, -30), "ÇEKİLDİN!", Color(0.8, 0.85, 1.0), 8)
+		"chainer/slam":
+			Game.shake(4.0)
+			FX.ground_slam(global_position + Vector2(facing * 30.0, 0.0), facing, 0.9, Color(0.75, 0.9, 1.0), false)
+			_strike(70.0, size.y, 1.2, Vector2(200.0, -240.0))
+			for k in 2:
+				Tehlike.spawn(level, "buz", global_position + Vector2(facing * (70.0 + k * 56.0), 0.0), 22.0, 0.25 + k * 0.18, 0.45, dmg * 0.6, self)
+			_v39_sfx("v39_cakma", -2.0, 0.85)
+		"chainer/swing":
+			FX.slash(global_position + Vector2(0, -size.y * 0.5), 1, -2.6, 0.6, 76.0, 9.0, Color(0.7, 0.75, 0.85), 0.2)
+			FX.slash(global_position + Vector2(0, -size.y * 0.5), -1, -2.6, 0.6, 76.0, 9.0, Color(0.7, 0.75, 0.85), 0.2)
+			_strike(82.0, size.y, 1.0, Vector2(260.0, -160.0), 0.0, true)
+			_v39_sfx("v39_zincir", -3.0, 0.8)
+		"breather/breath":
+			st = 0.8
+			_v39_sfx("v39_soluk", -2.0)
+		"breather/tail":
+			FX.slash(global_position + Vector2(0, -size.y * 0.4), -facing, -2.4, 0.5, 64.0, 8.0, Color(0.7, 0.9, 1.0), 0.18)
+			_strike(70.0, size.y * 0.8, 0.9, Vector2(240.0, -150.0), 0.0, true)
+			_v39_sfx("v39_kuyruk", -4.0)
+
+
+# ------------------------------------------------------------------ etkin evre
+func _v39_act(m: String, delta: float, player: Node, to_p: Vector2) -> void:
+	var key := ai + "/" + m
+	match key:
+		"burrower/pick", "lancer/sweep", "webber/bite":
+			velocity.x = move_toward(velocity.x, 0.0, 800.0 * delta)
+		"swooper/swoop":
+			if Engine.get_physics_frames() % 2 == 0:
+				FX.ghost(anim.base, Color(1.0, 0.85, 0.5, 0.3), 0.16)
+			if level.solid_at(global_position + velocity.normalized() * 14.0):
+				velocity = velocity.bounce(Vector2.UP) * 0.3
+				st = minf(st, 0.05)
+			velocity.y -= 260.0 * delta   # yatay pike: sonra yukarı kıvrılır
+		"lancer/lunge":
+			if Engine.get_physics_frames() % 2 == 0:
+				FX.ghost(anim.base, Color(1.0, 0.55, 0.2, 0.35) if _v39_ates() else Color(0.5, 1.0, 0.95, 0.35), 0.18)
+			if _v39_ates() and Engine.get_physics_frames() % 3 == 0:
+				FX.fire(global_position + Vector2(-facing * 10.0, -10.0), 2, 0.3, 6.0)
+			if is_on_wall() or _blocked(float(facing)):
+				velocity.x = 0.0
+				st = minf(st, 0.05)
+			elif st < 0.12:
+				velocity.x = move_toward(velocity.x, 0.0, 2400.0 * delta)
+		"slammer/flurry", "ricochet/flurry", "blinker/stab":
+			# çok vuruşlu: eşit aralıklı vuruşlar, her birinde öne adım
+			var hits := {"slammer": 3, "ricochet": 4, "blinker": 3}
+			var n: int = int(hits.get(ai, 3)) + (1 if elite else 0)
+			var span := 0.62
+			var next_t := 0.04 + float(_v39_n) * span / float(n)
+			velocity.x = move_toward(velocity.x, facing * (40.0 if ai == "slammer" else 90.0), 600.0 * delta)
+			if _v39_n < n and _v39_t >= next_t:
+				_v39_n += 1
+				var odd := _v39_n % 2 == 1
+				var a0 := -2.4 if odd else 0.5
+				var col := Color(1.0, 0.85, 0.6) if ai == "slammer" else (Color(0.7, 0.92, 1.0) if ai == "blinker" else Color(1.0, 0.75, 0.35))
+				FX.slash(global_position + Vector2(facing * 6, -size.y * 0.55), facing, a0, a0 + (2.9 if odd else -2.9), 30.0 + size.y * 0.3, 7.0, col, 0.14)
+				var last := _v39_n == n
+				_strike(48.0 + size.x * 0.4, size.y * 0.9, 0.42 if not last else 0.6, Vector2(80.0, -60.0) if not last else Vector2(220.0, -160.0))
+				_v39_sfx("v39_savur" if ai == "slammer" else "savur_bicak", -6.0, 1.0 + _v39_n * 0.06)
+		"gasser/tongue":
+			if has_meta("bite_after"):
+				var b := float(get_meta("bite_after")) - delta
+				set_meta("bite_after", b)
+				if b <= 0.0:
+					remove_meta("bite_after")
+					_strike(60.0, size.y + 6.0, 0.7, Vector2(200.0, -140.0))
+					_v39_sfx("isirik", -3.0, 0.7)
+					if player and player.has_method("apply_poison"):
+						player.apply_poison(2.5)
+		"webber/leap", "breather/hop":
+			if Engine.get_physics_frames() % 3 == 0:
+				FX.ghost(anim.base, Color(0.85, 0.9, 1.0, 0.3), 0.14)
+			if is_on_floor() and _v39_t > 0.15:
+				contact = false
+				sa_t = 0.0
+				velocity.x = 0.0
+				Game.shake(2.5)
+				vis_scale = Vector2(1.3, 0.75)
+				FX.dust(global_position, Vector2.UP, 8, 0.34)
+				if player and not player.dead and absf(player.global_position.x - global_position.x) < size.x * 0.5 + 18.0 and player.is_on_floor():
+					player.take_hit(dmg * 0.9, self)
+				st = 0.0
+		"breather/breath":
+			# soğuk koni: ağızdan yelpaze buz zerresi (0,1 sn'de bir), koninin içindeki oyuncuya vurur
+			velocity.x = 0.0
+			if fmod(_v39_t, 0.1) < delta:
+				var mo := _v39_mouth()
+				var a := (0.0 if facing > 0 else PI) + sin(_v39_t * 7.0) * 0.28 + 0.12 * float(facing)
+				var p := _spit("ice", mo, Vector2.from_angle(a) * 250.0, dmg * 0.28, 0.0, 0.0, 0.55)
+				p.trail_col = Color(0.75, 0.95, 1.0, 0.4)
+				FX.frost(mo + Vector2(facing * 20.0, 0.0), 2)
+				FX.burst(mo, Color(0.75, 0.95, 1.0), 2, 160, 0.35, 0.2, -30, true)
+		"summoner/summon", "healer/heal", "gasser/cloud", "chainer/hook":
+			velocity.x = 0.0
+
+
+# ------------------------------------------------------------------ özel durumlar
+func _v39_burrow(delta: float, player: Node, _to_p: Vector2) -> void:
+	## Yer altında: tümsek oyuncuya doğru yürür (dokunulmaz), altına varınca işaretli "!!" çıkış
+	evade_t = maxf(evade_t, 0.2)
+	anim.play("burrow")
+	st -= delta
+	var tx: float = player.global_position.x if player else global_position.x
+	var dx := tx - global_position.x
+	var want := signf(dx) * speed * 1.7
+	if absf(dx) < 14.0 or _blocked(signf(want)):
+		want = 0.0
+	velocity.x = move_toward(velocity.x, want, 900.0 * delta)
+	if absf(dx) > 2.0:
+		facing = int(signf(dx))
+	if Engine.get_physics_frames() % 4 == 0:
+		FX.dust(global_position, Vector2(-signf(velocity.x), -0.6), 2, 0.3, Color(0.45, 0.36, 0.3, 0.6))
+		if _v39_ates():
+			FX.fire(global_position, 1, 0.25, 8.0)
+	if Engine.get_physics_frames() % 20 == 0:
+		_v39_sfx("v39_kaz", -12.0, 1.1)
+	if st <= 0.0 or absf(dx) < 16.0 or player == null or player.dead:
+		level.telegraph_ground(global_position, 0.55)
+		set_meta("move", "emerge")
+		_tele(0.55, true)
+		evade_t = 0.6
+
+
+func _v39_blink_behind(player: Node) -> void:
+	## Kar Cadısı: kara dönüşür, oyuncunun arkasında belirir, hemen "!" pençe
+	_blink_cd = 3.2
+	if player == null or level == null:
+		_v39_set("recover", 0.3)
+		return
+	var nx: float = player.global_position.x - float(player.facing) * 52.0
+	var ty: int = level.surface_y(int(floor(nx / Level.TS)), int(floor(global_position.y / Level.TS)) - 2)
+	var ny := ty * Level.TS - 1.0
+	if absf(ny - player.global_position.y) < 80.0 and not level.solid_at(Vector2(nx, ny - size.y * 0.5)):
+		FX.burst(center(), Color(0.85, 0.95, 1.0), 14, 90, 0.5, 0.22, -20, true)
+		_ds_blink_out()
+		_ds_blink = 0.0
+		global_position = Vector2(nx, ny)
+		velocity = Vector2.ZERO
+		FX.burst(center(), Color(0.85, 0.95, 1.0), 14, 90, 0.5, 0.22, -20, true)
+		_v39_sfx("v39_kar", -4.0)
+		_face(player.center() - center())
+		_v39_go("stab", 0.3)
+		return
+	_v39_go("shards", 0.4)
+
+
+func _v39_snare(pl: Node) -> void:
+	## Ağ Ana: ağa yakalanan oyuncu yerinde kalır (4 basışla kurtulur); örümcek koşup ısırır
+	if dead or pl == null or not is_instance_valid(pl) or pl.dead or pl.grabbed_by != null or not pl.has_method("get_grabbed"):
+		return
+	pl.get_grabbed(self)
+	grab_target = pl
+	_v39_set("hold", 1.5 if not elite else 1.9)
+	set_meta("move", "web")
+	set_meta("sq", 0.25)
+	FX.text(pl.center() + Vector2(0, -34), "AĞA DÜŞTÜN! (4 kez bas)", Color(0.95, 0.95, 0.85), 8)
+	FX.ring(pl.center(), 22.0, Color(0.95, 0.95, 0.9, 0.8), 0.3)
+
+
+func _v39_hold(delta: float, player: Node) -> void:
+	st -= delta
+	var held: bool = grab_target != null and is_instance_valid(grab_target) and grab_target.grabbed_by == self
+	var m := String(get_meta("move", ""))
+	if not held:
+		grab_target = null
+		_v39_set("recover", 0.5)
+		return
+	if m == "hook":
+		# zincir oyuncuyu önüne çeker, sonra ağır yumruk
+		var front := global_position + Vector2(facing * (size.x * 0.5 + 18.0), -4.0)
+		grab_target.global_position = grab_target.global_position.lerp(front, clampf(10.0 * delta, 0.0, 1.0))
+		Cizgi.make(self, _v39_hand(), grab_target.center(), Color(0.4, 0.42, 0.5), 2.5, 0.04, false, true)
+		if st <= 0.0:
+			grab_target.release_grab(Vector2.ZERO)
+			grab_target.inv_t = 0.0
+			grab_target = null
+			_v39_set("act", 0.3)
+			set_meta("move", "swing")
+			_strike(70.0, size.y, 1.0, Vector2(300.0, -200.0), 0.0, true)
+			FX.impact_sprite("blunt", center() + Vector2(facing * 26.0, -6.0), Vector2(facing, 0), Color(0.85, 0.9, 1.0), 1.0)
+			_v39_sfx("darbe_kunt", -2.0, 0.8)
+		return
+	# ağ: örümcek koşar ve ısırır
+	var dx: float = grab_target.global_position.x - global_position.x
+	_face(Vector2(dx, 0.0))
+	if absf(dx) > 34.0:
+		velocity.x = move_toward(velocity.x, signf(dx) * speed * 1.6, 900.0 * delta)
+		anim.play("move")
+	else:
+		velocity.x = 0.0
+		var sq := float(get_meta("sq", 0.3)) - delta
+		if sq <= 0.0:
+			sq = 0.42
+			grab_target.take_hit(dmg * 0.4, self, null, true)
+			vis_scale = Vector2(1.12, 0.9)
+			Ses.play("isirik", -6.0, 0.9)
+		set_meta("sq", sq)
+	if st <= 0.0:
+		grab_target.release_grab(Vector2(facing * 160.0, -160.0))
+		grab_target = null
+		_v39_set("recover", 0.6)
+
+
+func _v39_react() -> void:
+	## v39 tepkileri (TEPKI eşiği dolunca)
+	var pl: Node = level.player if level else null
+	match ai:
+		"burrower":
+			if is_on_floor():
+				set_meta("move", "dig")
+				_v39_fire("dig", pl, Vector2.ZERO, 0.0)
+		"summoner", "webber", "ricochet":
+			_evade(250.0, 0.36, 0.3 if ai != "summoner" else 0.0)
+		"swooper":
+			_evade(220.0, 0.42, 0.0)
+		"healer":
+			_blink_away(pl)
+		"blinker":
+			if pl:
+				_v39_blink_behind(pl)
+		"gasser":
+			set_meta("move", "cloud")
+			_tele(0.35, true)
+		"lancer", "slammer", "chainer", "breather":
+			var mv := {"lancer": "sweep", "slammer": "flurry", "chainer": "swing", "breather": "tail"}
+			set_meta("move", String(mv[ai]))
+			if pl:
+				_face(pl.center() - center())
+			_tele(0.34, true)
+
+
+class Cizgi extends Node2D:
+	## v39 çizgi efekti: dil, zincir, ağ teli, şifa ışını (iki nokta arası mürekkep çizgisi; zincirde halkalar)
+	var a := Vector2.ZERO
+	var b := Vector2.ZERO
+	var col := Color.WHITE
+	var w := 2.0
+	var life := 0.2
+	var t := 0.0
+	var parlak := false
+	var halka := false
+
+	static func make(host: Node, p0: Vector2, p1: Vector2, c: Color, width: float, lf: float, glow := false, chain := false) -> void:
+		if FX.root == null:
+			return
+		var n := Cizgi.new()
+		n.a = p0
+		n.b = p1
+		n.col = c
+		n.w = width
+		n.life = lf
+		n.parlak = glow
+		n.halka = chain
+		n.z_index = 30
+		if glow:
+			var m := CanvasItemMaterial.new()
+			m.blend_mode = CanvasItemMaterial.BLEND_MODE_ADD
+			m.light_mode = CanvasItemMaterial.LIGHT_MODE_UNSHADED
+			n.material = m
+		FX.root.add_child(n)
+
+	func _process(delta: float) -> void:
+		t += delta
+		if t >= life:
+			queue_free()
+			return
+		queue_redraw()
+
+	func _draw() -> void:
+		var k := 1.0 - t / maxf(0.001, life)
+		var c := Color(col.r, col.g, col.b, col.a * clampf(k * 1.6, 0.0, 1.0))
+		draw_line(a, b, Color(0.05, 0.04, 0.06, c.a * 0.8), w + 2.0, true)
+		draw_line(a, b, c, w, true)
+		if halka:
+			var n := int(a.distance_to(b) / 7.0)
+			for i in n:
+				draw_circle(a.lerp(b, (float(i) + 0.5) / float(maxi(1, n))), w * 0.9, Color(0.75, 0.78, 0.85, c.a))
+		if parlak:
+			draw_line(a, b, Color(1, 1, 1, c.a * 0.6), w * 0.4, true)
+			draw_circle(b, w * 2.2, Color(c.r, c.g, c.b, c.a * 0.5))

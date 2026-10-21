@@ -29,7 +29,8 @@
 	"rol_can": {
 		"_not": "v26: yapay zekâ rolüne göre can çarpanı (derinlik eğrisinin üstüne). Ağır yakın dövüşçüler ve tosbağa 1; tazılar / pusucular (hızlı, 3-5 vuruşta ölüyordu) daha çok; uzak / uçan / sürü daha az (zaten kovalanıyor)",
 		"lunger": 1.2, "pouncer": 1.2, "crawler": 1.2, "stalker": 1.2,
-		"flyer_ranged": 0.8, "archer": 0.8, "caster": 0.85, "swarm": 0.8, "diver": 0.85, "kamikaze": 0.85, "charmer": 0.85, "illusionist": 0.85
+		"flyer_ranged": 0.8, "archer": 0.8, "caster": 0.85, "swarm": 0.8, "diver": 0.85, "kamikaze": 0.85, "charmer": 0.85, "illusionist": 0.85,
+		"swooper": 0.85, "summoner": 0.85, "healer": 0.85, "ricochet": 0.95, "blinker": 0.95
 	},
 	"seckin": {
 		"can": 2.2,

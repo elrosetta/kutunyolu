@@ -1097,6 +1097,18 @@
   "fx/ink/tomar_v2.webp",
   "1e685e92b5e20ede111fdbfe8103fad7"
  ],
+ "sprites/abasi_v2.png": [
+  3840,
+  2112,
+  "sprites/abasi_v2.webp",
+  "6558765fe8555dc7166f25e1b0d4a458"
+ ],
+ "sprites/ag_ana_v2.png": [
+  2816,
+  1344,
+  "sprites/ag_ana_v2.webp",
+  "da67415641afe8a34fa1b437c41fa42c"
+ ],
  "sprites/agac_iyesi_v2.png": [
   5632,
   4032,
@@ -1108,6 +1120,18 @@
   2688,
   "sprites/agac_iyesi_v2_p1.webp",
   "0e78e16f6d12e0895feb3cb108f51aa8"
+ ],
+ "sprites/agu_kurbagasi_v2.png": [
+  2880,
+  1344,
+  "sprites/agu_kurbagasi_v2.webp",
+  "e1a7c3c2ae9632ddd711dfdb0d2a607a"
+ ],
+ "sprites/aldaras_v2.png": [
+  2880,
+  1536,
+  "sprites/aldaras_v2.webp",
+  "3681e4591165ec8d3e0d23508200f01c"
  ],
  "sprites/arcura_v2.png": [
   2432,
@@ -1187,6 +1211,12 @@
   "sprites/bengu_v2_p3.webp",
   "2f907d73d20daa87de7d192a9d044510"
  ],
+ "sprites/burkut_v2.png": [
+  3328,
+  1536,
+  "sprites/burkut_v2.webp",
+  "d1eca1f604f5364662554a970a3b4cba"
+ ],
  "sprites/buz_balbali_v2.png": [
   3520,
   3840,
@@ -1222,6 +1252,12 @@
   2688,
   "sprites/dev_cocugu_v2_p1.webp",
   "02d6552d874c3eb24ea254bbe3852f68"
+ ],
+ "sprites/ejder_yavrusu_v2.png": [
+  3840,
+  1536,
+  "sprites/ejder_yavrusu_v2.webp",
+  "2f1ed0ab6c13709cf3025c6607db82a9"
  ],
  "sprites/erlik_han_v2.png": [
   4096,
@@ -1301,6 +1337,12 @@
   "sprites/kan_yarasasi_v2.webp",
   "cef6fb03b4c096cdfe848a0846602884"
  ],
+ "sprites/kar_cadisi_v2.png": [
+  3200,
+  1536,
+  "sprites/kar_cadisi_v2.webp",
+  "7251c2c9309a38e20ca08305402e75e3"
+ ],
  "sprites/kara_boru_han_v2.png": [
   3584,
   3456,
@@ -1348,6 +1390,12 @@
   3520,
   "sprites/kayip_ruh_v2.webp",
   "91dfad8ffac919afba3993e20f5ef723"
+ ],
+ "sprites/kor_solucani_v2.png": [
+  2816,
+  2048,
+  "sprites/kor_solucani_v2.webp",
+  "d206a5a74e5bca116bfd147c9d878cc7"
  ],
  "sprites/kurgan_okcusu_v2.png": [
   2432,
@@ -1451,6 +1499,18 @@
   "sprites/su_iyesi_v2_p1.webp",
   "93c78109ade57ea65ca1190441e33621"
  ],
+ "sprites/sulmus_v2.png": [
+  2304,
+  1344,
+  "sprites/sulmus_v2.webp",
+  "42169e353700165b95c2f87ec2c0bb5d"
+ ],
+ "sprites/sulmus_yavrusu_v2.png": [
+  768,
+  512,
+  "sprites/sulmus_yavrusu_v2.webp",
+  "346e2d01465de4f02516b04f5b24db1b"
+ ],
  "sprites/surale_v2.png": [
   4096,
   3840,
@@ -1511,6 +1571,12 @@
   "sprites/tepegoz_v2_p6.webp",
   "34b3af0e187bc9dd1defe812760cdc66"
  ],
+ "sprites/tepegoz_yavrusu_v2.png": [
+  3520,
+  2688,
+  "sprites/tepegoz_yavrusu_v2.webp",
+  "3039b62c6d4ac6e08f884c17215dc8e0"
+ ],
  "sprites/tosbaga_v2.png": [
   3744,
   4032,
@@ -1528,6 +1594,18 @@
   1344,
   "sprites/tozkoparan_v2_p1.webp",
   "92dbc3dd157470871db4329173d9201b"
+ ],
+ "sprites/tunga_hayaleti_v2.png": [
+  4032,
+  2112,
+  "sprites/tunga_hayaleti_v2.webp",
+  "91490aac95da8d0394da6e896ecf824e"
+ ],
+ "sprites/yasavul_v2.png": [
+  4032,
+  2112,
+  "sprites/yasavul_v2.webp",
+  "8c058344246c1af99fd48cf9d2942678"
  ],
  "sprites/yelbegen_v2.png": [
   4096,
@@ -1582,6 +1660,18 @@
   2496,
   "sprites/yelbegen_v2_p8.webp",
   "fb861d6bd8785818b9976766202cef91"
+ ],
+ "sprites/yer_cucesi_v2.png": [
+  1792,
+  1664,
+  "sprites/yer_cucesi_v2.webp",
+  "c25ccec45910e0c33a10ede9260e0d0d"
+ ],
+ "sprites/yilan_kami_v2.png": [
+  2592,
+  1536,
+  "sprites/yilan_kami_v2.webp",
+  "cd638dba9fc90a618876a711f4b38128"
  ],
  "tiles/bozkir_v2.png": [
   1536,
