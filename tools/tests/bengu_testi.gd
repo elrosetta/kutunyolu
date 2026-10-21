@@ -207,6 +207,12 @@ func _tip(ad: String) -> Vector2:
 
 
 func _run() -> void:
+	if OS.get_cmdline_user_args().has("--bengu_sayfa") and out_dir != "":
+		# v39: hareket / saldırı kare dizileri + tam ekran çekimler (tools/tests/bengu39_cekim.gd)
+		var c: Node = load("res://tools/tests/bengu39_cekim.gd").new()
+		add_child(c)
+		c.run_all(main, out_dir)
+		return
 	await get_tree().create_timer(0.6).timeout
 	lv = main.level
 	pl = lv.player

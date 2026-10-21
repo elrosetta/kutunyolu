@@ -6626,3 +6626,103 @@ parçaları aynı), `Blood.splat` lekeleri. `--vahset` ölüm başına zerre, Y�
 Testler: `--perf`, `--gpu_perf` (Orta / Yüksek), `--dovus --boss --kontrol`, `--sanat --boss --muhur=0`, `--harita`,
 `--isinlan`, `--konak`, `--tuccar --muhur=0`, `--otomatik --derinlik=1/3 --muhur=0`, `--vahset` (ayrıca `--grafik=0/2`),
 `--zeka --muhur=0`, `--piksel_tara`, `--yurt --yurt-tur`: betik hatası 0 (RootSpikes düzeltmesinden sonra).
+
+## v39: Bengü yeniden çizim
+
+Geri bildirim: "Bengü'yü çizim olarak kusursuz yapalım — kukla gibi duruyor; çizimi dünyaya daha çok uymalı."
+
+### Teşhis (oyun içi 1920x1080, Ötüken + Şahmeran; `docs/v39/bengu/`)
+Önce çekilen kontak sayfalarında (durgun, koşu, sıçrama, yuvarlanma, darbe, Kahraman İnişi, kılıç / ağır / mızrak /
+gürz kombosu, yay) ve yaratıkların yanında Bengü'nün neden kukla gibi okunduğu:
+1. **Oran:** baş + kurt başlığı boyun ~1/4,5'i, gövde (17 birim) bacağa (25,6, hep bükük) göre uzun, bol şalvar ve iri
+   çizmeler bacağı kısaltıyor; ~5 baş boyunda "oyuncak asker" silüeti. Kaftan eteği + kemer + sırma şerit üç yatay bant:
+   gövde kutu gibi.
+2. **Renk / ışık:** saf kırmızı kaftan, bembeyaz post, parlak çivit; sisli yeşil Ötüken'de ve mağara karanlığında dünyadan
+   kopuk, yapıştırılmış gibi. Yaratıklar soğuk ay kenar ışığı (rim 0,55-0,75) ve koyu kütle gölgesiyle çiziliyor; Bengü'de
+   kenar ışığı yoktu (rim 0), kütle gölgesi açık, dış kontur ince: çizgi dili düşmanlarla aynı değildi.
+3. **Kaskatı ikincil öğeler:** kuşak kuyrukları sprite'a çizili, gövdeyle birlikte tahta gibi dönüyordu; arka etek kısa ve
+   kutu; yalnızca saç fizikliydi.
+4. **Zamanlama:** durgun nefesi 8 kare / 8 fps = 1 sn (soluk soluğa); koşu basışında ayak anahtarlar arasında yumuşatıldığı
+   için her anahtarda duruyor, kare hızı yatay hızdan bağımsız (hızlanırken / dururken ayak kayıyor); sıçrama / düşüş 3'er
+   kare zamanla oynuyor (tepe kaçıyor, uzun düşüşte son karede donuyor); iniş 2 kare.
+5. **Lastik ezilme:** inişte çizilmiş ezilme karesinin üstüne katman 1,4 / 0,6 ölçek ekliyordu: gövde yere yapışık bir
+   halı gibi yassılıyordu (kukla hissinin en göze batanı). Kahraman İnişi kendi pozu olmadan çömelik saldırı karesini
+   ödünç alıyordu.
+6. **Kol:** durgunda ön kol bel hizasında öne uzatılmış iri eldivenli yumruk (menteşe gibi); yumruk kafa kadar iri.
+
+### Ne değişti
+**Çizim (`tools/artgen/bengu_ink.py`, `bengu_govde.py`)**
+* **Kahraman oranı:** bacaklar x1,10 (`bengu_govde.KL`; pozların dikey ölçüleri — kalça yüksekliği, ayak kalkıklığı —
+  KL ile çarpılır, ayak x'leri aynı), gövde aynı oranda kısa (`TORSO_N` 17 -> 14,7; dinlenmede boyun / omuz yüksekliği
+  v29 ile aynı: kol iskeleti, silah tutuşu, vuruş kutuları değişmez). Baş + başlık x0,9 (`HEAD_K` 1,05 -> 0,9), bel /
+  gövde yanal x0,93, şalvar ve çizme ~%13 ince, kol 0,84, yumruk %18 küçük. Sonuç ~6,5 baş: uzun bacaklı, çevik silüet.
+* **Akan silüet:** arka etek yırtmaçlı iki uzun kuyruk (baldıra iner, `sk` ile geriye savrulur, koşu / sıçrayışta
+  kalkar); ön etek önü açık, eğik uçlu (yatay bant kırıldı), sırma şerit ince.
+* **Palet:** kızıl kaftan `#b3343c` (eski `#d23138`), ak post kemik beyazı `#e2e0da`, çivit `#3e4a76`, çelik ve altın bir
+  ton koyu; gölgeler soğuk mor-laciverde kayar. En okunur öğe yine Bengü (ak başlık + kızıl + turkuaz Kut).
+* **Mürekkep-cel dili düşmanlarla aynı:** `SHADE` dış kontur 0,5 -> 0,62, soğuk ay kenar ışığı (rim 0,8, gölge yanında:
+  koyu zeminde silüeti ayırır), daha koyu kütle gölgesi (üçüncü cel bandı). Kemer tokasında sıcak Kut közü (ışıma
+  katmanı; gözler camgöbeği).
+
+**Kareler (`bengu_ink.MOVE_LAYOUT`; `export_ink.export_bengu` satır düzenini bununla ezer)**
+| Satır | v29 | v39 |
+|---|---|---|
+| durgun | 8 kare / 8 fps (1 sn) | 10 / 4 fps (2,5 sn nefes); ön el bel önünde kabzaya yakın (öne uzatılmış yumruk yok) |
+| koşu | 8 / 14 | 10 / 18: basış koşu hızıyla eşli (döngüde 86 birim, basışta ayak 29,3 birim DOĞRUSAL geriye), kollar / omuz bacaklardan bir tık geride, baş sabit, inişte hafif ezilme |
+| depar | 8 / 18 | 10 / 22 (240 birim/sn ile eşli) |
+| sıçrama / düşüş | 3 + 3 zamanla | 4 + 4, oyunda dikey hıza göre seçilir; düşüşte T-pozu yerine dengeli kollar |
+| iniş | 2 | 3 (ezilme -> geri esneme -> oturma) |
+| `hero_dive` | (yuvarlanma / düşüş ödünç) | 2: havada toplanma, çakılış (silah iskelette) |
+| `hero_land` | (çömelik saldırı ödünç) | 4: üç nokta iniş (ön ayak düz, arka diz yerde, gövde öne, arka kol açık) -> tutuş -> doğrulma -> kalkış |
+Saldırı satırları (v28 / v29 aile gövdeleri, 10 kare) aynı anahtarlarla yeni çizimle yeniden üretildi; `Player.SWINGS`,
+`COMBOS`, `TEMPO`, `FLOW`, evre eşlemesi, vuruş kutuları DEĞİŞMEDİ.
+
+**Oyun (`scripts/actors/Player.gd`)**
+* Koşu / depar kare hızı gerçek yatay hızla ölçeklenir (`anim.speed` = |vx| / koşu hızı, 0,45-1,35): ayak yerde kaymaz.
+* Sıçrama / düşüş karesi `velocity.y`'ye göre; Kahraman İnişi `hero_dive` / `hero_land` karelerini kullanır.
+* Lastik ezilme kısıldı: inişte 1,4 / 0,6 -> ~1,14 / 0,86, Kahraman İnişi çarpması 1,42 / 0,62 -> 1,16 / 0,86, dalış
+  esnemesi 0,82 / 1,24 -> 0,88 / 1,16 (ezilme artık çizimde).
+
+**İkincil hareket (`scripts/core/BenguKusak.gd`, yeni)**
+Kuşak kuyrukları Verlet zinciri (9 + 7 nokta, 1/120 sn alt adım, yerçekimi 760, hava sürtünmesi, hızla büyüyen çırpınma,
+bakışın tersine hafif esinti; kök = karenin `kusak` çapası, ilk parça düğümden aşağı-geri yaya çekilir, gövdenin önüne
+geçmez, yere girmez). Gövde malzemesini (ink_char) paylaşır: vuruş parlaması / ay gölgesi / sahne ışığı aynı. İki cel
+bandı + ışık yanı parlama + mürekkep kontur + kızıl püskül ve altın halka. Koşuda geriye akar, sıçrayışta sarkar,
+savuruşta gövde döndükçe gecikmeyle savrulur. (`bengu_ink.KUSAK_SPRITE = True` eski çizili kuyrukları verir.)
+Saç (BenguSac) aynen; yeni çapalarla çalışır.
+
+### Varlıklar ve hat
+`cd tools/artgen; python export_ink.py --bengu` (~1 dk 45 sn, paralel) + `KY_HD=2 python export_ink.py --bengu` +
+`python hd_paket.py --paketle`: `bengu_v2` 47 satır / 4 sayfa (3840 genişlik), `bengu_kol_v2`, HD x2 WebP + manifest
+md5'leri. Karelere yeni `kusak` çapası yazılır.
+Önizleme: `python preview_ink.py out.png idle:0 run:3 hero_land:0` (sprite karesi).
+Oyun içi çekim + kontak sayfası (önce / sonra):
+`godot --path . --resolution 1920x1080 --fixed-fps 60 -- --bengu=<klasör> --bengu_sayfa --boss=kara_boru_han
+--pencere=1920x1080 --grafik=2` (`tools/tests/bengu39_cekim.gd`: durgun, koşu, sıçrama, yuvarlanma, darbe, Kahraman İnişi,
+kılıç / ağır / mızrak / gürz kombosu, yay kare dizileri + tam ekran ve yaratıklarla çekim), sonra
+`python tools/artgen/bengu39_sayfa.py <klasör> out.jpg idle:0:24:3 run:0:10 ... [--karsi=<klasör2>]`.
+Not: kayıtlı ayar "Yarım" çizim çözünürlüğündeyse çekim 960x540 olur; `--grafik=2` tam çözünürlük verir.
+
+### Görseller (`docs/v39/bengu/`)
+* `hareket_once_sonra.jpg` — durgun, koşu döngüsü, sıçrama, yuvarlanma, darbe, Kahraman İnişi (her satır çifti: üst önce,
+  alt sonra).
+* `kombo_once_sonra.jpg` — kılıç kombosu, ağır, mızrak, gürz, yay.
+* `oyun_otuken_once.jpg` / `oyun_otuken_sonra.jpg`, `oyun_sahmeran_once.jpg` / `oyun_sahmeran_sonra.jpg` — tam ekran
+  saldırı ortası; `oyun_*_kosu_*.jpg` koşu; `hareket_sahmeran_once_sonra.jpg` karanlık biyomda durgun / koşu / kılıç /
+  Kahraman İnişi.
+* `yaratiklarla_once_sonra.jpg` — Bengü yaratıkların yanında (Ötüken: Balbal, Ağaç İyesi; Şahmeran: Yılan Muhafız,
+  Su İyesi), üst önce, alt sonra.
+
+### Test
+Betik hatası 0 (SCRIPT ERROR yok): `--dovus --boss --kontrol` TAKILMA=0, KONTROL basış=272 savuruş=136 basılmamış=0
+oto_dönüş=0 oto_hamle=0 istenmeyen_ağır=0; `--savurus`; `--mekanik --zipla --boss` OZET hata=0; `--sanat --boss
+--muhur=0` SONUC GECTI hata=0; `--otomatik --derinlik=1 --muhur=0 --fixed-fps 60 --quit-after 9000`; `--piksel_tara`
+TOPLAM 0; `--bengu --boss` OZET hata=0 (saç kapsülü / baş çemberi yeni orana göre: 6,6-5,8 -> 6,1-5,4, 7,2 -> 6,4;
+yoksa duruşta saç öne salınmıyordu).
+
+### Bilinen
+* Ön kol hâlâ çalışma zamanı iskeleti (omuz / dirsek / bilek; v3-v7) — silah elde kalsın, vuruş kutuları sabit kalsın
+  diye. Omuzluk ekleme yerini örtüyor, kol inceldi ve yumruk küçüldü; tam gövde saldırı kareleri + silah yolu (eklemsiz
+  kol) ayrı bir iş.
+* Yuvarlanma pozu (v20) yeni oranlarla yeniden üretildi ama yeniden kurgulanmadı.
+* Hayalet izi / darbe karesi kopyalarında kuşak kuyrukları yok (saç var).

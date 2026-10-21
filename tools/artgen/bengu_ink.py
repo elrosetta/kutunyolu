@@ -15,44 +15,50 @@ from inkkit import Ink, INK
 import bengu_v2 as v2
 from bengu import P, keyed
 from rig import fk_leg, fk_arm, lerp2, chain
+import bengu_govde as _gvp      # v39 oranları (KL, TORSO_N)
 
 TEX = 4.0
 CELL = (384, 320)        # dünya 96 x 80 (texel 4)
 FEET = (176, 296)        # dünya (44, 74)
-L_THIGH, L_SHIN = 13.0, 12.6      # v2: 12 + 11.8; ninja oranı için uzun bacak (kalça yerden çözülür)
+L_THIGH, L_SHIN = _gvp.L_THIGH, _gvp.L_SHIN   # v39: 13 + 12,6 -> x1,1 (kahraman oranı; kalça yerden çözülür)
 L_UP, L_FORE = v2.L_UP, v2.L_FORE
 HIP_Y = v2.HIP_Y
-TORSO = v2.TORSO
-HEAD_K = 1.05           # baş ölçeği (insan başı + başlık; ~7 baş boy, oyun yakınlığında yüz okunsun)
+TORSO = _gvp.TORSO_N    # v39: 17 -> ~14,7 (bacak uzadığı kadar kısa: dinlenmede boyun / omuz aynı yükseklikte)
+AXK = TORSO / v2.TORSO   # gövde çizimi (T koordinatları 17 birimlik eksen için yazıldı) bu oranla kısalır
+HEAD_K = 0.9            # v39: 1,05 -> 0,9 (iri başlık kuklayı andırıyordu; ~6,5-7 baş boy)
+WAIST_K = 0.93          # v39: gövde / yelek / etek yanal ölçeği (ince bel, atletik)
 
 # ------------------------------------------------------------ malzemeler
-KAFTAN = Ink('#d23138', '#6c1838', '#ff6a50', '#3a0f2a', name='kırmızı kaftan')
-KAFTAN_B = Ink('#93202f', '#4a122e', '#b83a3a', '#2a0b20', name='kaftan arka/astar')
-LINING = Ink('#4a1630', '#2a0d22', '#6a2440', name='astar')
-EMBR = Ink('#e2ac4a', '#8e4f24', '#fff0b4', kind='metal', name='altın sırma')
-PANTS = Ink('#5266a2', '#262e58', '#7a90c8', '#161a34', name='çivit şalvar')
+# v39: dünya paletine yakın, biraz az doygun (Ötüken sisi / mağara karanlığında oyuncak gibi parlamasın); gölgeler
+# soğuk mor-laciverde kayar (ay ışığı ortamı), en okunur öğe yine kahraman: koyu kızıl kaftan + ak başlık + turkuaz Kut.
+KAFTAN = Ink('#b3343c', '#561c36', '#e46a54', '#2c0e24', name='kızıl kaftan')
+KAFTAN_B = Ink('#7c2232', '#3c1230', '#9a3a40', '#220a1e', name='kaftan arka/astar')
+LINING = Ink('#40162e', '#240c20', '#5c2238', name='astar')
+EMBR = Ink('#cf9e4a', '#7a4826', '#f4dca0', kind='metal', name='altın sırma')
+PANTS = Ink('#3e4a76', '#1c2140', '#5e6e9e', '#11142a', name='çivit şalvar')
 PANTS_B = PANTS.darker(0.72)
-BOOT = Ink('#96553a', '#40201c', '#cc8a5c', name='çizme')
+BOOT = Ink('#7a4838', '#33191a', '#a87458', name='çizme')
 BOOT_B = BOOT.darker(0.72)
-SOLE = Ink('#2a2024', '#17121a', '#4a3a3a', name='taban')
-STEEL = Ink('#aeb8ca', '#535c78', '#f4f8ff', '#3a4058', kind='metal', name='çelik')
+SOLE = Ink('#241c22', '#141018', '#40343a', name='taban')
+STEEL = Ink('#8a93a8', '#40465e', '#e2e8f4', '#2a3048', kind='metal', name='çelik')
 STEEL_B = STEEL.darker(0.7)
-BELT = Ink('#6e3e26', '#2c1612', '#a06a44', name='kemer')
-GOLD = Ink('#eab64e', '#94561e', '#fff4c0', kind='metal', name='altın')
-BRACER = Ink('#76432c', '#30180f', '#a8704a', name='bilek siperi')
-GLOVE = Ink('#5a3e34', '#24161a', '#8e6a5a', name='eldiven')
-SCARF = Ink('#27c2b0', '#0e5a68', '#9ff6e2', '#0a3a48', name='turkuaz atkı')
+BELT = Ink('#5e3624', '#26130f', '#8a5c3c', name='kemer')
+GOLD = Ink('#d6a64c', '#86501e', '#fbe8b0', kind='metal', name='altın')
+BRACER = Ink('#66392a', '#2a150e', '#946244', name='bilek siperi')
+GLOVE = Ink('#4a3430', '#1e1216', '#765a50', name='eldiven')
+SCARF = Ink('#22ad9f', '#0c4e5e', '#8eeedc', '#08323e', name='turkuaz atkı')
 SCARF_B = SCARF.darker(0.78)
-FUR = Ink('#f1f3f7', '#8e98ba', '#ffffff', '#5f6a8c', kind='fur', name='ak post')
-FUR_B = Ink('#c4cadb', '#7d87a6', '#e6eaf2', '#4f5878', kind='fur', name='uzak post')
-EAR_IN = Ink('#a0606c', '#5e3044', '#c88890', name='kulak içi')
+FUR = Ink('#e2e0da', '#7c84a2', '#fbfaf4', '#535c7e', kind='fur', name='ak post')
+FUR_B = Ink('#b5b8c6', '#6c7494', '#d8dbe4', '#454d6c', kind='fur', name='uzak post')
+EAR_IN = Ink('#8e5662', '#52283c', '#b47c84', name='kulak içi')
 NOSE = Ink('#26232c', '#141218', '#6a6a7a', name='burun')
-PAINT = (0.86, 0.12, 0.16)
+PAINT = (0.78, 0.13, 0.16)
 EYE = (0.55, 0.98, 1.0)
 EYE_GLOW = (0.35, 0.95, 1.0)
-SKIN = Ink('#e9b48e', '#a65d58', '#ffdcb8', '#6a3040', name='ten')
+KOR = (1.0, 0.62, 0.26)        # v39 sıcak Kut közü (toka taşı, kuşak düğümü boncuğu): ışıma katmanında
+SKIN = Ink('#dca886', '#985654', '#f6d2b0', '#5e2a3a', name='ten')
 HAIR = Ink('#2e2636', '#16121d', '#6e74a0', '#0c0a12', name='kuzgun saç')     # BenguSac.gd ile aynı renkler
-PELT = Ink('#b9c0d2', '#6b7394', '#e9edf5', '#4a5274', kind='fur', name='kurt postu (sırt)')
+PELT = Ink('#a8aec0', '#5e6688', '#dadfe8', '#40486a', kind='fur', name='kurt postu (sırt)')
 TOOTH = Ink('#f2efe4', '#a8a6b0', '#ffffff', name='kurt dişi')
 
 
@@ -88,7 +94,7 @@ def fur_ring(c, rx, ry, rot, a0, a1, n, depth, tuft_from=0.0, tuft_to=1.0, phase
     return pts
 
 
-AW = 0.88       # kol kalınlığı (kadın savaşçı: atletik ama daha ince kol, bilek ve yumruk; kemik boyları aynı)
+AW = 0.84       # kol kalınlığı (kadın savaşçı: atletik ama daha ince kol, bilek ve yumruk; kemik boyları aynı)
 AWP = 0.86      # omuzluk
 
 
@@ -116,7 +122,7 @@ def _leg(cv, hip, a, z, near, kz=None, pitch=0.0):
     n, d = _perp(hip, k)
     # bol şalvar: kalçada geniş, uyluk ortasında şişkin, dizde toplanır, çizme üstünde yeniden bollanır
     mid_b = (mid[0] + n[0] * -0.5, mid[1] + n[1] * -0.5)
-    pants = cv.limb([hip, mid_b, k, lerp2(k, f, 0.2), bt], [4.2, 4.5, 3.5, 3.4, 3.9])
+    pants = cv.limb([hip, mid_b, k, lerp2(k, f, 0.2), bt], [3.8, 3.9, 2.95, 2.85, 3.35])   # v39: daha ince bacak
     fold = []
     # uyluk: kalçadan dize inen çapraz kıvrımlar (gölge kaması + mürekkep)
     for t0, t1, o0, o1, sd_ in ((0.12, 0.6, -2.8, 0.2, 1), (0.38, 0.9, -3.2, -0.8, 1), (0.5, 0.95, 2.8, 1.0, -1)):
@@ -127,9 +133,9 @@ def _leg(cv, hip, a, z, near, kz=None, pitch=0.0):
         fold += cv.fold([along(k, f, t - 0.07, o - 1.1), along(k, f, t, o), along(k, f, t + 0.03, o + 1.3)], 0.6, 1.3, sd_)
     cv.shape(pants, pm, z=z, details=fold, sd=2.3 if near else 3.0, hi=0.0, hatch=0.55 if near else 0.0, bounce=0.3 if near else 0.0)
     # çizme: konç + ayak tek parça
-    toe = (f[0] + 4.9, f[1] + 0.4)
+    toe = (f[0] + 4.5, f[1] + 0.4)
     heel = (f[0] - 2.2, f[1] + 1.2)
-    boot = ik.union(cv.limb([bt, lerp2(bt, f, 0.6), f], [3.4, 2.8, 2.6]),
+    boot = ik.union(cv.limb([bt, lerp2(bt, f, 0.6), f], [3.0, 2.45, 2.3]),
                     cv.blob([R(q) for q in ((f[0] - 2.3, f[1] - 1.0), (f[0] + 1.2, f[1] - 1.6), (f[0] + 3.6, f[1] - 0.4),
                                             (toe[0], toe[1] - 0.5), (toe[0] + 0.3, toe[1] + 0.9, 0.0),
                                             (heel[0] + 0.2, heel[1] + 0.7, 0.0), (heel[0] - 0.3, f[1] - 0.2))]))
@@ -203,6 +209,14 @@ def _fore(cv, e, h, z, near=True):
 def _fist(cv, e, h, z, near=True):
     """Eldivenli yumruk: köşeli-yuvarlak kütle, sarılı başparmak, parmak araları ve boğum parlaması."""
     gm = GLOVE if near else GLOVE.darker(0.8)
+    # v39: yumruk %18 küçük (iri eldiven kukla eli gibi okunuyordu): bilek merkezli ölçek
+    fk_ = 0.82
+    cv.push(lambda q, c0=h: (c0[0] + (q[0] - c0[0]) * fk_, c0[1] + (q[1] - c0[1]) * fk_))
+    _fist_body(cv, e, h, z, near, gm)
+    cv.pop()
+
+
+def _fist_body(cv, e, h, z, near, gm):
     fist = cv.blob([_al(e, h, 0.86, -2.1), _al(e, h, 0.86, 2.0), _al(e, h, 0.97, 2.75), _al(e, h, 1.1, 2.7),
                     _al(e, h, 1.2, 2.2, ), _al(e, h, 1.25, 0.6), _al(e, h, 1.24, -1.4), _al(e, h, 1.14, -2.4),
                     _al(e, h, 0.98, -2.5)])
@@ -416,6 +430,9 @@ def _head(cv, head, neck, p, z):
         cv.shape(cv.blob([H(fx_ + 0.34, fy_), H(fx_ - 0.32, fy_), H(fx_ + 0.02, fy_ + ln, 0.0)]), TOOTH, z=z + 1.5, sd=0.3, ol=0.6, hi=0.0)
 
 
+KUSAK_SPRITE = False
+
+
 def draw(cv, p, front_arm=True, back_arm=True):
     bob, lean = p['bob'], p['lean']
     sk, pk, bp = p.get('sk', 0.0), p.get('pk', 0.0), p.get('bp', 0.0)
@@ -431,13 +448,17 @@ def draw(cv, p, front_arm=True, back_arm=True):
     head = (neck[0] + 1.6 + math.sin(lean) * 1.6 + p.get('hdx', 0.0), neck[1] - 4.6 + p.get('hdy', 0.0))
     out = {'sh_f': sh_f}
     nx_, ny_ = neck
-    ts_ = tl / (TORSO + br * 0.3) if curl else 1.0
+    ts_ = (tl / (TORSO + br * 0.3) if curl else 1.0) * AXK
     ax = (math.sin(lean) * ts_, -math.cos(lean) * ts_)
-    pe = (math.cos(lean), math.sin(lean))
+    pe = (math.cos(lean) * WAIST_K, math.sin(lean) * WAIST_K)
     T = _T(hip, ax, pe)
 
-    # ---- turkuaz kuşağın iki kuyruğu (belin arkasından sarkar; en arkada). Uzun saç ve post oyunda (BenguSac.gd).
-    _scarf_tails(cv, T(4.6, -5.2), pk, bp, -14, k=0.62)
+    # ---- turkuaz kuşağın iki kuyruğu: v39'dan beri oyunda Verlet zinciri (scripts/core/BenguKusak.gd; hıza, savuruşa
+    # ve inişe gecikmeyle tepki verir). Sprite'a yalnızca düğüm çizilir; 'kusak' çapası = düğüm noktası. (KUSAK_SPRITE
+    # True: eski çizili kuyruklar, önizleme / karşılaştırma)
+    out['kusak'] = _xf(cv, T(4.6, -5.2))
+    if KUSAK_SPRITE:
+        _scarf_tails(cv, T(4.6, -5.2), pk, bp, -14, k=0.62)
 
     # ---- arka kol
     e, h = fk_arm(sh_b, p['ab'][0], p['ab'][1], L_UP, L_FORE)
@@ -451,10 +472,20 @@ def draw(cv, p, front_arm=True, back_arm=True):
     # ---- kaftan arka eteği (astar)
     bot = hip[1] + 7.8     # uyluk ortası: bol şalvar görünür (Shinobi siluetine yakın)
     flap = sk * 2.4
-    back_sk = cv.blob([(hip[0] - 5.8, hip[1] - 1.0), (hip[0] - 0.5, hip[1] - 1.0), (hip[0] - 1.6 + flap * 0.6, bot + 0.4, 0.0),
-                       (hip[0] - 5.0 + flap * 1.1, bot + 0.1), (hip[0] - 9.2 + flap * 1.6, bot - 0.9, 0.0)])
+    # v39: arka etek uzun, yırtmaçlı iki kuyruk (baldıra iner): koşuda / sıçrayışta geriye savrulur, silüete akış katar
+    blow = max(0.0, -sk)
+    lift_ = max(0.0, sk - 0.6)
+    tip1 = (hip[0] - 4.2 + flap * 2.0 - blow * 2.4, hip[1] + 15.5 - blow * 3.4 - lift_ * 3.0)
+    tip2 = (hip[0] - 8.6 + flap * 2.4 - blow * 3.4, hip[1] + 13.0 - blow * 4.2 - lift_ * 3.4)
+    back_sk = cv.blob([(hip[0] - 5.8, hip[1] - 1.0), (hip[0] - 0.5, hip[1] - 1.0), (hip[0] - 1.2 + flap * 0.5, bot + 0.4),
+                       (tip1[0] + 0.6, tip1[1] - 0.4), (tip1[0], tip1[1], 0.0), (tip1[0] - 1.0, tip1[1] - 2.6),
+                       (tip2[0] + 0.4, tip2[1] - 0.2), (tip2[0], tip2[1], 0.0),
+                       (hip[0] - 9.0 + flap * 1.5 - blow * 1.2, bot - 1.6 - blow * 0.6, 0.0)])
     cv.shape(back_sk, KAFTAN_B, z=-11, sd=2.4,
-             details=[('ink', [(hip[0] - 3.0, hip[1] + 1.0), (hip[0] - 3.8 + flap, bot - 0.5)], 1.3)])
+             details=[('ink', [(hip[0] - 3.0, hip[1] + 1.0), lerp2((hip[0] - 3.4, hip[1] + 4.0), tip1, 0.5), (tip1[0] - 0.9, tip1[1] - 2.4)], 1.2, (0.2, 0.6)),
+                      ('ink', [(hip[0] - 5.0, hip[1] + 2.0), lerp2((hip[0] - 6.0, hip[1] + 4.0), tip2, 0.6)], 1.0, (0.3, 0.6))])
+    # sırma şerit kuyruk uçlarında
+    cv.stroke([(tip1[0] - 0.7, tip1[1] - 1.6), (tip1[0] + 0.3, tip1[1] - 0.6)], 1.0, z=-10.9, col=EMBR.shadow, taper=(0.2, 0.2))
 
     # ---- arka bacak
     _leg(cv, hip, p['lb'], -10, False, pitch=p.get('fpb', 0.0))
@@ -499,7 +530,7 @@ def draw(cv, p, front_arm=True, back_arm=True):
         kf = (hip[0] + 4.0, hip[1] + 9.0)
     kb, _ = fk_leg(hip, p['lb'][0], p['lb'][1], L_THIGH, L_SHIN)
     # dizler kalçaya yaklaşınca (sıçrama, yuvarlanma) etek kutulaşmasın: uç en az kalçanın 5 birim altında
-    F = (min(hip[0] + 11.0, max(hip[0] + 5.6, kf[0] + 2.6)) + sk * 1.6, max(hip[1] + 5.0, min(bot, kf[1] + 1.6)))
+    F = (min(hip[0] + 11.0, max(hip[0] + 5.6, kf[0] + 2.6)) + sk * 1.6, max(hip[1] + 4.2, min(bot - 2.4, kf[1] - 0.6)))   # v39: önü açık, eğik etek ucu
     B = (max(hip[0] - 11.0, min(hip[0] - 6.4, kb[0] - 2.4)) + sk * 2.8, max(hip[1] + 4.6, min(bot, kb[1] + 1.8) - 0.6))
     wav = [(F[0], F[1], 0.0)]
     for j, t in enumerate((0.2, 0.4, 0.6, 0.8)):
@@ -519,7 +550,7 @@ def draw(cv, p, front_arm=True, back_arm=True):
     cv.shape(skirt, KAFTAN, z=2.0, sd=3.2, shadows=sh_paths, details=sdet, hatch=0.45, deep=0.3, bounce=0.3)
     # altın sırma: etek ucuna paralel bant (eteğe kırpılır)
     hem_pts = [(x, y) for (x, y, *_) in wav]
-    strip = ik.union(*[cv.capsule((x, y - 1.25), (x2, y2 - 1.25), 1.3, 1.3) for (x, y), (x2, y2) in zip(hem_pts, hem_pts[1:])])
+    strip = ik.union(*[cv.capsule((x, y - 1.0), (x2, y2 - 1.0), 0.95, 0.95) for (x, y), (x2, y2) in zip(hem_pts, hem_pts[1:])])
     hem_strip = ik.isect(skirt, strip)
     cv.shape(hem_strip, EMBR, z=2.2, sd=0.8, hi=0.25, ol=0.6,
              details=[('ink', [(x, y - 1.25) for (x, y) in hem_pts], 0.9, (0.0, 0.0))])
@@ -532,6 +563,7 @@ def draw(cv, p, front_arm=True, back_arm=True):
         cv.shape(cv.ellipse(q, 0.95, 1.1, lean), GOLD, z=7.4, sd=0.7, hi=0.35, ol=0.8)
     buck = T(1.0, 5.4)
     cv.shape(cv.ellipse(buck, 1.5, 1.7, lean), GOLD, z=8.2, sd=0.8, hi=0.4, ol=0.9)
+    cv.fill(cv.ellipse(buck, 0.62, 0.72, lean), KOR, z=8.3, glow=(1.0, 0.5, 0.18))   # v39 sıcak Kut közü
     for dv, ln in ((2.8, 6.0), (4.4, 4.6)):
         a = T(0.6, dv)
         b = (a[0] + sk * 0.8 + 0.4, a[1] + ln)
@@ -596,7 +628,7 @@ def draw(cv, p, front_arm=True, back_arm=True):
     # çalışma zamanı saç çapaları (BenguSac.gd): 'sac' = saçın başlığın arka kenarından çıktığı ense noktası, 'sac_d' =
     # kökün ilk doğrultusu (ekran açısı, aşağı-geri), 'neck' / 'hip' = sırt çizgisi (saç gövdenin içine girmesin).
     # Tuval dönüşümü (yuvarlanma) uygulanmış hâlleri: saç topla birlikte döner.
-    sac = (head[0] - 3.3, head[1] + 2.2)
+    sac = (head[0] - 3.3 * hs / 1.05, head[1] + 2.2 * hs / 1.05)
     s0 = _xf(cv, sac)
     s1 = _xf(cv, (sac[0] - 0.5, sac[1] + 0.87))
     out['sac'] = s0
@@ -783,12 +815,27 @@ import bengu_govde as _gv      # noqa: E402
 
 ANIMS_V27 = {_an: ANIMS[_an] for _an in _gv.V28 if _an in ANIMS}   # karşılaştırma (govde_onizleme.py --eski)
 # v29 hareket gövdeleri (ayak hedefli IK; ön kol sprite'ta): kare sayıları / fps aynı
-ANIMS['idle'] = (8, _gv.idle, True, True)
-ANIMS['run'] = (8, _gv.run, True, True)
-ANIMS['sprint'] = (8, _gv.sprint, True, True)
-ANIMS['jump'] = (3, _gv.JUMP, False, True)
-ANIMS['fall'] = (3, _gv.FALL, False, True)
-ANIMS['land'] = (2, _gv.land, False, True)
+# v39: daha çok ara kare (durgun nefesi 2,5 sn; koşu / depar 10 kare, basış koşu hızıyla eşli; sıçrama / düşüş 4 kare,
+# oyunda dikey hıza göre seçilir; iniş 3 kare) + gerçek Kahraman İnişi satırları
+ANIMS['idle'] = (10, _gv.idle, True, True)
+ANIMS['run'] = (_gv.GAIT_N, _gv.run, True, True)
+ANIMS['sprint'] = (_gv.GAIT_N, _gv.sprint, True, True)
+ANIMS['jump'] = (4, _gv.JUMP, False, True)
+ANIMS['fall'] = (4, _gv.FALL, False, True)
+ANIMS['land'] = (3, _gv.land, False, True)
+ANIMS['hero_dive'] = (2, _gv.hero_dive, False, True)
+ANIMS['hero_land'] = (4, _gv.hero_land, False, False)
+# export_ink.export_bengu satır düzenini bu tabloyla ezer (kare sayısı / fps / döngü / kol); yeni satırlar sona eklenir
+MOVE_LAYOUT = {
+    'idle': {'frames': 10, 'fps': 4, 'loop': True, 'arm': True},
+    'run': {'frames': _gv.GAIT_N, 'fps': _gv.RUN_FPS, 'loop': True, 'arm': True},
+    'sprint': {'frames': _gv.GAIT_N, 'fps': _gv.SPRINT_FPS, 'loop': True, 'arm': True},
+    'jump': {'frames': 4, 'fps': 10, 'loop': False, 'arm': True},
+    'fall': {'frames': 4, 'fps': 10, 'loop': False, 'arm': True},
+    'land': {'frames': 3, 'fps': 16, 'loop': False, 'arm': True},
+    'hero_dive': {'frames': 2, 'fps': 10, 'loop': False, 'arm': True},
+    'hero_land': {'frames': 4, 'fps': 8, 'loop': False, 'arm': False},
+}
 ANIMS['hurt'] = (3, _gv.hurt, False, True)
 ANIMS['crouch'] = (2, _gv.crouch, True, True)
 RT = {}         # ad -> karelerin çizim tau'ları (eşit aralıklı değilse)
@@ -796,7 +843,9 @@ for _an, _a in _gv.V28.items():
     ANIMS[_an] = (len(_a.frames), _a, False, False)
     RT[_an] = [fr[1] for fr in _a.frames]
 
-SHADE = dict(outer=0.5, rim=0.0, form=(6.0, (0.8, 0.78, 0.9)))
+# v39: düşmanlarla aynı mürekkep-cel dili: biraz daha kalın dış kontur, soğuk ay kenar ışığı (gölge yanında: koyu zeminde
+# silüeti ayırır), daha koyu kütle gölgesi (üçüncü cel bandı: taban / gölge / kütle gölgesi)
+SHADE = dict(outer=0.62, rim=0.8, rim_col=(0.66, 0.84, 1.0), rim_dir=(0.6, -0.8), rim_w=1.5, form=(6.5, (0.74, 0.72, 0.87)))
 
 
 def draw_turn(cv, p, front_arm=True, back_arm=True):
@@ -847,6 +896,6 @@ def render_frame(anim, i, cell=CELL, feet=FEET, ss=3):
         info = draw(cv, p, True)
         cv.pop()
     else:
-        info = draw_turn(cv, p, arm, arm)
+        info = draw_turn(cv, p, arm and not p.get('no_front', False), arm)
     rgba, nm, em = cv.finish(**SHADE)
     return rgba, nm, em, info

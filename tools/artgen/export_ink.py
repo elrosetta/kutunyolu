@@ -105,7 +105,7 @@ def _page_name(name, k):
 
 def _frame_meta(info):
     fr = {}
-    for k in ('hand_f', 'hand_b', 'mouth', 'hand', 'head', 'sh_f', 'sh_b', 'sac', 'neck', 'hip'):
+    for k in ('hand_f', 'hand_b', 'mouth', 'hand', 'head', 'sh_f', 'sh_b', 'sac', 'neck', 'hip', 'kusak'):
         if info and k in info:
             fr[k] = [round(info[k][0], 2), round(info[k][1], 2)]
     for k in ('arm', 'arm_b'):
@@ -232,6 +232,7 @@ def export_bengu(only=()):
     # v28 gerçek gövde animasyonları: saldırı satırları yeni kare sayısıyla, aile çeşitleri sona eklenir; her satıra gövde
     # zamanlaması ("ts" karelerin başlangıç anı, "mk" [W, C, H] evre sınırları; Player._body_frame)
     lo, am = {}, {}
+    lo.update(b.MOVE_LAYOUT)     # v39 hareket satırları (ara kareler, Kahraman İnişi)
     for an, a in g.V28.items():
         lo[an] = {'frames': len(a.frames), 'fps': a.fps, 'loop': False, 'arm': False}
         am[an] = {'ts': [round(fr[0], 4) for fr in a.frames], 'mk': list(a.marks), 'v28': True}

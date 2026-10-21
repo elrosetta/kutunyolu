@@ -965,6 +965,7 @@ var _trail_prev: Array = []
 # kol iskeleti
 var arm_root: Node2D
 var sac: BenguSac  # v20: Bengü'nün uzun saçı (scripts/core/BenguSac.gd)
+var kusak: BenguKusak  # v39: kuşak kuyrukları (Verlet; scripts/core/BenguKusak.gd)
 var arm_upper: Sprite2D
 var arm_fore: Sprite2D
 var arm_fist: Sprite2D
@@ -1213,6 +1214,7 @@ func _ready() -> void:
 		arm_fist_b = _arm_piece_in(arm_root_b, arm_tex, Rect2(cw * 5, 0, cw, ch), fpv, am)
 	# v20: uzun saç (verlet zinciri, çalışma zamanında mürekkep şeridi; yalnızca stil v2): gövdenin arkası + önü
 	sac = BenguSac.ekle(anim, self)
+	kusak = BenguKusak.ekle(anim, self)
 	anim.finished.connect(_on_anim_finished)
 	Silah27.attach(self)   # v27 yeni silahların durumu ve çizimi (scripts/core/Silah27.gd)
 	_yay_uclari_hazirla()
@@ -2300,7 +2302,9 @@ func _on_land() -> void:
 		return
 	if f > 150.0:
 		var k := clampf((f - 150.0) / 400.0, 0.0, 1.0)
-		vis_scale = Vector2(1.0 + 0.3 * k + 0.1, 1.0 - 0.3 * k - 0.1)
+		# v39: ezilme artık iniş karelerinde çizili (diz esner, gövde çöker); katman yalnızca hafif vurgu ekler
+		# (eski 1,4 / 0,6 çizimin üstüne binince gövde lastik gibi yassılıyordu)
+		vis_scale = Vector2(1.0 + 0.1 * k + 0.04, 1.0 - 0.1 * k - 0.04)
 		FX.dust(global_position, Vector2.UP, 3 + int(4 * k), 0.22 + 0.12 * k)
 		FX.anim("landing_dust", global_position, 0.0, 0.55 + 0.45 * k, Color(0.85, 0.8, 0.8, 0.8), false)
 		land_t = 0.06 + 0.08 * k
@@ -2334,12 +2338,16 @@ func _hero_tick(delta: float, dir: float) -> void:
 	if hero_t < float(HERO["antic"]):
 		# toplanma: havada bir an durur, diz karna çekilir
 		velocity = Vector2(velocity.x * 0.85, -25.0)
-		anim.show_frame("roll", 1)
+		anim.show_frame("hero_dive" if anim.has_anim("hero_dive") else "roll", 0 if anim.has_anim("hero_dive") else 1)   # v39
 	else:
 		velocity.y = minf(maxf(velocity.y, float(HERO["v"])) + float(HERO["acc"]) * delta, float(HERO["v_max"]))
 		velocity.x = move_toward(velocity.x, dir * RUN * float(HERO["steer"]), 1400.0 * delta)
-		anim.show_frame("fall", 2 if anim.frame_count("fall") > 2 else 0)
-		vis_scale = vis_scale.lerp(Vector2(0.82, 1.24), 0.35)
+		# v39: gerçek çakılış karesi (silah iskelette; silahsızken ön kol sprite'ta olan düşüş karesi)
+		if anim.has_anim("hero_dive") and not slot(mel_slot).is_empty():
+			anim.show_frame("hero_dive", 1)
+		else:
+			anim.show_frame("fall", anim.frame_count("fall") - 1)
+		vis_scale = vis_scale.lerp(Vector2(0.88, 1.16), 0.35)   # v39: 0,82 / 1,24 -> daha az lastik
 		# mürekkep izi: koyu, kısa ömürlü gövde kopyaları + seyrek damlalar
 		if Engine.get_physics_frames() % 2 == 0:
 			FX.ghost(anim.base, Color(0.16, 0.12, 0.22, 0.55), 0.2)
@@ -2373,7 +2381,7 @@ func _hero_land() -> void:
 	var k := clampf(h / 240.0, 0.35, 1.6)
 	var r := float(HERO["r"]) + float(HERO["r_k"]) * k
 	inv_t = maxf(inv_t, 0.2)
-	vis_scale = Vector2(1.42, 0.62)
+	vis_scale = Vector2(1.16, 0.86)   # v39: 1,42 / 0,62 -> çarpma çizimde (hero_land 0)
 	Game.shake(2.5 + 3.5 * k)
 	Game.kick(Vector2.DOWN, 4.0 + 3.0 * k)
 	Game.hitstop(0.04 + 0.03 * k)
@@ -2447,10 +2455,15 @@ func _land_hold(delta: float, dir: float) -> bool:
 	anim.set_facing(facing)
 	# poz: tek diz yerde (çömelik saldırı gövdesi, ön kol iskeletle yumruk toprağa); silahsızken derin iniş karesi
 	var armed := not slot(mel_slot).is_empty() and anim.frame_count("crouch_atk") > 0
-	anim.show_frame("crouch_atk" if armed else "land", 0)
 	# ilk anda en derin çöküş, sonra yavaşça doğrulur
 	var q := clampf(since / float(HERO["pose"]), 0.0, 1.0)
-	vis_scale = Vector2(1.12, 0.86).lerp(Vector2(1.04, 0.96), q * q)
+	if armed and anim.has_anim("hero_land"):
+		# v39: çizilmiş üç nokta iniş: çarpma (ilk 0,07 sn) -> tutuş -> doğrulma -> kalkış
+		var hf := 0 if since < 0.07 else (1 if q < 0.55 else (2 if q < 0.82 else 3))
+		anim.show_frame("hero_land", hf)
+	else:
+		anim.show_frame("crouch_atk" if armed else "land", 0)
+	vis_scale = Vector2(1.08, 0.92).lerp(Vector2(1.02, 0.98), q * q)   # v39: ezilme çizimde; katman hafif
 	vis_lean = float(facing) * 0.08 * (1.0 - q)
 	_update_weapon_visual()
 	_feel(delta, 0.0)
@@ -2679,7 +2692,16 @@ func _update_anim(dir: float) -> void:
 	elif crouch_hold and crouched:
 		anim.play("crouch")
 	elif not is_on_floor():
-		anim.play("jump" if velocity.y < 0 else "fall")
+		# v39: sıçrama / düşüş karesi dikey hıza göre (kalkış -> yükseliş -> tepe toplanması -> açılma -> yere uzanma);
+		# zamanla oynayan 3 kare tepeyi kaçırıyor, uzun düşüşte son karede donuyordu
+		if velocity.y < 0.0:
+			var nj := anim.frame_count("jump")
+			var kj := clampf(1.0 - (-velocity.y) / -JUMP_V, 0.0, 0.999)
+			anim.show_frame("jump", mini(nj - 1, int(kj * nj)) if nj > 3 else (0 if kj < 0.5 else nj - 1))
+		else:
+			var nf := anim.frame_count("fall")
+			var kf := clampf(velocity.y / 620.0, 0.0, 0.999)
+			anim.show_frame("fall", mini(nf - 1, int(kf * nf)) if nf > 3 else (0 if kf < 0.5 else nf - 1))
 	elif land_t > 0.0:
 		anim.play("land")
 	elif sprint and absf(velocity.x) > RUN * 1.15:
@@ -2688,6 +2710,12 @@ func _update_anim(dir: float) -> void:
 		anim.play("run")
 	else:
 		anim.play("idle")
+	# v39: koşu / depar karesi gerçek yatay hızla ölçeklenir (basan ayak dünya hızıyla eşli: hızlanırken / yavaşlarken
+	# ayak kaymaz); diğer animasyonlar kendi hızında
+	if is_on_floor() and (anim.anim == "run" or anim.anim == "sprint") and not anim.manual:
+		anim.speed = clampf(absf(velocity.x) / (RUN * (1.55 if anim.anim == "sprint" else 1.0)), 0.45, 1.35)
+	else:
+		anim.speed = 1.0
 
 
 # ------------------------------------------------------------------ yakın dövüş

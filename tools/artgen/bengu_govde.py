@@ -27,8 +27,13 @@ from bengu import P
 
 FOOT_Y = -2.1
 HIP_Y = -23.6
-L_THIGH, L_SHIN = 13.0, 12.6
-REACH = L_THIGH + L_SHIN - 0.25
+# v39 oran: bacaklar KL kat uzun (dikey ölçüler — kalça yüksekliği, ayak kalkıklığı — KL ile çarpılır; ayak x'leri aynı),
+# gövde aynı oranda kısa: dinlenmede boyun / omuz yüksekliği v29 ile aynı kalır (kol iskeleti, silah, vuruş kutuları
+# değişmez), kahraman oranı (~6,5-7 baş: uzun bacak, kısa gövde, küçük baş). Pozlar eski birimlerle yazılır.
+KL = 1.10
+L_THIGH, L_SHIN = 13.0 * KL, 12.6 * KL
+REACH = (13.0 + 12.6 - 0.25) * KL
+TORSO_N = 17.0 - 23.3 * (KL - 1.0)
 TOE_LIFT = 4.6           # topuk açısı başına ayak bileğinin kalkması (parmak ucu yerde kalsın)
 
 # dinlenme duruşu (bengu_ink._idle ile uyumlu: alçak, geniş savaş duruşu)
@@ -66,11 +71,11 @@ def leg_ik(hip, foot, l1=L_THIGH, l2=L_SHIN):
 def to_p(q, t=0.0):
     """Q pozu -> bengu_ink.draw parametreleri (P). Erişilemeyen yere basan ayak için kalça iner."""
     hx = q['hx']
-    hip_y = FOOT_Y - q['hy']
+    hip_y = FOOT_Y - q['hy'] * KL
     feet = []
     for key, ox in (('f', 1.0), ('b', 0.0)):
         fx, lift, pitch = q[key]
-        fy = FOOT_Y - lift - TOE_LIFT * math.sin(max(0.0, pitch))
+        fy = FOOT_Y - lift * KL - TOE_LIFT * math.sin(max(0.0, pitch))
         dx = fx - (hx + ox)
         if abs(dx) > REACH - 0.3:
             fx = hx + ox + math.copysign(REACH - 0.3, dx)
@@ -128,10 +133,9 @@ def warp_fn(p):
 
 def shoulder(q):
     """Q pozunda ön omuz (sh_f) dünya konumu: bengu_ink.draw ile aynı kural + bükme (erim denetimi)."""
-    from bengu_v2 import TORSO
     p = to_p(q)
     hip = (p['hx'], HIP_Y + p['bob'] * 1.1)
-    tl = TORSO + p['br'] * 0.3
+    tl = TORSO_N + p['br'] * 0.3
     neck = (hip[0] + math.sin(p['lean']) * tl, hip[1] - math.cos(p['lean']) * tl)
     s = (neck[0] + 1.4 + p['sx'] + p['tw'] * 0.7, neck[1] + 3.2)
     w = warp_fn(p)
@@ -279,7 +283,7 @@ def _straight_back(q, k=0.985, exact=False):
     q = dict(q)
     bx, lift, pitch = q['b']
     pitch = max(pitch, 0.7)
-    hip_h = q['hy'] - TOE_LIFT * math.sin(pitch) - lift
+    hip_h = (q['hy'] - lift) * KL - TOE_LIFT * math.sin(pitch)
     d = math.sqrt(max(0.0, (REACH * k) ** 2 - hip_h * hip_h))
     q['b'] = (q['hx'] - d if exact else min(bx, q['hx'] - d), lift, pitch)
     return q
@@ -995,58 +999,72 @@ def idle(t):
           tw=0.12 * s, br=1.1 * s, hdx=0.15 * s2, hdy=0.35 * s2, b=(REST['b'][0], 0.0, 0.25 + 0.12 * s),
           ab=(-0.3 - 0.06 * s, 0.9 + 0.1 * s), sk=0.2 + 0.18 * math.sin(TAU * t - 0.9),
           pk=0.3 + 0.3 * math.sin(TAU * t - 1.3), cf=0.12 * math.sin(TAU * t - 1.6), ear=0.15 * s2)
-    q['af'] = (GUARD_AF[0] + 0.06 * s, GUARD_AF[1] + 0.1 * s)
+    # v39: rahat hazır duruş: ön el kabzaya yakın bel önünde (kukla gibi öne uzatılmış yumruk yerine), nefesle oynar
+    q['af'] = (0.08 + 0.05 * s, 0.62 + 0.08 * s)
+    q['ab'] = (-0.2 - 0.05 * s, 0.6 + 0.08 * s)
     p = to_p(q)
     p['bp'] = t
     return p
 
 
 def _lerp_path(pts, u):
-    """[(u, x, kalkıklık, topuk)] kapalı döngü üzerinde yumuşatılmış ara değer."""
+    """[(u, x, kalkıklık, topuk)] kapalı döngü üzerinde ara değer. v39: yere basan parça (iki ucu da kalkıklık 0) x'te
+    DOĞRUSAL — ayak yerde sabit hızla (= koşu hızı) geriye gider, kaymaz; havadaki parçalar yumuşatılmış."""
     u = u % 1.0
     for (u0, *a), (u1, *b) in zip(pts, pts[1:]):
         if u <= u1:
             k = 0.0 if u1 == u0 else (u - u0) / (u1 - u0)
-            k = k * k * (3 - 2 * k)
-            return tuple(x + (y - x) * k for x, y in zip(a, b))
+            ks = k * k * (3 - 2 * k)
+            if a[1] == 0.0 and b[1] == 0.0:
+                return (a[0] + (b[0] - a[0]) * k, 0.0, a[2] + (b[2] - a[2]) * ks)
+            return tuple(x + (y - x) * ks for x, y in zip(a, b))
     return tuple(pts[-1][1:])
 
 
-# tek bacağın koşu yolu (kalçaya göre x, kalkıklık, topuk açısı): 0 temas (topuk), 0..0,36 basış (ayak yerde geriye),
-# 0,36 itiş (parmak ucu), 0,5 topuk kalçaya, 0,72 diz önde (geçiş), 0,9 uzanma, 1 temas
-RUN_LEG = [(0.0, 14.5, 0.0, -0.25), (0.12, 7.0, 0.0, 0.0), (0.24, -4.5, 0.0, 0.3), (0.36, -15.5, 0.8, 1.05),
-           (0.5, -13.0, 10.0, 1.2), (0.62, -4.0, 13.5, 0.75), (0.74, 7.5, 11.5, 0.2), (0.88, 16.0, 4.0, -0.3),
-           (1.0, 14.5, 0.0, -0.25)]
-SPRINT_LEG = [(0.0, 16.5, 0.0, -0.3), (0.1, 8.0, 0.0, 0.0), (0.2, -5.5, 0.0, 0.35), (0.32, -18.0, 1.4, 1.15),
-              (0.46, -15.5, 12.0, 1.25), (0.6, -4.5, 15.5, 0.8), (0.72, 9.5, 12.0, 0.2), (0.86, 18.5, 4.5, -0.35),
-              (1.0, 16.5, 0.0, -0.3)]
+# v39 koşu: 10 kare. Basış (temas -> itiş) dünya hızıyla eşlenir: koşu 10 kare / 18 fps = 0,556 sn döngü, 155 birim/sn
+# -> döngüde 86 birim; basış payı 0,34 -> ayak yerde 29,3 birim geriye (x +14,0 -> -15,3, doğrusal). Depar 10 kare /
+# 22 fps = 0,455 sn, 240 birim/sn (x1,55) -> 109 birim; basış 0,30 -> 32,7 birim (+15,5 -> -17,2). Oyunda kare hızı
+# gerçek yatay hızla ölçeklenir (Player._update_anim): hızlanırken / yavaşlarken de ayak yerde kaymaz.
+RUN_FPS, SPRINT_FPS, GAIT_N = 18, 22, 10
+# tek bacağın koşu yolu (kalçaya göre x, kalkıklık, topuk açısı): 0 temas (topuk), 0..0,34 basış (ayak yerde geriye),
+# 0,34 itiş (parmak ucu), 0,48 topuk kalçaya, 0,62 diz önde (geçiş), 0,76 uzanma, 0,9 ayak geri çekilir (temas hazırlığı)
+RUN_LEG = [(0.0, 14.0, 0.0, -0.25), (0.1, 5.38, 0.0, 0.0), (0.24, -6.68, 0.0, 0.3), (0.34, -15.3, 0.0, 1.05),
+           (0.48, -13.0, 9.5, 1.2), (0.62, -3.0, 13.0, 0.75), (0.76, 8.5, 10.5, 0.2), (0.9, 16.2, 3.2, -0.3),
+           (1.0, 14.0, 0.0, -0.25)]
+SPRINT_LEG = [(0.0, 15.5, 0.0, -0.3), (0.1, 4.6, 0.0, 0.0), (0.2, -6.3, 0.0, 0.35), (0.3, -17.2, 0.0, 1.15),
+              (0.44, -15.5, 11.5, 1.25), (0.58, -4.5, 15.0, 0.8), (0.72, 9.5, 11.5, 0.2), (0.88, 18.0, 4.0, -0.35),
+              (1.0, 15.5, 0.0, -0.3)]
 
 
 def _gait(t, leg, hy0, bob, lean0, af_, ab_, cf0, sprint=False):
     u = t % 1.0
     fx, fl, fp = _lerp_path(leg, u)
     bx, bl, bpp = _lerp_path(leg, u + 0.5)
-    c2 = math.cos(2 * TAU * (u - 0.42))          # en yüksek: itişten sonra uçuş (0,42 / 0,92), en alçak: temastan sonra
+    # v39 ağırlık: en alçak temastan hemen sonra (iniş, diz esner), en yüksek itişten sonra (uçuş); kalça yükü gecikmeli
+    c2 = math.cos(2 * TAU * (u - 0.42))
     sw = math.cos(TAU * u)                         # ön (yakın) bacak önde: +1
-    q = Q(hx=0.0, hy=hy0 + bob * c2, f=(fx + 1.0, fl, fp), b=(bx, bl, bpp),
-          lean=lean0 + 0.05 * math.cos(2 * TAU * (u - 0.15)), tw=-0.75 * sw, sx=0.3 - 0.5 * sw, hdx=0.6 + 0.2 * c2,
-          hdy=0.45 * math.sin(2 * TAU * u - 0.9), sk=-0.9 + 0.35 * math.sin(2 * TAU * u - 1.2),
-          pk=-1.1 + 0.25 * math.sin(2 * TAU * u - 1.6), cf=cf0 + 0.18 * math.sin(2 * TAU * u - 1.5), ear=0.25,
-          ab=ab_(sw), shr=0.02 if sprint else 0.0, crv=0.02 + 0.01 * c2)
-    q['af'] = af_(sw)
+    sw_l = math.cos(TAU * (u - 0.06))              # kollar / omuz bacaklardan bir tık geride (örtüşen hareket)
+    q = Q(hx=0.35 * c2, hy=hy0 + bob * c2, f=(fx + 1.0, fl, fp), b=(bx, bl, bpp),
+          lean=lean0 + 0.06 * math.cos(2 * TAU * (u - 0.1)), tw=-0.95 * sw_l, sx=0.3 - 0.65 * sw_l,
+          hdx=0.6 + 0.15 * c2, hdy=0.25 * math.sin(2 * TAU * u - 1.3),      # baş sabitlenir (göz ufukta)
+          sk=-0.9 + 0.45 * math.sin(2 * TAU * u - 1.5),
+          pk=-1.1 + 0.3 * math.sin(2 * TAU * u - 1.9), cf=cf0 + 0.25 * math.sin(2 * TAU * u - 1.8), ear=0.25,
+          ab=ab_(sw_l), shr=0.02 if sprint else 0.0, crv=0.02 + 0.012 * c2,
+          stx=1.0 - 0.025 * c2, sty=1.0 + 0.025 * c2)   # inişte hafif ezilme, uçuşta esneme
+    q['af'] = af_(sw_l)
     p = to_p(q)
     p['bp'] = t * (2.5 if sprint else 2.0)
     return p
 
 
 def run(t):
-    return _gait(t, RUN_LEG, 19.6, 1.4, 0.42, lambda sw: (-0.95 * sw + 0.25, 1.7 - 0.35 * sw),
-                 lambda sw: (0.95 * sw + 0.05, 1.5 + 0.35 * sw), 0.35)
+    return _gait(t, RUN_LEG, 19.6, 1.5, 0.36, lambda sw: (-1.1 * sw + 0.25, 1.75 - 0.45 * sw),
+                 lambda sw: (1.1 * sw + 0.05, 1.5 + 0.4 * sw), 0.4)
 
 
 def sprint(t):
-    return _gait(t, SPRINT_LEG, 18.6, 1.8, 0.64, lambda sw: (-1.15 + 0.15 * sw, 0.4),
-                 lambda sw: (-1.3 - 0.15 * sw, 0.3), 0.75, sprint=True)
+    return _gait(t, SPRINT_LEG, 18.6, 1.8, 0.6, lambda sw: (-1.15 + 0.2 * sw, 0.45),
+                 lambda sw: (-1.3 - 0.2 * sw, 0.35), 0.8, sprint=True)
 
 
 def _air(keys, n):
@@ -1074,27 +1092,71 @@ JUMP = _air([
              af=(-1.0, 1.0), ab=(-1.5, 0.6), sk=-1.2, pk=-1.4, cf=0.7, stx=0.97, sty=1.04), 'io'),
     (1.0, _A(hy=27.5, f=(8.0, 17.0, 0.1), b=(-1.5, 13.0, 0.6), lean=0.48, tw=0.0, sx=0.2, hdx=0.6, hdy=0.2,
              af=(-0.5, 1.4), ab=(-0.9, 0.9), sk=-0.6, pk=-0.9, cf=0.3, stx=1.02, sty=0.97, ear=0.3), 'io'),
-], 3)
+], 4)
 
 # düşüş: tepeden açılma -> kollar dengede, post / etek yukarı -> bacaklar yere uzanır (gerilme)
 FALL = _air([
     (0.0, _A(hy=27.0, f=(8.5, 10.0, 0.2), b=(-4.0, 6.5, 0.5), lean=0.3, sx=0.4, hdx=0.4, hdy=0.3,
-             af=(0.9, 1.2), ab=(-1.0, 0.8), sk=0.2, pk=0.3, cf=0.2), 'l'),
+             af=(0.9, 1.1), ab=(-0.8, 0.8), sk=0.2, pk=0.3, cf=0.2), 'l'),
     (0.5, _A(hy=27.0, f=(8.0, 6.0, -0.1), b=(-7.0, 3.5, 0.5), lean=0.12, sx=0.6, hdx=0.2, hdy=0.5,
-             af=(1.6, 0.8), ab=(-1.6, 0.5), sk=0.9, pk=1.0, cf=-0.5, ear=-0.2), 'io'),
+             af=(1.25, 0.95), ab=(-1.1, 0.7), sk=0.9, pk=1.0, cf=-0.5, ear=-0.2), 'io'),
     (1.0, _A(hy=27.0, f=(8.5, 2.5, -0.2), b=(-9.0, 1.5, 0.6), lean=0.06, sx=0.6, hdy=0.6,
-             af=(1.9, 0.6), ab=(-1.9, 0.4), sk=1.2, pk=1.3, cf=-0.8, stx=0.96, sty=1.05, ear=-0.3), 'io'),
-], 3)
+             af=(1.45, 0.8), ab=(-1.3, 0.6), sk=1.2, pk=1.3, cf=-0.8, stx=0.96, sty=1.05, ear=-0.3), 'io'),
+], 4)
 
 
 def land(t):
-    # iniş: 0 tam ezilme (çok alçak, geniş, kollar aşağı-dışa, post öne düşer), 1 toparlanma (dinlenmeye doğru)
-    k = 0.0 if t < 0.5 else 1.0
+    # v39 iniş (3 kare): 0 tam ezilme (çok alçak, geniş, kollar aşağı-dışa, post öne düşer), 1 geri esneme (diz açılır,
+    # gövde hafif aşar), 2 oturma (dinlenmeye doğru)
+    k = min(2, int(t * 3))
     q0 = _A(hx=0.5, hy=13.0, f=(9.0, 0.0, 0.0), b=(-13.0, 0.0, 0.9), lean=0.55, tw=0.2, sx=0.6, hdx=1.0, hdy=1.6,
             af=(0.9, 0.9), ab=(-0.2, 0.9), sk=0.8, pk=0.9, cf=-0.6, stx=1.1, sty=0.9, crv=0.02, br=-0.6, ear=0.3)
-    q1 = _A(hx=0.2, hy=19.0, f=(7.0, 0.0, 0.0), b=(-13.6, 0.0, 0.5), lean=0.3, sx=0.5, hdx=0.4, hdy=0.6,
-            af=(0.45, 1.3), ab=(-0.3, 0.9), sk=0.4, pk=0.5, cf=-0.2, stx=1.03, sty=0.97)
-    p = to_p(_mix(q0, q1, k))
+    q1 = _A(hx=0.3, hy=17.0, f=(8.0, 0.0, 0.0), b=(-13.4, 0.0, 0.6), lean=0.36, sx=0.5, hdx=0.6, hdy=0.9,
+            af=(0.6, 1.1), ab=(-0.3, 0.9), sk=0.9, pk=1.1, cf=-0.9, stx=1.04, sty=0.96, ear=0.1)
+    q2 = _A(hx=0.2, hy=20.5, f=(6.5, 0.0, 0.0), b=(-13.6, 0.0, 0.4), lean=0.24, sx=0.45, hdx=0.2, hdy=0.3,
+            af=(0.4, 1.4), ab=(-0.3, 0.9), sk=0.4, pk=0.6, cf=-0.3, stx=1.01, sty=0.99, br=0.4)
+    p = to_p((q0, q1, q2)[k])
+    p['bp'] = t
+    return p
+
+
+# v39 Kahraman İnişi: gerçek dalış ve üç nokta iniş pozu (eskiden yuvarlanma / düşüş / çömelik saldırı kareleri ödünç)
+HERO_DIVE_KEYS = [
+    # toplanma: havada diz karna, gövde öne kıvrık, post açılır (HERO.antic)
+    _A(hy=27.0, f=(7.0, 12.0, 0.3), b=(-3.0, 9.0, 0.7), lean=0.62, tw=0.3, sx=0.5, hdx=1.0, hdy=0.8,
+       af=(-2.4, 0.8), ab=(-2.0, 0.6), sk=-0.6, pk=1.0, cf=0.6, stx=1.04, sty=0.93, crv=-0.03, ear=0.3),
+    # çakılış: ayaklar birlikte aşağı, gövde dik ve gergin, etek / kuşak / post yukarı savrulur (silah iskelette: ön kol
+    # sprite'a çizilmez, no_front)
+    _A(no_front=True, hy=28.5, f=(3.0, 3.0, -0.5), b=(-3.5, 1.5, 0.4), lean=0.14, tw=0.1, hdx=0.5, hdy=0.9,
+       af=(2.6, 0.4), ab=(-2.7, 0.3), sk=1.6, pk=1.7, cf=-1.1, stx=0.92, sty=1.09, ear=-0.6, jaw=0.6),
+]
+HERO_LAND_KEYS = [
+    # çarpma: ön ayak önde düz basar, arka diz yere değer (parmak ucu), gövde derin öne, baş yukarı-ileri, arka kol
+    # geriye-yukarı açılır; ön kol (iskelet) yumruğu toprağa vurur
+    _A(hx=0.5, hy=9.6, f=(11.5, 0.0, 0.0), b=(-8.5, 0.0, 1.15), lean=0.78, tw=0.7, sx=1.2, hdx=1.8, hdy=-0.9,
+       ab=(-1.9, 0.55), sk=1.1, pk=1.3, cf=-1.0, stx=1.1, sty=0.9, crv=0.025, jaw=0.7, ear=0.5, br=-0.6),
+    # tutuş: ezilmeden çıkış, gövde aynı yerde (poz okunur), post / etek yerine oturur
+    _A(hx=0.5, hy=10.6, f=(11.5, 0.0, 0.0), b=(-8.5, 0.0, 1.15), lean=0.72, tw=0.6, sx=1.0, hdx=1.5, hdy=-0.6,
+       ab=(-1.7, 0.6), sk=0.6, pk=0.7, cf=-0.5, stx=1.05, sty=0.96, crv=0.02, jaw=0.2, ear=0.3),
+    # doğrulma: arka diz kalkar, ağırlık öne
+    _A(hx=1.0, hy=14.5, f=(10.5, 0.0, 0.0), b=(-10.5, 0.0, 0.9), lean=0.5, tw=0.3, sx=0.7, hdx=0.9, hdy=0.0,
+       ab=(-1.3, 0.7), sk=0.3, pk=0.4, cf=-0.2, stx=1.01, sty=0.99),
+    # kalkış: dinlenme duruşuna yakın
+    _A(hx=0.6, hy=19.5, f=(7.5, 0.0, 0.0), b=(-12.5, 0.0, 0.5), lean=0.3, tw=0.1, sx=0.5, hdx=0.3, hdy=0.2,
+       ab=(-0.5, 0.9), sk=0.2, pk=0.3, cf=0.0, br=0.6),
+]
+
+
+def hero_dive(t):
+    q = HERO_DIVE_KEYS[min(1, int(t * 2))]
+    p = to_p(q)
+    p['no_front'] = q.get('no_front', False)
+    p['bp'] = t
+    return p
+
+
+def hero_land(t):
+    p = to_p(HERO_LAND_KEYS[min(3, int(t * 4))])
     p['bp'] = t
     return p
 

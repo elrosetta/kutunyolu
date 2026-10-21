@@ -488,7 +488,7 @@ func _govde(z: Zincir) -> void:
 		t = minf(t, 1.3)
 		var c := top + ab * t
 		var rel := q - c
-		var r := (lerpf(6.6, 5.8, minf(t, 1.0)) + maxf(0.0, t - 1.0) * 6.0) * z.gr
+		var r := (lerpf(6.1, 5.4, minf(t, 1.0)) + maxf(0.0, t - 1.0) * 6.0) * z.gr   # v39: ince bel (x0,93; eski 6,6 -> 5,8)
 		var dl := rel.length()
 		if dl < r:
 			var nrm := rel / dl if dl > 1e-3 else Vector2(-_face, 0.0)
@@ -500,7 +500,7 @@ func _bas(z: Zincir) -> void:
 	# baş / başlık çemberi: saç başın üstünden ya da yüzün önünden geçmez. Yalnızca yüz yanı ve tepe iter (yüz yanındaki
 	# nokta ense yanına çevrilir); kökün bulunduğu ense-alt yarı serbest (orada da itseydi saç başın çevresine dolanıp
 	# takılabilirdi)
-	var r := 7.2
+	var r := 6.4   # v39: başlık x0,86 küçük (7,2)
 	for i in range(3, z.n):
 		var rel := z.p[i] - _head
 		var dl := rel.length()
