@@ -86,14 +86,16 @@ static func spray(pos: Vector2, dir: Vector2, col: Color, n: int, power := 1.0, 
 	# v22: vuruş kanı daha hafif (damla sayısı ×0,6; hızlı ardışık vuruşta ×0,35); ölüm fışkırması (burst) aynı
 	if FX.in_hit:
 		n = maxi(2, int(round(float(n) * (0.6 if FX.hit_k >= 0.99 else 0.35))))
+	var n_bugu := n  # buğu kararı kısılmamış sayıya göre (görünüş aynı kalsın)
+	n = Ayarlar.efekt_say(n, 2)  # v38: efekt yoğunluğu (damla sayısı)
 	var d := dir.normalized() if dir.length() > 0.01 else Vector2.UP
 	for i in n:
 		var rev := back and i % 6 == 5
 		var ang := d.angle() + (PI if rev else 0.0) + randf_range(-0.55, 0.55) - 0.25 * signf(d.x)
 		var sp := randf_range(70.0, 300.0) * power * (0.5 if rev else 1.0)
 		b._add(pos + Vector2(randf_range(-3, 3), randf_range(-3, 3)), Vector2(cos(ang), sin(ang)) * sp + Vector2(0, -randf_range(20, 90)), _tone(col, randf()), randf_range(1.4, 2.6), 1.0 if randf() < 0.55 else 2.0)
-	if n >= 6:
-		_mist(pos, d, col, 0.22 + 0.04 * minf(n, 30) / 10.0)
+	if n_bugu >= 6:
+		_mist(pos, d, col, 0.22 + 0.04 * minf(n_bugu, 30) / 10.0)
 
 
 static func burst(pos: Vector2, dir: Vector2, col: Color, n: int, gibs := 0, flesh := true) -> void:
@@ -102,6 +104,7 @@ static func burst(pos: Vector2, dir: Vector2, col: Color, n: int, gibs := 0, fle
 	if b == null:
 		return
 	var d := dir.normalized() if dir.length() > 0.01 else Vector2.UP
+	n = Ayarlar.efekt_say(n, 6, true)  # v38: efekt yoğunluğu; ölüm fışkırması Az'da da >= %65 (et parçaları aynı)
 	for i in n:
 		var radial := i % 3 == 0
 		var ang := (randf() * TAU) if radial else d.angle() + randf_range(-0.7, 0.7)
@@ -121,6 +124,7 @@ static func splat(pos: Vector2, col: Color, n: int, wall: bool) -> void:
 	var b := sys()
 	if b == null:
 		return
+	n = Ayarlar.efekt_say(n, 2, true)  # v38: efekt yoğunluğu (leke sayısı)
 	for i in n:
 		var q := pos + (Vector2(0.0, randf_range(-7.0, 7.0)) if wall else Vector2(randf_range(-7.0, 7.0), 0.0))
 		var c := _tone(col, randf() * 0.6)

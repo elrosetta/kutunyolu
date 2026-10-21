@@ -292,7 +292,7 @@ static func _particles(pos: Vector2, col: Color, amount: int, life: float, addit
 static func burst(pos: Vector2, col: Color, amount := 12, speed := 90.0, life := 0.5, scale_size := 0.25, gravity := 300.0, additive := false) -> void:
 	if root == null:
 		return
-	var p := _particles(pos, col, amount, life, additive)
+	var p := _particles(pos, col, Ayarlar.efekt_say(amount, 2), life, additive)  # v38: efekt yoğunluğu (sayı)
 	p.direction = Vector2.UP
 	p.spread = 180.0
 	p.initial_velocity_min = speed * 0.4
@@ -306,7 +306,7 @@ static func sparks(pos: Vector2, dir: Vector2, col: Color, amount := 8, speed :=
 	## Metal kıvılcımı: darbe yönünde dar koni, hızlı, yerçekimiyle düşer, kısa ömür.
 	if root == null:
 		return
-	var p := _particles(pos, col, amount, 0.32, true, 60, "k_spark")
+	var p := _particles(pos, col, Ayarlar.efekt_say(amount, 3), 0.32, true, 60, "k_spark")  # v38: efekt yoğunluğu
 	p.direction = dir.normalized() if dir.length() > 0.01 else Vector2.UP
 	p.spread = 38.0
 	p.initial_velocity_min = speed * 0.45
@@ -482,7 +482,7 @@ static func smoke(pos: Vector2, amount := 5, size := 0.5, col := Color(0.3, 0.28
 	## Duman: yavaş yükselir, döner, büyüyerek dağılır.
 	if root == null:
 		return
-	var p := _particles(pos, col, amount, 1.1, false, 44, "k_smoke")
+	var p := _particles(pos, col, Ayarlar.efekt_say(amount, 2), 1.1, false, 44, "k_smoke")  # v38: efekt yoğunluğu
 	p.direction = Vector2.UP
 	p.spread = 40.0
 	p.initial_velocity_min = 15.0

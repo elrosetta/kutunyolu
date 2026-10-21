@@ -1346,7 +1346,10 @@ func _debug_screen() -> void:
 		"ayarlar":
 			hud.mode = "title"
 			_open_settings()
-			hud.sel = 2   # doku kalitesi
+			hud.sel = 2   # grafik kalitesi; --ayar_sel=<satır> başka satır (v38: en uzun açıklamalı satırın çekimi)
+			for arg in OS.get_cmdline_user_args():
+				if String(arg).begins_with("--ayar_sel="):
+					hud.sel = int(String(arg).trim_prefix("--ayar_sel="))
 
 
 func _ekran_tomar(pl: Player) -> void:

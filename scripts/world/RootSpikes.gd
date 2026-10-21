@@ -25,7 +25,7 @@ func _process(delta: float) -> void:
 	if not _hit and _t < 0.35 and pl and not pl.dead:
 		var box := Rect2(global_position + Vector2(-16, -42), Vector2(32, 42))
 		if box.intersects(pl.hurt_rect()):
-			if pl.take_hit(dmg, source):
+			if pl.take_hit(dmg, source if is_instance_valid(source) else null):  # kaynak (Ağaç İyesi) ölmüş olabilir
 				_hit = true
 	queue_redraw()
 

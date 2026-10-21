@@ -182,6 +182,9 @@ func _burst(pos: Vector2, ext: Vector2, dir: Vector2, power: float, col: Color, 
 		n_big += 2
 		spd *= ET_YAYILMA
 		ex *= 1.1
+	# v38: efekt yoğunluğu (Ayarlar): ana zerre / ince damla sayısı Az'da %65, Orta'da %82,5; iri parçalar ve boyutlar aynı
+	n_main = Ayarlar.efekt_say(n_main, 12, true)
+	n_fine = Ayarlar.efekt_say(n_fine, 8, true)
 	var kind_main := K_TOPAK
 	match mat:
 		MAT_TAS:

@@ -356,10 +356,22 @@ func grafik_text() -> String:
 	return GRAFIK_AD[grafik] if grafik >= 0 else "Özel"
 
 
-## --- v38 grafik ayarlarının okuyucuları (Level, ParallaxBG; CPU tarafı efekt üreticileri efekt_yogunluk okuyabilir) ---
+## --- v38 grafik ayarlarının okuyucuları (Level, ParallaxBG; Gore / Blood / FX parçacık sayıları efekt_say ile) ---
 func efekt_yogunluk() -> float:
 	## Efekt yoğunluğu çarpanı (1 tam, 0,75 orta, 0,5 az): kan / parçacık / kıvılcım sayıları bununla çarpılabilir
 	return EFEKT_YOG[clampi(efekt, 0, 2)]
+
+
+func efekt_say(n: int, en_az := 1, olum := false) -> int:
+	## v38 birleştirme: efekt üreticilerinin (Gore, Blood, FX) parçacık / damla SAYISI (boyut değil). Tam (Yüksek / Ultra)
+	## sayıyı hiç değiştirmez. olum: ölüm patlaması daha az kısılır (0,3 + 0,7k: Az %65, Orta %82,5), öldürme hissi kalsın.
+	## en_az: bunun altına inilmez (zaten küçük sayılar olduğu gibi kalır).
+	var k: float = EFEKT_YOG[clampi(efekt, 0, 2)]
+	if k >= 1.0 or n <= en_az:
+		return n
+	if olum:
+		k = 0.3 + 0.7 * k
+	return maxi(en_az, int(round(float(n) * k)))
 
 
 func isik_golge() -> bool:
@@ -392,7 +404,7 @@ func rows() -> Array:
 		["  Doku kalitesi", quality_text(), true, quality_tip(), "doku"],
 		["  Işık ve parlama", ISIK_AD[isik], true, "Tam: gölgeli meşale ışıkları, tam parlama ve renk derecelendirmesi. Hafif: gölgesiz, daha az ışık, hafif parlama. Az: parlama ve renk derecelendirmesi kapalı, en az ışık. Sonraki bölümde geçerli.", "isik"],
 		["  Arka plan katmanları", KATMAN_AD[katman], true, "Az: pus ve ışık hüzmesi gibi saydam ara katmanlar çizilmez (dağlar, orman, gök aynı). Sonraki bölümde geçerli.", "katman"],
-		["  Efekt yoğunluğu", EFEKT_AD[efekt], true, "Kan, kıvılcım ve parçacık efektlerinin miktarı.", "efekt_yog"],
+		["  Efekt yoğunluğu", EFEKT_AD[efekt], true, "Kan, kıvılcım, duman ve parçacık efektlerinin sayısı (boyutları aynı). Orta ve Az daha az parçacık üretir; ölüm patlaması Az'da da en az %65 kalır.", "efekt_yog"],
 		["Kare sınırı", "Sınırsız" if fps_i == 0 else "%d FPS" % FPS_SINIR[fps_i], true, "Saniyedeki en çok kare. Dikey eşitleme açıkken ekran yenilemesi zaten sınırdır; dizüstünde 60 pil ve ısı kazandırır.", "fps"],
 		["Dikey eşitleme", "Açık" if vsync else "Kapalı", true, "Kare hızını ekran yenilemesine kilitler (yırtılmayı önler).", "vsync"],
 		["Arayüz boyutu", UI_SIZES[ui_i], true, "Oyun içi göstergelerin boyutu. Normal: daha çok oyun alanı görünür.", "arayuz"],

@@ -6575,3 +6575,54 @@ keskinlik (Ötüken, 2x) ve sis bantlaşması (Tamu, kontrast x5).
 * Yay ucu taraması (`Data.weapon_sprite_image`) hâlâ temel silah atlasını geri okur (CPU dalı kuşanma anına taşıdı); uç
   noktalarını `weapons_v2.json`'a önceden yazmak sonraki iş.
 * 2D fizik aradeğerlemesi (yüksek yenilemeli ekranda akıcılık) CPU / fizik tarafının işi; açılmadı.
+
+## v38 birleştirme denetimi
+
+v38-cpu38 (Prof sarmalayıcıları, LevelGen hızlanması, uzak LOD, efekt dokusu ön yüklemesi) ile v38-gpu38 (Mobile çizici,
+paralaks kırpma, HD yükleyici, grafik hazır ayarları) `main`'de birleştikten sonra anlamsal denetim.
+
+**Çakışma denetimi (sorun yok):**
+- `Level.gd`: CPU tarafı (`grid_surum`, `build_boss`'taki sızıntı düzeltmesi, `build` adım süreleri) ile GPU tarafı
+  (`_exit_tree` -> `Data.budama_planla`, `add_light` ışık sınırı / gölge, `_build_lighting` parlama, `_build_overlay_fx`
+  derecelendirme, `red_rect` / `flash_white` görünürlüğü) ayrı satırlarda; her bölüm yeni `Level` olduğundan `_isik_say` sıfırdan başlar.
+- `Data.budama` yalnızca `res://assets/bg/` dokularını (paralaks / ön plan) bırakır; `Game`'in arka plan ön yüklemesi
+  yalnızca `assets/fx/anim`, `fx/ink`, `fx/ink_p`, `ui/ink` (HD paketindekiler hariç) ve `Data._tex_cache`'e değil
+  `ResourceLoader` önbelleğine yazar (başvuruyu `Game._on_yuklu` tutar): kümeler kesişmez, budama ön yüklenmiş dokuyu düşürmez.
+  Ön yükleme sürerken aynı yolu `load()` ile isteyen (Data.tex / InkDraw) motorun yükleme görevine katılır; yarış yok.
+  `Data._init_pack` (Data._ready) `Game._ready`'den önce çalışır (otomatik yükleme sırası), `pack_has` doğru.
+- `ParallaxBG`: kırpma ve "Az" katman atlama `_ready`'de, `_process` -> `_process_ic` sarmalayıcısı yalnızca `_layers`'ı
+  dolaşır (atlanan katmanlar dizide yok; dizin kayması yok). Kar katmanlarında da kırpma bölge + ofsetle aynı görüntü.
+
+**Bulunan / düzeltilen:**
+- `RootSpikes` (Ağaç İyesi kökleri): kök fırladıktan sonra yaratık ölüp silinirse `take_hit(dmg, source)` serbest
+  bırakılmış nesneyle "Invalid type" betik hatası veriyordu (`--perf` savas7 evresinde 2 kez; v38 öncesinden kalma). `Isin` /
+  `Tehlike` gibi `is_instance_valid(source)` denetimi eklendi.
+- Ayarlar ekranı (15 satır, 1920x1080): alt başlık ("Görüntü ve çözünürlük") panelin üst kenarıyla, "Pencere: ... ölçek"
+  satırı alttaki tuş ipuçlarıyla çakışıyordu. 9'dan çok satırda pencere bilgisi alt başlığa çıkar, başlık 8 px yukarı, satır
+  aralığı 14 px: üç satırlık açıklamaya da yer kalır (`--ekran=ayarlar --ayar_sel=<satır>` ile çekim).
+
+**Efekt yoğunluğu bağlandı** (`Ayarlar.efekt_say(n, en_az, olum)`): yalnızca SAYI ölçeklenir, boyut / hız / ömür aynı;
+Tam'da (Yüksek / Ultra) sayı hiç değişmez. Düz çarpan (Az 0,5, Orta 0,75): `FX.burst` / `FX.sparks` (en az 2-3; yıldız
+parıltıları aynı), `FX.smoke`, `Blood.spray` (vuruş kanı; buğu kararı kısılmamış sayıyla). Ölüm çarpanı 0,3 + 0,7k
+(Az %65, Orta %82,5): `Gore._burst` ana zerre / ince damla (iri parçalar ve buğu aynı), `Blood.burst` damlaları (et
+parçaları aynı), `Blood.splat` lekeleri. `--vahset` ölüm başına zerre, Yüksek -> Düşük: sıradan 147 -> 97, kritik
+239 -> 159, bitiriş 193 -> 128, seçkin 350 -> 231, taş 61 -> 41 (%66-67).
+
+**Ölçümler** (Intel UHD 750):
+- `--perf` (başsız): bölüm kurma 20 tohum ort. 473 ms (en kötü 824), generate 171 ms; yurt 3,2 ms/kare, konak 3,0,
+  gezinti 6,8 (p95 10,6), savas3 11,5 (p95 17,7), savas7 9,6 (p95 14,5). Sızıntı yok (düğüm sayıları iki turda aynı).
+- `--gpu_perf`, pencere 1920x1080, tohum 3, 8 sn:
+
+| Sahne | Orta FPS (kare / GPU ms) | Yüksek FPS (kare / GPU ms) |
+|---|---|---|
+| Ötüken 1 | 104,8 (9,6 / 4,3) | 49,2 (20,3 / 18,3) |
+| Tamu 9 | 161,8 (6,2 / 4,5) | 47,7 (21,0 / 19,0) |
+| Vahşet (yoğun dövüş) | 110,2 (9,1 / 4,3) | 45,4 (22,0 / 19,1) |
+
+  Orta (yarım çizim) GPU 4-5 ms, kare CPU'ya bağlı; Yüksek GPU'ya bağlı ve v38 GPU tablosuyla uyumlu (birleşme GPU
+  maliyetini değiştirmedi). `--kirpma_yok` ile Yüksek Ötüken 1 GPU 19,3 ms (kırpmayla 18,3). Uzun `--perf` koşusunun
+  hemen ardından alınan ilk tur Yüksek'te ~28-30 FPS verdi (makine yüklü / sıcak); tablo yalnız koşulan ikinci tur.
+
+Testler: `--perf`, `--gpu_perf` (Orta / Yüksek), `--dovus --boss --kontrol`, `--sanat --boss --muhur=0`, `--harita`,
+`--isinlan`, `--konak`, `--tuccar --muhur=0`, `--otomatik --derinlik=1/3 --muhur=0`, `--vahset` (ayrıca `--grafik=0/2`),
+`--zeka --muhur=0`, `--piksel_tara`, `--yurt --yurt-tur`: betik hatası 0 (RootSpikes düzeltmesinden sonra).

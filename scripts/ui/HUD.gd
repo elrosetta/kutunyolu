@@ -1072,13 +1072,18 @@ func _draw_pause(vp: Vector2) -> void:
 func _draw_settings(vp: Vector2) -> void:
 	## Görüntü ayarları: pencere modu, çözünürlük, doku kalitesi (2K / 4K HD paketi), dikey eşitleme
 	_dim(vp, 0.93)
-	_title(vp, 40, "AYARLAR", PixUI.GOLD, "Görüntü ve çözünürlük")
 	var rows: Array = Ayarlar.rows()
+	var cok := rows.size() > 9
+	var ws := get_tree().root.size
+	var pencere := "Pencere: %dx%d  ·  ölçek ×%s" % [ws.x, ws.y, ItemGen.fmt(float(ws.y) / get_viewport_rect().size.y)]
+	# v38 birleştirme: 15 satırda pencere bilgisi alt başlığa çıkar (eskiden alt bilgi satırıyla, alt başlık da panelle
+	# çakışıyordu); başlık yukarı, açıklamaya 3 satır yer kalır
+	_title(vp, 32.0 if cok else 40.0, "AYARLAR", PixUI.GOLD, pencere if cok else "Görüntü ve çözünürlük")
 	var pw := 380.0
 	var x := roundf((vp.x - pw) / 2.0)
 	# v38: 15 satır (grafik kalitesi ve alt ayarları) 640x360 menüye sığsın diye satır aralığı sıkışır
-	var rh := 22.0 if rows.size() <= 9 else 15.0
-	var y := 96.0 if rows.size() <= 9 else 76.0
+	var rh := 14.0 if cok else 22.0
+	var y := 80.0 if cok else 96.0
 	PixUI.fancy_panel(self, Rect2(x, y - 6, pw, rows.size() * rh + 10), PixUI.EDGE, PixUI.INK2)
 	for i in rows.size():
 		var r: Array = rows[i]
@@ -1101,8 +1106,8 @@ func _draw_settings(vp: Vector2) -> void:
 	for l in tl:
 		PixUI.text(self, Vector2(0, ty), l, PixUI.DIM, 1, HORIZONTAL_ALIGNMENT_CENTER, vp.x)
 		ty += 11.0
-	var ws := get_tree().root.size
-	PixUI.text(self, Vector2(0, ty + 6), "Pencere: %dx%d  ·  ölçek ×%s" % [ws.x, ws.y, ItemGen.fmt(float(ws.y) / get_viewport_rect().size.y)], Color(PixUI.KUT, 0.8), 1, HORIZONTAL_ALIGNMENT_CENTER, vp.x, 0)
+	if not cok:
+		PixUI.text(self, Vector2(0, ty + 6), pencere, Color(PixUI.KUT, 0.8), 1, HORIZONTAL_ALIGNMENT_CENTER, vp.x, 0)
 	_hint(vp, [["W/S", "seç"], ["A/D", "değiştir"], ["Esc", "geri"]])
 
 
