@@ -12,6 +12,7 @@ var kinds: Array = ["bekci", "kurgan_bekcisi", "al_atli", "surale", "karakoncolo
 var wolf := false
 var oldur := false   # v29: --yaratik_oldur: sonunda öldürür (ölüm animasyonu)
 var per := 7.0
+var cek := ""        # v39: --yaratik_cek=<klasör>: hazırlık ("!") ve etkin hamle anında 1:1 ekran görüntüsü (<tür>_hazirlik / _saldiri.png)
 
 
 func _ready() -> void:
@@ -26,6 +27,9 @@ func _ready() -> void:
 			oldur = true
 		elif a.begins_with("--yaratik_sure="):
 			per = float(a.trim_prefix("--yaratik_sure="))
+		elif a.begins_with("--yaratik_cek="):
+			cek = a.trim_prefix("--yaratik_cek=")
+			DirAccess.make_dir_recursive_absolute(cek)
 	_run.call_deferred()
 
 
@@ -53,13 +57,41 @@ func _p(s: String) -> void:
 	print("[yaratik] %s kare=%d ekran=%d,%d" % [s, Engine.get_frames_drawn(), int(sp.x), int(sp.y)])
 
 
+func _cek_bekle(en: Node, k: String, sure: float) -> void:
+	## v39: süre boyunca yaratığı izle; ilk hazırlığın ortasında ve ilk etkin evrenin (act / dive / swoop) ikinci
+	## yarısında birer kare kaydet (vuruş efekti görünür)
+	var t := 0.0
+	var w_ok := false
+	var a_ok := false
+	var at := 0.0
+	var wt := 0.0
+	while t < sure or not a_ok:
+		await get_tree().process_frame
+		t += get_process_delta_time()
+		if t > sure + 6.0 or not is_instance_valid(en):
+			break
+		var s := String(en.state)
+		wt = wt + get_process_delta_time() if s == "windup" else 0.0
+		if not w_ok and s == "windup" and wt > 0.18:
+			w_ok = true
+			await RenderingServer.frame_post_draw
+			get_viewport().get_texture().get_image().save_png(cek.path_join(k + "_hazirlik.png"))
+		if w_ok and not a_ok and s in ["act", "dive", "swoop"]:
+			at += get_process_delta_time()
+			if at > 0.06:
+				a_ok = true
+				await RenderingServer.frame_post_draw
+				get_viewport().get_texture().get_image().save_png(cek.path_join(k + "_saldiri.png"))
+				_p(k + " çekildi")
+
+
 func _clear() -> void:
 	for e in get_tree().get_nodes_in_group("dusman"):
 		e.queue_free()
 
 
 func _run() -> void:
-	await _wait(1.0)
+	await _wait(1.0 if cek == "" else 5.5)   # v39 çekim: biyom başlığı sönsün
 	var pl: Node = main.level.player
 	# duvardan uzaklaş: kamera oyuncuyu ekranın içinde tutsun (düşman sağdan gelir)
 	var tx := 16
@@ -74,9 +106,12 @@ func _run() -> void:
 			continue
 		_clear()
 		pl.facing = 1
-		var en: Node = main.level.spawn_enemy(String(k), pl.global_position + Vector2(78, -2), false)
+		var en: Node = main.level.spawn_enemy(String(k), pl.global_position + Vector2(130.0 if cek != "" else 78.0, -2.0), false)
 		_p(String(k) + " başla")
-		await _wait(per * 0.62)
+		if cek != "":
+			await _cek_bekle(en, String(k), per * 0.62)
+		else:
+			await _wait(per * 0.62)
 		if is_instance_valid(en) and "hp" in en:
 			en.hp = maxf(float(en.hp), 9999.0)
 		_p(String(k) + " vuruş")

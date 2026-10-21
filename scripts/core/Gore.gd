@@ -22,7 +22,7 @@ const MAT_TAS := 1
 const MAT_RUH := 2
 const MAT_KOR := 3
 const TAS := ["balbal", "buz_balbali", "cini_golemi"]
-const KOR := ["sihirli_kandil", "isilti_bocegi", "od_iyesi"]
+const KOR := ["sihirli_kandil", "isilti_bocegi", "od_iyesi", "kor_solucani"]
 # zerre türleri
 const K_TOPAK := 0
 const K_DAMLA := 1

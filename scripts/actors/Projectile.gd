@@ -234,8 +234,10 @@ func _physics_process_ic(delta: float) -> void:
 	position = next
 	if kind == "arrow":
 		_set_arrow_frame(velocity.angle())
-	elif kind in ["javelin", "eagle", "spore", "feather", "wave", "curse"]:
+	elif kind in ["javelin", "eagle", "spore", "feather", "wave", "curse", "kargi", "ag"]:
 		rotation = velocity.angle()
+	elif kind == "orak":
+		rotation += delta * 20.0 * (signf(velocity.x) if velocity.x != 0.0 else 1.0)
 	elif kind in ["bomb", "pot", "stone", "ice", "stone_big"]:
 		rotation += delta * 10.0
 	elif kind == "axe":
@@ -301,6 +303,8 @@ func _physics_process_ic(delta: float) -> void:
 		if pl and not pl.dead and pl.hurt_rect().grow(2.0).has_point(global_position):
 			var src: Node = source if is_instance_valid(source) else null
 			var hit: bool = pl.take_hit(damage, src, self)
+			if hit and on_hit.is_valid():
+				on_hit.call(pl)   # v39: düşman mermisinin isabet kancası (Ağ Ana ağı)
 			if hit:
 				Ses.play("ok_vurus", -6.0, 0.8, 0.1, 0.03, global_position)
 				if kind == "curse":
@@ -429,6 +433,27 @@ func _ink_body() -> void:
 			InkDraw.star(self, Vector2.ZERO, 2.2, _t * 6.0, Color(1.0, 0.85, 1.0))
 		"arrow":
 			pass
+		"orak":
+			# v39 Aldaraş'ın dönen tunç orağı: mürekkep kontur + tunç hilal + parıltı
+			for s in [0.0, PI]:
+				draw_arc(Vector2.ZERO, 9.0, s - 0.2, s + 2.2, 10, Color(0.06, 0.04, 0.05), 5.0, true)
+				draw_arc(Vector2.ZERO, 9.0, s - 0.1, s + 2.0, 10, Color(0.95, 0.68, 0.32), 2.6, true)
+			InkDraw.soft(self, Vector2.ZERO, 6.0, Color(1.0, 0.75, 0.35, 0.35))
+		"kargi":
+			# v39 hayalet / ateş ciridi: ışık mızrağı
+			var kc: Color = get_meta("col", Color(0.5, 1.0, 0.95))
+			draw_line(Vector2(-16, 0), Vector2(12, 0), Color(0.05, 0.04, 0.06, 0.9), 4.0, true)
+			draw_line(Vector2(-15, 0), Vector2(11, 0), kc, 2.0, true)
+			draw_colored_polygon(PackedVector2Array([Vector2(10, -3.5), Vector2(19, 0), Vector2(10, 3.5)]), kc.lightened(0.3))
+			InkDraw.soft(self, Vector2(10, 0), 6.0, Color(kc.r, kc.g, kc.b, 0.4))
+		"ag":
+			# v39 Ağ Ana'nın ağ yumağı: ışınsal teller + halkalar
+			InkDraw.soft(self, Vector2.ZERO, 8.0, Color(0.95, 0.95, 0.9, 0.3))
+			for i in 8:
+				var a := float(i) / 8.0 * TAU + _t * 2.0
+				draw_line(Vector2.ZERO, Vector2.from_angle(a) * 8.0, Color(0.95, 0.95, 0.9, 0.9), 1.0, true)
+			draw_arc(Vector2.ZERO, 4.0, 0.0, TAU, 12, Color(0.95, 0.95, 0.9, 0.8), 1.0, true)
+			draw_arc(Vector2.ZERO, 7.0, 0.0, TAU, 14, Color(0.95, 0.95, 0.9, 0.6), 1.0, true)
 		_:
 			InkDraw.soft(self, Vector2.ZERO, 4.0, Color(1, 1, 1, 0.5))
 			InkDraw.blot(self, Vector2.ZERO, 2.6, Color(1, 1, 1), 2)

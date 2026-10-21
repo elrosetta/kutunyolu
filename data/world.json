@@ -1308,6 +1308,327 @@
    "ai": "boss_gen",
    "impl": true,
    "desc": "Yeraltının hükümdarı"
+  },
+  {
+   "id": "yer_cucesi",
+   "name": "Yeraltı Cücesi",
+   "biome": "otuken",
+   "hp": 62,
+   "dmg": 17,
+   "speed": 70,
+   "ai": "burrower",
+   "size": [
+    22,
+    34
+   ],
+   "agirlik": 2,
+   "ses_can": "tas_can",
+   "ses_olum": "kurt_olum",
+   "desc": "Ötüken mağaralarının sakallı kazıcısı. Kazmasıyla yere dalar, tam altından fırlar; uzaktaysan kaya savurur.",
+   "impl": true
+  },
+  {
+   "id": "sulmus",
+   "name": "Şulmus",
+   "biome": "otuken",
+   "hp": 50,
+   "dmg": 14,
+   "speed": 55,
+   "ai": "summoner",
+   "size": [
+    22,
+    40
+   ],
+   "agirlik": 2,
+   "min_derinlik": 2,
+   "kan": [
+    0.35,
+    0.75,
+    0.3
+   ],
+   "ses_can": "hayalet_can",
+   "ses_olum": "hayalet_olum",
+   "desc": "Kötü ruhların boynuzlu kamı. At kafatası çıngırağıyla yavrular çağırır, lanetli kafatası savurur. Önce onu öldür: yavruları dağılır.",
+   "impl": true
+  },
+  {
+   "id": "sulmus_yavrusu",
+   "name": "Şulmus Yavrusu",
+   "biome": "otuken",
+   "hp": 12,
+   "dmg": 8,
+   "speed": 150,
+   "ai": "swarm",
+   "size": [
+    14,
+    14
+   ],
+   "flying": true,
+   "havuz": false,
+   "ses_can": "cor_can",
+   "ses_olum": "cor_olum",
+   "desc": "Şulmus'un çağırdığı yarasa kanatlı küçük ruh.",
+   "impl": true
+  },
+  {
+   "id": "burkut",
+   "name": "Bürküt",
+   "biome": "otuken",
+   "hp": 55,
+   "dmg": 17,
+   "speed": 140,
+   "ai": "swooper",
+   "size": [
+    36,
+    26
+   ],
+   "flying": true,
+   "agirlik": 2,
+   "ses_can": "cor_can",
+   "ses_olum": "cor_olum",
+   "desc": "Göğün dev kartalı. Yandan alçalıp pençeleriyle yatay pike yapar ya da kanat çırpıp tüy yağdırır.",
+   "impl": true
+  },
+  {
+   "id": "tunga_hayaleti",
+   "name": "Tunga Hayaleti",
+   "biome": "bozkir",
+   "hp": 78,
+   "dmg": 20,
+   "speed": 80,
+   "ai": "lancer",
+   "size": [
+    24,
+    54
+   ],
+   "agirlik": 2,
+   "kan": [
+    0.45,
+    0.95,
+    0.9
+   ],
+   "ses_can": "hayalet_can",
+   "ses_olum": "hayalet_olum",
+   "desc": "Alp Er Tunga'nın kurganlardan kalkan akıncısı. Uzun kargısıyla yerdeki şerit boyunca hücum eder, geniş savurur, ışık ciridi atar.",
+   "impl": true
+  },
+  {
+   "id": "tepegoz_yavrusu",
+   "name": "Tepegöz Yavrusu",
+   "biome": "bozkir",
+   "hp": 150,
+   "dmg": 24,
+   "speed": 50,
+   "ai": "slammer",
+   "size": [
+    36,
+    60
+   ],
+   "heavy": true,
+   "agirlik": 2,
+   "min_derinlik": 4,
+   "ses_can": "agac_can",
+   "ses_olum": "agac_olum",
+   "desc": "Tepegöz'ün tek gözlü yavrusu. Sıçrayıp yere çakılır: iki yana şok dalgası koşar (üstünden atla); dibinde üçlü sopa, uzakta kaya.",
+   "impl": true
+  },
+  {
+   "id": "aldaras",
+   "name": "Aldaraş",
+   "biome": "bozkir",
+   "hp": 60,
+   "dmg": 17,
+   "speed": 110,
+   "ai": "ricochet",
+   "size": [
+    20,
+    44
+   ],
+   "agirlik": 2,
+   "ses_can": "surale_can",
+   "ses_olum": "surale_olum",
+   "desc": "Kâbusların üç gözlü bozkır cini. Dönen tunç orağı gidip geri gelir; dibinde ikiz orak kasırgası.",
+   "impl": true
+  },
+  {
+   "id": "agu_kurbagasi",
+   "name": "Ağu Kurbağası",
+   "biome": "sahmeran",
+   "hp": 110,
+   "dmg": 18,
+   "speed": 60,
+   "ai": "gasser",
+   "size": [
+    40,
+    30
+   ],
+   "agirlik": 2,
+   "kan": [
+    0.5,
+    0.85,
+    0.25
+   ],
+   "ses_can": "agac_can",
+   "ses_olum": "agac_olum",
+   "desc": "Mağara gölünün zehirli devi. Zehir bulutu solur, yapışkan diliyle seni çekip ısırır, zehir topu tükürür.",
+   "impl": true
+  },
+  {
+   "id": "ag_ana",
+   "name": "Ağ Ana",
+   "biome": "sahmeran",
+   "hp": 75,
+   "dmg": 18,
+   "speed": 90,
+   "ai": "webber",
+   "size": [
+    44,
+    26
+   ],
+   "agirlik": 2,
+   "kan": [
+    0.55,
+    0.9,
+    0.35
+   ],
+   "ses_can": "surale_can",
+   "ses_olum": "surale_olum",
+   "desc": "Şahmeran mağaralarının fildişi örümceği. Ağ atar (dört kez basıp kurtul), ısırır, üstüne sıçrar.",
+   "impl": true
+  },
+  {
+   "id": "yilan_kami",
+   "name": "Yılan Kamı",
+   "biome": "sahmeran",
+   "hp": 55,
+   "dmg": 14,
+   "speed": 60,
+   "ai": "healer",
+   "size": [
+    18,
+    40
+   ],
+   "agirlik": 2,
+   "min_derinlik": 6,
+   "ses_can": "hayalet_can",
+   "ses_olum": "hayalet_olum",
+   "desc": "Şahmeran'ın kamı. Yoldaşlarını iyileştirip korur (hasar yarıya iner), güdümlü yeşil ruhlar salar, yaklaşınca ışınlanır.",
+   "impl": true
+  },
+  {
+   "id": "kar_cadisi",
+   "name": "Kar Cadısı",
+   "biome": "kaf",
+   "hp": 60,
+   "dmg": 19,
+   "speed": 80,
+   "ai": "blinker",
+   "size": [
+    18,
+    44
+   ],
+   "agirlik": 2,
+   "kan": [
+    0.65,
+    0.85,
+    1.0
+   ],
+   "ses_can": "surale_can",
+   "ses_olum": "surale_olum",
+   "desc": "Kaf'ın ak saçlı cadısı. Kara dönüşüp arkanda belirir ve üç kez pençeler; uzaktan buz kıymığı yelpazesi.",
+   "impl": true
+  },
+  {
+   "id": "abasi",
+   "name": "Abası",
+   "biome": "kaf",
+   "hp": 170,
+   "dmg": 25,
+   "speed": 55,
+   "ai": "chainer",
+   "size": [
+    32,
+    60
+   ],
+   "heavy": true,
+   "agirlik": 2,
+   "min_derinlik": 8,
+   "ses_can": "kurt_can",
+   "ses_olum": "kurt_olum",
+   "desc": "Demir dişli tek gözlü dev. Kancalı zinciriyle seni önüne çeker ve vurur; çift yumrukla buz dikeni çakar, zinciri çevresinde savurur.",
+   "impl": true
+  },
+  {
+   "id": "ejder_yavrusu",
+   "name": "Ak Ejder Yavrusu",
+   "biome": "kaf",
+   "hp": 120,
+   "dmg": 20,
+   "speed": 70,
+   "ai": "breather",
+   "size": [
+    44,
+    34
+   ],
+   "agirlik": 2,
+   "kan": [
+    0.6,
+    0.85,
+    1.0
+   ],
+   "ses_can": "kurt_can",
+   "ses_olum": "kurt_olum",
+   "desc": "Kaf'ın buz ejderi yavrusu. Ayaz soluğu koni gibi yayılır; kuyruğunu savurur, kanat çırpıp üstüne atlar.",
+   "impl": true
+  },
+  {
+   "id": "yasavul",
+   "name": "Erlik Yasavulu",
+   "biome": "tamu",
+   "hp": 115,
+   "dmg": 23,
+   "speed": 80,
+   "ai": "lancer",
+   "size": [
+    26,
+    56
+   ],
+   "heavy": true,
+   "ates": true,
+   "agirlik": 2,
+   "kan": [
+    0.9,
+    0.35,
+    0.1
+   ],
+   "ses_can": "tas_can",
+   "ses_olum": "tas_olum",
+   "desc": "Erlik'in kor zırhlı muhafızı. Alevli teberiyle şerit boyunca hücum eder, yarıp savurur, ateş ciridi fırlatır.",
+   "impl": true
+  },
+  {
+   "id": "kor_solucani",
+   "name": "Kor Solucanı",
+   "biome": "tamu",
+   "hp": 100,
+   "dmg": 21,
+   "speed": 60,
+   "ai": "burrower",
+   "size": [
+    40,
+    26
+   ],
+   "ates": true,
+   "agirlik": 2,
+   "kan": [
+    1.0,
+    0.5,
+    0.15
+   ],
+   "ses_can": "tas_can",
+   "ses_olum": "tas_olum",
+   "desc": "Tamu'nun lav solucanı. Yerin altından kor çatlaklar açarak gelir, ağzıyla fırlar, lav tükürür.",
+   "impl": true
   }
  ],
  "bosses": [

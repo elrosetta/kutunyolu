@@ -558,7 +558,11 @@ func _biome_pool() -> Array:
 	var pool: Array = []
 	for e in Data.world["enemies"]:
 		if e.get("biome", "") == bid and e.get("impl", false) and not String(e.get("ai", "")).begins_with("boss"):
-			pool.append(e["id"])
+			# v39: "havuz": false (çağrılan yavru) havuza girmez; "agirlik" kaç pay; "min_derinlik" ilk derinlik
+			if not bool(e.get("havuz", true)) or int(Game.run.get("depth", 1)) < int(e.get("min_derinlik", 0)):
+				continue
+			for i in maxi(1, int(e.get("agirlik", 1))):
+				pool.append(e["id"])
 	if pool.is_empty():
 		pool = ["kara_boru", "cor", "balbal"]
 	return pool
@@ -2731,19 +2735,35 @@ func _bos_oda_doldur() -> void:
 		var kind := _tur_sec(pool, "yakin")
 		if kind == "":
 			kind = String(pool[0])
-		for tx in cols:
-			var fy := room_floor(rm, tx)
-			if _yaratik_yasak(tx, fy - 1) or bezirgan_alani(tx, 4):
-				continue
-			var e := spawn_enemy(kind, Vector2(tx * TS + TS / 2.0, fy * TS - 1), false, false, true)
-			if e == null:
-				continue
-			if int(room_at(int(e.position.x / TS), int((e.position.y - 4.0) / TS)).get("id", -1)) != int(rm["id"]) or _yaratik_yasak(int(e.position.x / TS), int((e.position.y - 4.0) / TS)):
-				e.remove_from_group("dusman")
-				e.queue_free()
-				continue
-			gruplar.append({"oda": int(rm["id"]), "karisik": false, "n": 1})
-			break
+		# v39: seçilen tür odaya sığmazsa (iri gövdeler: Ağ Ana, Tepegöz Yavrusu ...) havuzun öbür türleri denenir
+		var adaylar: Array = [kind]
+		for k2 in pool:
+			if not adaylar.has(k2):
+				adaylar.append(k2)
+		var konan := false
+		# v39: tüccar tezgâhı dar bir ana yol odasına taşmışsa ikinci geçişte yalnızca tezgâhın kendisi yasak
+		var denemeler: Array = []
+		for pay in [4, 0]:
+			for kk in adaylar:
+				denemeler.append([kk, pay])
+		for dn in denemeler:
+			if konan:
+				break
+			var kk: String = dn[0]
+			for tx in cols:
+				var fy := room_floor(rm, tx)
+				if _yaratik_yasak(tx, fy - 1) or bezirgan_alani(tx, int(dn[1])):
+					continue
+				var e := spawn_enemy(String(kk), Vector2(tx * TS + TS / 2.0, fy * TS - 1), false, false, true)
+				if e == null:
+					continue
+				if int(room_at(int(e.position.x / TS), int((e.position.y - 4.0) / TS)).get("id", -1)) != int(rm["id"]) or _yaratik_yasak(int(e.position.x / TS), int((e.position.y - 4.0) / TS)):
+					e.remove_from_group("dusman")
+					e.queue_free()
+					continue
+				gruplar.append({"oda": int(rm["id"]), "karisik": false, "n": 1})
+				konan = true
+				break
 
 
 func _yaratik_yasak(tx: int, ty: int) -> bool:
@@ -2771,8 +2791,8 @@ func _tur_sec(pool: Array, sinif: String) -> String:
 	var c: Array = []
 	for k in pool:
 		var ai := _ai_of(String(k))
-		var uzak: bool = ai in ["flyer_ranged", "illusionist", "archer", "caster", "charmer"]
-		var ucan: bool = ai in ["flyer_ranged", "diver", "swarm"]
+		var uzak: bool = ai in ["flyer_ranged", "illusionist", "archer", "caster", "charmer", "summoner", "healer"]
+		var ucan: bool = ai in ["flyer_ranged", "diver", "swarm", "swooper"]
 		if (sinif == "uzak" and uzak) or (sinif == "ucan" and ucan) or (sinif == "yakin" and not uzak and not ucan):
 			c.append(k)
 	if c.is_empty():
@@ -2804,11 +2824,11 @@ func _grup(rm: Dictionary, x: int, st: Dictionary, bekci_seckin: bool) -> int:
 	var kinds: Array = [kind]
 	if Data.enemy_def(kind).get("sprite", kind) == "kara_boru" and ai == "lunger" and rng.randf() < 0.5:
 		kinds.append(kind)
-	elif not (ai in ["pouncer", "flyer_ranged", "diver"]) and rng.randf() < Zorluk.suru(depth):
+	elif not (ai in ["pouncer", "flyer_ranged", "diver", "swooper", "summoner", "healer", "slammer", "chainer"]) and rng.randf() < Zorluk.suru(depth):
 		kinds.append(kind)   # v22: derinde ikili gruplar (sürü)
 	var karisik := false
 	if rng.randf() < float(st["karisik"]):
-		var uzak: bool = ai in ["flyer_ranged", "illusionist", "archer", "caster", "charmer"]
+		var uzak: bool = ai in ["flyer_ranged", "illusionist", "archer", "caster", "charmer", "summoner", "healer"]
 		var es := _tur_sec(pool, "yakin" if uzak else "uzak")
 		if es != "":
 			kinds.append(es)
@@ -2866,7 +2886,7 @@ func spawn_enemy(kind: String, pos: Vector2, is_elite := false, is_ofkeli := fal
 	var e: Enemy = Boss.new() if String(Data.enemy_def(kind).get("ai", "")).begins_with("boss") else Enemy.new()
 	e.setup(kind, is_elite, int(Game.run.get("tier", 0)), is_ofkeli)
 	e.level = self
-	var lift := 70.0 if kind == "cor" else 0.0
+	var lift := 70.0 if kind == "cor" or e.flying else 0.0   # v39: bütün uçanlar havada doğar
 	e.position = pos - Vector2(0, lift)
 	if check:
 		# görsel ölçek Enemy._ready'de kurulur: seçkin 1,3, öfkeli 1,1
@@ -3283,6 +3303,8 @@ func on_enemy_died(e: Enemy) -> void:
 		_on_boss_died(e)
 		return
 	_v12_on_kill(e)
+	if e.has_meta("yavru"):
+		return   # v39: çağrılan Şulmus yavrusu ganimet bırakmaz
 	_lanet_oldurme()   # v34
 	# v24: seçkin +6 -> +10 tane (tüccar ekonomisi). v34: yaratık sayısı ~1,9 kat: sıradan yaratığın altını 2-4 -> 1-2
 	# tane (+%25 bir tane daha); bölüm başına altın v33'ün ~1,5 katı (küp / gizli cep / lanetli sandık dahil)

@@ -1599,5 +1599,275 @@
   "loop": false,
   "len": 0.519,
   "hedef_db": -6.0
+ },
+ "hazirlik_abasi_1": {
+  "loop": false,
+  "len": 0.58,
+  "hedef_db": -15.0
+ },
+ "hazirlik_abasi_2": {
+  "loop": false,
+  "len": 0.742,
+  "hedef_db": -15.0
+ },
+ "hazirlik_ag_ana_1": {
+  "loop": false,
+  "len": 0.823,
+  "hedef_db": -15.0
+ },
+ "hazirlik_ag_ana_2": {
+  "loop": false,
+  "len": 0.757,
+  "hedef_db": -15.0
+ },
+ "hazirlik_agu_kurbagasi_1": {
+  "loop": false,
+  "len": 0.55,
+  "hedef_db": -15.0
+ },
+ "hazirlik_agu_kurbagasi_2": {
+  "loop": false,
+  "len": 0.55,
+  "hedef_db": -15.0
+ },
+ "hazirlik_aldaras_1": {
+  "loop": false,
+  "len": 0.991,
+  "hedef_db": -15.0
+ },
+ "hazirlik_aldaras_2": {
+  "loop": false,
+  "len": 0.784,
+  "hedef_db": -15.0
+ },
+ "hazirlik_burkut_1": {
+  "loop": false,
+  "len": 0.5,
+  "hedef_db": -15.0
+ },
+ "hazirlik_burkut_2": {
+  "loop": false,
+  "len": 0.5,
+  "hedef_db": -15.0
+ },
+ "hazirlik_ejder_yavrusu_1": {
+  "loop": false,
+  "len": 0.65,
+  "hedef_db": -15.0
+ },
+ "hazirlik_ejder_yavrusu_2": {
+  "loop": false,
+  "len": 0.65,
+  "hedef_db": -15.0
+ },
+ "hazirlik_kar_cadisi_1": {
+  "loop": false,
+  "len": 1.589,
+  "hedef_db": -15.0
+ },
+ "hazirlik_kar_cadisi_2": {
+  "loop": false,
+  "len": 1.708,
+  "hedef_db": -15.0
+ },
+ "hazirlik_kor_solucani_1": {
+  "loop": false,
+  "len": 1.342,
+  "hedef_db": -15.0
+ },
+ "hazirlik_kor_solucani_2": {
+  "loop": false,
+  "len": 1.25,
+  "hedef_db": -15.0
+ },
+ "hazirlik_sulmus_1": {
+  "loop": false,
+  "len": 0.5,
+  "hedef_db": -15.0
+ },
+ "hazirlik_sulmus_2": {
+  "loop": false,
+  "len": 0.504,
+  "hedef_db": -15.0
+ },
+ "hazirlik_sulmus_yavrusu_1": {
+  "loop": false,
+  "len": 0.3,
+  "hedef_db": -15.0
+ },
+ "hazirlik_sulmus_yavrusu_2": {
+  "loop": false,
+  "len": 0.3,
+  "hedef_db": -15.0
+ },
+ "hazirlik_tepegoz_yavrusu_1": {
+  "loop": false,
+  "len": 0.633,
+  "hedef_db": -15.0
+ },
+ "hazirlik_tepegoz_yavrusu_2": {
+  "loop": false,
+  "len": 0.549,
+  "hedef_db": -15.0
+ },
+ "hazirlik_tunga_hayaleti_1": {
+  "loop": false,
+  "len": 1.119,
+  "hedef_db": -15.0
+ },
+ "hazirlik_tunga_hayaleti_2": {
+  "loop": false,
+  "len": 1.119,
+  "hedef_db": -15.0
+ },
+ "hazirlik_yasavul_1": {
+  "loop": false,
+  "len": 0.57,
+  "hedef_db": -15.0
+ },
+ "hazirlik_yasavul_2": {
+  "loop": false,
+  "len": 0.608,
+  "hedef_db": -15.0
+ },
+ "hazirlik_yer_cucesi_1": {
+  "loop": false,
+  "len": 0.585,
+  "hedef_db": -15.0
+ },
+ "hazirlik_yer_cucesi_2": {
+  "loop": false,
+  "len": 0.411,
+  "hedef_db": -15.0
+ },
+ "hazirlik_yilan_kami_1": {
+  "loop": false,
+  "len": 1.318,
+  "hedef_db": -15.0
+ },
+ "hazirlik_yilan_kami_2": {
+  "loop": false,
+  "len": 1.32,
+  "hedef_db": -15.0
+ },
+ "v39_ag": {
+  "loop": false,
+  "len": 0.35,
+  "hedef_db": -13.0
+ },
+ "v39_bulut": {
+  "loop": false,
+  "len": 0.9,
+  "hedef_db": -13.0
+ },
+ "v39_buz": {
+  "loop": false,
+  "len": 0.453,
+  "hedef_db": -13.0
+ },
+ "v39_cagir": {
+  "loop": false,
+  "len": 1.228,
+  "hedef_db": -13.0
+ },
+ "v39_cakma": {
+  "loop": false,
+  "len": 1.414,
+  "hedef_db": -13.0
+ },
+ "v39_cigilik": {
+  "loop": false,
+  "len": 0.5,
+  "hedef_db": -13.0
+ },
+ "v39_cik": {
+  "loop": false,
+  "len": 1.242,
+  "hedef_db": -13.0
+ },
+ "v39_cirit": {
+  "loop": false,
+  "len": 0.4,
+  "hedef_db": -13.0
+ },
+ "v39_dil": {
+  "loop": false,
+  "len": 0.254,
+  "hedef_db": -13.0
+ },
+ "v39_firlat": {
+  "loop": false,
+  "len": 0.2,
+  "hedef_db": -13.0
+ },
+ "v39_hucum": {
+  "loop": false,
+  "len": 0.466,
+  "hedef_db": -13.0
+ },
+ "v39_kafatasi": {
+  "loop": false,
+  "len": 0.349,
+  "hedef_db": -13.0
+ },
+ "v39_kanat": {
+  "loop": false,
+  "len": 0.3,
+  "hedef_db": -13.0
+ },
+ "v39_kar": {
+  "loop": false,
+  "len": 1.198,
+  "hedef_db": -13.0
+ },
+ "v39_kaz": {
+  "loop": false,
+  "len": 1.24,
+  "hedef_db": -13.0
+ },
+ "v39_kazma": {
+  "loop": false,
+  "len": 0.8,
+  "hedef_db": -13.0
+ },
+ "v39_kuyruk": {
+  "loop": false,
+  "len": 0.268,
+  "hedef_db": -13.0
+ },
+ "v39_orak": {
+  "loop": false,
+  "len": 0.251,
+  "hedef_db": -13.0
+ },
+ "v39_ruh": {
+  "loop": false,
+  "len": 2.42,
+  "hedef_db": -13.0
+ },
+ "v39_savur": {
+  "loop": false,
+  "len": 0.264,
+  "hedef_db": -13.0
+ },
+ "v39_sifa": {
+  "loop": false,
+  "len": 2.746,
+  "hedef_db": -13.0
+ },
+ "v39_soluk": {
+  "loop": false,
+  "len": 1.6,
+  "hedef_db": -13.0
+ },
+ "v39_tukur": {
+  "loop": false,
+  "len": 0.258,
+  "hedef_db": -13.0
+ },
+ "v39_zincir": {
+  "loop": false,
+  "len": 0.522,
+  "hedef_db": -13.0
  }
 }

@@ -23,6 +23,10 @@ var _last_log: Dictionary = {}
 const KINDS := ["kara_boru", "sicrayan_tazi", "yek", "kirkayak", "ayaz_kurdu", "cor", "kara_kus_yavrusu", "kan_yarasasi",
 	"agac_iyesi", "dev_cocugu", "tozkoparan", "su_iyesi", "balbal", "arcura", "kurgan_okcusu", "isilti_bocegi", "erlik_kizi",
 	"surale", "karakoncolos", "kurgan_bekcisi", "al_atli", "tas_kertenkele", "tosbaga"]
+## v39 yeni yaratıklar (--zeka_v39 yalnızca bunlar): her yapay zekâ hazırlık -> etkin -> toparlanma döngüsünden geçmeli;
+## satırda görülen hamleler ve "takılma" (idle / chase dışı bir durumda kesintisiz kalınan en uzun süre) yazılır
+const KINDS_V39 := ["yer_cucesi", "kor_solucani", "sulmus", "sulmus_yavrusu", "burkut", "tunga_hayaleti", "yasavul", "aldaras",
+	"tepegoz_yavrusu", "agu_kurbagasi", "ag_ana", "yilan_kami", "kar_cadisi", "abasi", "ejder_yavrusu"]
 const ACTS := ["saldiri1", "saldiri2", "zipla", "yuvarlan", "sag", "sol", "yukari", "asagi"]
 const ATK_STATES := ["windup", "dive", "charge", "spin", "grab", "swoop"]
 
@@ -100,7 +104,9 @@ func _run() -> void:
 
 # ================================================================== yaratıklar
 func _mob_suite() -> void:
-	var kinds: Array = KINDS
+	var kinds: Array = KINDS + KINDS_V39
+	if OS.get_cmdline_user_args().has("--zeka_v39"):
+		kinds = KINDS_V39
 	var only := _arg("--zeka_tur")
 	if only != "":
 		kinds = only.split(",")
@@ -110,6 +116,7 @@ func _mob_suite() -> void:
 		var b: Dictionary = await _mob_case(String(k), "ezme", 20.0)
 		var row := "%-16s ai=%-12s | ilk=%5.2f sn hamle/10sn=%4.1f hasar/30sn=%4d | EZME hamle/10sn=%4.1f kilit=%3d%% hasar/10sn=%4d vuruş=%d çarpışma=%d karşı=%d" % [k, a["ai"],
 			a["first"], a["atk"] * 10.0 / 20.0, int(a["dmg"] * 30.0 / 20.0), b["atk"] * 0.5, int(b["lock"] * 100.0), int(b["dmg"] * 0.5), int(b["hits"] * 0.5), b["clash"], b["counter"]]
+		row += " | hamleler=%s takılma=%.1f/%.1f sn" % [str(a["moves"].keys() + b["moves"].keys()), a["stuck"], b["stuck"]]
 		if OS.get_cmdline_user_args().has("--zeka_oldur"):
 			# v26: gerçek canla öldürme (derinliğin beklenen donanımı, ezen oyuncu): süre, vuruş, alınan hasar
 			var o: Dictionary = await _mob_case(String(k), "oldur", 45.0)
@@ -132,6 +139,11 @@ func _mob_case(kind: String, mode: String, dur: float) -> Dictionary:
 	var e: Enemy = lv.spawn_enemy(kind, spot + Vector2(150.0, 0.0))
 	e.aggro = true
 	e.cd = 0.6
+	if kind == "yilan_kami":
+		# v39 şifacı: yanında yaralı, kıpırdamayan bir yoldaş (iyileştirme + koruma hamlesi sınansın)
+		var yo: Enemy = lv.spawn_enemy("agu_kurbagasi", spot + Vector2(240.0, 0.0))
+		yo.cd = 99.0
+		yo.hp = yo.max_hp * 0.4
 	if mode == "ezme":
 		e.max_hp = 1.0e7
 		e.hp = 1.0e7
@@ -151,6 +163,9 @@ func _mob_case(kind: String, mode: String, dur: float) -> Dictionary:
 	var killed := false
 	var ehp0 := e.max_hp
 	var ks0: Dictionary = Player.krit_say.duplicate()
+	var moves: Dictionary = {}
+	var stuck := 0.0
+	var st_t := 0.0
 	while t < dur:
 		if mode == "oldur" and (not is_instance_valid(e) or e.dead):
 			killed = true
@@ -182,6 +197,10 @@ func _mob_case(kind: String, mode: String, dur: float) -> Dictionary:
 		var s := String(e.state)
 		if OS.get_cmdline_user_args().has("--zeka_iz") and s != prev_state:
 			print("[iz] t=%.2f %s -> %s mv=%s dx=%.0f sa=%.2f hurt=%.2f stun=%.2f pl_inv=%.2f pl_roll=%.2f pl_atk=%s" % [t, prev_state, s, str(e.get_meta("move", "")), e.global_position.x - pl.global_position.x, e.sa_t, e.hurt_t, e.stun_t, pl.inv_t, pl.roll_t, str(pl.atk.get("phase", "-"))])
+		if s == "windup" and e.has_meta("move"):
+			moves[String(e.get_meta("move"))] = int(moves.get(String(e.get_meta("move")), 0)) + (1 if prev_state != "windup" else 0)
+		st_t = 0.0 if (s != prev_state or s in ["idle", "chase"]) else st_t + dt
+		stuck = maxf(stuck, st_t)
 		if s != prev_state and s in ATK_STATES and not (prev_state in ATK_STATES):
 			atk += 1
 			if first < 0.0:
@@ -206,7 +225,7 @@ func _mob_case(kind: String, mode: String, dur: float) -> Dictionary:
 	for o in get_tree().get_nodes_in_group("dusman"):
 		o.remove_from_group("dusman")
 		o.queue_free()
-	return {"ai": ai_name, "first": first if first >= 0.0 else 99.0, "atk": float(atk), "lock": lock_t / maxf(0.01, dur), "dmg": dmg, "hits": hits,
+	return {"moves": moves, "stuck": stuck, "ai": ai_name, "first": first if first >= 0.0 else 99.0, "atk": float(atk), "lock": lock_t / maxf(0.01, dur), "dmg": dmg, "hits": hits,
 		"clash": int(pl.v19_stats.get("carpisma", 0)) - c0, "counter": int(pl.v19_stats.get("karsi", 0)) - k0,
 		"killed": killed, "kill_t": t, "ref_hp": ref_hp, "ehp0": ehp0,
 		"krit": int(Player.krit_say["sans"]) + int(Player.krit_say["kosul"]) + int(Player.krit_say["kesin"]) - int(ks0["sans"]) - int(ks0["kosul"]) - int(ks0["kesin"]),
