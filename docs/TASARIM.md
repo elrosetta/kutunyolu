@@ -6480,3 +6480,98 @@ Başsız koşuda statik bellek ~2 GB (sahte çizici görüntüleri RAM'de tutar)
 
 Testler: `--dovus --boss --kontrol`, `--sanat --boss --muhur=0`, `--harita`, `--isinlan`, `--konak`, `--tuccar --muhur=0`,
 `--otomatik --derinlik=1/3/5 --muhur=0`, `--vahset`, `--zeka --muhur=0`, `--piksel_tara`: betik hatası 0.
+
+## v38: görüntü ve GPU optimizasyonu
+
+Hedef donanım gerçeği: Intel UHD 750 (tümleşik, paylaşımlı bellek). Oyun GPU'ya bağlıydı: 1080p pencerede yurtta bile
+~30 ms/kare, 1440p'de ~60 ms. Darboğaz çizim çağrısı değil (115-290 çağrı) **piksel doldurma**: 8-10 tam ekran paralaks
+katmanı, sis / pus, ışık döngüsü, parlama ve renk derecelendirmesi her ekran pikselinde.
+
+### Ölçüm (`tools/tests/gorsel_perf.gd`, `-- --gpu_perf`)
+`Ayarlar._ready` bayrağı görünce ekler (başka test bayraklarıyla birleşir). Dikey eşitleme kapalı, kare sınırı yok; her faz için
+kare süresi ort / %95 / en kötü, **GPU süresi** (kök görüntü alanı, `RenderingServer.viewport_get_measured_render_time_gpu`),
+2D çizim çağrısı / öğe / ilkel, doku ve toplam VRAM, görünür (gölgeli) ışık sayısı, HD doku sayısı ve yükleme süresi; açılışta
+ilk kare (motor başlangıcından ms), bölüm değişiminde kurulum karesi. `--gpu_doku`: kullanılan benzersiz dokuların listesi.
+Örnek: `godot --path . -- --gpu_perf --ekran=perf --derinlik=5 --tohum=3 --muhur=0 --pencere=2560x1440 --bekle=4 --olcum_sn=8`
+(`--grafik=0..3` hazır ayar; `--g_isik= --g_katman= --g_cizim=` tek alt ayar; `--kirpma_yok` paralaks kırpmasını kapatır).
+
+### Önce / sonra (Intel UHD 750, pencere, vsync kapalı, tohum 3, mühür 0, 8 sn; "önce" = v37 ana dal)
+| Sahne | Çözünürlük | Önce FPS (kare / GPU ms) | Yüksek FPS (kare / GPU ms) | Orta FPS (GPU ms) | Düşük FPS (GPU ms) |
+|---|---|---|---|---|---|
+| Ötüken 1 | 1080p | 38,3 (26,1 / 23,9) | 47,0 (21,3 / 18,3) | 58,1 (7,7) | 57,9 (7,4) |
+| Şahmeran 5 | 1080p | 28,4 (35,2 / 30,2) | 32,5 (30,8 / 23,3) | | |
+| Tamu 9 | 1080p | 27,2 (36,8 / 30,4) | 32,5 (30,8 / 21,9) | 52,5 (8,9) | 56,5 (7,6) |
+| Yurt | 1080p | 29,3 (34,1 / 30,1) | 34,5 (29,0 / 25,0) | | |
+| Vahşet (yoğun dövüş) | 1080p | 26,4 (37,9 / 31,3) | 33,1 (30,2 / 23,5) | 63,4 (7,7) | 118 (3,5) |
+| Ötüken 1 (HD) | 1440p | 15,3 (65,4 / 59,5) | 18,6 (53,8 / 46,3) | 44,7 (8,3) | 45,2 (8,2) |
+| Şahmeran 5 (HD) | 1440p | 15,6 (64,1 / 58,4) | 19,1 (52,4 / 45,6) | | |
+| Tamu 9 (HD) | 1440p | 19,6 (51,1 / 46,6) | 19,1 (52,3 / 45,2) | 41,6 (9,1) | 42,9 (8,6) |
+| Yurt (HD) | 1440p | 16,3 (61,5 / 56,7) | 20,2 (49,5 / 44,5) | | |
+| Vahşet (HD) | 1440p | 12,6 (79,2 / 64,2) | 17,6 (56,9 / 46,4) | 52,8 (7,6) | 52,6 (7,2) |
+
+* GPU süresi Yüksek'te (görüntü aynı) **%20-28 düştü**; Orta / Düşük'te GPU 7-9 ms: kare artık CPU'ya bağlı (oyun mantığı;
+  v38-cpu38 dalı ayrıca iyileştirir). Çizim çağrısı değişmedi (2D zaten toplu çiziliyordu).
+* **VRAM** (standart doku, 1080p): Ötüken 949 -> 807 MB, Şahmeran 847 -> 753, Tamu 829 -> 736, vahşet 1107 -> 898 MB; Orta
+  713 MB. HD 1440p: vahşet 2423 -> 2266 MB.
+* **Yükleme:** HD doku yüklemesi bölüm başına 3,98 -> 1,35 sn (Ötüken 1440p), 3,66 -> 1,64 (vahşet), yurt 1,41 -> 0,66;
+  ilk kare 1440p'de 12,8 -> 9,5 sn, 1080p'de ~1 sn erken.
+
+### Yapılanlar
+* **Çizici: Forward+ -> Mobile** (`project.godot`, Vulkan; Windows sürücüsü açıkça `vulkan`: D3D12 bu GPU'da %30 yavaştı).
+  2D çizim yolu iki RD çizicide ortak: HDR 2D, parlama, ekran dokusu gölgelendiricisi, 2D ışık / gölge aynı; görüntü farkı
+  yalnızca canlandırma evresi (ort. piksel farkı 0,2-2,3 / 255). Compatibility (OpenGL) daha da hızlıydı ama görüntü farklı
+  (parlama, ışık karışımı, ekran dokusunun renk uzayı; yıkanmış, vinyetsiz): elendi. Vulkan yoksa motor kendiliğinden
+  OpenGL'e düşer; otomatik hazır ayar o zaman Düşük.
+* **Paralaks kırpma** (`tools/artgen/bg_kirp.py` -> `data/bg_kirp.json`, `ParallaxBG`): her katmanın alfası olan ilk / son
+  satırı; Sprite2D bölgesi + ofsetle yalnızca o şerit çizilir (görüntü bayt bayt aynı, yatay döşeme değişmez). Sis / pus
+  katmanlarında %50-80, dağlarda %25-50 daha az piksel. Katman dokuları yeniden üretilince betik yeniden çalıştırılır.
+* **HD paket yükleyicisi** (`Data._ctex_image`): içe aktarılmış BPTC verisi `.ctex` dosyasından doğrudan okunup
+  `Image.create_from_data` ile `ImageTexture`'a verilir. Eskiden doku önce GPU'ya yükleniyor, geri okunuyor (`get_image`) ve
+  ikinci kez yükleniyordu (iki kopya, GPU senkronu). GPU BPTC desteklemiyorsa ya da biçim beklenmedikse eski yol.
+* **VRAM:** 48 büyük kayıpsız doku VRAM sıkıştırmalı (BPTC yüksek kalite) oldu: sprite / süs / karo ışıma sayfaları (`*_e.png`,
+  yumuşak toplamalı; ör. dev_cocugu_v2_e 28,8 -> 7,2 MB) ve `assets/fx/anim` animasyonlu efekt sayfaları. Gök, sis, pus,
+  hüzme ve maskeler bantlaşmasın diye kayıpsız kaldı. Biyom değişince eski biyomun paralaks / ön plan dokuları önbellekten
+  bırakılır (`Data.budama`, `Level._exit_tree`; yalnızca önbellek tutuyorsa): HD'de biyom başına ~350 MB birikmiyor.
+* **Gölgelendiriciler:** `grade_v2` sonuna titreşim (iki "interleaved gradient noise" = üçgen dağılım, ±1/255; `dither`
+  parametresi): HDR 2D tampon 8 bite yazılırken koyu sis / pus gradyanlarındaki basamaklı bantlar kayboldu
+  (`docs/v38/gorsel/yakin_bant_tamu_1080.png`, kontrast x5). `ground_ink`: dünya uzayı UV'leri (toprak, çayır, derinlik)
+  köşede hesaplanıp aradeğerlenir (piksel başına `textureSize` ve bölme yok; sonuç aynı). Hasar flaşının tam ekran saydam
+  dörtgeni yalnızca flaş sırasında görünür (`Level.red_rect`).
+
+### Grafik ayarları (`Ayarlar.gd`, Ayarlar ekranı)
+Yeni satırlar: **Grafik kalitesi** (hazır ayar) ve alt ayarları; alt ayar değişince hazır ayar "Özel" olur. Açıklamalar
+satırın kendisinde (`rows()` [ad, değer, etkin, açıklama, anahtar]); 15 satır 640x360 menüye sıkışık aralıkla sığar.
+
+| | Düşük | Orta | Yüksek | Ultra |
+|---|---|---|---|---|
+| Çizim çözünürlüğü | Yarım (960x540) | Yarım (960x540) | Tam | Tam |
+| Doku kalitesi | Standart | Standart | Otomatik (1440p+ HD) | 2K (HD her çözünürlükte) |
+| Işık ve parlama | Az: parlama ve renk derecelendirmesi kapalı (yalnızca vinyet), en çok 14 süs ışığı, gölge yok | Hafif: gölgesiz, en çok 28 süs ışığı, tam parlama | Tam | Tam |
+| Arka plan katmanları | Az (pus, hüzme, rüzgâr, uzak kar yok) | Tam | Tam | Tam |
+| Efekt yoğunluğu (`Ayarlar.efekt_yogunluk()`) | 0,5 | 0,75 | 1,0 | 1,0 |
+
+* **Çizim çözünürlüğü Yarım:** kök pencere `canvas_items` yerine `viewport` germe kipi: sahne 960x540'ta çizilip büyütülür
+  (dünya ve arayüz düzeni aynı, GPU yükü pencere çözünürlüğünden bağımsız: UHD 750'de 1080p ve 1440p'de GPU ~8 ms). Bedeli
+  yumuşaklık (`docs/v38/gorsel/*_yuksek_orta.jpg`, `yakin_keskinlik_otuken_1080.jpg`). 2D'de ara ölçek (0,67 / 0,8) yok:
+  `viewport` kipinde mantıksal boy = çizim boyu, oyun 960x540 mantıksal görüntüye bağlı.
+* **Efekt yoğunluğu** yalnızca ayar + okuyucu (`Ayarlar.efekt_yogunluk()`); kan / parçacık üreticileri (CPU tarafı) bunu
+  çarpan olarak okuyabilir.
+* **Kare sınırı:** Sınırsız / 30 / 60 / 120 / 144 (`Engine.max_fps`).
+* **İlk açılış (ayar dosyası yok):** GPU türü (`RenderingServer.get_video_adapter_type`, ad: UHD / Iris / HD Graphics)
+  tümleşikse Orta, ayrıksa Yüksek, OpenGL yedeği / CPU Düşük. **Eski ayar dosyası** (`[grafik]` bölümü yok): kayıtlı doku
+  kalitesi korunur, diğerleri aynı kuralla seçilir. Yeni anahtarlar `[grafik]` bölümünde (hazir, cizim, isik, katman, efekt,
+  fps); eski anahtarlar (mod, cozunurluk, olcek, doku, vsync, arayuz, efekt, harita) aynen.
+* Işık / katman / efekt sonraki bölümde, çizim çözünürlüğü ve kare sınırı hemen, doku kalitesi yeniden başlatınca geçerli.
+
+### Görüntü kanıtı (`docs/v38/gorsel/`)
+`<biyom>_1080_once_sonra.jpg`, `<biyom>_1440_once_sonra.jpg` (Ötüken, Şahmeran, Tamu, yurt; aynı tohum ve kare): v37 ile v38
+Yüksek aynı görünür (farklar canlandırma evresi). `<biyom>_1080_yuksek_orta.jpg`: Orta'nın yarım çizimi. Yakın kırpmalar:
+keskinlik (Ötüken, 2x) ve sis bantlaşması (Tamu, kontrast x5).
+
+### Yapılmayanlar / notlar
+* Sprite başına ayrı ShaderMaterial (vuruş parlaması) toplu çizimi bölüyor ama çizim çağrısı 115-290: darboğaz değil.
+* Gök / sis kayıpsız dokuları ctex içinde WebP: yüklemede çözülür (25-36 ms / katman). "VRAM Uncompressed" yüklemeyi hızlandırır
+  ama dışa aktarım ~400 MB büyür; yapılmadı.
+* Yay ucu taraması (`Data.weapon_sprite_image`) hâlâ temel silah atlasını geri okur (CPU dalı kuşanma anına taşıdı); uç
+  noktalarını `weapons_v2.json`'a önceden yazmak sonraki iş.
+* 2D fizik aradeğerlemesi (yüksek yenilemeli ekranda akıcılık) CPU / fizik tarafının işi; açılmadı.

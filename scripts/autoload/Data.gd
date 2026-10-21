@@ -88,8 +88,12 @@ func tex(path: String) -> Texture2D:
 	var e := _pack_entry(path)
 	if not e.is_empty():
 		var t0 := Time.get_ticks_usec()
-		var big: Texture2D = load(e["file"])
-		var img: Image = big.get_image() if big else null
+		# v38: içe aktarılmış BPTC verisi doğrudan dosyadan okunur (_ctex_image); eskiden doku önce GPU'ya yüklenip
+		# geri okunuyor (get_image) ve ikinci kez yükleniyordu. Okunamazsa eski yol.
+		var img: Image = _ctex_image(String(e["file"]))
+		if img == null:
+			var big: Texture2D = load(e["file"])
+			img = big.get_image() if big else null
 		if img != null and not img.is_empty():
 			var it := ImageTexture.create_from_image(img)
 			it.set_size_override(e["size"])
@@ -101,6 +105,74 @@ func tex(path: String) -> Texture2D:
 		t = load(path)
 	_tex_cache[path] = t
 	return t
+
+
+func _ctex_image(res_path: String) -> Image:
+	## v38: içe aktarılmış .ctex dosyasındaki ham (VRAM sıkıştırmalı, mipmap'li) görüntü verisi; GPU'ya yükleme ve geri
+	## okuma yok. Biçim (Godot 4 CompressedTexture2D): "GST2", sürüm, g, y, bayraklar, mip sınırı, 3 ayrılmış, veri biçimi
+	## (0 = ham görüntü), g16, y16, mip sayısı, Image.Format, veri. Yalnızca ham görüntü (BPTC / S3TC) okunur; WebP / PNG
+	## gömülü (kayıpsız) dokular ve beklenmeyen her şey null döner (çağıran eski yola düşer).
+	var imp := ConfigFile.new()
+	if imp.load(res_path + ".import") != OK:
+		return null
+	var ctex := ""
+	for k in ["path.bptc", "path.s3tc", "path"]:
+		if imp.has_section_key("remap", k):
+			if k != "path" and not RenderingServer.has_os_feature(k.trim_prefix("path.")):
+				continue  # GPU bu sıkıştırmayı desteklemiyor: motorun kendi yükleyicisi çözsün
+			ctex = String(imp.get_value("remap", k))
+			break
+	if ctex == "":
+		return null
+	var f := FileAccess.open(ctex, FileAccess.READ)
+	if f == null or f.get_buffer(4).get_string_from_ascii() != "GST2":
+		return null
+	f.get_32()  # sürüm
+	f.seek(36)
+	if f.get_32() != 0:  # veri biçimi: yalnızca ham görüntü
+		return null
+	var w := f.get_16()
+	var h := f.get_16()
+	var mips := f.get_32()
+	var fmt := f.get_32()
+	if w <= 0 or h <= 0 or fmt >= Image.FORMAT_MAX:
+		return null
+	var n := f.get_length() - f.get_position()
+	var data := f.get_buffer(n)
+	if data.size() != n:
+		return null
+	var img := Image.create_from_data(w, h, mips > 0, fmt, data)
+	if img == null or img.is_empty():
+		return null
+	return img
+
+
+var _budama_bekliyor := false
+
+
+func budama_planla() -> void:
+	## v38: bölüm değişince (Level._exit_tree) yarım saniye sonra budama: o arada yeni bölüm kendi dokularını aldı
+	if _budama_bekliyor or not is_inside_tree():
+		return
+	_budama_bekliyor = true
+	get_tree().create_timer(0.5, true, false, true).timeout.connect(budama)
+
+
+func budama() -> void:
+	## v38: önbellekte yalnızca kendisinin tuttuğu paralaks / ön plan şeridi dokuları (eski biyomun katmanları, HD'de biyom
+	## başına ~350 MB) bırakılır; biyomdan biyoma VRAM birikmez. Kullanımdaki doku (Sprite2D'ler tutar) kalır; yeniden
+	## istenirse diskten yüklenir. Başvuru sayısı: sözlük + bu yerel değişken = 2.
+	_budama_bekliyor = false
+	var n := 0
+	for k in _tex_cache.keys():
+		if not String(k).begins_with("res://assets/bg/"):
+			continue
+		var t: Texture2D = _tex_cache[k]
+		if t != null and t.get_reference_count() <= 2:
+			_tex_cache.erase(k)
+			n += 1
+	if n > 0:
+		print_verbose("Data.budama: %d arka plan dokusu bırakıldı" % n)
 
 
 func tex_full(path: String) -> Texture2D:

@@ -1076,15 +1076,17 @@ func _draw_settings(vp: Vector2) -> void:
 	var rows: Array = Ayarlar.rows()
 	var pw := 380.0
 	var x := roundf((vp.x - pw) / 2.0)
-	var y := 96.0
-	PixUI.fancy_panel(self, Rect2(x, y - 8, pw, rows.size() * 22.0 + 14), PixUI.EDGE, PixUI.INK2)
+	# v38: 15 satır (grafik kalitesi ve alt ayarları) 640x360 menüye sığsın diye satır aralığı sıkışır
+	var rh := 22.0 if rows.size() <= 9 else 15.0
+	var y := 96.0 if rows.size() <= 9 else 76.0
+	PixUI.fancy_panel(self, Rect2(x, y - 6, pw, rows.size() * rh + 10), PixUI.EDGE, PixUI.INK2)
 	for i in rows.size():
 		var r: Array = rows[i]
 		var is_sel := i == sel
 		var on: bool = r[2]
 		var col := PixUI.GOLD if is_sel else (PixUI.TEXT if on else PixUI.DIM)
 		if is_sel:
-			draw_texture_rect(InkUI.tex("swash"), Rect2(x - 2, y - 4, pw + 4, 22), false, Color(PixUI.GOLD.darkened(0.55), 0.55))
+			draw_texture_rect(InkUI.tex("swash"), Rect2(x - 2, y - 4, pw + 4, rh), false, Color(PixUI.GOLD.darkened(0.55), 0.55))
 			PixUI.text(self, Vector2(x - 10 + sin(_t * 8.0) * 2.0, y + 1), "→", PixUI.GOLD, 1, HORIZONTAL_ALIGNMENT_LEFT, -1.0, 2)
 		PixUI.text(self, Vector2(x + 12, y + 1), r[0], col)
 		var v: String = r[1]
@@ -1092,20 +1094,10 @@ func _draw_settings(vp: Vector2) -> void:
 		PixUI.text(self, Vector2(vx, y + 1), "<" if on else "", col, 1, HORIZONTAL_ALIGNMENT_LEFT, -1.0, 0)
 		PixUI.text(self, Vector2(vx + 8, y + 1), v, col if on else PixUI.DIM, 1, HORIZONTAL_ALIGNMENT_CENTER, 124)
 		PixUI.text(self, Vector2(vx + 136, y + 1), ">" if on else "", col, 1, HORIZONTAL_ALIGNMENT_LEFT, -1.0, 0)
-		y += 22.0
-	var tips := [
-		"Pencereli, tam ekran (kenarsız) ya da özel tam ekran.",
-		"Pencereli modda pencere boyutu. Tam ekranda ekranın kendi çözünürlüğü kullanılır.",
-		Ayarlar.quality_tip(),
-		"Kare hızını ekran yenilemesine kilitler (yırtılmayı önler).",
-		"Oyun içi göstergelerin boyutu. Normal: daha çok oyun alanı görünür.",
-		"Kamera sarsıntısı, darbe kareleri ve ekran flaşları. Rahatsız ediyorsa Azaltılmış ya da Kapalı seç.",
-		"Kut Mühürleri: Erlik Han'ı her yenişinde bir sonraki zorluk kademesi açılır (daha dayanıklı ve saldırgan düşmanlar, daha az şifa, öfkeli yaratıklar). %s. Yeni koşuda geçerli." % String(Zorluk.muhur_def(Zorluk.muhur_secili()).get("desc", "")).trim_suffix("."),
-		"Sağ alttaki parşömen haritanın boyu (keşfettikçe açılır; Kut Taşları ve ödüller işlenir). Kapalı: yalnızca M ile tam ekran harita.",
-		"Küçük haritanın saydamlığı: Hafif dövüşte az yer kaplar, Koyu daha okunur.",
-	]
-	var tl := PixUI.wrap(tips[clampi(sel, 0, tips.size() - 1)], 420)
-	var ty := y + 14.0
+		y += rh
+	# v38: açıklama satırın kendisinde (Ayarlar.rows r[3]); satır sırası değişse de kaymaz
+	var tl := PixUI.wrap(String(rows[clampi(sel, 0, rows.size() - 1)][3]), 420)
+	var ty := y + (14.0 if rh > 20.0 else 8.0)
 	for l in tl:
 		PixUI.text(self, Vector2(0, ty), l, PixUI.DIM, 1, HORIZONTAL_ALIGNMENT_CENTER, vp.x)
 		ty += 11.0

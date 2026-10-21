@@ -3,20 +3,21 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://7juyc7o0miy8"
-path="res://.godot/imported/erlik_kizi_v2_p1_e.png-c04eb3a2fe036048ef0f60aa41f1d942.ctex"
+path.bptc="res://.godot/imported/erlik_kizi_v2_p1_e.png-c04eb3a2fe036048ef0f60aa41f1d942.bptc.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
 }
 
 [deps]
 
 source_file="res://assets/sprites/erlik_kizi_v2_p1_e.png"
-dest_files=["res://.godot/imported/erlik_kizi_v2_p1_e.png-c04eb3a2fe036048ef0f60aa41f1d942.ctex"]
+dest_files=["res://.godot/imported/erlik_kizi_v2_p1_e.png-c04eb3a2fe036048ef0f60aa41f1d942.bptc.ctex"]
 
 [params]
 
-compress/mode=0
-compress/high_quality=false
+compress/mode=2
+compress/high_quality=true
 compress/lossy_quality=0.7
 compress/uastc_level=0
 compress/rdo_quality_loss=0.0

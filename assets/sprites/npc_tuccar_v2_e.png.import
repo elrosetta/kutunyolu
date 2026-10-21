@@ -3,20 +3,21 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://cuyia6nnsqivb"
-path="res://.godot/imported/npc_tuccar_v2_e.png-7ce850685ab8542384ac0ce5689d0601.ctex"
+path.bptc="res://.godot/imported/npc_tuccar_v2_e.png-7ce850685ab8542384ac0ce5689d0601.bptc.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
 }
 
 [deps]
 
 source_file="res://assets/sprites/npc_tuccar_v2_e.png"
-dest_files=["res://.godot/imported/npc_tuccar_v2_e.png-7ce850685ab8542384ac0ce5689d0601.ctex"]
+dest_files=["res://.godot/imported/npc_tuccar_v2_e.png-7ce850685ab8542384ac0ce5689d0601.bptc.ctex"]
 
 [params]
 
-compress/mode=0
-compress/high_quality=false
+compress/mode=2
+compress/high_quality=true
 compress/lossy_quality=0.7
 compress/uastc_level=0
 compress/rdo_quality_loss=0.0

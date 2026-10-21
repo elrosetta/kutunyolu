@@ -5,6 +5,9 @@ extends Node
 ## paketini yükler (assets_hd/x2; Data.tex): 2K ve 4K aynı 2 kat HD paketini kullanır. Paket dokular yüklenirken
 ## seçilir: değişiklik oyun yeniden başlatılınca uygulanır. Ayarlar user://ayarlar.cfg'de saklanır. v30: v1 piksel
 ## stiline ait "Ölçekleme: Keskin piksel" (tam sayı ölçek) seçeneği kaldırıldı.
+## v38: Grafik kalitesi hazır ayarları (Düşük / Orta / Yüksek / Ultra) ve alt ayarları: çizim çözünürlüğü, ışık ve parlama
+## (gölgeli ışıklar, ışık sınırı, parlama, renk derecelendirme), arka plan katmanları, efekt yoğunluğu, kare sınırı. İlk
+## açılışta GPU türüne göre seçilir (tümleşik: Orta, ayrık: Yüksek, OpenGL yedeği: Düşük). Eski ayarlar.cfg anahtarları aynen.
 
 const PATH := "user://ayarlar.cfg"
 const MODES := ["Pencereli", "Tam ekran", "Özel tam ekran"]
@@ -24,6 +27,25 @@ var harita_i := 2  # v32 küçük harita boyu: 0 kapalı, 1 küçük, 2 normal, 
 var harita_a := 1  # v32 küçük harita saydamlığı: 0 hafif, 1 orta, 2 koyu
 const HARITA_BOY := ["Kapalı", "Küçük", "Normal", "Büyük"]
 const HARITA_SAYDAM := ["Hafif", "Orta", "Koyu"]
+## v38 grafik kalitesi (bkz. GRAFIK): hazır ayar ve alt değerleri. Işık / katman / efekt bir sonraki bölümde, çizim
+## çözünürlüğü ve kare sınırı hemen, doku kalitesi yeniden başlatınca uygulanır.
+const GRAFIK_AD := ["Düşük", "Orta", "Yüksek", "Ultra"]
+## hazır ayar -> [çizim (0 tam, 1 yarım), doku (QUALITIES), ışık (0 az, 1 hafif, 2 tam), katman (0 az, 1 tam), efekt (0 az, 1 orta, 2 tam)]
+const GRAFIK := [[1, 1, 0, 0, 0], [1, 1, 1, 1, 1], [0, 0, 2, 1, 2], [0, 2, 2, 1, 2]]
+const CIZIM_AD := ["Tam", "Yarım (960x540)"]
+const ISIK_AD := ["Az", "Hafif", "Tam"]
+const KATMAN_AD := ["Az", "Tam"]
+const EFEKT_AD := ["Az", "Orta", "Tam"]
+const EFEKT_YOG := [0.5, 0.75, 1.0]
+const FPS_SINIR := [0, 30, 60, 120, 144]
+## ışık düzeyine göre en çok etkin sabit süs ışığı (Level.add_light; 0 = sınırsız)
+const ISIK_SINIR := [14, 28, 0]
+var grafik := 2       # hazır ayar (-1 = özel)
+var cizim := 0
+var isik := 2
+var katman := 1
+var efekt := 2
+var fps_i := 0
 var hd_active := 0     # şu an etkin HD düzeyi (0 / 1 / 2)
 var _test_size := Vector2i.ZERO
 var hd_wanted := 0          # ayarda seçili paket; hd_active ile farklıysa yeniden başlatma gerekir
@@ -47,7 +69,15 @@ func _ready() -> void:
 	_load()
 	# test / çekim: --doku=0..3 (Otomatik/Standart/2K/4K), --pencere=1920x1080 (kaydedilmez)
 	for arg in OS.get_cmdline_user_args():
-		if String(arg).begins_with("--doku="):
+		if String(arg).begins_with("--grafik="):
+			_preset(clampi(int(String(arg).trim_prefix("--grafik=")), 0, 3))  # test (kaydedilmez)
+		elif String(arg).begins_with("--g_isik="):   # test: tek alt ayar (kaydedilmez)
+			isik = clampi(int(String(arg).trim_prefix("--g_isik=")), 0, 2)
+		elif String(arg).begins_with("--g_katman="):
+			katman = clampi(int(String(arg).trim_prefix("--g_katman=")), 0, 1)
+		elif String(arg).begins_with("--g_cizim="):
+			cizim = clampi(int(String(arg).trim_prefix("--g_cizim=")), 0, 1)
+		elif String(arg).begins_with("--doku="):
 			quality = clampi(int(String(arg).trim_prefix("--doku=")), 0, 3)
 		elif String(arg).begins_with("--pencere="):
 			var p := String(arg).trim_prefix("--pencere=").split("x")
@@ -61,6 +91,8 @@ func _ready() -> void:
 			_snap(String(arg).trim_prefix("--goruntu="))
 		elif String(arg).begins_with("--olcum="):
 			_measure(float(String(arg).trim_prefix("--olcum=")))
+		elif String(arg).begins_with("--gpu_perf"):
+			add_child(load("res://tools/tests/gorsel_perf.gd").new())  # v38 görüntü / GPU başarım ölçümü
 
 
 func _measure(dur: float) -> void:
@@ -191,14 +223,20 @@ func apply() -> void:
 			win.mode = Window.MODE_EXCLUSIVE_FULLSCREEN
 	_apply_scale()
 	DisplayServer.window_set_vsync_mode(DisplayServer.VSYNC_ENABLED if vsync else DisplayServer.VSYNC_DISABLED)
+	Engine.max_fps = FPS_SINIR[clampi(fps_i, 0, FPS_SINIR.size() - 1)]
 	_update_hd()
 
 
 func _apply_scale() -> void:
 	## 960x540 görüntü kesirli ölçekle pencereyi doldurur
+	## v38 çizim çözünürlüğü Yarım: sahne 960x540'ta çizilip pencereye büyütülür (canvas_items yerine viewport kipi;
+	## dünya ve arayüz düzeni aynı, piksel doldurma pencere çözünürlüğünden bağımsız). Zayıf GPU'lar için.
 	var win := get_tree().root
 	win.content_scale_stretch = Window.CONTENT_SCALE_STRETCH_FRACTIONAL
 	win.content_scale_size = Vector2i(960, 540)
+	var want := Window.CONTENT_SCALE_MODE_VIEWPORT if cizim == 1 else Window.CONTENT_SCALE_MODE_CANVAS_ITEMS
+	if win.content_scale_mode != want:
+		win.content_scale_mode = want
 
 
 func _on_resized() -> void:
@@ -229,47 +267,139 @@ func _update_hd() -> void:
 
 
 func change(row: int, dir: int) -> void:
-	## Ayarlar ekranından: satır değerini bir adım değiştir ve uygula
-	match row:
-		0:
+	## Ayarlar ekranından: satır değerini bir adım değiştir ve uygula (satırlar rows() sırasıyla; anahtar r[4])
+	var rs := rows()
+	if row < 0 or row >= rs.size():
+		return
+	var detay := false   # alt grafik ayarı değişti: hazır ayar "Özel" olabilir
+	match String(rs[row][4]):
+		"mod":
 			mode = posmod(mode + dir, MODES.size())
-		1:
+		"cozunurluk":
 			if mode == 0:
 				res_i = posmod(res_i + dir, resolutions().size())
-		2:
+		"grafik":
+			_preset(posmod((grafik if grafik >= 0 else 2) + dir, GRAFIK.size()))
+		"cizim":
+			cizim = posmod(cizim + dir, CIZIM_AD.size())
+			detay = true
+		"doku":
 			quality = posmod(quality + dir, QUALITIES.size())
-		3:
+			detay = true
+		"isik":
+			isik = posmod(isik + dir, ISIK_AD.size())
+			detay = true
+		"katman":
+			katman = posmod(katman + dir, KATMAN_AD.size())
+			detay = true
+		"efekt_yog":
+			efekt = posmod(efekt + dir, EFEKT_AD.size())
+			detay = true
+		"fps":
+			fps_i = posmod(fps_i + dir, FPS_SINIR.size())
+		"vsync":
 			vsync = not vsync
-		4:
+		"arayuz":
 			ui_i = posmod(ui_i + dir, UI_SIZES.size())
-		5:
+		"efekt":
 			fx_i = posmod(fx_i + dir, FX_LEVELS.size())
 			Game.fx_scale = [1.0, 0.5, 0.0][fx_i]
-		6:
+		"muhur":
 			# v22 Kut Mührü: açılmış kademeler arasında; bir sonraki koşuda geçerli (Game.meta)
 			var n := Zorluk.muhur_acik() + 1
 			Game.meta["muhur"] = posmod(Zorluk.muhur_secili() + dir, n)
 			Game.save_meta()
-		7:
+		"harita_boy":
 			harita_i = posmod(harita_i + dir, HARITA_BOY.size())
-		8:
+		"harita_saydam":
 			harita_a = posmod(harita_a + dir, HARITA_SAYDAM.size())
+	if detay:
+		grafik = _preset_of()
 	apply()
 	save()
 
 
+func _preset(i: int) -> void:
+	## hazır ayarı alt değerlere uygular (GRAFIK tablosu)
+	grafik = i
+	var g: Array = GRAFIK[i]
+	cizim = g[0]
+	quality = g[1]
+	isik = g[2]
+	katman = g[3]
+	efekt = g[4]
+
+
+func _preset_of() -> int:
+	## alt değerler bir hazır ayarla aynıysa onun sırası, yoksa -1 (Özel)
+	for i in GRAFIK.size():
+		if GRAFIK[i] == [cizim, quality, isik, katman, efekt]:
+			return i
+	return -1
+
+
+func _auto_preset() -> int:
+	## İlk açılış: GPU türüne göre. OpenGL yedeği (Vulkan yok) Düşük; tümleşik GPU Orta (1440p ve üstü ekranda da);
+	## ayrık / sanal / bilinmeyen Yüksek (Otomatik doku: 1440p ve üstünde HD paketi).
+	if RenderingServer.get_current_rendering_method() == "gl_compatibility":
+		return 0
+	var t := RenderingServer.get_video_adapter_type()
+	var ad := RenderingServer.get_video_adapter_name().to_lower()
+	if t == RenderingDevice.DEVICE_TYPE_CPU:
+		return 0
+	if t == RenderingDevice.DEVICE_TYPE_INTEGRATED_GPU or ad.contains("uhd") or ad.contains("iris") or ad.contains("hd graphics"):
+		return 1
+	return 2
+
+
+func grafik_text() -> String:
+	return GRAFIK_AD[grafik] if grafik >= 0 else "Özel"
+
+
+## --- v38 grafik ayarlarının okuyucuları (Level, ParallaxBG; CPU tarafı efekt üreticileri efekt_yogunluk okuyabilir) ---
+func efekt_yogunluk() -> float:
+	## Efekt yoğunluğu çarpanı (1 tam, 0,75 orta, 0,5 az): kan / parçacık / kıvılcım sayıları bununla çarpılabilir
+	return EFEKT_YOG[clampi(efekt, 0, 2)]
+
+
+func isik_golge() -> bool:
+	## gölgeli nokta ışıkları (süs çıraları, ocak, Kut Kapısı): yalnızca Işık ve parlama Tam'da
+	return isik >= 2
+
+
+func isik_siniri() -> int:
+	## bölümdeki en çok etkin sabit süs ışığı (0 = sınırsız)
+	return ISIK_SINIR[clampi(isik, 0, 2)]
+
+
+func parlama() -> int:
+	## 0 parlama ve renk derecelendirmesi kapalı (yalnızca vinyet), 1 hafif parlama, 2 tam
+	return clampi(isik, 0, 2)
+
+
+func arka_katman_az() -> bool:
+	## Arka plan katmanları Az: süs niteliğindeki saydam pus / hüzme / ikincil kar katmanları çizilmez
+	return katman == 0
+
+
 func rows() -> Array:
-	## [ad, değer, etkin mi]
+	## [ad, değer, etkin mi, açıklama, anahtar]
 	return [
-		["Görüntü", MODES[mode], true],
-		["Çözünürlük", res_text(), mode == 0],
-		["Doku kalitesi", quality_text(), true],
-		["Dikey eşitleme", "Açık" if vsync else "Kapalı", true],
-		["Arayüz boyutu", UI_SIZES[ui_i], true],
-		["Sarsıntı ve flaş", FX_LEVELS[fx_i], true],
-		["Kut Mührü (yeni koşu)", muhur_text(), Zorluk.muhur_acik() > 0],
-		["Küçük harita", HARITA_BOY[harita_i], true],
-		["Harita saydamlığı", HARITA_SAYDAM[harita_a], true],
+		["Görüntü", MODES[mode], true, "Pencereli, tam ekran (kenarsız) ya da özel tam ekran.", "mod"],
+		["Çözünürlük", res_text(), mode == 0, "Pencereli modda pencere boyutu. Tam ekranda ekranın kendi çözünürlüğü kullanılır.", "cozunurluk"],
+		["Grafik kalitesi", grafik_text(), true, "Hazır ayar: aşağıdaki çizim, doku, ışık, arka plan ve efekt ayarlarını birlikte seçer. Düşük ve Orta zayıf (tümleşik) ekran kartları içindir; Ultra HD dokuları her çözünürlükte açar.", "grafik"],
+		["  Çizim çözünürlüğü", CIZIM_AD[cizim], true, "Tam: her şey pencere çözünürlüğünde çizilir (keskin). Yarım: sahne 960x540'ta çizilip büyütülür; çok daha hızlı, biraz yumuşak.", "cizim"],
+		["  Doku kalitesi", quality_text(), true, quality_tip(), "doku"],
+		["  Işık ve parlama", ISIK_AD[isik], true, "Tam: gölgeli meşale ışıkları, tam parlama ve renk derecelendirmesi. Hafif: gölgesiz, daha az ışık, hafif parlama. Az: parlama ve renk derecelendirmesi kapalı, en az ışık. Sonraki bölümde geçerli.", "isik"],
+		["  Arka plan katmanları", KATMAN_AD[katman], true, "Az: pus ve ışık hüzmesi gibi saydam ara katmanlar çizilmez (dağlar, orman, gök aynı). Sonraki bölümde geçerli.", "katman"],
+		["  Efekt yoğunluğu", EFEKT_AD[efekt], true, "Kan, kıvılcım ve parçacık efektlerinin miktarı.", "efekt_yog"],
+		["Kare sınırı", "Sınırsız" if fps_i == 0 else "%d FPS" % FPS_SINIR[fps_i], true, "Saniyedeki en çok kare. Dikey eşitleme açıkken ekran yenilemesi zaten sınırdır; dizüstünde 60 pil ve ısı kazandırır.", "fps"],
+		["Dikey eşitleme", "Açık" if vsync else "Kapalı", true, "Kare hızını ekran yenilemesine kilitler (yırtılmayı önler).", "vsync"],
+		["Arayüz boyutu", UI_SIZES[ui_i], true, "Oyun içi göstergelerin boyutu. Normal: daha çok oyun alanı görünür.", "arayuz"],
+		["Sarsıntı ve flaş", FX_LEVELS[fx_i], true, "Kamera sarsıntısı, darbe kareleri ve ekran flaşları. Rahatsız ediyorsa Azaltılmış ya da Kapalı seç.", "efekt"],
+		["Kut Mührü (yeni koşu)", muhur_text(), Zorluk.muhur_acik() > 0, "Kut Mühürleri: Erlik Han'ı her yenişinde bir sonraki zorluk kademesi açılır (daha dayanıklı ve saldırgan düşmanlar, daha az şifa, öfkeli yaratıklar). %s. Yeni koşuda geçerli." % String(Zorluk.muhur_def(Zorluk.muhur_secili()).get("desc", "")).trim_suffix("."), "muhur"],
+		["Küçük harita", HARITA_BOY[harita_i], true, "Sağ alttaki parşömen haritanın boyu (keşfettikçe açılır; Kut Taşları ve ödüller işlenir). Kapalı: yalnızca M ile tam ekran harita.", "harita_boy"],
+		["Harita saydamlığı", HARITA_SAYDAM[harita_a], true, "Küçük haritanın saydamlığı: Hafif dövüşte az yer kaplar, Koyu daha okunur.", "harita_saydam"],
 	]
 
 
@@ -291,12 +421,20 @@ func save() -> void:
 	c.set_value("goruntu", "efekt", fx_i)
 	c.set_value("harita", "boy", harita_i)
 	c.set_value("harita", "saydam", harita_a)
+	# v38 grafik (eski sürümler bu bölümü yok sayar)
+	c.set_value("grafik", "hazir", grafik)
+	c.set_value("grafik", "cizim", cizim)
+	c.set_value("grafik", "isik", isik)
+	c.set_value("grafik", "katman", katman)
+	c.set_value("grafik", "efekt", efekt)
+	c.set_value("grafik", "fps", fps_i)
 	c.save(PATH)
 
 
 func _load() -> void:
 	var c := ConfigFile.new()
 	if c.load(PATH) != OK:
+		_preset(_auto_preset())   # v38 ilk açılış: GPU'ya göre hazır ayar (kaydedilmez; ilk değişiklikte yazılır)
 		return
 	mode = int(c.get_value("goruntu", "mod", mode))
 	res_i = int(c.get_value("goruntu", "cozunurluk", res_i))
@@ -307,6 +445,18 @@ func _load() -> void:
 	Game.fx_scale = [1.0, 0.5, 0.0][clampi(fx_i, 0, 2)]
 	harita_i = clampi(int(c.get_value("harita", "boy", harita_i)), 0, 3)
 	harita_a = clampi(int(c.get_value("harita", "saydam", harita_a)), 0, 2)
+	if c.has_section("grafik"):
+		cizim = clampi(int(c.get_value("grafik", "cizim", cizim)), 0, CIZIM_AD.size() - 1)
+		isik = clampi(int(c.get_value("grafik", "isik", isik)), 0, 2)
+		katman = clampi(int(c.get_value("grafik", "katman", katman)), 0, 1)
+		efekt = clampi(int(c.get_value("grafik", "efekt", efekt)), 0, 2)
+		fps_i = clampi(int(c.get_value("grafik", "fps", fps_i)), 0, FPS_SINIR.size() - 1)
+	else:
+		# v38 öncesi ayar dosyası: kayıtlı doku kalitesi korunur, diğer grafik değerleri GPU'ya göre hazır ayardan
+		var q := quality
+		_preset(_auto_preset())
+		quality = q
+	grafik = _preset_of()
 
 
 func ui_scale() -> float:

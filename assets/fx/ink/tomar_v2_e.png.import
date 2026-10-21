@@ -3,20 +3,21 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://c44qt2106k4i7"
-path="res://.godot/imported/tomar_v2_e.png-7b025a8121cd86ab1b4e880df4ac386c.ctex"
+path.bptc="res://.godot/imported/tomar_v2_e.png-7b025a8121cd86ab1b4e880df4ac386c.bptc.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
 }
 
 [deps]
 
 source_file="res://assets/fx/ink/tomar_v2_e.png"
-dest_files=["res://.godot/imported/tomar_v2_e.png-7b025a8121cd86ab1b4e880df4ac386c.ctex"]
+dest_files=["res://.godot/imported/tomar_v2_e.png-7b025a8121cd86ab1b4e880df4ac386c.bptc.ctex"]
 
 [params]
 
-compress/mode=0
-compress/high_quality=false
+compress/mode=2
+compress/high_quality=true
 compress/lossy_quality=0.7
 compress/uastc_level=0
 compress/rdo_quality_loss=0.0

@@ -3,20 +3,21 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://c5mj3onuj8wc7"
-path="res://.godot/imported/agac_iyesi_v2_p1_e.png-1fea47b36b627623360a995970b16111.ctex"
+path.bptc="res://.godot/imported/agac_iyesi_v2_p1_e.png-1fea47b36b627623360a995970b16111.bptc.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
 }
 
 [deps]
 
 source_file="res://assets/sprites/agac_iyesi_v2_p1_e.png"
-dest_files=["res://.godot/imported/agac_iyesi_v2_p1_e.png-1fea47b36b627623360a995970b16111.ctex"]
+dest_files=["res://.godot/imported/agac_iyesi_v2_p1_e.png-1fea47b36b627623360a995970b16111.bptc.ctex"]
 
 [params]
 
-compress/mode=0
-compress/high_quality=false
+compress/mode=2
+compress/high_quality=true
 compress/lossy_quality=0.7
 compress/uastc_level=0
 compress/rdo_quality_loss=0.0

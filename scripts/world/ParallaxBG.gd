@@ -19,6 +19,8 @@ var _last_cx := INF
 
 
 var _vh := 540.0
+static var _KIRPMA_YOK := OS.get_cmdline_user_args().has("--kirpma_yok")  # ölçüm: v38 öncesi gibi tam katman
+const AZ_ATLA := ["_2b_haze", "_shafts", "_7_wind", "_5_snow_far"]
 
 
 func _ready() -> void:
@@ -26,6 +28,9 @@ func _ready() -> void:
 	_vh = float(ProjectSettings.get_setting("display/window/size/viewport_height", 540))
 	for i in layers.size():
 		var spec: Array = layers[i]
+		# v38 Ayarlar > Arka plan katmanları: Az = süs niteliğindeki saydam ara katmanlar (pus, hüzme, rüzgâr, uzak kar) yok
+		if Ayarlar.arka_katman_az() and AZ_ATLA.any(func(k: String) -> bool: return String(spec[0]).contains(k)):
+			continue
 		var tex: Texture2D = Data.tex(spec[0])
 		var holder := Node2D.new()
 		add_child(holder)
@@ -41,17 +46,34 @@ func _ready() -> void:
 		if kind == "add":
 			mat = CanvasItemMaterial.new()
 			mat.blend_mode = CanvasItemMaterial.BLEND_MODE_ADD
+		# v38: saydam üst / alt şeritler çizilmez (data/bg_kirp.json, tools/artgen/bg_kirp.py): yalnızca alfa taşıyan
+		# satırlar; görüntü aynı, piksel doldurma (özellikle sis / pus katmanlarında) %30-80 azalır
+		var crop: Array = _kirp().get(String(spec[0]).get_file().get_basename(), [])
 		for k in n:
 			var s := Sprite2D.new()
 			s.texture = tex
 			s.centered = false
 			s.scale = Vector2(k_px, k_px)
+			if crop.size() == 3 and spec[1] != 0.0 and not _KIRPMA_YOK:
+				var ks := float(tex.get_height()) / float(crop[2])  # kayıt temel doku yüksekliğinde
+				s.region_enabled = true
+				s.region_rect = Rect2(0.0, float(crop[0]) * ks, float(tex.get_width()), float(crop[1] - crop[0]) * ks)
+				s.offset = Vector2(0.0, float(crop[0]) * ks)
 			s.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
 			if mat:
 				s.material = mat
 			holder.add_child(s)
 			copies.append(s)
 		_layers.append({"holder": holder, "copies": copies, "w": float(tex.get_width()) * k_px, "h": float(tex.get_height()) * k_px, "k": k_px, "fx": spec[1], "fy": spec[2], "drift": spec[3], "kind": kind, "ph": randf() * TAU, "fall": float(spec[5]) if spec.size() > 5 else 0.0})
+
+
+static var _kirp_cache: Dictionary = {}
+
+
+static func _kirp() -> Dictionary:
+	if _kirp_cache.is_empty() and FileAccess.file_exists("res://data/bg_kirp.json"):
+		_kirp_cache = Data.load_json("res://data/bg_kirp.json")
+	return _kirp_cache
 
 
 func _process(_delta: float) -> void:

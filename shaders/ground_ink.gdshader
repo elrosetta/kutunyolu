@@ -27,22 +27,28 @@ uniform vec2 emit_pulse = vec2(0.25, 1.2);
 
 varying vec2 world_pos;
 varying vec4 vcol;
+// v38: dünya uzayı UV'leri dünya konumunun doğrusal işlevi: köşede hesaplanıp aradeğerlenir (sonuç aynı, piksel başına
+// textureSize / bölme yok)
+varying vec2 suv;
+varying vec2 muv;
+varying vec2 duv;
 
 void vertex() {
 	world_pos = (MODEL_MATRIX * vec4(VERTEX, 0.0, 1.0)).xy;
 	vcol = COLOR;
+	suv = world_pos * soil_density / vec2(textureSize(soil_tex, 0));
+	muv = world_pos * soil_density / vec2(textureSize(meadow_tex, 0));
+	duv = world_pos / map_size_px;
 }
 
 void fragment() {
 	vec4 art = texture(TEXTURE, UV);
 	vec4 mk = texture(NORMAL_TEXTURE, UV);
 	float cov = mk.r;
-	vec2 suv = world_pos * soil_density / vec2(textureSize(soil_tex, 0));
 	vec3 s = texture(soil_tex, suv).rgb;
-	float d = texture(depth_tex, world_pos / map_size_px).r;
+	float d = texture(depth_tex, duv).r;
 	if (meadow_on > 0.5) {
-		float td = texture(top_tex, world_pos / map_size_px).r;
-		vec2 muv = world_pos * soil_density / vec2(textureSize(meadow_tex, 0));
+		float td = texture(top_tex, duv).r;
 		vec3 mdw = texture(meadow_tex, muv).rgb;
 		// ot yüzeyde ay ışığında, aşağı indikçe gölgeye girer
 		mdw *= mix(1.0, 0.5, smoothstep(0.0, meadow_depth, td));

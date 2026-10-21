@@ -17,6 +17,8 @@ uniform vec3 mid_tint = vec3(0.95, 1.04, 1.0);
 uniform vec3 lift = vec3(0.012, 0.02, 0.022);
 // ısı dalgası (Tamu): ekran UV'si yatayda kıvrılır, alta doğru güçlenir; 0 = kapalı (Ötüken, Şahmeran)
 uniform float heat = 0.0;
+// v38: bantlaşma önleyici titreşim genliği (sRGB, 1 / 255 = bir 8 bit adım); 0 = kapalı
+uniform float dither = 0.0039;
 
 void fragment() {
 	vec2 suv = SCREEN_UV;
@@ -44,5 +46,11 @@ void fragment() {
 	g = mix(g, edge_color.rgb, v);
 	float h = smoothstep(0.38, 0.8, r) * hurt;
 	g = mix(g, hurt_color.rgb, clamp(h * 1.4, 0.0, 0.85));
+	// v38 titreşim (dither): HDR 2D tampon ekrana 8 bit yazılırken koyu sis / pus / gök gradyanlarında bantlaşma
+	// olmasın; iki kaydırılmış "interleaved gradient noise" toplamı = üçgen dağılım, ±1 / 255 (görünmez tane)
+	vec2 fc = FRAGCOORD.xy;
+	float n1 = fract(52.9829189 * fract(dot(fc, vec2(0.06711056, 0.00583715))));
+	float n2 = fract(52.9829189 * fract(dot(fc + vec2(47.0, 17.0), vec2(0.06711056, 0.00583715))));
+	g += (n1 + n2 - 1.0) * dither;
 	COLOR = vec4(pow(max(g, vec3(0.0)), vec3(2.2)), 1.0);
 }
