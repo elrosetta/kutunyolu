@@ -6826,3 +6826,81 @@ Başsız, `--fixed-fps 60`, betik hatası (SCRIPT ERROR) **0** (bütün koşular
 * Tepegöz Yavrusu ve mızraklıların hücresi büyük (448 px); HD sayfaları 8064 px genişliğinde (16384 sınırının altında).
 * Sanat ajanlarının listelediği küçük kusurlar: Yasavul koyu zeminde çoğunlukla silüet + kor; kurbağanın bulutu tek kütle;
   örümcek bacakları ince; Kar Cadısı'nın kürkü küçükte önlük gibi.
+
+
+## v40: ortam cilası
+
+Hedef: "her şey çok daha güzel görünsün, kaliteli yapım havası". Bu dal yalnızca ortam sanatı ve dünya döşemesidir
+(paralaks, zemin, süsler, parçacıklar, rüzgâr, konak); ışık / derecelendirme (v40-isik) ve arayüz (v40-arayuz) ayrı dallarda.
+
+### Denetim (v39 çekimleri, 1080p ve 1440p HD)
+Her biyom 2 derinlikte, yurt, konak ve üç boss arenası `--goruntu` ile çekildi; paralaks katmanları ve zemin atlasları ayrıca
+oyun dışında üst üste bindirilerek (scratchpad/ortam/bg_compose.py, zemin_compose.py) incelendi. Bulunanlar:
+* **Platformlar sahneye yapışmıyor:** tek yönlü platformların ve tavan çıkıntılarının altında arka plan aynı parlaklıkta;
+  hiçbir şey "yere / havaya" oturmuyor (temas gölgesi yok). Duvar diplerinde zemin köşesi de düz.
+* **Yar yüzleri düz:** zemin atlasının yan kenarları tek mürekkep çizgisi + tek renk toprak; çizilmiş kaya yüzü hissi yok
+  (Ötüken ve Şahmeran'da en belirgin, koyu toprak üstünde hiçbir tortul / çatlak izi okunmuyor).
+* **Süs yoğunluğu tekdüze:** her oda aynı olasılıkla süsleniyor; ödül odası ile köprü / kuyu geçidi aynı yoğunlukta,
+  odak noktası yok.
+* **Bakış anı yok:** geniş odalarda arkada bir "anıt" (biyomun kimliğini taşıyan büyük sahne parçası) bulunmuyor; paralaks
+  orta katmanda kurgan / saray / kale var ama oyun alanında hiçbir büyük parça yok.
+* **Hava boş:** gökte / mağarada canlı yok (Bozkır gök katmanına çizilmiş birkaç sabit kartal dışında), rüzgâr yalnızca
+  Bozkır örtü öbeklerinde ve ön plan şeridinde sabit genlikli salınım; esinti / fırtına ritmi yok.
+* **Konak çıplak:** 7 sabit süs + ateş; fener ipi, canlılık yok (yurtta bayrakçık ve fener dizileri var, konakta yok).
+* İyi olanlar (dokunulmadı): paralaks katmanlarının atmosfer perspektifi (uzak katman açık ve düşük karşıtlıklı), Bozkır
+  / Kaf / Tamu paralaks kompozisyonları, Kaf kar başlığı, Bozkır çatlak lös, Tamu lav damarları.
+
+### Yapılanlar
+* **`scripts/world/OrtamCila.gd`** (Level._build_particles sonunda `OrtamCila.kur`; `--v40yok` kapatır):
+  * *Temas gölgeleri:* tek yönlü platform koşularının ve altı en az iki karo hava olan tavan çıkıntılarının altına, arka
+    plana düşen yumuşak gölge dörtgenleri (üstte alfa 0,5 / 0,42, aşağı doğru erir, uçlarda daralır; biyom `deep_color`
+    tonu; tek Polygon2D, köşe renkli, z -1: süslerin önünde, zeminin ardında). Duvar diplerinde zemine düşen köşe gölgesi
+    (decal_root, z 1). Arka plan katmanları "Az" ayarında alfa yarıya iner.
+  * *Hava canlıları:* ekran uzayı katman -9'da (paralaksın önünde, dünyanın ardında) CPUParticles2D; 4 kare kanat
+    çırpışı (CanvasItemMaterial particles_animation): Ötüken / Tamu / yurt karga, Bozkır / Kaf süzülen kartal, Şahmeran
+    yarasa sürüsü. Dokular `assets/bg/hava_{karga,kartal,yarasa}_v2.png` (beyaz siluet, renk ve alfa biyoma göre
+    modüle; 1080p'de 1:1, HD paketi 2x). Varsayılanlar `OrtamCila.HAVA`, biyom `stil_v2.json` "hava" anahtarıyla ezebilir.
+  * *Rüzgâr esintisi:* iki yavaş dalga + 9-18 sn'de bir güçlü esinti (1,4 sn yükselir, 3,5 sn söner); ön plan şeritlerinin
+    `fg_sway` genliği / hızı, örtü öbeklerinin `env_ink sway_px`'i (artık bütün biyomlarda hafifçe salınır; Bozkır'ın
+    `tuft_sway` değeri temel genlik) ve süzülen yaprak / kırıntı / kül parçacıklarının hızı aynı esintiyle değişir.
+    Biyom çarpanı `RUZGAR` (Bozkır 1,5, Kaf 1,35, mağaralar 0,3-0,55; `stil_v2.json` "ruzgar"). Bozkır ve Kaf'ta güçlü
+    esinti anında ekranı geçen ince mürekkep çizgileri (`fx/ink_p/cizgi`, toplamalı).
+  * *Bakış anıtları:* geniş (>= 17 karo) salon / teras / harabe odalarında (ödül, giriş, çıkış hariç) bölüm başına en çok
+    2 anıt, z -4 (bütün süslerin ardında). Yerleşim ayrı rng ile (bölüm rng'sinin durumundan türetilir: yaratık / eşya
+    dizisi değişmez). Dokular `assets/decor/anit_<biyom>_v2.png` (+ `_e` ışıma: Kaf kristal, Şahmeran kristal / göz,
+    Tamu kor gözler; `tools/artgen/ortam40_ink.py`): Ötüken "Ulu Kayın sunağı" (iki yaşlı huş, çaput ipi, taş sunak,
+    balballar), Bozkır "Han kurganı" (taş halkalı kurgan, tepesinde iki tuğ, balbal dizisi), Kaf "Buz kulesi" (dev kristal
+    kümesi + karlı kam direği), Şahmeran "Yılan sütunu", Tamu "Kemik kapısı" (kaburga kemeri, öküz kafatası, zincirler).
+  * *Konak:* iki fener ipi (çadır - ocak - tezgâh) ve ocak çevresinde biyom renkli ateş böceği / spor / kor zerreleri.
+* **Süs yoğunluğu oda türüne göre** (`Level._place_decor`): ödül odası x1,5, harabe / mağara x1,3, açık teras x1,2,
+  köprü / kuyu x0,7 (eşikler ölçeklenir; rng çağrı sayısı aynı).
+* **Yar yüzü fırça dokusu** (`ink_zemin.face_strokes`; Ötüken `otuken_ink_ground`, Bozkır / Kaf `ST` anahtarları,
+  Şahmeran / Tamu `Spec.face`): yana açık karo kenarlarının hemen içinde kısa tortul basamakları (açık çizgi + altında
+  koyu gölge çizgisi), kısa dikey çatlaklar, tepe köşesinden yüze sarkan ot / kök / yosun. Beş atlas yeniden üretildi
+  (maske ve toprak dokuları aynı).
+  Anıt adayları (v40 son): salon / teras / harabe / mağara / kule / çukur odaları, en az 14 karo geniş; anıtın yalnızca alt
+  5 karosu açık olmalı (tepesi tavan kayasının ardına girebilir: z -4, karolar önde).
+* **HD x2:** yeni dokuların (hava canlıları, anıtlar) ve beş yeniden üretilen zemin atlasının (+ maske, toprak, çayır,
+  `_e`) 2 kat sürümleri `assets_hd/x2` altında WebP; `manifest.json` md5'leri temel PNG'lerle denetlendi (329 girdi, sorun 0).
+
+### Başarım (başsız, `--perf --perf_faz=uretim,gezinti --fixed-fps 60`, aynı dal `--v40yok` ile karşılaştırma)
+| | v40 kapalı | v40 açık |
+|---|---|---|
+| bölüm kurma (20 tohum ort. / en kötü) | 387 / 603 ms | 390 / 663 ms |
+| gezinti kare ort / p95 / p99 | 4,48 / 6,59 / 9,73 ms | 4,02 / 6,05 / 9,28 ms |
+| düğüm (en çok) | 770 | 748 |
+Fark gürültü içinde: temas gölgeleri tek Polygon2D (2 çizim çağrısı), hava canlıları ve esinti çizgileri tek
+CPUParticles2D'şer, anıt bölüm başına en çok 2 Sprite2D. Paralaks katmanları değişmediğinden `data/bg_kirp.json` aynı.
+
+### Test
+`--otomatik --derinlik=1/3/5/7/9 --muhur=0`, `--sahne`, `--yurt --yurt-tur`, `--konak` (SONUC GECTI), üç boss arenası,
+`--harita` (SONUC GECTI), `--piksel_tara` (TOPLAM 0): betik hatası 0.
+
+### Görseller (`docs/v40/ortam/`)
+`<sahne>_0_once_sonra.jpg`: v39 (main 3bcc902) ile v40 aynı tohum, 1920x1080 tam çizim (Ötüken d1-2, Bozkır d3-4,
+Şahmeran d5-6, Kaf d7-8, Tamu d9, yurt, üç boss arenası). Bot oynadığından kareler aynı anı göstermez; zemin yar yüzleri,
+temas gölgeleri, anıtlar (Tamu kemik kapısı d9'da) ve hava canlıları karşılaştırılabilir.
+
+### Bilinen
+* Konak çekimi zamanlaması tutarsız (bot kapıdan geçince konak testi kendini kapatır); konak için önce / sonra sayfası yok.
+* Anıtlar yalnızca uygun genişlikte düz taban bulunan bölümlerde çıkar (tohumların ~yarısında 1-2 anıt).

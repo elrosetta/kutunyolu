@@ -142,6 +142,52 @@ def _snow_cap(art, m, top_d, cov, xs, ys, seed, rng, st):
         art.a = ic + art.a * (1 - ic[..., 3:4])
 
 
+def face_strokes(art, m, cov, d_left, d_right, d_top, rng, st, light=-1.0):
+    """v40: yar yüzü fırça dokusu. Yana açık kenarın (m & 8 sol, m & 2 sağ) hemen içinde kısa yatay tortul / çatlak
+    darbeleri (mürekkep, düşük alfa; ışık tarafında ince açık darbe), tepe köşesinden yüze sarkan birkaç ot / kök.
+    Tek renkli toprak dokusunun üstüne "çizilmiş kaya yüzü" hissi verir; kaplama maskesi değişmez."""
+    K = ik.K
+    sides = []
+    if m & 8 and d_left is not None:
+        sides.append((-1.0, d_left))
+    if m & 2 and d_right is not None:
+        sides.append((1.0, d_right))
+    if not sides:
+        return
+    sk = Sk(C, C)
+    dark = st.get('face_dark', INK)
+    lite = st.get('face_light', st.get('rim', (200, 200, 200)))
+    hang = st.get('face_hang', None)        # (renk, sayı): sarkan ot / kök; None = yok
+    for sgn, dd in sides:
+        x_edge = 0.0 if sgn < 0 else float(C)
+        lit = (sgn * light) > 0      # ışığa bakan yüz
+        n = int(rng.integers(3, 6))
+        for _ in range(n):
+            y = rng.uniform(5, C - 3)
+            ln = rng.uniform(7, 20)
+            x0 = x_edge - sgn * rng.uniform(1.0, 3.5)
+            pts = [(x0, y), (x0 - sgn * ln * 0.5, y + rng.uniform(-1.2, 1.2)), (x0 - sgn * ln, y + rng.uniform(-2, 2))]
+            # tortul basamağı: üstte açık çizgi (ışık), hemen altında koyu gölge çizgisi
+            sk.path(ribbon(pts, [1.6, 1.2, 0.3]), lite, rng.uniform(0.3, 0.5) * (1.0 if lit else 0.6))
+            sk.path(ribbon([(p[0], p[1] + 1.6) for p in pts], [2.0, 1.4, 0.3]), dark, rng.uniform(0.45, 0.7))
+        # kısa dikey çatlak
+        for _ in range(int(rng.integers(1, 3))):
+            y = rng.uniform(8, C - 14)
+            x0 = x_edge - sgn * rng.uniform(4, 12)
+            sk.path(ribbon([(x0, y), (x0 + rng.uniform(-1.5, 1.5), y + 5), (x0 + rng.uniform(-2, 2), y + rng.uniform(8, 16))], [0.2, 1.2, 0.2]), dark, 0.6)
+        # tepe köşesinden sarkan ot / kök (yalnızca üst kenar da açıksa)
+        if hang is not None and (m & 1) and d_top is not None:
+            col, cnt = hang
+            for k in range(int(rng.integers(cnt[0], cnt[1] + 1))):
+                y0 = rng.uniform(3, 9)
+                ln = rng.uniform(6, 16)
+                x0 = x_edge - sgn * rng.uniform(2.5, 6.0)
+                pts = [(x0, y0), (x0 + sgn * rng.uniform(0.5, 2.0), y0 + ln * 0.5), (x0 + sgn * rng.uniform(-1.0, 2.5), y0 + ln)]
+                sk.path(ribbon(pts, [1.6, 1.1, 0.3]), col, rng.uniform(0.7, 0.95))
+    s = sk.snap() * cov[..., None]
+    art.a = s + art.a * (1 - s[..., 3:4])
+
+
 def ground_cell(m, var, seed, st):
     """Bir zemin karosu: (sanat RGBA önçarpılmış, kaplama, ao). m: 1 üst, 2 sağ, 4 alt, 8 sol hava."""
     rng = np.random.default_rng(seed)
@@ -208,6 +254,8 @@ def ground_cell(m, var, seed, st):
         bd = d_bot
         dark = (1 - smoothstep(0, 10, bd)) * cov * 0.5
         art.fill_mask(dark, c01(st.get('ceil_dark', (20, 18, 26))))
+    if st.get('face_strokes', True):
+        face_strokes(art, m, cov, d_left, d_right, d_top, rng, st, light)
     if var == 1 and (m & (2 | 8)) and not (m & 4) and st.get('rock_fn') is not None:
         side = 2 if (m & 2) else 8
         rr = st['rock_fn'](seed + 5, rng.uniform(9, 13), rng.uniform(7, 10))

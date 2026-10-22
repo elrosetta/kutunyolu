@@ -44,6 +44,7 @@ class SahmeranSpec(Z.Spec):
     ceil_dark = (8, 18, 22)
     ink_w = 3.0
     edge_amp = (1.2, 3.0, 4.0)
+    face = dict(face_dark=(6, 14, 18), face_light=(96, 150, 140), face_hang=(MOSS_MID, (2, 4)))
 
     def top_band(self, art, emit, cov, top_d, m, rng, seed):
         K = ik.K

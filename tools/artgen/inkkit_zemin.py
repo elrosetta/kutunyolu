@@ -31,6 +31,8 @@ class Spec:
     ceil_dark = (20, 18, 26)
     ink_w = 3.2
     edge_amp = (1.5, 3.0, 4.0)     # üst, alt, yan kenar düzensizliği
+    face = None                    # v40 yar yüzü fırça dokusu: dict(face_dark, face_light, face_hang=(renk, (en az, en çok)))
+    light = -1.0
 
     def top_band(self, art, emit, cov, top_d, m, rng, seed):
         """üst kenar bandı (ot, yosun, kül): art/emit Layer'larına çizer"""
@@ -104,6 +106,10 @@ def ground_cell(spec, m, var, seed):
     if m & 4:
         dark = (1 - smoothstep(0, 10, d_bot)) * cov * 0.5
         art.fill_mask(dark, c01(spec.ceil_dark))
+    if spec.face is not None:
+        # v40: yar yüzü fırça dokusu (ink_zemin.face_strokes; tortul darbeleri, çatlak, köşeden sarkan yosun / kemik)
+        import ink_zemin
+        ink_zemin.face_strokes(art, m, cov, d_left, d_right, d_top, rng, dict(rim=spec.rim, **spec.face), spec.light)
     spec.embed(art, emit, cov, m, var, rng, seed)
     return art.a, cov, ao, emit.a
 

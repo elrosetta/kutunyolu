@@ -163,5 +163,18 @@
    0
   ],
   "texel": 4.0
+ },
+ "anit_tamu_v2": {
+  "size": [
+   1120,
+   760
+  ],
+  "origin": [
+   560,
+   744
+  ],
+  "texel": 4.0,
+  "noflip": false,
+  "glow": true
  }
 }

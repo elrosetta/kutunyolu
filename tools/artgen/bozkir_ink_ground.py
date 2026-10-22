@@ -22,6 +22,7 @@ ST = dict(
     grass_tip=(252, 214, 134), grass_top=(226, 168, 88), grass_mid=(166, 108, 64), grass_dark=(92, 52, 46),
     rim=(255, 198, 130), rim_a=0.6, root_col=(74, 42, 38), ceil_dark=(34, 18, 24), blade_lean=0.32, blade_ink=0.12,
     blade_h=1.15, blades=80, band=15,
+    face_dark=(40, 18, 24), face_light=(255, 208, 150), face_hang=((120, 70, 52), (2, 4)),
 )
 ST['rock_fn'] = lambda seed, rx, ry: Z.rock_small(seed, rx, ry, base=(150, 112, 92), light=(0.6, -0.8))
 

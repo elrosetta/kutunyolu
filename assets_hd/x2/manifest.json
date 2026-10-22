@@ -65,6 +65,24 @@
   "bg/bozkir_v2_fg_grass.webp",
   "f4ff2202f28e269bb2f12f373fd3e54a"
  ],
+ "bg/hava_karga_v2.png": [
+  384,
+  64,
+  "bg/hava_karga_v2.webp",
+  "9a079970ce32092046f163f9e4d6a5a7"
+ ],
+ "bg/hava_kartal_v2.png": [
+  384,
+  64,
+  "bg/hava_kartal_v2.webp",
+  "da5545c0e9f18781a80b51fdd739eff1"
+ ],
+ "bg/hava_yarasa_v2.png": [
+  384,
+  64,
+  "bg/hava_yarasa_v2.webp",
+  "5c58b14f5e4fb6484b9014541561c633"
+ ],
  "bg/kaf_v2_0_sky.png": [
   1920,
   1080,
@@ -394,6 +412,36 @@
   1080,
   "bg/yurt_v2_4_fog.webp",
   "dff6eaac03c1f8651fb3958cb851f868"
+ ],
+ "decor/anit_bozkir_v2.png": [
+  1120,
+  600,
+  "decor/anit_bozkir_v2.webp",
+  "a1d3e6ce40236d51a1325be4f56b0c79"
+ ],
+ "decor/anit_kaf_v2.png": [
+  880,
+  720,
+  "decor/anit_kaf_v2.webp",
+  "dc50c888d0a56112b00080ef095e933f"
+ ],
+ "decor/anit_otuken_v2.png": [
+  1040,
+  660,
+  "decor/anit_otuken_v2.webp",
+  "5a672cd6fd2d08134188e51b926a4bbf"
+ ],
+ "decor/anit_sahmeran_v2.png": [
+  720,
+  800,
+  "decor/anit_sahmeran_v2.webp",
+  "cbc074aa31725e1ae2eac303b31bbc97"
+ ],
+ "decor/anit_tamu_v2.png": [
+  1120,
+  760,
+  "decor/anit_tamu_v2.webp",
+  "a4a664713d4dffd419eb9aeef41aa7d9"
  ],
  "decor/balbal_bozkir_v2.png": [
   160,
@@ -1677,7 +1725,7 @@
   1536,
   480,
   "tiles/bozkir_v2.webp",
-  "801e9c00286f6217212fcc72fa3d7f6a"
+  "e195a95836f3bd8bd98fc9b6bf50f7c6"
  ],
  "tiles/bozkir_v2_mask.png": [
   1536,
@@ -1731,7 +1779,7 @@
   1536,
   480,
   "tiles/kaf_v2.webp",
-  "ac54c9d596e7829b2943527fbdbf8287"
+  "7ac777b01954c4767d87538f8f5b29c4"
  ],
  "tiles/kaf_v2_mask.png": [
   1536,
@@ -1755,7 +1803,7 @@
   1536,
   480,
   "tiles/otuken_v2.webp",
-  "588001a8207e61e3ff70b3d336f95318"
+  "487174bb13b03c417d0f5afee0ac3df2"
  ],
  "tiles/otuken_v2_mask.png": [
   1536,
@@ -1779,13 +1827,13 @@
   1536,
   480,
   "tiles/sahmeran_v2.webp",
-  "40288410dd6143112ddd472f3508e0ed"
+  "8ad12f78003ba23ca8b11484dd23294a"
  ],
  "tiles/sahmeran_v2_e.png": [
   1536,
   480,
   "tiles/sahmeran_v2_e.webp",
-  "0e686b30e09032480b5561547c50bac4"
+  "7041f8ab1895724383450975d04076b4"
  ],
  "tiles/sahmeran_v2_mask.png": [
   1536,
@@ -1809,13 +1857,13 @@
   1536,
   480,
   "tiles/tamu_v2.webp",
-  "f83d196f1941e90ed98698eaf394aee6"
+  "3f5acb005c0869873c9173aa31086261"
  ],
  "tiles/tamu_v2_e.png": [
   1536,
   480,
   "tiles/tamu_v2_e.webp",
-  "7def5b534eff0fd29e6e1a736036be83"
+  "1fd5f5af8dfcbc11065b3b883282f45e"
  ],
  "tiles/tamu_v2_mask.png": [
   1536,
