@@ -982,57 +982,57 @@
  },
  "ui_ac": {
   "loop": false,
-  "len": 0.53,
+  "len": 1.142,
   "hedef_db": -17.0
  },
  "ui_gez_1": {
   "loop": false,
-  "len": 0.12,
+  "len": 0.139,
   "hedef_db": -21.0
  },
  "ui_gez_2": {
   "loop": false,
-  "len": 0.12,
+  "len": 0.138,
   "hedef_db": -21.0
  },
  "ui_gez_3": {
   "loop": false,
-  "len": 0.12,
+  "len": 0.16,
   "hedef_db": -21.0
  },
  "ui_iptal": {
   "loop": false,
-  "len": 0.42,
+  "len": 0.45,
   "hedef_db": -17.0
  },
  "ui_kapa": {
   "loop": false,
-  "len": 0.4,
+  "len": 1.1,
   "hedef_db": -17.0
  },
  "ui_onay": {
   "loop": false,
-  "len": 0.57,
+  "len": 1.15,
   "hedef_db": -17.0
  },
  "ui_sec": {
   "loop": false,
-  "len": 0.12,
+  "len": 0.2,
   "hedef_db": -21.0
  },
  "ui_sec_1": {
   "loop": false,
-  "len": 0.12,
+  "len": 0.2,
   "hedef_db": -21.0
  },
  "ui_sec_2": {
   "loop": false,
-  "len": 0.12,
+  "len": 0.2,
   "hedef_db": -21.0
  },
  "ui_sec_3": {
   "loop": false,
-  "len": 0.12,
+  "len": 0.2,
   "hedef_db": -21.0
  },
  "uluma": {

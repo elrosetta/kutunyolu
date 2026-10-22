@@ -150,9 +150,9 @@ static func _ink_ls_num(crit: bool, col: Color) -> LabelSettings:
 	if not _label_settings.has(key):
 		var ls := LabelSettings.new()
 		ls.font = InkUI.font("brush")
-		ls.font_size = 12 if crit else 9
+		ls.font_size = 14 if crit else 10   # v40: bir tık büyük fırça rakam (kritik 12 -> 14, sıradan 9 -> 10)
 		ls.font_color = col
-		ls.outline_size = 4 if crit else 3
+		ls.outline_size = 5 if crit else 3
 		ls.outline_color = Color(InkUI.INK, 0.95)
 		ls.shadow_color = Color(InkUI.INK, 0.6)
 		ls.shadow_offset = Vector2(1.0, 1.2)
@@ -250,12 +250,16 @@ static func _ink_number(pos: Vector2, value: float, crit: bool, col: Color) -> v
 			l.scale = Vector2.ONE * 0.85
 	var tw := n.create_tween()
 	tw.set_parallel(true)
-	n.scale = Vector2.ONE * (1.75 if crit else 1.15)   # v22: açılış büyümesi küçüldü (2,0 / 1,35)
-	n.rotation = randf_range(-0.12, 0.12) if crit else 0.0
-	tw.tween_property(n, "scale", Vector2.ONE, 0.2 if crit else 0.12).set_trans(Tween.TRANS_BACK if crit else Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	# v40 hareket: mürekkep "damlar" gibi — büyükten yerine oturur (kritikte geri tepmeli), hafif eğik yaylanıp dikleşir,
+	# yükselirken yavaşlar, sonda küçülerek solar
+	n.scale = Vector2.ONE * (1.9 if crit else 1.25)
+	n.rotation = randf_range(-0.2, 0.2) if crit else randf_range(-0.06, 0.06)
+	tw.tween_property(n, "scale", Vector2.ONE, 0.22 if crit else 0.13).set_trans(Tween.TRANS_BACK if crit else Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	tw.tween_property(n, "rotation", 0.0, 0.3 if crit else 0.2).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 	# v22: sayılar daha kısa yaşar (sıradan 0,75 → 0,55 sn): hızlı kombolarda yığılmasın
-	tw.tween_property(n, "position:y", n.position.y - (24.0 if crit else 15.0), 0.75 if crit else 0.55).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	tw.tween_property(n, "position:y", n.position.y - (26.0 if crit else 16.0), 0.75 if crit else 0.55).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
 	tw.tween_property(n, "modulate:a", 0.0, 0.3 if crit else 0.2).set_delay(0.55 if crit else 0.35)
+	tw.tween_property(n, "scale", Vector2.ONE * 0.8, 0.3 if crit else 0.2).set_delay(0.55 if crit else 0.35)
 	tw.chain().tween_callback(n.queue_free)
 
 

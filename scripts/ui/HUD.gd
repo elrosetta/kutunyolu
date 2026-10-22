@@ -96,15 +96,17 @@ func _process_ic(delta: float) -> void:
 	_test_hook()
 	_card_t += delta
 	flash_t -= delta
-	_open_t = minf(1.0, _open_t + delta * 6.0)
+	_open_t = minf(1.0, _open_t + delta * 4.0)   # v40: 0,25 sn (fırça perdesiyle aynı süre)
 	_kut_pulse = maxf(0.0, _kut_pulse - delta)
 	ad_t += delta
 	_usul_flash = maxf(0.0, _usul_flash - delta * 3.0)
 	_tut_tick(delta)
 	usta_damga_t += delta
 	if mode != _last_mode:
-		if mode in ["tilsim", "slot", "umay", "demirci", "ozan", "dead", "done", "ad", "tuccar", "sanat", "usta"]:
+		if mode in ["tilsim", "slot", "umay", "demirci", "ozan", "dead", "done", "ad", "tuccar", "sanat", "usta", "ayarlar", "harita"]:
 			_open_t = 0.0
+		if mode == "play" and _last_mode != "" and _last_mode != "title":
+			_open_t = 0.0   # v40: menüden oyuna dönüşte de kısa fırça perdesi (HUD.paused dalında çizilir)
 		_last_mode = mode
 	# menülerde ses kısılır (Ses.menu_duck varsa)
 	var menu := mode != "play" or get_tree().paused
@@ -160,11 +162,24 @@ func _test_hook() -> void:
 			"flash":
 				flash_msg = "Ayaz Kılıcı parşömeni bulundu"
 				flash_t = 99.0
-			"ipucu":
-				_tut_show("agir", true)
-				_tut_t = 6.0
+			"ipucu":   # v40 çekim: kart her karede tam görünür tutulur (açılış takılması ~15 sn sürebilir)
+				if _tut_id == "":
+					_tut_shown_run.erase("agir")
+					_tut_show("agir", true)
+				_tut_t = 7.0
+				continue
 			"dusuk":
 				Game.run["hp"] = 21
+			"harita":   # v40: tam ekran harita çekimi
+				mode = "harita"
+				sel = 0
+				get_tree().paused = true
+			"kol":   # v40: oyun kolu simgeleri (tuş mühürleri yerine)
+				InkUI.pad_on = true
+			"bekleme":   # v40: teçhizat bekleme yayı
+				if pl.cd.has("g2"):
+					pl.cd["g2"] = 40.0   # çekim: ~20 sn sonra yayın yarısı görünür
+					pl.cd_max["g2"] = 60.0
 			"kombo":
 				pl.combo_n = 27
 				pl.combo_t = 2.3
@@ -260,6 +275,7 @@ func _draw_tut(vp: Vector2) -> void:
 	var x := roundf((vp.x - w) / 2.0)
 	var y := 34.0 + slide
 	PixUI.fancy_panel(self, Rect2(x, y, w, h), Color(PixUI.GOLD, a), Color(PixUI.INK2, PixUI.INK2.a * a))
+	InkUI.kilim(self, Rect2(x + 10, y + 1.5, w - 20, 2.2), Color(PixUI.GOLD, 0.4 * a))
 	var kx := x + 8.0
 	for k in _tut_keys:
 		PixUI.key_cap(self, Vector2(kx, y + 5), k[0], Color(PixUI.GOLD, a))
@@ -289,6 +305,14 @@ func open_anim() -> void:
 	_open_t = 0.0
 
 
+func _input(event: InputEvent) -> void:
+	## v40: son girdi aygıtı; oyun kolundan geldiyse tuş mühürleri kol simgesine döner (InkUI.pad_on)
+	if event is InputEventJoypadButton or (event is InputEventJoypadMotion and absf((event as InputEventJoypadMotion).axis_value) > 0.5):
+		InkUI.pad_on = true
+	elif event is InputEventKey or event is InputEventMouseButton:
+		InkUI.pad_on = false
+
+
 func kut_pulse() -> void:
 	_kut_pulse = 0.4
 
@@ -312,6 +336,11 @@ func _dim(vp: Vector2, a := 0.72, col := Color(0.02, 0.015, 0.04)) -> void:
 	InkUI.vignette(self, vp, 0.85 * _ease_open())
 
 
+func _reveal(vp: Vector2) -> void:
+	## v40: menü açılışında soldan sağa süpürülen fırça perdesi (içerik çizildikten sonra üstüne)
+	InkUI.reveal(self, vp, _open_t)
+
+
 func _title(vp: Vector2, y: float, s: String, col := PixUI.GOLD, sub := "") -> void:
 	var slide := (1.0 - _ease_open()) * -10.0
 	InkHUD.title_wash(self, vp, y + slide, sub != "", _ease_open())
@@ -320,8 +349,11 @@ func _title(vp: Vector2, y: float, s: String, col := PixUI.GOLD, sub := "") -> v
 	var x0 := (vp.x - tw) / 2.0
 	PixUI.horn(self, Vector2(x0 - 14, y + slide + 8), col, -1)
 	PixUI.horn(self, Vector2(x0 + tw + 8, y + slide + 8), col, 1)
+	# v40: başlığın altında ince kilim şeridi (ekran kimliği), iki ucunda Köktürk aksanı
+	var kw := tw * 0.9 * _ease_open()
+	InkUI.kilim(self, Rect2((vp.x - kw) / 2.0, y + slide + 24.0, kw, 2.4), Color(col, 0.5))
 	if sub != "":
-		PixUI.text(self, Vector2(0, y + 26 + slide), sub, PixUI.TEXT, 1, HORIZONTAL_ALIGNMENT_CENTER, vp.x)
+		PixUI.text(self, Vector2(0, y + 28 + slide), sub, PixUI.TEXT, 1, HORIZONTAL_ALIGNMENT_CENTER, vp.x)
 
 
 func _hint(vp: Vector2, items: Array, y := -1.0) -> void:
@@ -419,9 +451,12 @@ func _draw_ic() -> void:
 			_draw_sanat(vp)
 		"harita":
 			HaritaUI.full(self, vp, level, sel, _t, float(level.isin_t))   # v32 tam ekran harita
+			_reveal(vp)
 		"play":
 			if get_tree().paused:
 				_draw_pause(vp)
+			elif _open_t < 1.0:
+				_reveal(vp)   # v40: menüden dönüşte fırça perdesi
 
 
 func _draw_banner(vp: Vector2) -> void:
@@ -446,7 +481,7 @@ func _draw_banner(vp: Vector2) -> void:
 		if level.get("bezirgan") != null:
 			sub += "  ·  Bezirgân Sartak'ın kervanı bu yolda"   # v24
 		col = PixUI.GOLD
-	InkHUD.banner(self, vp, title, sub, col, a)
+	InkHUD.banner(self, vp, title, sub, col, a, clampf(_card_t / 0.9, 0.0, 1.0))
 
 
 # ------------------------------------------------------------------ oyun içi
@@ -728,7 +763,7 @@ func _card_lines(it: Dictionary) -> Array:
 
 
 func _card_h(it: Dictionary) -> float:
-	var h := 12.0 + 11.0 + 11.0 + 13.0 + 11.0 + 6.0
+	var h := 12.0 + 11.0 + 11.0 + 13.0 + 11.0 + 6.0 + 3.0   # v40: başlık bandı 3 birim daha yüksek
 	if it.get("epithet", "") != "":
 		h += 10.0
 	if Data.find_item(it["id"]).has("upgrade_of"):
@@ -760,17 +795,12 @@ func _draw_card(it: Dictionary, pos: Vector2, title: String, cmp: Dictionary = {
 	var x := roundf(pos.x)
 	var y0 := roundf(pos.y)
 	PixUI.panel(self, Rect2(x, y0, w, h), col.darkened(0.15))
-	# başlık bandı: nadirlik renginde
-	PixUI.rect(self, Rect2(x + 2, y0 + 2, w - 4, 2), col)
+	# v40 kart hiyerarşisi: nadirlik renginde başlık bandı (ad + nadirlik · tür · kalite), üstte etiket
 	PixUI.text(self, Vector2(x + 4, y0 - 19.0), title, PixUI.DIM, 1, HORIZONTAL_ALIGNMENT_LEFT, -1.0, 2)
-	var y := y0 + 5.0
-	PixUI.text(self, Vector2(x + 6, y), it["name"], col, 1, HORIZONTAL_ALIGNMENT_LEFT, -1.0, 1)
-	y += 11.0
+	var y := InkUI.card_head(self, Rect2(x, y0, w, h), col, String(it["name"]), "%s · %s · Kalite %%%d" % [R["name"], CAT_TXT.get(it["cat"], ""), int(it["quality"])])
 	if it.get("epithet", "") != "":
 		PixUI.text(self, Vector2(x + 6, y), "«%s»" % it["epithet"], Color(1.0, 0.88, 0.55))
 		y += 10.0
-	PixUI.text(self, Vector2(x + 6, y), "%s · %s · Kalite %%%d" % [R["name"], CAT_TXT.get(it["cat"], ""), int(it["quality"])], PixUI.DIM, 1, HORIZONTAL_ALIGNMENT_LEFT, -1.0, 0)
-	y += 11.0
 	var base_def := Data.find_item(it["id"])
 	if base_def.has("upgrade_of"):
 		PixUI.text(self, Vector2(x + 6, y), "▲ %s'nın gelişmiş hali" % Data.find_item(base_def["upgrade_of"]).get("name", ""), Color(1.0, 0.85, 0.5))
@@ -846,9 +876,7 @@ func _draw_slot(vp: Vector2) -> void:
 		var col := PixUI.GOLD if is_sel else PixUI.EDGE.darkened(0.25)
 		PixUI.panel(self, r, col, PixUI.INK2 if is_sel else PixUI.INK)
 		if is_sel:
-			# seçili: yanıp sönen ok
-			var ax := r.position.x - 9 + sin(_t * 8.0) * 2.0
-			PixUI.text(self, Vector2(ax, r.position.y + bh / 2.0 - 6), "→", PixUI.GOLD, 1, HORIZONTAL_ALIGNMENT_LEFT, -1.0, 2)
+			InkUI.select_mark(self, r, PixUI.GOLD, _t)   # v40: kızıl mühür + fırça altı çizgi
 		PixUI.key_cap(self, r.position + Vector2(6, 5), SLOT_KEYS[key], PixUI.GOLD, is_sel)
 		PixUI.text(self, r.position + Vector2(20, 5), _up(SLOT_NAMES[key]), col if is_sel else PixUI.DIM)
 		if cur.is_empty():
@@ -879,6 +907,7 @@ func _draw_slot(vp: Vector2) -> void:
 			PixUI.text(self, r.position + Vector2(6, bh - 14), "Bu eşya yere bırakılır" if is_sel else "Yerinde kalır", Color(PixUI.BAD, 0.9) if is_sel else PixUI.DIM, 1, HORIZONTAL_ALIGNMENT_LEFT, -1.0, 0)
 	var keys := ["J", "K"] if "melee" in slot_opts else [SLOT_KEYS["g1"], SLOT_KEYS["g2"]]
 	_hint(vp, [["A/D", "seç"], ["Boşluk", "onayla"], [keys[0] + "/" + keys[1], "doğrudan"], ["Esc", "vazgeç"]], 286.0)
+	_reveal(vp)
 
 
 # ------------------------------------------------------------------ Kut Tomarı (stat seçimi; v23, eski tılsım)
@@ -956,28 +985,34 @@ func _draw_tilsim(vp: Vector2) -> void:
 		if not any:
 			PixUI.text(self, Vector2(x + 8, yy), "(bu renkte eşyan yok)", Color(PixUI.DIM, 0.7), 1, HORIZONTAL_ALIGNMENT_LEFT, -1.0, 0)
 	_hint(vp, [["A/D", "seç"], ["Boşluk", "oku"]], 330.0)
+	_reveal(vp)
 
 
 # ------------------------------------------------------------------ ekranlar
 func _draw_title(vp: Vector2) -> void:
 	InkHUD.title_top(self, vp, _t)
 	if mode == "title":
-		_hint(vp, [["Tab", "ayarlar"]], 200.0)
-	# kontroller
+		_hint(vp, [["Tab", "ayarlar"]], 266.0)
+	# kontroller: alt plaka, iki satır tuş mühürü; v40: üç uzun ipucu satırı yerine 6 sn'de bir değişen tek ipucu
 	var rows := [
-		[["A/D", "hareket"], ["Boşluk", "zıpla"], ["J", "1. silah"], ["K", "2. silah"], ["L", "yuvarlan"]],
+		[["A/D", "hareket"], ["Boşluk", "zıpla"], ["J", "1. silah"], ["K", "2. silah"], ["L", "yuvarlan"], ["Shift", "koş"]],
 		[["E/R", "teçhizat"], ["Q", "şişe"], ["F", "Kut gücü"], ["T", "savaş sanatı"], ["W", "al / konuş"], ["Esc", "duraklat"]],
 	]
-	InkUI.wash(self, Rect2(vp.x / 2.0 - 300, vp.y - 92, 600, 100), 0.8)
-	_hint(vp, rows[0], vp.y - 70)
-	_hint(vp, rows[1], vp.y - 56)
-	# uzun ipucu satırları 1x ölçekte (menü ölçeğinde ekrana sığmıyor)
-	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
-	var fv := vp * MENU_SCALE
-	PixUI.text(self, Vector2(0, fv.y - 63), "G don: seçkin ruhunun kılığı · W / ↑ dokun: al, konuş, tomar oku · müziğin usulüne denk vuruş güçlü", Color(0.85, 0.75, 1.0, 0.9), 1, HORIZONTAL_ALIGNMENT_CENTER, fv.x, 0)
-	PixUI.text(self, Vector2(0, fv.y - 43), "J art arda = zincir · bekle+J = bitiriş · basılı = ağır · ↑J göğe savur · havada ↓J dalış · koşarken J akın · yuvarlan+J dönüş · S+J diz biçen", Color(1.0, 0.85, 0.5, 0.85), 1, HORIZONTAL_ALIGNMENT_CENTER, fv.x, 0)
-	PixUI.text(self, Vector2(0, fv.y - 25), "Shift basılı = koş · S = çömel (çömelirken saldırı ve yay) · duvara doğru zıpla = kenara tutun", Color(0.75, 0.9, 1.0, 0.8), 1, HORIZONTAL_ALIGNMENT_CENTER, fv.x, 0)
-	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE * MENU_SCALE)
+	InkUI.wash(self, Rect2(vp.x / 2.0 - 330, vp.y - 66, 660, 90), 0.82)
+	InkUI.kilim(self, Rect2(vp.x / 2.0 - 150, vp.y - 56, 300, 2.4), Color(PixUI.GOLD, 0.35))
+	_hint(vp, rows[0], vp.y - 46)
+	_hint(vp, rows[1], vp.y - 32)
+	var tips := [
+		"G don: seçkin ruhunun kılığı  ·  W / ↑ dokun: al, konuş, tomar oku  ·  müziğin usulüne denk vuruş güçlü",
+		"J art arda = zincir  ·  bekle+J = bitiriş  ·  basılı = ağır  ·  ↑J göğe savur  ·  havada ↓J dalış  ·  koşarken J akın",
+		"yuvarlan+J dönüş  ·  S+J diz biçen  ·  S = çömel (çömelirken saldırı ve yay)  ·  duvara doğru zıpla = kenara tutun",
+		"Kut Taşı'nın yanından geçince haritaya işlenir: M ile aç, bulduğun taşa Boşluk ile ışınlan",
+	]
+	var per := 6.0
+	var ti := int(_t / per) % tips.size()
+	var tk := fmod(_t, per)
+	var ta := clampf(minf(tk * 2.5, (per - tk) * 2.5), 0.0, 1.0)
+	PixUI.text(self, Vector2(0, vp.y - 16), String(tips[ti]), Color(0.85, 0.8, 0.95, 0.85 * ta), 1, HORIZONTAL_ALIGNMENT_CENTER, vp.x, 0)
 
 
 func _draw_intro(vp: Vector2) -> void:
@@ -999,28 +1034,51 @@ func _stat_row(vp: Vector2, y: float, items: Array) -> void:
 		x += PixUI.width(it[1]) + 14.0
 
 
+func _run_tiles(vp: Vector2, y: float, col: Color, a: float) -> void:
+	## v40 koşu özeti karoları: derinlik, düşman, altın, süre (mürekkep kutular, fırça rakamlar, Cinzel etiket)
+	var R: Dictionary = Game.run
+	var tm := float(R.get("time", 0.0))
+	var tiles := [["kilic", "%d" % int(R.get("depth", 1)), "DERİNLİK", col], ["kafatasi", "%d" % int(R["kills"]), "DÜŞMAN", Color(1.0, 0.5, 0.42)],
+		["altin", str(R["gold"]), "ALTIN", PixUI.GOLD], ["zaman", "%d:%02d" % [int(tm / 60.0), int(tm) % 60], "SÜRE", PixUI.KUT]]
+	var tw := 96.0
+	var gap := 8.0
+	var x := roundf((vp.x - (tw * 4 + gap * 3)) / 2.0)
+	for i in tiles.size():
+		var t: Array = tiles[i]
+		var ty := y + (1.0 - a) * (8.0 + i * 4.0)
+		InkUI.stat_tile(self, Rect2(x + i * (tw + gap), ty, tw, 34), String(t[0]), String(t[1]), String(t[2]), t[3], clampf(a * 1.5 - i * 0.15, 0.0, 1.0))
+
+
 func _draw_dead(vp: Vector2) -> void:
-	_dim(vp, 0.74, Color(0.05, 0.01, 0.03))
+	_dim(vp, 0.76, Color(0.05, 0.01, 0.03))
 	var e := _ease_open()
 	InkHUD.dead_backdrop(self, vp, e)
-	_title(vp, 92, "RUH KUŞUN DALA KONMADI", Color(1.0, 0.55, 0.45), "Umay Ana seni yeniden yoğuruyor.")
+	_title(vp, 70, "RUH KUŞUN DALA KONMADI", Color(1.0, 0.55, 0.45), "Umay Ana seni yeniden yoğuruyor.")
 	var R: Dictionary = Game.run
-	var pw := 360.0
-	var y := 144.0 + (1.0 - e) * 12.0
-	PixUI.panel(self, Rect2((vp.x - pw) / 2.0, y, pw, 52))
-	var tm := float(R.get("time", 0.0))
-	_stat_row(vp, y + 6, [["kilic", "%d. derinlik" % int(R.get("depth", 1)), PixUI.TEXT], ["kafatasi", "%d düşman" % int(R["kills"]), PixUI.TEXT], ["altin", str(R["gold"]), PixUI.GOLD], ["zaman", "%d:%02d" % [int(tm / 60.0), int(tm) % 60], PixUI.DIM]])
-	PixUI.text(self, Vector2(0, y + 22), "Taşıdığın %d Kut yitti. %s" % [int(R.get("kut_lost", 0)), flash_msg], Color(0.6, 0.95, 1.0), 1, HORIZONTAL_ALIGNMENT_CENTER, vp.x)
-	PixUI.text(self, Vector2(0, y + 34), "Kut bankası: %d   ·   Bekleyen parşömen: %d" % [int(Game.meta.get("kut_bank", 0)), Game.meta.get("blueprints", []).size()], PixUI.DIM, 1, HORIZONTAL_ALIGNMENT_CENTER, vp.x)
-	_hint(vp, [["Boşluk", "yeniden doğ"]], 214.0)
+	_run_tiles(vp, 128.0, Color(1.0, 0.6, 0.5), e)
+	# koşunun parşömeni: yitik Kut, banka, bekleyen parşömen, en derin
+	var pw := 400.0
+	var y := 176.0 + (1.0 - e) * 10.0
+	var lines := ["Taşıdığın %d Kut yitti. %s" % [int(R.get("kut_lost", 0)), flash_msg],
+		"Kut bankası %d   ·   bekleyen parşömen %d   ·   en derin %d. derinlik" % [int(Game.meta.get("kut_bank", 0)), Game.meta.get("blueprints", []).size(), int(Game.meta.get("best_depth", 1))]]
+	PixUI.panel(self, Rect2((vp.x - pw) / 2.0, y, pw, 34), Color(1.0, 0.45, 0.4).darkened(0.3))
+	PixUI.text(self, Vector2(0, y + 6), lines[0], Color(0.6, 0.95, 1.0), 1, HORIZONTAL_ALIGNMENT_CENTER, vp.x)
+	PixUI.text(self, Vector2(0, y + 18), lines[1], PixUI.DIM, 1, HORIZONTAL_ALIGNMENT_CENTER, vp.x, 0)
+	InkUI.orkhon(self, Rect2(vp.x * 0.5 - 90, y + 40, 180, 10), Color(1.0, 0.55, 0.45, 0.3 * e))
+	_hint(vp, [["Boşluk", "yeniden doğ"]], 236.0)
+	_reveal(vp)
 
 
 func _draw_done(vp: Vector2) -> void:
 	_dim(vp, 0.7, Color(0.01, 0.04, 0.06))
 	var R: Dictionary = Game.run
-	_title(vp, 96, "KUT KAPISI", Color(0.6, 1.0, 1.0), "%d. derinliği geçtin. Silahların, ongunların ve canın seninle; şişelerin doldu." % int(R.get("depth", 1)))
-	PixUI.text(self, Vector2(0, 138), "Aşağısı daha karanlık: düşmanlar güçlenir, eşyalar daha nadir düşer.", PixUI.DIM, 1, HORIZONTAL_ALIGNMENT_CENTER, vp.x)
-	_hint(vp, [["Boşluk", "derine in"]], 200.0)
+	var e := _ease_open()
+	_title(vp, 70, "KUT KAPISI", Color(0.6, 1.0, 1.0), "%d. derinliği geçtin. Silahların, ongunların ve canın seninle; şişelerin doldu." % int(R.get("depth", 1)))
+	_run_tiles(vp, 128.0, Color(0.6, 1.0, 1.0), e)
+	PixUI.text(self, Vector2(0, 176), "Aşağısı daha karanlık: düşmanlar güçlenir, eşyalar daha nadir düşer.", PixUI.DIM, 1, HORIZONTAL_ALIGNMENT_CENTER, vp.x)
+	InkUI.orkhon(self, Rect2(vp.x * 0.5 - 90, 192, 180, 10), Color(0.6, 1.0, 1.0, 0.3 * e))
+	_hint(vp, [["Boşluk", "derine in"]], 222.0)
+	_reveal(vp)
 
 
 func _draw_pause(vp: Vector2) -> void:
@@ -1067,6 +1125,7 @@ func _draw_pause(vp: Vector2) -> void:
 	# v23 tuşlar: yan teçhizat E / R, etkileşim W / ↑ dokunuşu (v25: kam transı T kaldırıldı)
 	_hint(vp, [["J/K", "silahlar"], ["E/R", "teçhizat"], ["W", "al / konuş"], ["T", "sanat"], ["G", "don"], ["Q", "şişe"], ["M", "harita"]], 252.0)
 	_hint(vp, [["Esc", "devam et"], ["T", "savaş sanatları"], ["Tab", "ayarlar"]])
+	_reveal(vp)
 
 
 func _draw_settings(vp: Vector2) -> void:
@@ -1090,15 +1149,18 @@ func _draw_settings(vp: Vector2) -> void:
 		var is_sel := i == sel
 		var on: bool = r[2]
 		var col := PixUI.GOLD if is_sel else (PixUI.TEXT if on else PixUI.DIM)
+		var grup: bool = String(r[0]).begins_with("  ")   # alt ayar (girintili)
 		if is_sel:
-			draw_texture_rect(InkUI.tex("swash"), Rect2(x - 2, y - 4, pw + 4, rh), false, Color(PixUI.GOLD.darkened(0.55), 0.55))
-			PixUI.text(self, Vector2(x - 10 + sin(_t * 8.0) * 2.0, y + 1), "→", PixUI.GOLD, 1, HORIZONTAL_ALIGNMENT_LEFT, -1.0, 2)
-		PixUI.text(self, Vector2(x + 12, y + 1), r[0], col)
+			InkUI.select_mark(self, Rect2(x + 2, y - 3, pw - 4, rh - 1.0), PixUI.GOLD, _t)   # v40
+		PixUI.text(self, Vector2(x + (18 if grup else 12), y + 1), String(r[0]).strip_edges(), col, 1, HORIZONTAL_ALIGNMENT_LEFT, -1.0, 1 if is_sel else 0)
 		var v: String = r[1]
 		var vx := x + pw - 150.0
-		PixUI.text(self, Vector2(vx, y + 1), "<" if on else "", col, 1, HORIZONTAL_ALIGNMENT_LEFT, -1.0, 0)
-		PixUI.text(self, Vector2(vx + 8, y + 1), v, col if on else PixUI.DIM, 1, HORIZONTAL_ALIGNMENT_CENTER, 124)
-		PixUI.text(self, Vector2(vx + 136, y + 1), ">" if on else "", col, 1, HORIZONTAL_ALIGNMENT_LEFT, -1.0, 0)
+		# v40: değer sütunu; ok yerine küçük fırça üçgenleri (etkin değilse yok)
+		if on:
+			var tc := Color(col, 0.9 if is_sel else 0.5)
+			draw_colored_polygon(PackedVector2Array([Vector2(vx + 1, y + rh * 0.5 - 2), Vector2(vx + 5, y + rh * 0.5 - 5), Vector2(vx + 5, y + rh * 0.5 + 1)]), tc)
+			draw_colored_polygon(PackedVector2Array([Vector2(vx + 139, y + rh * 0.5 - 2), Vector2(vx + 135, y + rh * 0.5 - 5), Vector2(vx + 135, y + rh * 0.5 + 1)]), tc)
+		PixUI.text(self, Vector2(vx + 8, y + 1), v, col if on else PixUI.DIM, 1, HORIZONTAL_ALIGNMENT_CENTER, 124, 1 if is_sel else 0)
 		y += rh
 	# v38: açıklama satırın kendisinde (Ayarlar.rows r[3]); satır sırası değişse de kaymaz
 	var tl := PixUI.wrap(String(rows[clampi(sel, 0, rows.size() - 1)][3]), 420)
@@ -1109,6 +1171,7 @@ func _draw_settings(vp: Vector2) -> void:
 	if not cok:
 		PixUI.text(self, Vector2(0, ty + 6), pencere, Color(PixUI.KUT, 0.8), 1, HORIZONTAL_ALIGNMENT_CENTER, vp.x, 0)
 	_hint(vp, [["W/S", "seç"], ["A/D", "değiştir"], ["Esc", "geri"]])
+	_reveal(vp)
 
 
 func _draw_sanat(vp: Vector2) -> void:
@@ -1122,6 +1185,7 @@ func _draw_sanat(vp: Vector2) -> void:
 	var id := String(SavasSanati.ids()[clampi(sel, 0, SavasSanati.ids().size() - 1)])
 	var act := "kuşan" if SavasSanati.acik_mi(id) else ("öğren" if sanat_ogretmen else "—")
 	_hint(vp, [["W/S", "seç"], ["Boşluk", act], ["Esc", "ayrıl" if sanat_ogretmen else "geri"]])
+	_reveal(vp)
 
 
 func _draw_umay(vp: Vector2) -> void:
@@ -1147,7 +1211,7 @@ func _draw_umay(vp: Vector2) -> void:
 		var r := Rect2(x, y, pw, 30 if keys.size() <= 6 else 28)
 		PixUI.panel(self, r, PixUI.KUT if is_sel else PixUI.EDGE.darkened(0.4), Color(0.06, 0.12, 0.14, 0.95) if is_sel else PixUI.INK, false)
 		if is_sel:
-			PixUI.text(self, Vector2(x - 10 + sin(_t * 8.0) * 2.0, y + 9), "→", PixUI.KUT, 1, HORIZONTAL_ALIGNMENT_LEFT, -1.0, 2)
+			InkUI.select_mark(self, r, PixUI.KUT, _t)
 		PixUI.text(self, Vector2(x + 8, y + 3), u[0], PixUI.TEXT if lv < mx else PixUI.KUT)
 		PixUI.text(self, Vector2(x + 8, y + 15), u[1], PixUI.DIM, 1, HORIZONTAL_ALIGNMENT_LEFT, -1.0, 0)
 		for k in mx:
@@ -1163,6 +1227,7 @@ func _draw_umay(vp: Vector2) -> void:
 	if flash_t > 0.0:
 		PixUI.text(self, Vector2(0, vp.y - 40), flash_msg, PixUI.GOLD, 1, HORIZONTAL_ALIGNMENT_CENTER, vp.x, 2)
 	_hint(vp, [["W/S", "seç"], ["Boşluk", "al"], ["Esc", "ayrıl"]])
+	_reveal(vp)
 
 
 func _draw_ozan(vp: Vector2) -> void:
@@ -1182,6 +1247,7 @@ func _draw_ozan(vp: Vector2) -> void:
 	var tm := float(R.get("time", 0.0))
 	PixUI.text(self, Vector2(0, vp.y - 44), "Bu koşu: %d. derinlik  ·  %d düşman  ·  %d:%02d  ·  en derin: %d" % [int(R.get("depth", 1)), int(R.get("kills", 0)), int(tm) / 60, int(tm) % 60, int(Game.meta.get("best_depth", 1))], PixUI.DIM, 1, HORIZONTAL_ALIGNMENT_CENTER, vp.x)
 	_hint(vp, [["Boşluk", "dinle"], ["Esc", "ayrıl"]])
+	_reveal(vp)
 
 
 func _draw_demirci(vp: Vector2) -> void:
@@ -1233,6 +1299,7 @@ func _draw_demirci(vp: Vector2) -> void:
 		PixUI.text(self, Vector2(0, 256), flash_msg, Color(PixUI.GOLD, clampf(flash_t, 0.0, 1.0)), 1, HORIZONTAL_ALIGNMENT_CENTER, vp.x, 2)
 	PixUI.text(self, Vector2(0, vp.y - 36), "Açılan eşya hemen dövülüp önüne bırakılır (rastgele değerlerle); bundan sonra düşebilir de.", PixUI.DIM, 1, HORIZONTAL_ALIGNMENT_CENTER, vp.x)
 	_hint(vp, [["A/D", "seç"], ["Boşluk", "parşömeni aç"], ["Esc", "yola çık"]] if not Game.meta.get("blueprints", []).is_empty() else [["Boşluk", "yola çık"]])
+	_reveal(vp)
 
 
 func _draw_demirci_son(vp: Vector2) -> void:
@@ -1285,7 +1352,7 @@ func _draw_tuccar(vp: Vector2) -> void:
 		var edge := PixUI.GOLD if is_sel else PixUI.EDGE.darkened(0.35)
 		PixUI.panel(self, r, edge, PixUI.INK2 if is_sel else PixUI.INK, false)
 		if is_sel:
-			PixUI.text(self, Vector2(r.position.x - 10 + sin(_t * 8.0) * 2.0, r.position.y + r.size.y / 2.0 - 6.0), "→", PixUI.GOLD, 1, HORIZONTAL_ALIGNMENT_LEFT, -1.0, 2)
+			InkUI.select_mark(self, r, PixUI.GOLD, _t)
 		if i == n:
 			var rc := Pazar.yenile_fiyat(int(bz.rerolls))
 			var can_r := gold >= rc
@@ -1357,11 +1424,13 @@ func _draw_tuccar(vp: Vector2) -> void:
 				draw_circle(bc, 3.8, PixUI.GOOD)
 				draw_colored_polygon(PackedVector2Array([bc + Vector2(0, -2.4), bc + Vector2(2.3, 1.6), bc + Vector2(-2.3, 1.6)]), Color(0.04, 0.12, 0.04))
 			if bool(o.get("gozde", false)):
-				var gw2 := PixUI.width("GÖZDE") + 8.0
-				var gr := Rect2(r.end.x - gw2 - 4.0, r.position.y - 4.0, gw2, 10.0)
-				draw_rect(gr, Color(0.55, 0.32, 0.06, 0.95))
-				draw_rect(gr, PixUI.GOLD, false, 1.0)
-				PixUI.text(self, gr.position + Vector2(0, -1), "GÖZDE", Color(1.0, 0.95, 0.75), 1, HORIZONTAL_ALIGNMENT_CENTER, gw2, 0)
+				# v40: "gözde" damgası kızıl mühürle (düz dikdörtgen yerine)
+				var gw2 := PixUI.width("GÖZDE") + 10.0
+				var gr := Rect2(r.end.x - gw2 - 4.0, r.position.y - 5.0, gw2, 11.0)
+				draw_set_transform(gr.get_center() * MENU_SCALE, -0.08, Vector2.ONE * MENU_SCALE)
+				InkUI.seal(self, Rect2(-gw2 / 2.0, -5.5, gw2, 11.0), Color(InkUI.VERMILION, 0.95))
+				PixUI.text(self, Vector2(-gw2 / 2.0, -6.0), "GÖZDE", InkUI.PAPER, 1, HORIZONTAL_ALIGNMENT_CENTER, gw2, 0)
+				draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE * MENU_SCALE)
 		PixUI.text(self, Vector2(tx, r.position.y + 13), info, info_col if not sold else Color(PixUI.DIM, 0.4), 1, HORIZONTAL_ALIGNMENT_LEFT, -1.0, 0)
 		if sold:
 			var sc := Color(0.86, 0.24, 0.2, 0.95)
@@ -1410,6 +1479,7 @@ func _draw_tuccar(vp: Vector2) -> void:
 		if flash_t > 0.0 and flash_msg != "":
 			PixUI.text(self, Vector2(0, vp.y - 50), flash_msg, Color(PixUI.GOLD, clampf(flash_t, 0.0, 1.0)), 1, HORIZONTAL_ALIGNMENT_CENTER, vp.x, 2)
 		_hint(vp, [["W/S", "seç"], ["Boşluk", "satın al"], ["Esc", "ayrıl"]])
+	_reveal(vp)
 
 
 # ------------------------------------------------------------------ v32 Bengisu Usta (konak)
@@ -1589,12 +1659,13 @@ func _draw_usta(vp: Vector2) -> void:
 				_hint(vp, [["W/S", "seçenek"], ["Boşluk", "işle"], ["Esc", "geri"]])
 			_:
 				_hint(vp, [["Boşluk", "başka hizmet"], ["Esc", "geri"]])
+	_reveal(vp)
 
 
 func _usta_row(r: Rect2, is_sel: bool) -> void:
 	PixUI.panel(self, r, USTA_COL if is_sel else PixUI.EDGE.darkened(0.35), PixUI.INK2 if is_sel else PixUI.INK, false)
 	if is_sel:
-		PixUI.text(self, Vector2(r.position.x - 10 + sin(_t * 8.0) * 2.0, r.position.y + r.size.y / 2.0 - 6.0), "→", USTA_COL, 1, HORIZONTAL_ALIGNMENT_LEFT, -1.0, 2)
+		InkUI.select_mark(self, r, USTA_COL, _t)
 
 
 func _usta_note(x: float, y: float, w: float, s: String) -> void:

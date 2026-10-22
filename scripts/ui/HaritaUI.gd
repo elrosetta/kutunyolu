@@ -29,7 +29,7 @@ static func minimap(h: Control, vp: Vector2, lv: Node, t: float) -> void:
 	var size: Vector2 = SIZES[si]
 	var ppt: float = PPT[si]
 	var alpha: float = [0.55, 0.8, 1.0][clampi(int(Ayarlar.get("harita_a")), 0, 2)]
-	var r := Rect2(vp.x - size.x - 10.0, vp.y - size.y - 10.0, size.x, size.y)
+	var r := Rect2(vp.x - size.x - 22.0, vp.y - size.y - 14.0, size.x, size.y)   # v40: tomar uçlarına yer
 	var pl: Node = lv.player
 	var TS: int = lv.TS
 	var pc := Vector2(pl.global_position.x / TS, (pl.global_position.y - 12.0) / TS)
@@ -38,7 +38,9 @@ static func minimap(h: Control, vp: Vector2, lv: Node, t: float) -> void:
 	var b: Rect2i = lv.bounds
 	var ox := clampf(pc.x - wt.x * 0.5, float(b.position.x), maxf(float(b.position.x), float(b.end.x) - wt.x))
 	var oy := clampf(pc.y - wt.y * 0.5, float(b.position.y), maxf(float(b.position.y), float(b.end.y) - wt.y))
-	InkUI.paper(h, r, alpha)
+	# v40: parşömen tomar çerçevesi (iki yanda sarılı uçlar); harita kâğıdın iç alanına çizilir
+	var fr := r.grow_individual(14.0, 6.0, 14.0, 6.0)
+	InkUI.scroll_frame(h, fr, alpha, 6.0)
 	h.draw_rect(r, Color(0.07, 0.05, 0.04, 0.82 * alpha))   # sis: görülmeyen alan koyu (keşfedilen açık parşömen olarak belirir)
 	var src := Rect2(ox * Harita.PX, oy * Harita.PX, wt.x * Harita.PX, wt.y * Harita.PX)
 	h.draw_texture_rect_region(hm.tex, r, src, Color(1, 1, 1, alpha))
@@ -50,13 +52,13 @@ static func minimap(h: Control, vp: Vector2, lv: Node, t: float) -> void:
 		h.draw_circle(pp, 3.2, Color(BONE, alpha), false, 1.0, true)
 		var f := float(pl.get("facing"))
 		h.draw_line(pp + Vector2(f * 3.0, 0), pp + Vector2(f * 6.0, 0), Color(BONE, alpha), 1.2, true)
-	# çerçeve, başlık ve keşif yüzdesi
-	InkUI.nine(h, r.grow(3.5), InkUI.tex("frame_ink"), 48.0, Color(InkUI.INK, 0.9 * alpha), 5.5)
-	PixUI.key_cap(h, Vector2(r.position.x + 3, r.position.y - 7), "M", GOLD, true)
+	# sisin kenarı: ince mürekkep çizgi; başlık ve keşif yüzdesi tomarın üst kâğıt payında
+	h.draw_rect(r, Color(InkUI.INK, 0.5 * alpha), false, 1.0)
+	PixUI.key_cap(h, Vector2(r.position.x - 10, r.position.y - 11), "M", GOLD, true)
 	var f2 := InkUI.font("caps")
-	InkUI.draw_str(h, Vector2(r.position.x + 18, r.position.y + 1), "HARİTA", f2, 7, Color(BONE, 0.85 * alpha), 1)
+	InkUI.draw_str(h, Vector2(r.position.x + 6, r.position.y - 2), "HARİTA", f2, 7, Color(PAPER_INK, 0.9 * alpha), 0)
 	var ys := "%%%d" % int(round(hm.yuzde() * 100.0))
-	InkUI.draw_str(h, Vector2(r.end.x - 4 - InkHUD.str_w(InkUI.font("body"), ys, 8), r.position.y + 1), ys, InkUI.font("body"), 8, Color(BONE, 0.7 * alpha), 1)
+	InkUI.draw_str(h, Vector2(r.end.x - 2 - InkHUD.str_w(InkUI.font("bold"), ys, 8), r.position.y - 2), ys, InkUI.font("bold"), 8, Color(PAPER_INK, 0.85 * alpha), 0)
 
 
 # ------------------------------------------------------------------ tam ekran harita (M)
@@ -76,7 +78,8 @@ static func full(h: Control, vp: Vector2, lv: Node, sel: int, t: float, isin_t: 
 	var size := Vector2(bw, bh) * ppt
 	var r := Rect2(Vector2((vp.x - size.x) * 0.5, 54.0 + (maxh - size.y) * 0.5), size)
 	var pr := r.grow(10.0)
-	InkUI.paper(h, pr, 1.0)
+	# v40: tam ekran harita da parşömen tomar (küçük haritayla aynı çerçeve dili); uçlar kâğıdın 14 birim dışında
+	InkUI.scroll_frame(h, pr.grow_individual(14.0, 4.0, 14.0, 4.0), 1.0, 6.0)
 	h.draw_rect(r, Color(0.07, 0.05, 0.04, 0.8))   # sis: görülmeyen alan koyu kâğıt
 	var src := Rect2(b.position.x * Harita.PX, b.position.y * Harita.PX, bw * Harita.PX, bh * Harita.PX)
 	h.draw_texture_rect_region(hm.tex, r, src, Color(1, 1, 1, 1))
@@ -93,6 +96,8 @@ static func full(h: Control, vp: Vector2, lv: Node, sel: int, t: float, isin_t: 
 	var tw := InkHUD.str_w(fc, title, 14)
 	InkUI.wash(h, Rect2(vp.x * 0.5 - 200, 10, 400, 40), 0.7)
 	InkUI.draw_str(h, Vector2((vp.x - tw) * 0.5, 30), title, fc, 14, GOLD, 2)
+	InkUI.kilim(h, Rect2(vp.x * 0.5 - tw * 0.5 - 10.0, 33.0, tw + 20.0, 2.4), Color(GOLD, 0.5))   # v40 kimlik şeridi
+	InkUI.icon_at(h, "harita", Vector2(vp.x * 0.5 - tw * 0.5 - 22.0, 24.0), 15.0, Color(GOLD, 0.9))   # v40 icons2: harita simgesi
 	var sub := "%d. derinlik  ·  keşif %%%d  ·  Kut Taşı %d / %d" % [int(Game.run.get("depth", 1)), int(round(hm.yuzde() * 100.0)), hm.bulunan().size(), hm.tasi.size()]
 	var fb := InkUI.font("body")
 	InkUI.draw_str(h, Vector2((vp.x - InkHUD.str_w(fb, sub, 9)) * 0.5, 43), sub, fb, 9, Color(BONE, 0.8), 1)

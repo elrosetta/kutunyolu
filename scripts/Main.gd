@@ -1247,6 +1247,10 @@ var _ekran_ikinci := false
 
 func _debug_screen() -> void:
 	## --ekran=oyun|tilsim|yuva|duraklat|olum|umay|demirci : arayüz testleri ve ekran görüntüsü için
+	## v40: kare sayacı bölüm ve oyuncu hazır olduktan sonra işler (açılışta uzun takılma olursa fizik kareleri 40'ı
+	## bölüm kurulmadan geçiyor, ekran hiç kurulmuyordu)
+	if level == null or level.player == null:
+		return
 	_ekran_t += 1
 	if _ekran in ["yay", "kilic"] and level and level.player:
 		# yay: 45. karede ger, 85. karede bırak; kılıç: 45/70/95. karelerde zincir vuruş

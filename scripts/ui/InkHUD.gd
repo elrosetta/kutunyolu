@@ -18,23 +18,59 @@ static func str_w(f: Font, s: String, size: int) -> float:
 
 
 # ------------------------------------------------------------------ sol üst: can, şişe, altın, Kut, ongunlar
+## v40 mürekkep dolum: gösterilen can oranı hedefe doğru akar (hasar: hızlı çekilme, kızıl sıçrantı; şifa: yavaş yayılan
+## mürekkep), fırça ucunda nabız atan mürekkep lekesi
+static var _hp_show := -1.0
+static var _hp_t := -1.0
+static var _hp_hit := 0.0
+static var _hp_heal := 0.0
+
+
 static func top_left(h: Control, R: Dictionary, hp: float, mhp: float, hpk: float, lag: float, t: float, kut_pulse: float) -> float:
 	var x0 := 8.0
 	var y0 := 8.0
-	InkUI.wash(h, Rect2(-40, -14, 300, 84), 0.66)
+	InkUI.wash(h, Rect2(-40, -14, 310, 90), 0.7)
 	var low := hpk < 0.3
+	var dt := clampf(t - _hp_t, 0.0, 0.1) if _hp_t >= 0.0 else 0.0
+	_hp_t = t
+	if _hp_show < 0.0:
+		_hp_show = hpk
+	if hpk < _hp_show - 0.0005:
+		if _hp_hit <= 0.0:
+			_hp_hit = 1.0
+		_hp_show = move_toward(_hp_show, hpk, dt * maxf(2.5, (_hp_show - hpk) * 12.0))
+	elif hpk > _hp_show + 0.0005:
+		_hp_heal = 1.0
+		_hp_show = move_toward(_hp_show, hpk, dt * maxf(0.5, (hpk - _hp_show) * 2.2))
+	_hp_hit = maxf(0.0, _hp_hit - dt * 3.0)
+	_hp_heal = maxf(0.0, _hp_heal - dt * 1.2)
 	# can: kızıl mürekkep yürek + fırça çubuğu
-	var hc := Vector2(x0 + 8, y0 + 8)
+	var hc := Vector2(x0 + 9, y0 + 9)
 	var hcol := HP_RED.lightened(0.15) if not (low and int(t * 5.0) % 2 == 0) else Color(1.0, 0.62, 0.5)
-	InkUI.icon_at(h, "can", hc, 19.0, hcol)
-	var br := Rect2(x0 + 22, y0 + 4, 158, 9)
+	if _hp_hit > 0.0:
+		InkUI.splat(h, hc, 26.0 + 14.0 * (1.0 - _hp_hit), Color(HP_RED, 0.45 * _hp_hit), t)
+	InkUI.icon_at(h, "can", hc, 21.0 + 3.0 * _hp_hit, hcol)
+	var br := Rect2(x0 + 24, y0 + 4, 164, 10)
 	InkUI.bar(h, br, 0.0, Color(0, 0, 0, 0), Color(0.16, 0.03, 0.04, 1.0))
 	InkUI.bar(h, br, lag, Color(BONE, 0.8), Color(0, 0, 0, 0))
 	var fc := HP_RED if not low else Color(0.95, 0.22 + 0.12 * sin(t * 10.0), 0.18)
-	InkUI.bar(h, br, hpk, fc, Color(0, 0, 0, 0))
+	if _hp_heal > 0.0:
+		fc = fc.lerp(Color(1.0, 0.55, 0.45), 0.4 * _hp_heal)
+	InkUI.bar(h, br, _hp_show, fc, Color(0, 0, 0, 0))
+	# fırça ucu: dolumun ucunda mürekkep lekesi (hasarda kızıl sıçrar)
+	var tip := Vector2(br.position.x - 2.0 + (br.size.x + 4.0) * _hp_show, br.get_center().y)
+	if _hp_show > 0.02:
+		InkUI.splat(h, tip, br.size.y * (1.5 + 0.25 * sin(t * 6.0)) + 8.0 * _hp_hit, Color(fc.lightened(0.2), 0.9), t * 0.3)
+	if _hp_hit > 0.0:
+		for i in 4:
+			var ang := -0.9 + i * 0.6 + float(int(t * 7.0) % 3) * 0.1
+			var p := tip + Vector2.from_angle(ang) * (6.0 + 12.0 * (1.0 - _hp_hit))
+			h.draw_circle(p, 1.6 * _hp_hit, Color(HP_RED, 0.85 * _hp_hit), true, -1.0, true)
 	var f := InkUI.font("bold")
 	var s := "%d / %d" % [int(ceil(hp)), int(mhp)]
-	InkUI.draw_str(h, Vector2(br.position.x + (br.size.x - str_w(f, s, 10)) * 0.5, br.position.y + 8.0), s, f, 10, BONE, 2)
+	InkUI.draw_str(h, Vector2(br.position.x + (br.size.x - str_w(f, s, 10)) * 0.5, br.position.y + 8.5), s, f, 10, BONE, 2)
+	# plakanın alt kenarı: ince altın kilim şeridi (v40 kimlik çizgisi)
+	InkUI.kilim(h, Rect2(x0, y0 + 53.5, 150.0, 2.6), Color(InkUI.GOLD, 0.35))
 	# şişeler, Q mühürü, altın, Kut (bankadaki Kut parantezde)
 	var y2 := y0 + 22.0
 	var x := x0 + 1.0
@@ -85,7 +121,9 @@ static func slot_box(h: Control, r: Rect2, key: String, pl: Node) -> void:
 	InkUI.nine(h, r.grow(4.5), InkUI.tex("frame_ink"), 48.0, Color(InkUI.INK, 0.9), 5.5)
 	InkUI.nine(h, r.grow(4.0), InkUI.tex("frame_line"), 48.0, Color(col.lightened(0.35 if active else 0.0), 0.95 if not it.is_empty() else 0.5), 4.5)
 	if it.is_empty():
-		PixUI.text(h, r.position + Vector2(0, 9), "boş", Color(PixUI.DIM, 0.55), 1, HORIZONTAL_ALIGNMENT_CENTER, r.size.x, 0)
+		# v40: boş yuva "kutu" değil, soluk bir tamga filigranı + küçük yazıt
+		InkUI.tamga(h, 2 if key in ["melee", "second"] else 3, r.get_center() + Vector2(0, -2), 16.0, Color(BONE, 0.13))
+		InkUI.draw_str(h, Vector2(r.position.x + (r.size.x - str_w(InkUI.font("caps"), "BOŞ", 7)) * 0.5, r.end.y - 5.0), "BOŞ", InkUI.font("caps"), 7, Color(PixUI.DIM, 0.5), 0)
 	else:
 		PixUI.weapon(h, it, r.get_center() + Vector2(0, -1), r.size - Vector2(8, 9))
 		PixUI.ongun_stripe(h, Rect2(r.position.x + 4, r.end.y - 3.5, r.size.x - 8, 2.2), Game.item_onguns(it), Game.item_best_ongun(it))
@@ -94,8 +132,14 @@ static func slot_box(h: Control, r: Rect2, key: String, pl: Node) -> void:
 		var k := clampf(pl.cd[key] / maxf(0.01, pl.cd_max[key]), 0.0, 1.0)
 		var hh := r.size.y * k
 		InkUI.nine(h, Rect2(r.position.x, r.end.y - hh, r.size.x, hh), InkUI.tex("fill"), 32.0, Color(0.0, 0.0, 0.02, 0.72))
+		# v40 bekleme yayı: çerçevenin üst kenarı boyunca kalan süre oranında kızıl fırça çizgisi (sağdan erir)
+		var st := InkUI.tex("stroke")
+		var ts := st.get_size()
+		h.draw_texture_rect_region(st, Rect2(r.position.x + 2.0, r.position.y - 1.6, (r.size.x - 4.0) * k, 2.4), Rect2(0, 0, ts.x * k, ts.y), Color(InkUI.VERMILION, 0.9))
 		if key in ["g1", "g2"] and pl.cd[key] >= 1.0:
-			PixUI.text(h, r.position + Vector2(0, 8), str(int(ceil(pl.cd[key]))), BONE, 1, HORIZONTAL_ALIGNMENT_CENTER, r.size.x, 2)
+			var fb := InkUI.font("brush")
+			var cs := str(int(ceil(pl.cd[key])))
+			InkUI.draw_str(h, Vector2(r.position.x + (r.size.x - str_w(fb, cs, 15)) * 0.5, r.position.y + r.size.y * 0.5 + 5.0), cs, fb, 15, BONE, 2, 2)
 	PixUI.key_cap(h, r.position + Vector2(-3, -6), HUD.SLOT_KEYS[key], PixUI.GOLD, not it.is_empty())
 
 
@@ -163,12 +207,14 @@ static func boss_bar(h: Control, vp: Vector2, name: String, k: float, t: float, 
 	var bx := (vp.x - bw) / 2.0
 	var y := vp.y - 70.0   # yuvaların ve halkaların (F / R / G) üstünde
 	var bh := 9.0
-	InkUI.wash(h, Rect2(bx - 90, y - 40, bw + 180, 64), 0.78)
+	InkUI.wash(h, Rect2(bx - 90, y - 44, bw + 180, 70), 0.8)
 	var red := Color(0.95, 0.42, 0.38)
-	# ad ve lakap
+	# v40 ad levhası: kilim şeridi + iki yanda tamga mühürleri, Cinzel ad, altında lakap
 	var fc := InkUI.font("caps")
 	var nm := tr_upper(name)
 	var nw := str_w(fc, nm, 13)
+	var pw := nw + 70.0
+	InkUI.kilim(h, Rect2((vp.x - pw) * 0.5, y - 31.0, pw, 3.2), Color(InkUI.GOLD, 0.55))
 	InkUI.draw_str(h, Vector2((vp.x - nw) * 0.5, y - 16), nm, fc, 13, red, 2)
 	var sub := ""
 	if boss:
@@ -178,9 +224,12 @@ static func boss_bar(h: Control, vp: Vector2, name: String, k: float, t: float, 
 	if sub != "":
 		var fb := InkUI.font("body")
 		var sw := str_w(fb, sub, 8)
-		InkUI.draw_str(h, Vector2((vp.x - sw) * 0.5, y - 6), sub, fb, 8, Color(BONE, 0.6), 1)
-	InkUI.tamga(h, 0, Vector2((vp.x - nw) * 0.5 - 13, y - 20), 10.0, Color(red, 0.8))
-	InkUI.tamga(h, 0, Vector2((vp.x + nw) * 0.5 + 13, y - 20), 10.0, Color(red, 0.8))
+		InkUI.draw_str(h, Vector2((vp.x - sw) * 0.5, y - 6), sub, fb, 8, Color(BONE, 0.65), 1)
+	for sx in [-1.0, 1.0]:
+		var c := Vector2(vp.x * 0.5 + sx * (nw * 0.5 + 16.0), y - 20.0)
+		InkUI.seal_round(h, c + Vector2(0.8, 1.0), 13.0, Color(0, 0, 0, 0.4), 0.2)
+		InkUI.seal_round(h, c, 13.0, Color(InkUI.VERMILION, 0.95), 0.2)
+		InkUI.tamga(h, 0, c, 7.5, Color(InkUI.PAPER, 0.92))
 	# çubuk: kalın mürekkep darbe, koyu oluk, gecikmeli parça, kızıl dolgu
 	var st := InkUI.tex("stroke")
 	var ts := st.get_size()
@@ -229,8 +278,7 @@ static func place(h: Control, vp: Vector2, place_name: String, info: String, col
 	var x := vp.x - 10.0 - w
 	InkUI.wash(h, Rect2(x - 40, -12, w + 80, 70), 0.62)
 	InkUI.draw_str(h, Vector2(x + (w - nw) * 0.5, 20), nm, fc, 11, col, 2)
-	var st := InkUI.tex("stroke")
-	h.draw_texture_rect(st, Rect2(x + w * 0.2, 24, w * 0.6, 2.0), false, Color(col, 0.6))
+	InkUI.kilim(h, Rect2(x + w * 0.15, 23.5, w * 0.7, 2.4), Color(col, 0.5))   # v40: kilim ayracı
 	var ix := x + (w - iw) * 0.5
 	InkUI.draw_str(h, Vector2(ix, 35), info, fb, 9, Color(BONE, 0.72), 1)
 	InkUI.icon_at(h, "kafatasi", Vector2(ix + iw - 4, 31.5), 9.0, Color(BONE, 0.7), false)
@@ -260,25 +308,43 @@ static func usul(h: Control, vp: Vector2, u: Dictionary, streak: int, flash: flo
 
 
 # ------------------------------------------------------------------ bölüm girişi ve ekran başlıkları
-static func banner(h: Control, vp: Vector2, title: String, sub: String, col: Color, a: float) -> void:
+static func banner(h: Control, vp: Vector2, title: String, sub: String, col: Color, a: float, p := 1.0) -> void:
+	## v40 fırça açılışı: başlık harf harf "yazılır" (p 0 -> 1; kalemin ucunda mürekkep lekesi), yan çizgiler
+	## kalemle birlikte uzar, iki yanda Köktürk harf aksanı belirir; alt satır yazı bitince gelir
 	var y := 96.0
 	InkUI.wash(h, Rect2(vp.x * 0.5 - 330, y - 30, 660, 100), 0.7 * a)
 	var fb := InkUI.font("brush")
 	var t := InkUI.tr_title(title)
 	var tw := str_w(fb, t, 34)
 	var x0 := (vp.x - tw) / 2.0
-	_fade_str(h, Vector2(x0, y + 26), t, fb, 34, col, a, 7)
-	var lw := 70.0 * a
+	var pp := clampf(p, 0.0, 1.0)
+	var n := t.length()
+	var shown := clampi(int(ceil(pp * n)), 0, n)
+	var ts := t.substr(0, shown)
+	_fade_str(h, Vector2(x0, y + 26), ts, fb, 34, col, a, 7)
+	if pp < 1.0 and shown > 0:
+		# kalem ucu: son harfin sağında mürekkep lekesi ve küçük sıçrantı
+		var tipx := x0 + str_w(fb, ts, 34)
+		InkUI.splat(h, Vector2(tipx + 2.0, y + 16.0), 16.0, Color(col, 0.8 * a), pp * 6.0)
+		h.draw_circle(Vector2(tipx + 8.0 + 6.0 * pp, y + 8.0 - 10.0 * pp), 1.4, Color(col, 0.7 * a), true, -1.0, true)
+	var lw := 70.0 * a * pp
 	var st := InkUI.tex("stroke")
 	h.draw_texture_rect(st, Rect2(x0 - 16 - lw, y + 15, lw, 2.5), false, Color(col, a * 0.8))
 	h.draw_texture_rect(st, Rect2(x0 + tw + 16, y + 15, lw, 2.5), false, Color(col, a * 0.8))
-	InkUI.quad(h, InkUI.tex("horn"), Vector2(x0 - 10, y + 16), Vector2(12, 10), -PI * 0.5, Color(col, a))
-	InkUI.quad(h, InkUI.tex("horn"), Vector2(x0 + tw + 10, y + 16), Vector2(12, 10), PI * 0.5, Color(col, a))
+	InkUI.quad(h, InkUI.tex("horn"), Vector2(x0 - 10, y + 16), Vector2(12, 10), -PI * 0.5, Color(col, a * pp))
+	InkUI.quad(h, InkUI.tex("horn"), Vector2(x0 + tw + 10, y + 16), Vector2(12, 10), PI * 0.5, Color(col, a * pp))
+	# Köktürk harf aksanları: çizgilerin dışında, soluk
+	var oa := a * clampf((pp - 0.5) * 2.0, 0.0, 1.0) * 0.45
+	if oa > 0.0:
+		InkUI.orkhon(h, Rect2(x0 - 16 - lw - 70.0, y + 9.0, 60.0, 12.0), Color(col, oa))
+		InkUI.orkhon(h, Rect2(x0 + tw + 16 + lw + 10.0, y + 9.0, 60.0, 12.0), Color(col, oa))
 	# alt satır: başlığın fırça kuyruklarından ayrık (y + 42), arkasında kendi koyu yıkaması; tek katman yazı
-	var fs := InkUI.font("body")
-	var sw := str_w(fs, sub, 11)
-	InkUI.wash(h, Rect2(vp.x * 0.5 - sw * 0.5 - 24, y + 33, sw + 48, 20), 0.6 * a)
-	_fade_str(h, Vector2((vp.x - sw) * 0.5, y + 47), sub, fs, 11, BONE, a, 3)
+	var sa := a * clampf((pp - 0.7) / 0.3, 0.0, 1.0)
+	if sa > 0.0:
+		var fs := InkUI.font("body")
+		var sw := str_w(fs, sub, 11)
+		InkUI.wash(h, Rect2(vp.x * 0.5 - sw * 0.5 - 24, y + 33, sw + 48, 20), 0.6 * sa)
+		_fade_str(h, Vector2((vp.x - sw) * 0.5, y + 47), sub, fs, 11, BONE, sa, 3)
 
 
 static func _fade_str(h: Control, p: Vector2, t: String, f: Font, size: int, col: Color, a: float, outline: int) -> void:
@@ -319,35 +385,64 @@ static func seal_mark(h: Control, c: Vector2, s: float, tamga_i: int, a := 1.0) 
 
 
 static func title_top(h: Control, vp: Vector2, t: float) -> void:
-	## Başlık ekranı: mürekkep sıçrantısı üstünde fırça yazısı, kızıl alt çizgi ve Kayı mührü
-	h.draw_rect(Rect2(Vector2.ZERO, vp), Color(0.02, 0.02, 0.03, 0.4))
+	## v40 sinematik başlık: süzülen mürekkep dumanı (fare / zamanla hafif paralaks), kuru fırça kaligrafi logosu
+	## (logo.png), kızıl alt çizgi, Kayı mührü, Köktürk harf aksanı, "Başla" yuvarlak mührü
+	h.draw_rect(Rect2(Vector2.ZERO, vp), Color(0.02, 0.02, 0.03, 0.45))
 	InkUI.vignette(h, vp, 0.95)
-	var bob := sin(t * 1.5) * 1.5
-	var cy := 96.0 + bob
-	InkUI.wash(h, Rect2(vp.x * 0.5 - 320, cy - 78, 640, 176), 0.85)
-	InkUI.splat(h, Vector2(vp.x * 0.5 - 70, cy - 2), 170.0, Color(InkUI.INK, 0.5), 0.5)
-	InkUI.splat(h, Vector2(vp.x * 0.5 + 110, cy + 10), 110.0, Color(InkUI.SEAL.darkened(0.5), 0.35), 2.1)
-	var fb := InkUI.font("brush")
-	var s := "Kut'un Yolu"
-	var size := 62
-	var tw := str_w(fb, s, size)
-	var x0 := (vp.x - tw) * 0.5
+	# paralaks: fare konumu (yoksa yavaş salınım)
+	var mp := h.get_viewport().get_mouse_position() / HUD.MENU_SCALE
+	var par := Vector2.ZERO
+	if Rect2(Vector2.ZERO, vp).has_point(mp):
+		par = (mp - vp * 0.5) / vp * 6.0
+	else:
+		par = Vector2(sin(t * 0.4), cos(t * 0.3)) * 2.0
+	# mürekkep dumanı: üç leke, ağır ağır kayar ve döner
+	var sm := InkUI.tex("smoke")
+	var smokes := [[Vector2(-170, 20), 260.0, 0.07, 0.55, InkUI.INK], [Vector2(150, 50), 220.0, -0.05, 0.42, InkUI.INK],
+		[Vector2(40, -40), 180.0, 0.09, 0.28, InkUI.SEAL.darkened(0.55)]]
+	for i in smokes.size():
+		var d: Array = smokes[i]
+		var c: Vector2 = Vector2(vp.x * 0.5, 100.0) + (d[0] as Vector2) + Vector2(sin(t * 0.17 + i * 2.1), cos(t * 0.13 + i)) * 14.0 - par * (1.5 + i * 0.6)
+		InkUI.quad(h, sm, c, Vector2.ONE * float(d[1]) * (1.0 + 0.04 * sin(t * 0.3 + i)), t * float(d[2]) + i, Color(d[4] as Color, float(d[3])))
+	var bob := sin(t * 1.1) * 1.2
+	var cy := 92.0 + bob
+	InkUI.wash(h, Rect2(vp.x * 0.5 - 330, cy - 70, 660, 170), 0.8)
+	# logo: gölge kopyası + kemik rengi kaligrafi
+	var lg := InkUI.tex("logo")
+	var lw := 470.0
+	var lh := lw * 768.0 / 2048.0
+	var lc := Vector2(vp.x * 0.5, cy - 6.0) - par * 0.6
+	if lg:
+		h.draw_texture_rect(lg, Rect2(lc - Vector2(lw, lh) * 0.5 + Vector2(3.0, 4.0), Vector2(lw, lh)), false, Color(InkUI.INK, 0.9))
+		h.draw_texture_rect(lg, Rect2(lc - Vector2(lw, lh) * 0.5, Vector2(lw, lh)), false, BONE)
+	var tw := lw * 0.72
+	var x0 := lc.x - tw * 0.5
 	var st := InkUI.tex("stroke")
-	h.draw_texture_rect(st, Rect2(x0 - 6, cy + 22, tw + 6, 7), false, Color(InkUI.INK, 0.9))
-	h.draw_texture_rect(st, Rect2(x0 + 4, cy + 23, tw - 14, 4.5), false, Color(InkUI.SEAL, 0.95))
-	InkUI.draw_str(h, Vector2(x0, cy + 18), s, fb, size, BONE, 2, 3)
-	seal_mark(h, Vector2(x0 + tw + 20, cy - 18), 24.0, 0)
-	InkUI.quad(h, InkUI.tex("horn"), Vector2(x0 - 22, cy + 6), Vector2(18, 15), -PI * 0.5, Color(PixUI.GOLD, 0.9))
+	h.draw_texture_rect(st, Rect2(x0 - 6, cy + 38, tw + 6, 7), false, Color(InkUI.INK, 0.9))
+	h.draw_texture_rect(st, Rect2(x0 + 4, cy + 39, tw - 14, 4.5), false, Color(InkUI.VERMILION, 0.95))
+	seal_mark(h, Vector2(x0 + tw + 26, cy - 30) - par * 0.6, 24.0, 0)
+	InkUI.quad(h, InkUI.tex("horn"), Vector2(x0 - 24, cy + 20) - par * 0.6, Vector2(18, 15), -PI * 0.5, Color(InkUI.GOLD, 0.9))
 	var fl := InkUI.font("lore")
 	var sub := "Erlik'in zincirini kır, Ulu Kayın'ı kurtar"
-	InkUI.draw_str(h, Vector2((vp.x - str_w(fl, sub, 12)) * 0.5, cy + 46), sub, fl, 12, Color(0.72, 0.92, 1.0), 2)
-	var a := 0.55 + 0.45 * sin(t * 3.0)
-	var ps := "Başlamak için Boşluk / Enter"
+	InkUI.draw_str(h, Vector2((vp.x - str_w(fl, sub, 12)) * 0.5, cy + 60), sub, fl, 12, Color(0.72, 0.92, 1.0), 2)
+	InkUI.orkhon(h, Rect2(vp.x * 0.5 - 120, cy + 68, 240, 11), Color(InkUI.GOLD, 0.32))
+	# Başla mührü: nabız atan kızıl yuvarlak damga, içinde fırça yazısı
+	var k := InkUI.pulse(t, 0.6)
+	var bc := Vector2(vp.x * 0.5, 212.0)
+	var bs := 50.0 + 2.5 * k
+	InkUI.seal_round(h, bc + Vector2(1.2, 1.6), bs, Color(0, 0, 0, 0.5), -0.12)
+	InkUI.seal_round(h, bc, bs, Color(InkUI.VERMILION, 0.95), -0.12)
+	var fb := InkUI.font("brush")
+	var bt := "Başla"
+	var bw := str_w(fb, bt, 17)
+	h.draw_set_transform(bc * HUD.MENU_SCALE, -0.12, Vector2.ONE * HUD.MENU_SCALE)
+	h.draw_string(fb, Vector2(-bw * 0.5 + 0.8, 6.8), bt, HORIZONTAL_ALIGNMENT_LEFT, -1, 17, Color(InkUI.INK, 0.45))
+	h.draw_string(fb, Vector2(-bw * 0.5, 6.0), bt, HORIZONTAL_ALIGNMENT_LEFT, -1, 17, InkUI.PAPER)
+	h.draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE * HUD.MENU_SCALE)
+	var ps := "Boşluk / Enter"
 	var fbd := InkUI.font("bold")
-	var pw := str_w(fbd, ps, 11)
-	h.draw_texture_rect(InkUI.tex("swash"), Rect2((vp.x - pw) * 0.5 - 22, 172, pw + 44, 22), false, Color(InkUI.INK, 0.85))
-	h.draw_texture_rect(st, Rect2((vp.x - pw) * 0.5 - 8, 191, pw + 16, 2.2), false, Color(PixUI.GOLD, 0.8 * a))
-	InkUI.draw_str(h, Vector2((vp.x - pw) * 0.5, 187), ps, fbd, 11, Color(BONE, 0.45 + 0.55 * a), 1)
+	var pw := str_w(fbd, ps, 9)
+	InkUI.draw_str(h, Vector2((vp.x - pw) * 0.5, 249), ps, fbd, 9, Color(BONE, 0.45 + 0.45 * k), 1)
 
 
 static func paper_lines(h: Control, vp: Vector2, lines: Array, y_mid: float, pw: float, size := 12, lh := 16.0) -> Rect2:

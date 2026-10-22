@@ -151,6 +151,8 @@ static func draw_str(ci: CanvasItem, p: Vector2, t: String, f: Font, size: int, 
 # ================================================================== dokular (tools/artgen/ui_ink.py)
 const TEX_DIR := "res://assets/ui/ink/"
 const ICONS := ["can", "sise", "altin", "kut", "kurt", "kartal", "ayi", "kafatasi", "zaman", "kilic", "tilsim", "davul", "ruh", "kalkan"]
+## v40 ek simgeler (tools/artgen/ui_ink40.py -> icons2.png): durumlar, nişan, harita, ok, seçkin yıldızı, hız, nakış, mühür
+const ICONS2 := ["ates", "buz", "zehir", "kan", "damga", "nazar", "nisan", "harita", "ok", "yildiz", "hiz", "nakis", "muhur"]
 const ICON_PX := 128.0
 ## doku yoğunluğu: arayüz biriminde kaç doku pikseli (menüler 3 = 1080p'de 1:1; HUD daha ince çizgi için 4)
 static var den := 3.0
@@ -267,12 +269,18 @@ static func divider(ci: CanvasItem, x: float, y: float, w: float, col: Color) ->
 static func icon_region(name: String) -> Rect2:
 	var i := ICONS.find(name)
 	if i < 0:
+		i = ICONS2.find(name)   # v40 ek simgeler (icons2.png)
+	if i < 0:
 		return Rect2()
 	return Rect2(i * ICON_PX, 0, ICON_PX, ICON_PX)
 
 
+static func icon_tex(name: String) -> Texture2D:
+	return tex("icons") if ICONS.has(name) else tex("icons2")
+
+
 static func has_icon(name: String) -> bool:
-	return ICONS.has(name)
+	return ICONS.has(name) or ICONS2.has(name)
 
 
 static func icon(ci: CanvasItem, name: String, pos: Vector2, col: Color, sc := 1.0, shadow := true, box := Vector2.ZERO) -> void:
@@ -284,9 +292,10 @@ static func icon(ci: CanvasItem, name: String, pos: Vector2, col: Color, sc := 1
 	var s := maxf(b.x, b.y) * 1.55
 	var c := pos + b * 0.5
 	var r := Rect2(c - Vector2(s, s) * 0.5, Vector2(s, s))
+	var t := icon_tex(name)
 	if shadow:
-		ci.draw_texture_rect_region(tex("icons"), Rect2(r.position + Vector2(0.8, 1.0) * maxf(1.0, sc * 0.6), r.size), rg, Color(0, 0, 0, 0.5 * col.a))
-	ci.draw_texture_rect_region(tex("icons"), r, rg, col.lightened(0.08))
+		ci.draw_texture_rect_region(t, Rect2(r.position + Vector2(0.8, 1.0) * maxf(1.0, sc * 0.6), r.size), rg, Color(0, 0, 0, 0.5 * col.a))
+	ci.draw_texture_rect_region(t, r, rg, col.lightened(0.08))
 
 
 static func icon_at(ci: CanvasItem, name: String, c: Vector2, s: float, col: Color, shadow := true) -> void:
@@ -300,12 +309,18 @@ static func seal(ci: CanvasItem, r: Rect2, col: Color) -> void:
 
 
 static func key_w(k: String) -> float:
+	if pad_on and PAD_MAP.has(k):
+		return 13.0 if (PAD_MAP[k] as Array).size() == 1 else 25.0
 	var fs := 9 if k.length() <= 3 else 8
 	return maxf(9.0, _font("bold").get_string_size(k, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x + 4.0)
 
 
 static func key_cap(ci: CanvasItem, pos: Vector2, k: String, col: Color, active := true) -> void:
-	## Tuş mühürü: kızıl (ya da verilen renkte) fırça damgası, üstünde kâğıt rengi harf
+	## Tuş mühürü: kızıl (ya da verilen renkte) fırça damgası, üstünde kâğıt rengi harf.
+	## v40: son girdi oyun kolundan geldiyse (pad_on) klavye etiketi yerine kol simgesi (pad.png) çizilir.
+	if pad_on and PAD_MAP.has(k):
+		pad_glyph(ci, pos, k, col, active)
+		return
 	var f := _font("bold")
 	var fs := 9 if k.length() <= 3 else 8
 	var tw := f.get_string_size(k, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
@@ -431,3 +446,163 @@ static func splat(ci: CanvasItem, c: Vector2, s: float, col: Color, ang := 0.0) 
 static func paper(ci: CanvasItem, r: Rect2, a := 1.0) -> void:
 	nine(ci, Rect2(r.position + Vector2(3, 4), r.size), tex("paper"), 80.0, Color(0, 0, 0, 0.45 * a))
 	nine(ci, r, tex("paper"), 80.0, Color(1, 1, 1, a))
+
+
+# ================================================================== v40 tasarım sistemi (docs/TASARIM.md "v40: arayüz cilası")
+## Renk belirteçleri: parşömen, sumi (gece mürekkebi), kızıl mühür (vermilyon), altın, turkuaz (Kut), kemik (metin), gölge metin
+const PARCHMENT := Color(0.90, 0.84, 0.70)
+const SUMI := Color(0.045, 0.04, 0.06)
+const VERMILION := Color(0.78, 0.16, 0.10)
+const GOLD := Color(0.97, 0.80, 0.42)
+const TURQUOISE := Color(0.38, 0.86, 0.90)
+const BONE := Color(0.95, 0.88, 0.74)
+const MUTED := Color(0.72, 0.68, 0.76)
+const GOOD := Color(0.58, 0.92, 0.48)
+const BAD := Color(1.0, 0.44, 0.38)
+## Aralık ızgarası (arayüz birimi, menü 640x360 / HUD 960x540): 4; panel iç boşluğu 8; satır boyları 14 / 22 / 30
+const GRID := 4.0
+const PAD := 8.0
+## Yazı ölçeği (birim): fırça başlık 38 / 25 (sc 3 / 2), Cinzel yazıt 13 / 11 / 9, gövde 10 / 9 / 8
+
+## Oyun kolu simgeleri: son girdi kol ise tuş mühürleri yerine (HUD._input ayarlar). Etiket -> pad.png hücreleri
+static var pad_on := false
+const PAD_CELLS := ["a", "b", "x", "y", "lb", "rb", "lt", "rt", "yukari", "asagi", "sol", "sag", "ls", "rs", "start", "back"]
+const PAD_MAP := {
+	"J": ["x"], "K": ["y"], "L": ["b"], "Boşluk": ["a"], "E": ["lb"], "R": ["rb"], "Q": ["ls"], "F": ["rs"],
+	"T": ["lt"], "G": ["rt"], "W": ["yukari"], "Esc": ["start"], "A/D": ["sol", "sag"], "W/S": ["yukari", "asagi"],
+	"J/K": ["x", "y"], "E/R": ["lb", "rb"], "S": ["asagi"], "S+Boşluk": ["asagi", "a"], "Shift": ["b"], "M / Esc": ["start"],
+	"Esc → T": ["start", "lt"], "bekle+J": ["x"],
+}
+
+
+static func pad_glyph(ci: CanvasItem, pos: Vector2, k: String, col: Color, active := true) -> void:
+	## Kol simgesi: mürekkep konturlu beyaz düğme (pad.png), etkin değilse soluk; iki simgeli etiketler yan yana
+	var cells: Array = PAD_MAP.get(k, [])
+	var x := pos.x - 1.0
+	for c in cells:
+		var i := PAD_CELLS.find(String(c))
+		if i < 0:
+			continue
+		var rg := Rect2(i * ICON_PX, 0, ICON_PX, ICON_PX)
+		var r := Rect2(x, pos.y - 2.0, 13.0, 13.0)
+		ci.draw_texture_rect_region(tex("pad"), Rect2(r.position + Vector2(0.8, 1.0), r.size), rg, Color(0, 0, 0, 0.5 * col.a))
+		var tint := Color(PARCHMENT, col.a) if active else Color(0.5, 0.47, 0.52, 0.8 * col.a)
+		ci.draw_texture_rect_region(tex("pad"), r, rg, tint)
+		x += 12.0
+
+
+static func kilim(ci: CanvasItem, r: Rect2, col: Color) -> void:
+	## Kilim şeridi: doku boyuna oranla döşenir (son parça kırpılır)
+	var t := tex("kilim")
+	if t == null or r.size.y <= 0.2:
+		return
+	var ts := t.get_size()
+	var seg := r.size.y * ts.x / ts.y
+	var x := r.position.x
+	while x < r.end.x - 0.1:
+		var w := minf(seg, r.end.x - x)
+		ci.draw_texture_rect_region(t, Rect2(x, r.position.y, w, r.size.y), Rect2(0, 0, ts.x * w / seg, ts.y), col)
+		x += w
+
+
+static func orkhon(ci: CanvasItem, r: Rect2, col: Color) -> void:
+	## Köktürk harf şeridi (süs): ortadan simetrik kırpılır
+	var t := tex("orkhon")
+	if t == null or r.size.y <= 0.2:
+		return
+	var ts := t.get_size()
+	var full := r.size.y * ts.x / ts.y
+	var w := minf(r.size.x, full)
+	var u0 := (ts.x - ts.x * w / full) * 0.5
+	ci.draw_texture_rect_region(t, Rect2(r.position.x + (r.size.x - w) * 0.5, r.position.y, w, r.size.y), Rect2(u0, 0, ts.x * w / full, ts.y), col)
+
+
+static func scroll_frame(ci: CanvasItem, r: Rect2, a := 1.0, d := 6.0) -> void:
+	## Parşömen tomar: iki yanda sarılı uçlar (scroll.png 9 dilim; d = doku yoğunluğu, 6 -> 16 birim uç)
+	nine(ci, Rect2(r.position + Vector2(2.5, 3.5), r.size), tex("scroll"), 96.0, Color(0, 0, 0, 0.45 * a), d)
+	nine(ci, r, tex("scroll"), 96.0, Color(1, 1, 1, a), d)
+
+
+static func seal_round(ci: CanvasItem, c: Vector2, s: float, col: Color, ang := 0.0) -> void:
+	quad(ci, tex("seal_round"), c, Vector2(s, s), ang, col)
+
+
+static func select_mark(ci: CanvasItem, r: Rect2, col: Color, t: float, a := 1.0) -> void:
+	## Seçim imi (v40): satırın solunda nabız atan kızıl yuvarlak mühür (ortasında kâğıt rengi tamga), satırın altında
+	## renkli fırça altı çizgisi, arkada hafif renkli yıkama. "→" yazısının yerine.
+	var k := 0.5 + 0.5 * sin(t * 5.0)
+	var fl := tex("fill")
+	nine(ci, r.grow(1.0), fl, 32.0, Color(col.r, col.g, col.b, 0.10 * a))
+	var st := tex("stroke")
+	ci.draw_texture_rect(st, Rect2(r.position.x + 2.0, r.end.y - 1.8, r.size.x - 4.0, 2.6), false, Color(col, (0.75 + 0.2 * k) * a))
+	var c := Vector2(r.position.x - 7.0, r.get_center().y)
+	var s := 12.0 + 1.2 * k
+	seal_round(ci, c + Vector2(0.8, 1.0), s, Color(0, 0, 0, 0.45 * a), 0.3)
+	seal_round(ci, c, s, Color(VERMILION, 0.96 * a), 0.3)
+	tamga(ci, 1, c, s * 0.56, Color(PAPER, 0.9 * a))
+
+
+static func reveal(ci: CanvasItem, vp: Vector2, k: float, col := SUMI) -> void:
+	## Fırça perdesi: ekran açılırken (k 0 -> 1) soldan sağa süpürülen geniş mürekkep darbesi; kuyruğu dağınık,
+	## perde geçtikçe solar. Menü içeriği bunun arkasında alfa ile belirir (HUD._ease_open).
+	if k >= 0.999 or k <= 0.0:
+		return
+	var t := tex("wipe")
+	if t == null:
+		return
+	var u := clampf(k, 0.0, 1.0)
+	var e := 1.0 - pow(1.0 - u, 2.0)
+	var w := vp.x * 1.35
+	var h := vp.y * 1.5
+	var cx := lerpf(-w * 0.55, vp.x + w * 0.6, e)
+	quad(ci, t, Vector2(cx, vp.y * 0.5), Vector2(w, h), 0.0, Color(col, (1.0 - u) * 0.9))
+
+
+static func card_head(ci: CanvasItem, r: Rect2, col: Color, title: String, sub := "") -> float:
+	## Kart başlığı (v40 hiyerarşi): renkli yıkama bandı, kilim ince şerit, Cinzel / gövde başlık; alt satır soluk.
+	## Dönüş: başlığın bittiği y.
+	var bh := 16.0 if sub == "" else 25.0
+	var band := Rect2(r.position.x + 2.0, r.position.y + 2.0, r.size.x - 4.0, bh)
+	nine(ci, band, tex("fill"), 32.0, Color(col.r, col.g, col.b, 0.16))
+	kilim(ci, Rect2(band.position.x + 4.0, band.end.y - 2.2, band.size.x - 8.0, 2.4), Color(col, 0.55))
+	text(ci, Vector2(band.position.x + 4.0, band.position.y + 2.0), title, col, 1, HORIZONTAL_ALIGNMENT_LEFT, -1.0, 1)
+	if sub != "":
+		text(ci, Vector2(band.position.x + 4.0, band.position.y + 12.0), sub, MUTED, 1, HORIZONTAL_ALIGNMENT_LEFT, -1.0, 0)
+	return band.end.y + 3.0
+
+
+static func delta(v: float, pct := -1000) -> Array:
+	## ▲ / ▼ fark yazısı ve rengi: [metin, renk]
+	var s := ("▲ +%s" if v >= 0.0 else "▼ %s") % ItemGen.fmt(v)
+	if pct > -1000:
+		s += (" (+%%%d)" if v >= 0.0 else " (-%%%d)") % absi(pct)
+	return [s, GOOD if v >= 0.0 else BAD]
+
+
+static func stat_tile(ci: CanvasItem, r: Rect2, icon_name: String, value: String, label: String, col: Color, a := 1.0) -> void:
+	## İstatistik karosu (ölüm / bölüm sonu): mürekkep yıkaması kutu, solda simge, büyük fırça rakam, altında Cinzel etiket
+	nine(ci, Rect2(r.position + Vector2(2.0, 2.5), r.size), tex("fill"), 32.0, Color(0, 0, 0, 0.4 * a))
+	nine(ci, r, tex("fill"), 32.0, Color(0.09, 0.075, 0.11, 0.95 * a))
+	nine(ci, r.grow(3.0), tex("frame_line"), 48.0, Color(col, 0.5 * a), 4.0)
+	icon_at(ci, icon_name, r.position + Vector2(13.0, r.size.y * 0.5), 16.0, Color(col, a))
+	var fb := _font("brush")
+	draw_str(ci, Vector2(r.position.x + 26.0, r.position.y + r.size.y * 0.5 + 3.0), value, fb, 17, Color(BONE, a), 2, 2)
+	var fc := _font("caps")
+	draw_str(ci, Vector2(r.position.x + 26.0, r.end.y - 4.0), label, fc, 7, Color(col, 0.9 * a), 1)
+
+
+static func tooltip(ci: CanvasItem, at: Vector2, lines: Array, w: float, col := GOLD, a := 1.0) -> void:
+	## İpucu balonu: kâğıt rengi yazı, koyu yıkama; at = sol üst
+	var h := 8.0 + lines.size() * 10.0
+	var r := Rect2(at, Vector2(w, h))
+	nine(ci, Rect2(r.position + Vector2(2.0, 2.5), r.size), tex("fill"), 32.0, Color(0, 0, 0, 0.45 * a))
+	nine(ci, r, tex("fill"), 32.0, Color(0.08, 0.07, 0.1, 0.96 * a))
+	ci.draw_texture_rect(tex("stroke"), Rect2(r.position.x + 3.0, r.position.y - 0.6, r.size.x * 0.6, 1.6), false, Color(col, 0.7 * a))
+	var y := r.position.y + 4.0
+	for l in lines:
+		text(ci, Vector2(r.position.x + 6.0, y), String(l), Color(BONE, a), 1, HORIZONTAL_ALIGNMENT_LEFT, -1.0, 0)
+		y += 10.0
+
+
+static func pulse(t: float, hz := 1.0, lo := 0.0, hi := 1.0) -> float:
+	return lerpf(lo, hi, 0.5 + 0.5 * sin(t * TAU * hz))

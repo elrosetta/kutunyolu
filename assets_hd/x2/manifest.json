@@ -1877,17 +1877,59 @@
   "ui/ink/icons.webp",
   "4155eddd60e283979dfb7158b0c9b5b2"
  ],
+ "ui/ink/icons2.png": [
+  1664,
+  128,
+  "ui/ink/icons2.webp",
+  "1025756025a840c98884dfb20aaed0b3"
+ ],
+ "ui/ink/kilim.png": [
+  1024,
+  96,
+  "ui/ink/kilim.webp",
+  "513cf4bcda7948b656a9a017d1a02946"
+ ],
+ "ui/ink/orkhon.png": [
+  1024,
+  96,
+  "ui/ink/orkhon.webp",
+  "5b0afc2438ff7c11c11ff5419b4dc569"
+ ],
+ "ui/ink/pad.png": [
+  2048,
+  128,
+  "ui/ink/pad.webp",
+  "c1f829bb060190fdd45c97095aee0f7b"
+ ],
  "ui/ink/paper.png": [
   1024,
   768,
   "ui/ink/paper.webp",
   "6a88d00d5b5f6be91a0294a593d0a18f"
  ],
+ "ui/ink/scroll.png": [
+  1024,
+  512,
+  "ui/ink/scroll.webp",
+  "9d5ff79f2d9c9a1cc9b1a4d5684e1634"
+ ],
  "ui/ink/seal.png": [
   160,
   160,
   "ui/ink/seal.webp",
   "ba36e7bbf6d01127261f2a95ad15e9c1"
+ ],
+ "ui/ink/seal_round.png": [
+  256,
+  256,
+  "ui/ink/seal_round.webp",
+  "700a9e4268c21df5747f3a4a45d21dc6"
+ ],
+ "ui/ink/smoke.png": [
+  512,
+  512,
+  "ui/ink/smoke.webp",
+  "64d30da7bbd9773d3de3578b8bd935da"
  ],
  "ui/ink/splat.png": [
   512,
@@ -1918,6 +1960,12 @@
   288,
   "ui/ink/vignette.webp",
   "70078a99ff900a62ed36f2ca8733d503"
+ ],
+ "ui/ink/wipe.png": [
+  1024,
+  512,
+  "ui/ink/wipe.webp",
+  "cf1f2e8a2049800e6208f2a08daceaee"
  ],
  "weapons/weapons_v2_0.png": [
   4096,

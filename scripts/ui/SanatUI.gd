@@ -94,6 +94,7 @@ static func card(h: Control, r: Rect2, id: String, t: float, mentor: bool) -> vo
 	var col := SavasSanati.renk(id)
 	var acik := SavasSanati.acik_mi(id)
 	PixUI.fancy_panel(h, r, col.darkened(0.15) if acik else PixUI.EDGE.darkened(0.3), PixUI.INK2)
+	InkUI.kilim(h, Rect2(r.position.x + 10, r.position.y + 3, r.size.x - 20, 2.2), Color(col if acik else SanatUI.GREY, 0.4))   # v40
 	# başlık: büyük tamga ensō içinde
 	var gc := r.position + Vector2(34, 36)
 	InkUI.splat(h, gc, 70.0, Color(col, 0.18), 0.6)
@@ -211,7 +212,7 @@ static func menu(h: Control, vp: Vector2, sel: int, mentor: bool, t: float, e: f
 		var r := Rect2(x0, y, lw, 25.0)
 		PixUI.panel(h, r, (col if acik else PixUI.GOLD) if is_sel else PixUI.EDGE.darkened(0.4), PixUI.INK2 if is_sel else PixUI.INK, false)
 		if is_sel:
-			PixUI.text(h, Vector2(x0 - 10 + sin(t * 8.0) * 2.0, y + 6), "→", col, 1, HORIZONTAL_ALIGNMENT_LEFT, -1.0, 2)
+			InkUI.select_mark(h, r, col if acik else PixUI.GOLD, t)   # v40
 		var gc := Vector2(x0 + 14, y + 12.5)
 		h.draw_circle(gc, 9.5, Color(INKC, 0.7), true, -1.0, true)
 		SanatFX.glyph(h, id, gc, 7.0, col if acik else GREY, 0.9)

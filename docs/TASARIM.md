@@ -6826,3 +6826,96 @@ Başsız, `--fixed-fps 60`, betik hatası (SCRIPT ERROR) **0** (bütün koşular
 * Tepegöz Yavrusu ve mızraklıların hücresi büyük (448 px); HD sayfaları 8064 px genişliğinde (16384 sınırının altında).
 * Sanat ajanlarının listelediği küçük kusurlar: Yasavul koyu zeminde çoğunlukla silüet + kor; kurbağanın bulutu tek kütle;
   örümcek bacakları ince; Kar Cadısı'nın kürkü küçükte önlük gibi.
+
+## v40: arayüz cilası
+
+Geri bildirim: "Görselleri cilalayalım — her şey çok daha güzel, kaliteli bir yapım havasında görünsün." Bu bölüm arayüzün
+(HUD, menüler, kartlar, ekranlar, simgeler, yazı, sesler) payıdır; ortam ve ışık ayrı dallarda (`v40-ortam`, `v40-isik`).
+
+### Tasarım sistemi (`scripts/ui/InkUI.gd` "v40 tasarım sistemi")
+
+* **Renk belirteçleri** (`InkUI.*`): `PARCHMENT` 0,90/0,84/0,70 (parşömen), `SUMI` 0,045/0,04/0,06 (gece mürekkebi; perde,
+  yıkama), `VERMILION` 0,78/0,16/0,10 (kızıl mühür: seçim imi, onay, bekleme yayı, boss levhası mühürleri),
+  `GOLD` 0,97/0,80/0,42 (altın: kilim şeritleri, başlık boynuzları), `TURQUOISE` 0,38/0,86/0,90 (Kut), `BONE` 0,95/0,88/0,74
+  (ana metin), `MUTED` 0,72/0,68/0,76 (ikincil metin; `PixUI.DIM` de 0,6'dan 0,7'ye açıldı: 720p'de okunur), `GOOD` / `BAD`
+  (▲ / ▼ farkları). Nadirlik renkleri olduğu gibi.
+* **Aralık ızgarası**: arayüz birimi (menü 640x360, HUD 960x540 tuvali; `HUD.MENU_SCALE`), `GRID` 4, panel iç boşluğu `PAD` 8,
+  satır boyları 14 / 22 / 30; eşya kartı 190, menü listeleri 340-420, ipucu kartı 324 birim.
+* **Yazı ölçeği**: fırça başlık Kaushan Script 38 / 25 birim (`InkUI.text` sc 3 / 2) ve pankart 34; yazıt Cinzel 13 / 11 / 9
+  (boss adı, yer adı, karo etiketi 7); gövde Alegreya Sans 10 / 9 / 8, kalın tuş mühürleri 9; tılsım / masal satırları Alegreya
+  12 (`lore`). Fırça rakamlar (hasar sayıları 10 / kritik 14, karo değerleri 17, bekleme sayacı 15).
+* **Dokular** (`tools/artgen/ui_ink40.py`, beyaz maske, `modulate` ile renklenir; HD x2 `KY_HD=2`, `assets_hd/x2/ui/ink/*.webp`
+  + `manifest.json`): `kilim` (koçboynuzlu eşkenar dörtgen kenar şeridi), `orkhon` (Köktürk harf aksanı), `scroll` (parşömen
+  tomar, 9 dilim, iki yanda sarılı uç), `smoke` (mürekkep dumanı), `wipe` (fırça perdesi; yalnız arayüz — ekran perdesi
+  `shaders/ink_perde` ışık dalında), `seal_round` (yuvarlak mühür), `pad` (16 oyun kolu simgesi), `icons2` (13 ek simge:
+  ates buz zehir kan damga nazar nisan harita ok yildiz hiz nakis muhur; `InkUI.icon` / `icon_at` her iki sayfayı tanır),
+  `logo` ("Kut'un Yolu" kuru fırça kaligrafisi, 2048 px, HD'ye girmez).
+* **Yardımcılar**: `InkUI.kilim / orkhon` (şerit), `scroll_frame`, `seal_round`, `select_mark` (seçim imi: solda nabız atan
+  kızıl yuvarlak mühür + tamga, satır altında fırça çizgisi, hafif renkli yıkama — bütün listelerde "→" yazısının yerine),
+  `reveal` (menü açılışında soldan sağa süpürülen fırça perdesi, 0,25 sn; `HUD._reveal`, menüden oyuna dönüşte de),
+  `card_head` (kart başlık bandı), `stat_tile` (koşu özeti karosu), `tooltip`, `delta` (▲ / ▼ metin + renk), `pulse`.
+* **Girdi simgeleri**: `InkUI.pad_on` — son girdi oyun kolundan geldiyse (`HUD._input`) tuş mühürleri `pad.png` simgesine
+  döner (`PAD_MAP`: J→X, K→Y, L→B, Boşluk→A, E/R→LB/RB, Q→LS, F→RS, T→LT, G→RT, W→↑, Esc→≡, A/D→←→, W/S→↑↓); klavye / fare
+  dokununca geri döner. Çekim: `--arayuz=kol`.
+
+### Ekranlar
+
+* **HUD**: can çubuğu mürekkep dolumu (`InkHUD._hp_show`: hasarda hızlı çekilme + kızıl sıçrantı ve yürek büyümesi, şifada
+  yavaş yayılan açık mürekkep; fırça ucunda nabız atan leke), plakanın altında altın kilim şeridi; yuva çerçeveleri (boş yuva:
+  soluk tamga filigranı + "BOŞ" yazıtı; bekleme: kararan dolgu + üst kenarda sağdan eriyen kızıl fırça yayı + fırça rakam
+  sayaç); yer adı plakasında kilim ayracı; küçük harita parşömen tomar çerçevesinde (`HaritaUI.minimap`: `scroll_frame`,
+  başlık ve keşif yüzdesi kâğıt payında); boss çubuğunda kilim ad levhası + iki yanda kızıl mühürlü tamga; bölüm pankartı
+  harf harf fırçayla yazılır (`InkHUD.banner` p 0→1: kalem ucunda leke, çizgiler kalemle uzar, Köktürk aksanı ve alt satır
+  sonda gelir); ipucu kartında kilim şeridi; hasar sayıları bir tık büyük ve "damlar" gibi (büyükten oturur, eğik yaylanıp
+  dikleşir, sonda küçülerek solar — `FX._ink_number`).
+* **Başlık**: logo kaligrafisi (gölge kopyası + kemik rengi), üç mürekkep dumanı lekesi ağır ağır süzülür, fare konumuyla
+  (yoksa salınımla) paralaks, kızıl alt çizgi, Kayı mührü, Köktürk aksanı, nabız atan kızıl **"Başla" yuvarlak mührü**; alt
+  plakada iki satır tuş mühürü ve 6 sn'de bir değişen tek ipucu (eski üç uzun satır yerine).
+* **Menüler** (duraklat, ayarlar, Kut Tomarı, yuva seçimi, savaş sanatları, Umay, Demirci, Ozan, Bezirgân, Bengisu Usta,
+  harita): açılışta fırça perdesi; seçim imi kızıl mühür; başlıkların altında kilim şeridi; ayarlarda alt ayarlar girintili,
+  değer sütununda ok yerine küçük fırça üçgenleri (etkin değilse yok), seçili satır kalın.
+* **Kartlar**: başlık bandı nadirlik renginde yıkama + kilim şeridi, ad kalın, altında "nadirlik · tür · kalite" soluk
+  (`InkUI.card_head`); ▲ / ▼ SnH farkları olduğu gibi (GOOD / BAD).
+* **Bezirgân**: "GÖZDE" damgası kızıl mühür (hafif eğik) üstünde kâğıt rengi yazı.
+* **Ölüm / Kut Kapısı**: başlık daha yukarıda, altında dört **koşu karosu** (derinlik, düşman, altın, süre: simge + fırça rakam
+  + Cinzel etiket, sırayla belirir), ölümde kızıl kenarlı parşömen satırları (yitik Kut, banka, bekleyen parşömen, en derin)
+  ve Köktürk aksanı.
+* **Tam ekran harita**: parşömen tomar çerçevesi (küçük haritayla aynı dil), başlık altında kilim şeridi, fırça perdesi.
+* **Sesler** (`tools/audiogen/v40_ui.py`, aynı adlar üstüne yazıldı): gezinme / seçim kuru fırçanın kâğıda dokunuşu + kısık
+  kopuz teli; onay mühür basışı (tok şaplak + ıslak "şlap" + kopuz çift notası); vazgeç kâğıt hışırtısı + alçalan ikili; açılış
+  parşömen açılışı + fırça süpürmesi + yükselen üçlü; kapanış kısa sarılış + alçalan ikili.
+
+### Denetim
+
+* Headless, `--muhur=0`: `--ekran=` oyun tilsim yuva duraklat olum umay demirci sanat ogretmen sanat_hud baslik ayarlar tomar
+  yay kilic, `--yurt --ekran=alp_ata`, `--ekran=oyun --arayuz=` intro ozan done ad harita kol bekleme flash ipucu dusuk
+  kombo,hasar, `--boss --ekran=oyun`: betik hatası 0. `--konak` (+ `--konak_ekran=usta|sonuc`), `--tuccar`
+  (+ `--tuccar_ekran=pazar`), `--sanat --boss`, `--harita`, `--isinlan`, `--yurt --yurt-tur`: hepsi SONUC GECTI.
+  `--piksel_tara --otomatik --derinlik=3`: TOPLAM 0. `--otomatik --derinlik=1 / 5 --fixed-fps 60 --quit-after 9000`: ölüm 0
+  (1: 16 öldürülen, can 84/130; 5: can 69/130). Headless kayıtlarda yalnızca motorun kukla çizicisinin aralıklı
+  `texture_2d_initialize ... Ses.gd:112` hatası (üç Godot süreci aynı anda koşarken; arayüz kodundan değil, `_draw` headless'ta
+  zaten çalışmaz).
+* Pencereli çekimler (`--grafik=2`, 1280x720 / 1920x1080 / 2560x1440): her ekranın kaydında SCRIPT ERROR / ERROR 0; `_draw`
+  yolları böyle denetlendi.
+* Çekim notu: bu makinede (Intel UHD 750, Forward Mobile) açılışta ~15 sn'lik tek karelik takılma var (boru hattı / gölgelendirici
+  derlemesi); `--bekle=14` ile çekimler bölüm kurulmadan düşüyordu. `scratchpad` çekim betiği `--bekle=30` kullanır ve
+  `Main._debug_screen` kare sayacı artık bölüm + oyuncu hazır olunca işler (eski: mutlak 40. fizik karesi; takılmada
+  geçiliyordu, ekran hiç kurulmuyordu).
+
+### Görseller (`docs/v40/arayuz/`)
+
+* `<ekran>_once_sonra.jpg` (1920x1080, önce = ana dal 3bcc902, sonra = v40): baslik, ayarlar, oyun_dusuk_kombo (düşük can +
+  kombo + hasar sayıları), ipucu_kol (ipucu kartı, kol simgeleri, bekleme yayı), harita (tam ekran), duraklat, tilsim (Kut
+  Tomarı), yuva, olum, done, pazar, usta, boss, umay, demirci, sanat.
+* `olcek_720.jpg` / `olcek_1440.jpg`: aynı ekranlar 1280x720 ve 2560x1440'ta (menü ölçeği 2x / 4x; HUD okunur, kenar boşlukları
+  aynı oran).
+
+### Bilinen
+
+* Oyun kolu simgeleri yalnız `PAD_MAP`'teki etiketler için; eşleşmeyen etiket (ör. "Tab") klavye mühürü olarak kalır.
+* `assets_hd/x2/manifest.json` ortam dalıyla ortak (birleştirmede iki tarafın girdileri korunmalı; v40 arayüz girdileri
+  `ui/ink/*`). `FX.gd`'de yalnız `_ink_ls_num` / `_ink_number` (hasar sayıları) değişti; `HaritaUI.gd` küçük + tam ekran harita
+  çerçevesi.
+* Yaratık çubuklarının durum simgeleri (`EnemyBar._icon`, dünya ölçeğinde 7 px) elle çizilmiş kaldı; `icons2.png`'den şimdilik
+  yalnız `harita` (tam ekran harita başlığı) çiziliyor; ates / buz / zehir / kan / damga / nazar / nisan / ok / yildiz / hiz /
+  nakis / muhur menü ölçeğindeki gelecek kullanımlar (kart satırları, ipucu, sanat bedeli) için hazır.
