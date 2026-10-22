@@ -93,6 +93,8 @@ func _ready() -> void:
 			_measure(float(String(arg).trim_prefix("--olcum=")))
 		elif String(arg).begins_with("--gpu_perf"):
 			add_child(load("res://tools/tests/gorsel_perf.gd").new())  # v38 görüntü / GPU başarım ölçümü
+		elif String(arg).begins_with("--isik40="):
+			add_child(load("res://tools/tests/isik40_cekim.gd").new())  # v40 ışık / renk çekim aracı
 
 
 func _measure(dur: float) -> void:
@@ -402,7 +404,7 @@ func rows() -> Array:
 		["Grafik kalitesi", grafik_text(), true, "Hazır ayar: aşağıdaki çizim, doku, ışık, arka plan ve efekt ayarlarını birlikte seçer. Düşük ve Orta zayıf (tümleşik) ekran kartları içindir; Ultra HD dokuları her çözünürlükte açar.", "grafik"],
 		["  Çizim çözünürlüğü", CIZIM_AD[cizim], true, "Tam: her şey pencere çözünürlüğünde çizilir (keskin). Yarım: sahne 960x540'ta çizilip büyütülür; çok daha hızlı, biraz yumuşak.", "cizim"],
 		["  Doku kalitesi", quality_text(), true, quality_tip(), "doku"],
-		["  Işık ve parlama", ISIK_AD[isik], true, "Tam: gölgeli meşale ışıkları, tam parlama ve renk derecelendirmesi. Hafif: gölgesiz, daha az ışık, hafif parlama. Az: parlama ve renk derecelendirmesi kapalı, en az ışık. Sonraki bölümde geçerli.", "isik"],
+		["  Işık ve parlama", ISIK_AD[isik], true, "Tam: yumuşak gölgeli meşale ışıkları, ışık hüzmeleri, tam parlama ve film derecelendirmesi. Hafif: gölgesiz, hüzmesiz, daha az ışık, hafif parlama. Az: parlama ve derecelendirme kapalı, en az ışık. Sonraki bölümde geçerli.", "isik"],
 		["  Arka plan katmanları", KATMAN_AD[katman], true, "Az: pus ve ışık hüzmesi gibi saydam ara katmanlar çizilmez (dağlar, orman, gök aynı). Sonraki bölümde geçerli.", "katman"],
 		["  Efekt yoğunluğu", EFEKT_AD[efekt], true, "Kan, kıvılcım, duman ve parçacık efektlerinin sayısı (boyutları aynı). Orta ve Az daha az parçacık üretir; ölüm patlaması Az'da da en az %65 kalır.", "efekt_yog"],
 		["Kare sınırı", "Sınırsız" if fps_i == 0 else "%d FPS" % FPS_SINIR[fps_i], true, "Saniyedeki en çok kare. Dikey eşitleme açıkken ekran yenilemesi zaten sınırdır; dizüstünde 60 pil ve ısı kazandırır.", "fps"],

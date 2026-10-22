@@ -41,10 +41,8 @@ func _ready() -> void:
 	if level:
 		# fener direğinin ve sırt fenerinin sıcak ışığı (karanlık bölümde tezgâh okunur kalsın)
 		var l: PointLight2D = level.add_light(Vector2(TEZGAH_DX - 60.0, -58.0), Color(1.0, 0.68, 0.32), 190.0, 1.1, self)
-		var tw := l.create_tween().set_loops()
-		tw.tween_property(l, "energy", 0.9, 0.22)
-		tw.tween_property(l, "energy", 1.15, 0.26)
-		level.add_light(Vector2(8, -66), Color(1.0, 0.72, 0.36), 110.0, 0.6, self)
+		IsikTitrek.attach(l, "mesale")   # v40: doğal fener titremesi
+		IsikTitrek.attach(level.add_light(Vector2(8, -66), Color(1.0, 0.72, 0.36), 110.0, 0.6, self), "ocak")
 
 
 func _make_stall(d: Dictionary) -> Sprite2D:

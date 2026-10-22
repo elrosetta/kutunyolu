@@ -1,5 +1,5 @@
 {
- "_not": "Görsel stil v2 (-- --stil=v2) biyom art ezmeleri: Level._stil_art bu girdileri data/world.json art değerlerinin üstüne yazar. Ötüken: mürekkep ortamı (tools/artgen/export_ink.py).",
+ "_not": "Görsel stil v2 (-- --stil=v2) biyom art ezmeleri: Level._stil_art bu girdileri data/world.json art değerlerinin üstüne yazar. Ötüken: mürekkep ortamı (tools/artgen/export_ink.py). v40: ışık ve derece anahtarları (shadow / shadow_col / shadow_density, grade lift-gamma-gain / high_tint / vibrance / vig_* / grain / mist_*, huzme = ekran uzayı ışık hüzmesi, mood = biyomun derinliğine göre ezme, boss_grade / boss_huzme = arena) docs/TASARIM.md \"v40: ışık ve renk cilası\".",
  "bozkir": {
   "bg": [
    "bozkir_v2_0_sky",
@@ -78,8 +78,8 @@
   ],
   "ambient": [
    0.86,
-   0.8,
-   0.76
+   0.78,
+   0.72
   ],
   "ambient_k": 1.0,
   "boss_ambient": [
@@ -90,13 +90,13 @@
   "sun": [
    1.0,
    0.8,
-   0.58
+   0.56
   ],
-  "sun_energy": 0.34,
+  "sun_energy": 0.4,
   "sun_k": 1.0,
   "ground_moon_gain": 0.5,
   "glow": 0.5,
-  "glow_threshold": 1.05,
+  "glow_threshold": 1.08,
   "saturation": 1.0,
   "contrast": 1.0,
   "deep_color": [
@@ -114,24 +114,58 @@
   "tuft_sway": 3.0,
   "grade": {
    "strength": 0.55,
-   "saturation": 1.0,
+   "saturation": 1.02,
    "contrast": 1.1,
    "mid_tint": [
-    1.04,
+    1.05,
     1.0,
-    0.92
+    0.9
    ],
    "shadow_tint": [
-    1.0,
-    0.8,
-    0.96
+    0.96,
+    0.82,
+    1.0
    ],
    "edge_color": [
     0.12,
     0.04,
     0.08,
     1.0
-   ]
+   ],
+   "lift": [
+    0.02,
+    0.012,
+    0.008
+   ],
+   "gamma": [
+    1.0,
+    1.0,
+    0.98
+   ],
+   "gain": [
+    1.04,
+    1.0,
+    0.92
+   ],
+   "high_tint": [
+    1.06,
+    0.98,
+    0.84
+   ],
+   "high_k": 0.6,
+   "vibrance": 0.1,
+   "vig_in": 0.36,
+   "vig_out": 0.9,
+   "vig_round": 0.7,
+   "grain": 0.008,
+   "mist": 0.1,
+   "mist_color": [
+    0.7,
+    0.56,
+    0.4
+   ],
+   "mist_soft": 0.36,
+   "mist_drift": 1.6
   },
   "fg": {
    "grass": "res://assets/bg/bozkir_v2_fg_grass.png",
@@ -239,7 +273,90 @@
      56
     ]
    }
-  ]
+  ],
+  "shadow": 0.7,
+  "shadow_col": [
+   0.12,
+   0.06,
+   0.1
+  ],
+  "shadow_density": 0.72,
+  "huzme": {
+   "color": [
+    1.0,
+    0.78,
+    0.46
+   ],
+   "intensity": 0.13,
+   "angle": -0.8,
+   "count": 3.0,
+   "width": 0.6,
+   "top_fade": 1.3,
+   "band_k": 1.0,
+   "blob_k": 0.0,
+   "heat_k": 0.0,
+   "speed": 0.8
+  },
+  "mood": {
+   "0": {},
+   "1": {
+    "ambient": [
+     0.74,
+     0.66,
+     0.7
+    ],
+    "sun": [
+     1.0,
+     0.66,
+     0.5
+    ],
+    "sun_energy": 0.36,
+    "grade": {
+     "mid_tint": [
+      1.0,
+      0.96,
+      0.96
+     ],
+     "shadow_tint": [
+      0.9,
+      0.8,
+      1.06
+     ],
+     "high_tint": [
+      1.06,
+      0.9,
+      0.84
+     ],
+     "mist_color": [
+      0.5,
+      0.4,
+      0.46
+     ],
+     "gain": [
+      1.02,
+      0.96,
+      0.96
+     ]
+    },
+    "huzme": {
+     "color": [
+      1.0,
+      0.62,
+      0.4
+     ],
+     "intensity": 0.1
+    }
+   }
+  },
+  "boss_grade": {
+   "strength": 0.66,
+   "contrast": 1.14,
+   "vig_in": 0.3,
+   "vig_out": 0.84
+  },
+  "boss_huzme": {
+   "intensity": 0.08
+  }
  },
  "kaf": {
   "bg": [
@@ -329,7 +446,7 @@
   "ambient": [
    0.8,
    0.84,
-   0.96
+   0.98
   ],
   "ambient_k": 1.0,
   "boss_ambient": [
@@ -338,15 +455,15 @@
    0.88
   ],
   "sun": [
-   0.76,
+   0.86,
    0.86,
    1.0
   ],
-  "sun_energy": 0.32,
+  "sun_energy": 0.38,
   "sun_k": 1.0,
   "ground_moon_gain": 0.5,
   "glow": 0.55,
-  "glow_threshold": 1.05,
+  "glow_threshold": 1.06,
   "saturation": 1.0,
   "contrast": 1.0,
   "deep_color": [
@@ -362,7 +479,7 @@
   ],
   "meadow_depth": 0.4,
   "grade": {
-   "strength": 0.6,
+   "strength": 0.58,
    "saturation": 0.96,
    "contrast": 1.1,
    "mid_tint": [
@@ -371,16 +488,50 @@
     1.06
    ],
    "shadow_tint": [
-    0.9,
+    0.88,
     0.86,
-    1.08
+    1.1
    ],
    "edge_color": [
     0.04,
     0.04,
     0.12,
     1.0
-   ]
+   ],
+   "lift": [
+    0.012,
+    0.016,
+    0.03
+   ],
+   "gamma": [
+    1.0,
+    1.01,
+    1.04
+   ],
+   "gain": [
+    0.98,
+    1.0,
+    1.06
+   ],
+   "high_tint": [
+    1.05,
+    0.98,
+    1.0
+   ],
+   "high_k": 0.5,
+   "vibrance": 0.06,
+   "vig_in": 0.36,
+   "vig_out": 0.9,
+   "vig_round": 0.72,
+   "grain": 0.009,
+   "mist": 0.16,
+   "mist_color": [
+    0.6,
+    0.68,
+    0.84
+   ],
+   "mist_soft": 0.34,
+   "mist_drift": 1.8
   },
   "fg": {
    "grass": "res://assets/bg/kaf_v2_fg_grass.png",
@@ -463,7 +614,71 @@
     ],
     "z": -2
    }
-  ]
+  ],
+  "shadow": 0.68,
+  "shadow_col": [
+   0.05,
+   0.06,
+   0.14
+  ],
+  "shadow_density": 0.75,
+  "huzme": {
+   "color": [
+    0.78,
+    0.86,
+    1.0
+   ],
+   "intensity": 0.1,
+   "angle": 0.75,
+   "count": 4.0,
+   "width": 0.5,
+   "top_fade": 1.5,
+   "band_k": 1.0,
+   "blob_k": 0.0,
+   "heat_k": 0.0,
+   "speed": 1.2
+  },
+  "mood": {
+   "0": {},
+   "1": {
+    "sun": [
+     1.0,
+     0.82,
+     0.86
+    ],
+    "sun_energy": 0.4,
+    "grade": {
+     "high_tint": [
+      1.08,
+      0.94,
+      0.96
+     ],
+     "high_k": 0.6,
+     "mist_color": [
+      0.66,
+      0.62,
+      0.78
+     ]
+    },
+    "huzme": {
+     "color": [
+      1.0,
+      0.8,
+      0.86
+     ],
+     "intensity": 0.12
+    }
+   }
+  },
+  "boss_grade": {
+   "strength": 0.66,
+   "contrast": 1.14,
+   "vig_in": 0.3,
+   "vig_out": 0.84
+  },
+  "boss_huzme": {
+   "intensity": 0.07
+  }
  },
  "otuken": {
   "bg": [
@@ -535,9 +750,9 @@
    0.0
   ],
   "ambient": [
-   0.8,
-   0.86,
-   0.88
+   0.78,
+   0.84,
+   0.9
   ],
   "ambient_k": 1.0,
   "boss_ambient": [
@@ -546,15 +761,15 @@
    0.76
   ],
   "sun": [
-   0.72,
-   0.86,
+   0.68,
+   0.84,
    1.0
   ],
-  "sun_energy": 0.32,
+  "sun_energy": 0.36,
   "sun_k": 1.0,
   "ground_moon_gain": 0.5,
-  "glow": 0.5,
-  "glow_threshold": 1.05,
+  "glow": 0.55,
+  "glow_threshold": 1.02,
   "saturation": 1.0,
   "contrast": 1.0,
   "deep_color": [
@@ -569,25 +784,59 @@
    0.9
   ],
   "grade": {
-   "strength": 0.62,
-   "saturation": 0.97,
-   "contrast": 1.12,
+   "strength": 0.6,
+   "saturation": 0.96,
+   "contrast": 1.1,
    "mid_tint": [
-    1.03,
     1.02,
-    0.92
+    1.03,
+    0.94
    ],
    "shadow_tint": [
-    0.98,
-    0.78,
-    1.0
+    0.95,
+    0.8,
+    1.02
    ],
    "edge_color": [
-    0.09,
+    0.07,
     0.02,
-    0.08,
+    0.07,
     1.0
-   ]
+   ],
+   "lift": [
+    0.01,
+    0.016,
+    0.024
+   ],
+   "gamma": [
+    1.0,
+    1.01,
+    1.03
+   ],
+   "gain": [
+    0.98,
+    1.0,
+    1.03
+   ],
+   "high_tint": [
+    1.05,
+    1.0,
+    0.92
+   ],
+   "high_k": 0.45,
+   "vibrance": 0.12,
+   "vig_in": 0.34,
+   "vig_out": 0.86,
+   "vig_round": 0.72,
+   "grain": 0.009,
+   "mist": 0.13,
+   "mist_color": [
+    0.4,
+    0.5,
+    0.46
+   ],
+   "mist_soft": 0.32,
+   "mist_drift": 1.0
   },
   "fg": {
    "grass": "res://assets/bg/otuken_v2_fg_grass.png",
@@ -601,7 +850,68 @@
   "leaf_tex": "res://assets/bg/otuken_v2_leaf.png",
   "leaf_amount": 34,
   "pollen_amount": 16,
-  "camera_zoom": 1.7
+  "camera_zoom": 1.7,
+  "shadow": 0.72,
+  "shadow_col": [
+   0.04,
+   0.04,
+   0.09
+  ],
+  "shadow_density": 0.8,
+  "huzme": {
+   "color": [
+    0.6,
+    0.74,
+    0.9
+   ],
+   "intensity": 0.1,
+   "angle": 0.55,
+   "count": 4.0,
+   "width": 0.45,
+   "top_fade": 1.8,
+   "band_k": 1.0,
+   "blob_k": 0.0,
+   "heat_k": 0.0,
+   "speed": 1.0
+  },
+  "mood": {
+   "0": {},
+   "1": {
+    "ambient": [
+     0.7,
+     0.76,
+     0.86
+    ],
+    "sun_energy": 0.4,
+    "grade": {
+     "mist": 0.16,
+     "shadow_tint": [
+      0.9,
+      0.78,
+      1.04
+     ],
+     "strength": 0.64
+    },
+    "huzme": {
+     "intensity": 0.12
+    }
+   }
+  },
+  "boss_grade": {
+   "strength": 0.7,
+   "contrast": 1.14,
+   "vig_in": 0.28,
+   "vig_out": 0.8,
+   "saturation": 0.94,
+   "shadow_tint": [
+    0.98,
+    0.76,
+    0.98
+   ]
+  },
+  "boss_huzme": {
+   "intensity": 0.06
+  }
  },
  "sahmeran": {
   "bg": [
@@ -673,7 +983,7 @@
    0.0
   ],
   "ambient": [
-   0.66,
+   0.62,
    0.78,
    0.8
   ],
@@ -684,15 +994,15 @@
    0.72
   ],
   "sun": [
-   0.55,
+   0.5,
    0.95,
    0.85
   ],
-  "sun_energy": 0.28,
+  "sun_energy": 0.3,
   "sun_k": 1.0,
   "ground_moon_gain": 0.5,
-  "glow": 0.6,
-  "glow_threshold": 1.0,
+  "glow": 0.66,
+  "glow_threshold": 0.98,
   "saturation": 1.0,
   "contrast": 1.0,
   "deep_color": [
@@ -714,25 +1024,59 @@
    0.96
   ],
   "grade": {
-   "strength": 0.6,
-   "saturation": 1.0,
+   "strength": 0.62,
+   "saturation": 1.04,
    "contrast": 1.1,
    "mid_tint": [
-    0.95,
+    0.94,
     1.04,
     1.02
    ],
    "shadow_tint": [
-    0.82,
+    0.8,
     0.92,
-    1.06
+    1.08
    ],
    "edge_color": [
     0.01,
-    0.04,
+    0.035,
     0.05,
     1.0
-   ]
+   ],
+   "lift": [
+    0.0,
+    0.016,
+    0.024
+   ],
+   "gamma": [
+    0.98,
+    1.02,
+    1.03
+   ],
+   "gain": [
+    0.94,
+    1.02,
+    1.04
+   ],
+   "high_tint": [
+    0.9,
+    1.02,
+    1.06
+   ],
+   "high_k": 0.5,
+   "vibrance": 0.18,
+   "vig_in": 0.3,
+   "vig_out": 0.84,
+   "vig_round": 0.78,
+   "grain": 0.01,
+   "mist": 0.12,
+   "mist_color": [
+    0.16,
+    0.42,
+    0.4
+   ],
+   "mist_soft": 0.3,
+   "mist_drift": 0.6
   },
   "fg": {
    "grass": "res://assets/bg/sahmeran_v2_fg_bottom.png",
@@ -813,7 +1157,62 @@
    "sahmeran_v2_4_fog",
    "sahmeran_v2_5_shafts",
    "sahmeran_v2_6_near"
-  ]
+  ],
+  "shadow": 0.75,
+  "shadow_col": [
+   0.01,
+   0.05,
+   0.07
+  ],
+  "shadow_density": 0.85,
+  "huzme": {
+   "color": [
+    0.35,
+    0.9,
+    0.75
+   ],
+   "intensity": 0.11,
+   "angle": 0.15,
+   "count": 5.0,
+   "width": 0.35,
+   "top_fade": 2.2,
+   "band_k": 0.5,
+   "blob_k": 0.9,
+   "heat_k": 0.0,
+   "speed": 0.8
+  },
+  "mood": {
+   "0": {},
+   "1": {
+    "ambient": [
+     0.56,
+     0.72,
+     0.76
+    ],
+    "grade": {
+     "mist": 0.15,
+     "strength": 0.66
+    },
+    "huzme": {
+     "intensity": 0.13,
+     "blob_k": 1.0
+    }
+   }
+  },
+  "boss_grade": {
+   "strength": 0.7,
+   "contrast": 1.14,
+   "vig_in": 0.28,
+   "vig_out": 0.8,
+   "high_tint": [
+    1.0,
+    0.9,
+    1.06
+   ]
+  },
+  "boss_huzme": {
+   "intensity": 0.07
+  }
  },
  "tamu": {
   "bg": [
@@ -885,9 +1284,9 @@
    0.0
   ],
   "ambient": [
-   0.84,
-   0.7,
-   0.66
+   0.82,
+   0.66,
+   0.62
   ],
   "ambient_k": 1.0,
   "boss_ambient": [
@@ -897,13 +1296,13 @@
   ],
   "sun": [
    1.0,
-   0.6,
-   0.34
+   0.52,
+   0.26
   ],
-  "sun_energy": 0.3,
+  "sun_energy": 0.34,
   "sun_k": 1.0,
   "ground_moon_gain": 0.5,
-  "glow": 0.6,
+  "glow": 0.62,
   "glow_threshold": 1.0,
   "saturation": 1.0,
   "contrast": 1.0,
@@ -927,25 +1326,59 @@
    0.86
   ],
   "grade": {
-   "strength": 0.62,
-   "saturation": 1.0,
-   "contrast": 1.1,
+   "strength": 0.64,
+   "saturation": 1.04,
+   "contrast": 1.12,
    "mid_tint": [
     1.05,
-    0.98,
-    0.92
+    0.97,
+    0.9
    ],
    "shadow_tint": [
     1.06,
-    0.8,
-    0.86
+    0.78,
+    0.84
    ],
    "edge_color": [
     0.06,
     0.01,
     0.012,
     1.0
-   ]
+   ],
+   "lift": [
+    0.012,
+    0.004,
+    0.005
+   ],
+   "gamma": [
+    1.0,
+    0.98,
+    0.96
+   ],
+   "gain": [
+    1.06,
+    0.96,
+    0.9
+   ],
+   "high_tint": [
+    1.06,
+    0.94,
+    0.8
+   ],
+   "high_k": 0.6,
+   "vibrance": 0.1,
+   "vig_in": 0.3,
+   "vig_out": 0.82,
+   "vig_round": 0.76,
+   "grain": 0.012,
+   "mist": 0.08,
+   "mist_color": [
+    0.32,
+    0.1,
+    0.1
+   ],
+   "mist_soft": 0.3,
+   "mist_drift": 1.2
   },
   "fg": {
    "grass": "res://assets/bg/tamu_v2_fg_bottom.png",
@@ -1021,6 +1454,56 @@
    "tamu_v2_4_fog",
    "tamu_v2_5_shafts",
    "tamu_v2_6_near"
-  ]
+  ],
+  "shadow": 0.78,
+  "shadow_col": [
+   0.1,
+   0.02,
+   0.02
+  ],
+  "shadow_density": 0.86,
+  "huzme": {
+   "color": [
+    1.0,
+    0.44,
+    0.14
+   ],
+   "intensity": 0.14,
+   "angle": 0.0,
+   "count": 3.0,
+   "width": 0.5,
+   "top_fade": 2.4,
+   "band_k": 0.0,
+   "blob_k": 0.0,
+   "heat_k": 1.0,
+   "speed": 1.0
+  },
+  "mood": {
+   "0": {},
+   "1": {
+    "ambient": [
+     0.76,
+     0.58,
+     0.56
+    ],
+    "grade": {
+     "contrast": 1.14,
+     "mist": 0.13
+    },
+    "huzme": {
+     "intensity": 0.17
+    }
+   }
+  },
+  "boss_grade": {
+   "strength": 0.72,
+   "contrast": 1.16,
+   "vig_in": 0.26,
+   "vig_out": 0.78
+  },
+  "boss_huzme": {
+   "intensity": 0.1,
+   "heat_k": 1.0
+  }
  }
 }

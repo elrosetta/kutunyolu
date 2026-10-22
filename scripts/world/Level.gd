@@ -110,6 +110,7 @@ func build(seed_value: int) -> void:
 	rng.seed = seed_value
 	biome = Game.biome_for_depth(int(Game.run.get("depth", 1)))
 	art = _stil_art(biome.get("art", {}))
+	_derinlik_havasi()   # v40: biyomun ikinci derinliği kendi havasında (daha koyu / daha geç saat)
 	Game.run["biome"] = biome.get("id", "otuken")
 	Game.run["bezirgan_gordu"] = false   # v32: bu bölümün pazarı (_place_bezirgan) belirler; önceki kurulumdan kalmasın
 	_plan_bezirgan()   # v24 / v32: tüccar bu bölümde çıkacak mı (pazar odası üretici tarafından açılır)
@@ -175,6 +176,29 @@ func build(seed_value: int) -> void:
 	_pt = _adim(&"kur_kupler_yerlestir", _pt)
 	sayac_ilk = sayac()
 	Ses.music(biome.get("id", "otuken"))
+	Perde.acilis("bolum")   # v40: mürekkep fırçası perdesi açılır
+
+
+func _derinlik_havasi() -> void:
+	## v40: stil_v2.json "mood": biyomun kaçıncı derinliğinde olduğumuza göre ("0", "1") ışık / derece ezmeleri.
+	## Sözlük anahtarlar ("grade", "huzme") iç içe birleşir, diğerleri yerine geçer.
+	if not art.has("mood"):
+		return
+	var ds: Array = biome.get("depths", [1, 1])
+	var i := int(Game.run.get("depth", 1)) - int(ds[0])
+	var m: Dictionary = (art["mood"] as Dictionary).get(str(clampi(i, 0, 9)), {})
+	_art_birlestir(m)
+
+
+func _art_birlestir(m: Dictionary) -> void:
+	for k in m:
+		if m[k] is Dictionary and art.get(k) is Dictionary:
+			var d: Dictionary = (art[k] as Dictionary).duplicate()
+			for kk in m[k]:
+				d[kk] = m[k][kk]
+			art[k] = d
+		else:
+			art[k] = m[k]
 
 
 func _adim(ad: StringName, t0: int) -> int:
@@ -201,6 +225,11 @@ func build_boss(seed_value: int, bid_boss: String) -> void:
 	if art.has("boss_bg"):
 		art["bg"] = art["boss_bg"]
 	art["ambient"] = art.get("boss_ambient", [0.36, 0.3, 0.42])
+	# v40: arena derecesi / hüzmesi (stil_v2.json "boss_grade", "boss_huzme"): daha dar vinyet, daha sert karşıtlık
+	if art.has("boss_grade"):
+		_art_birlestir({"grade": art["boss_grade"]})
+	if art.has("boss_huzme"):
+		_art_birlestir({"huzme": art["boss_huzme"]})
 	art["decor"] = ["kaya", "cira", "kam_diregi"]
 	Game.run["biome"] = biome.get("id", "otuken")
 	_generate_arena()
@@ -249,6 +278,9 @@ func build_boss(seed_value: int, bid_boss: String) -> void:
 	_build_particles()
 	_build_overlay_fx()
 	Ses.music("boss")
+	if camera is CameraV2:
+		(camera as CameraV2).boss_intro()   # v40: kamera kükreyen boss'a doğru süzülüp döner
+	Perde.acilis("boss")
 
 
 func _generate_arena() -> void:
@@ -424,9 +456,7 @@ func _build_hazards_ink() -> void:
 			for k in range(0, r.size.x, step):
 				var l := add_light(Vector2((r.position.x + k + 0.5) * TS, r.position.y * TS + 4.0), Color(lc[0], lc[1], lc[2]),
 					float(spec.get("light_r", 90.0)), float(spec.get("light_e", 0.9)), root)
-				var tw := l.create_tween().set_loops()
-				tw.tween_property(l, "energy", l.energy * 0.75, randf_range(0.5, 0.9))
-				tw.tween_property(l, "energy", l.energy, randf_range(0.5, 0.9))
+				titrek(l, "lav" if haz_kind == "lav" else "zehir")   # v40
 
 
 func hazard_at(p: Vector2) -> String:
@@ -637,6 +667,7 @@ func build_hub(seed_value: int) -> void:
 	_build_particles()
 	_build_overlay_fx()
 	Ses.music("yurt")
+	Perde.acilis("yurt")
 	if OS.get_cmdline_user_args().has("--yurt-tur"):
 		var tour: Node = load("res://tools/tests/yurt_turu.gd").new()
 		tour.set("level", self)
@@ -656,6 +687,13 @@ func build_konak(seed_value: int) -> void:
 	var B: Dictionary = K.get("biyom", {}).get(String(biome.get("id", "")), {})
 	if B.has("ambient"):
 		art["ambient"] = B["ambient"]
+	# v40: konak derecesi (konak.json "genel.grade" / "genel.huzme", biyom girdisi üstüne biner): ocak sıcaklığı
+	if G.has("grade"):
+		_art_birlestir({"grade": G["grade"]})
+	if G.has("huzme"):
+		_art_birlestir({"huzme": G["huzme"]})
+	if B.has("grade"):
+		_art_birlestir({"grade": B["grade"]})
 	art["decor_tint"] = B.get("decor_tint", [0.92, 0.9, 0.94])
 	Game.run["biome"] = biome.get("id", "otuken")
 	_generate_konak(int(G.get("genislik", 64)), int(G.get("yuzey", 30)))
@@ -687,6 +725,7 @@ func build_konak(seed_value: int) -> void:
 	_build_overlay_fx()
 	Usta.yeni_konak(seed_value)
 	Ses.music(String(G.get("muzik", "yurt")))
+	Perde.acilis("konak")   # v40: sıcak amber solma
 	print("[konak] derinlik=%d biyom=%s tohum=%d bezirgan=%d" % [int(Game.run.get("depth", 1)), String(biome.get("id", "")), seed_value, 1 if bezirgan else 0])
 
 
@@ -745,10 +784,7 @@ func _place_konak(G: Dictionary, B: Dictionary) -> void:
 	# Bengisu Usta: tezgâh (kütük örs + kor mangalı), kendisi tezgâhın 26 birim sağında (usta_ink.STAND_X)
 	var tx := float(G.get("tezgah", 33))
 	_hub_prop("usta_tezgah", tx, -3)
-	var fl := add_light(_hub_px(tx, -22) + Vector2(-24, 0), Color(1.0, 0.5, 0.2), 150.0, 1.0, decor_root)
-	var tw := fl.create_tween().set_loops()
-	tw.tween_property(fl, "energy", 0.8, 0.45).set_trans(Tween.TRANS_SINE)
-	tw.tween_property(fl, "energy", 1.15, 0.55).set_trans(Tween.TRANS_SINE)
+	titrek(add_light(_hub_px(tx, -22) + Vector2(-24, 0), Color(1.0, 0.5, 0.2), 150.0, 1.0, decor_root), "ocak")
 	var n := NPC.new()
 	n.id = "usta"
 	n.display_name = Usta.ad()
@@ -970,9 +1006,7 @@ func _hub_prop_ink(d: Dictionary, dname: String, tx: float, z: int, flip: bool, 
 func _hub_fire(pos: Vector2, col: Color, radius: float, energy: float, embers := true) -> void:
 	## Titreyen sıcak ışık + yukarı süzülen kor.
 	var l := add_light(pos, col, radius, energy, decor_root)
-	var tw := l.create_tween().set_loops()
-	tw.tween_property(l, "energy", energy * 0.82, rng.randf_range(0.14, 0.22))
-	tw.tween_property(l, "energy", energy * 1.08, rng.randf_range(0.16, 0.26))
+	titrek(l, "ocak")   # v40
 	if embers:
 		var p := _hub_emitter(pos + Vector2(0, 4), 7, 1.4, Color(1.6, 0.75, 0.3, 0.9), Vector2(3, 2), true)
 		p.direction = Vector2(0, -1)
@@ -1021,10 +1055,7 @@ func _hub_lights() -> void:
 	# otağ: iki kandil ve kapıdan sızan altın ışık tek ışıkta
 	_hub_fire(_hub_px(40.5, -40), Color(1.0, 0.66, 0.34), 240.0, 1.15)
 	# demirci ocağı: güçlü, nabız gibi atan turuncu
-	var fl := add_light(_hub_px(50.7, -10), Color(1.0, 0.45, 0.16), 230.0, 1.5, decor_root)
-	var tw := fl.create_tween().set_loops()
-	tw.tween_property(fl, "energy", 1.15, 0.5).set_trans(Tween.TRANS_SINE)
-	tw.tween_property(fl, "energy", 1.6, 0.6).set_trans(Tween.TRANS_SINE)
+	titrek(add_light(_hub_px(50.7, -10), Color(1.0, 0.45, 0.16), 230.0, 1.5, decor_root), "ocak")
 	# kazan ateşi
 	_hub_fire(_hub_px(75.3, -6), warm, 150.0, 1.0)
 	# kut: pınar ve dilek kayını (soğuk turkuaz)
@@ -1963,9 +1994,12 @@ func light_tex() -> GradientTexture2D:
 		_light_tex.fill_from = Vector2(0.5, 0.5)
 		_light_tex.fill_to = Vector2(1.0, 0.5)
 		var g := Gradient.new()
+		# v40: ters kare benzeri yumuşak düşüş (eski 0,45'te tek kırılma: sert halkalı ışık); çekirdek sıcak, etek uzun
 		g.set_color(0, Color(1, 1, 1, 1))
 		g.set_color(1, Color(1, 1, 1, 0))
-		g.add_point(0.45, Color(1, 1, 1, 0.45))
+		g.add_point(0.22, Color(1, 1, 1, 0.66))
+		g.add_point(0.48, Color(1, 1, 1, 0.3))
+		g.add_point(0.74, Color(1, 1, 1, 0.09))
 		_light_tex.gradient = g
 	return _light_tex
 
@@ -1991,12 +2025,29 @@ func add_light(pos: Vector2, col: Color, radius: float, energy := 1.0, parent: N
 	l.energy = energy
 	l.height = 26.0
 	l.position = pos
-	if (shadows or (parent == decor_root and decor_root != null and radius >= 200.0)) and Ayarlar.isik_golge():
+	if (shadows or (parent == decor_root and decor_root != null and radius >= 200.0)) and Ayarlar.isik_golge() and not _golgesiz:
 		l.shadow_enabled = true
-		l.shadow_filter = Light2D.SHADOW_FILTER_NONE
-		l.shadow_color = Color(0.05, 0.04, 0.08, 0.8)
+		# v40: yumuşak gölge (PCF5): keskin kenarlı karo gölgeleri mürekkep yıkamasına uyar; yoğunluk ve renk biyomdan
+		# (art "shadow_col" / "shadow_density": gölge siyah değil, ortamın koyu tonu)
+		if _sertgolge:
+			l.shadow_filter = Light2D.SHADOW_FILTER_NONE
+		else:
+			l.shadow_filter = Light2D.SHADOW_FILTER_PCF5
+			l.shadow_filter_smooth = 2.6
+		var sc: Array = art.get("shadow_col", [0.05, 0.04, 0.08])
+		l.shadow_color = Color(sc[0], sc[1], sc[2], float(art.get("shadow_density", 0.78)))
 		l.shadow_item_cull_mask = 1
 	(parent if parent else self).add_child(l)
+	return l
+
+
+static var _golgesiz := OS.get_cmdline_user_args().has("--golgesiz")   # v40 ölçüm: nokta ışığı gölgeleri kapalı
+static var _sertgolge := OS.get_cmdline_user_args().has("--sertgolge")   # v40 ölçüm: gölge süzgeci yok (v38 gibi keskin)
+
+
+func titrek(l: PointLight2D, kind := "mesale") -> PointLight2D:
+	## v40: ışığa doğal titreme ekler (IsikTitrek); ışığı geri verir (zincirleme kullanım)
+	IsikTitrek.attach(l, kind)
 	return l
 
 
@@ -2043,12 +2094,18 @@ func _build_lighting() -> void:
 	env.glow_bloom = float(art.get("glow_bloom", 0.04))
 	env.glow_hdr_threshold = float(art.get("glow_threshold", 0.9))
 	env.glow_blend_mode = Environment.GLOW_BLEND_MODE_SOFTLIGHT
+	# v40: parlama katmanları (set_glow_level sırası 0..6 = glow_levels/1..7): dar (2.) ışık kaynaklarının çekirdeğini
+	# yarım güçle, orta (3.) alev / kristal haleyi, geniş (5.) sisli ortamın yumuşak hâlesini verir (Godot varsayılanı
+	# 3. + 5.). Yumuşak ışık karışımı açık dokuları yıkamaz.
 	# v38 Ayarlar > Işık ve parlama: Az = parlama kapalı; Hafif = yalnızca geniş (5.) seviye, şiddet dengelenir
-	match Ayarlar.parlama():
-		0:
-			env.glow_enabled = false
-		1:
-			pass
+	var seviye := {1: 0.5, 2: 1.0, 4: 1.0}
+	if Ayarlar.parlama() == 1:
+		seviye = {4: 1.0}
+		env.glow_intensity *= 0.85
+	for i in range(0, 7):
+		env.set_glow_level(i, float(seviye.get(i, 0.0)))
+	if Ayarlar.parlama() == 0:
+		env.glow_enabled = false
 	env.adjustment_enabled = true
 	env.adjustment_brightness = float(art.get("brightness", 1.0))
 	env.adjustment_saturation = float(art.get("saturation", 0.96))
@@ -2270,6 +2327,7 @@ func _build_overlay_fx() -> void:
 	vig.material = sm
 	vig_mat = sm
 	cl.add_child(vig)
+	_build_huzme()
 	red_rect = ColorRect.new()
 	red_rect.set_anchors_preset(Control.PRESET_FULL_RECT)
 	red_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -2283,15 +2341,90 @@ func _build_overlay_fx() -> void:
 		add_child(fg)
 
 
+var huzme_mat: ShaderMaterial   # v40 ekran uzayı ışık hüzmesi geçişi (yalnızca Işık ve parlama Tam)
+var _mist_y := 0.68
+
+
+func _build_huzme() -> void:
+	## v40: hacimli ışık hissi veren tam ekran toplamalı geçiş (shaders/isik_huzme.gdshader; biyom art "huzme").
+	## Dünyanın üstünde (katman 2), vinyet / derecelendirmenin (5) altında. Az / Hafif düzeylerde ve --derecesiz ile yok.
+	if not art.has("huzme") or Ayarlar.parlama() < 2 or OS.get_cmdline_user_args().has("--derecesiz") or OS.get_cmdline_user_args().has("--huzmesiz"):
+		return
+	var H: Dictionary = art["huzme"]
+	if float(H.get("intensity", 0.0)) <= 0.0:
+		return
+	var cl := CanvasLayer.new()
+	cl.layer = 2
+	add_child(cl)
+	# Hüzme çeyrek çözünürlükte ayrı bir görüntü alanına çizilir (480x270, HDR; mantıksal 960x540'ın yarısı: 1080p'de
+	# 16 kat az piksel) ve toplamalı karışımla ekrana gerilir: hüzme zaten yumuşak, fark görünmez; tam ekran geçiş UHD 750'de
+	# ~2,5 ms'ydi (v40 ölçümü), bu yolla < 0,5 ms.
+	var sv := SubViewport.new()
+	sv.size = Vector2i(480, 270)
+	sv.transparent_bg = true
+	sv.disable_3d = true
+	sv.use_hdr_2d = true
+	sv.render_target_update_mode = SubViewport.UPDATE_ALWAYS
+	cl.add_child(sv)
+	var r := ColorRect.new()
+	r.position = Vector2.ZERO
+	r.size = Vector2(480, 270)
+	r.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var sm := ShaderMaterial.new()
+	sm.shader = load("res://shaders/isik_huzme.gdshader")
+	for k in H:
+		var v = H[k]
+		if v is Array and (v as Array).size() >= 3:
+			sm.set_shader_parameter(k, Color(v[0], v[1], v[2], 1.0))
+		else:
+			sm.set_shader_parameter(k, float(v))
+	var vs := get_viewport().get_visible_rect().size
+	sm.set_shader_parameter("aspect", vs.x / maxf(1.0, vs.y))
+	r.material = sm
+	sv.add_child(r)
+	var tr := TextureRect.new()
+	tr.texture = sv.get_texture()
+	tr.set_anchors_preset(Control.PRESET_FULL_RECT)
+	tr.stretch_mode = TextureRect.STRETCH_SCALE
+	tr.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
+	tr.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var am := CanvasItemMaterial.new()
+	am.blend_mode = CanvasItemMaterial.BLEND_MODE_ADD
+	am.light_mode = CanvasItemMaterial.LIGHT_MODE_UNSHADED
+	tr.material = am
+	cl.add_child(tr)
+	huzme_mat = sm
+
+
+func _isik_tick() -> void:
+	## v40: her kare — sis bandı oyuncunun ayak çizgisinin hemen altında (ekran oranı; kamera yükselince sis aşağı
+	## kayar: yerin pusu), hüzmeler kamera ile hafifçe kayar (ortama bağlı hissi)
+	if camera == null or player == null:
+		return
+	var vp := get_viewport().get_visible_rect().size
+	if vig_mat != null and vig_mat.shader != null and String(vig_mat.shader.resource_path).ends_with("grade_v2.gdshader"):
+		var sy: float = player.get_global_transform_with_canvas().origin.y / maxf(1.0, vp.y)
+		var want := clampf(sy + 0.06, 0.4, 1.1)
+		_mist_y = lerpf(_mist_y, want, 0.08)
+		vig_mat.set_shader_parameter("mist_y", _mist_y)
+	if huzme_mat != null:
+		huzme_mat.set_shader_parameter("scroll", camera.get_screen_center_position().x * Game.base_zoom / maxf(1.0, vp.x) * 0.12)
+
+
 func flash_red() -> void:
 	## Hasar: kenarlardan kısa kırmızı vinyet nabzı (eskiden tüm ekran düz kırmızı boyanıyordu; karanlık
 	## biyomlarda sahneyi kapatıyordu). Vuruş duraklaması/ağır çekim uzatmaz.
+	## v40: aynı nabızda kısa renk sapması (ca: mercek ayrışması, yalnızca 0,18 sn; Sarsıntı ve flaş ile ölçeklenir)
 	if vig_mat == null:
 		return
 	vig_mat.set_shader_parameter("hurt", 0.9 * maxf(0.4, Game.fx_scale))
 	var tw := create_tween()
 	tw.set_ignore_time_scale(true)
 	tw.tween_method(func(v: float) -> void: vig_mat.set_shader_parameter("hurt", v), 0.9 * maxf(0.4, Game.fx_scale), 0.0, 0.35)
+	if Game.fx_scale > 0.05:
+		var tw2 := create_tween()
+		tw2.set_ignore_time_scale(true)
+		tw2.tween_method(func(v: float) -> void: vig_mat.set_shader_parameter("ca", v), 1.6 * Game.fx_scale, 0.0, 0.18).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
 
 
 # ------------------------------------------------------------------ süsler
@@ -2380,9 +2513,7 @@ func _decor_ink(d: Dictionary, dname: String, tile_x: int, tile_y_surface: int, 
 	if glow_light:
 		var tcol: Array = art.get("torch_col", [1.0, 0.58, 0.26])
 		var l := add_light(s.position + Vector2(0, -56), Color(tcol[0], tcol[1], tcol[2]), 240.0, 1.35, decor_root)
-		var tw2 := l.create_tween().set_loops()
-		tw2.tween_property(l, "energy", 1.1, 0.18)
-		tw2.tween_property(l, "energy", 1.45, 0.22)
+		titrek(l, "kristal" if d.has("glow_pulse") else "mesale")   # v40: doğal alev titremesi (kristal: yavaş nefes)
 	return s
 
 
@@ -3255,7 +3386,7 @@ func fire_pool(pos: Vector2, radius: float, duration: float, dps: float) -> void
 	var ty := int(floor(pos.x / TS))
 	fp.position = Vector2(pos.x, surface_y(ty, int(floor(pos.y / TS)) - 2) * TS)
 	add_child(fp)
-	add_light(Vector2.ZERO, Color(1.0, 0.55, 0.2), radius * 3.0, 1.3, fp)
+	titrek(add_light(Vector2(0, -6), Color(1.0, 0.55, 0.2), radius * 3.0, 1.3, fp), "mesale")   # v40 titrek alev ışığı
 
 
 func quake(pos: Vector2, radius: float, dmg: float, it: Dictionary, pl: Node) -> void:
@@ -3486,6 +3617,10 @@ func bezirgan_ok() -> bool:
 
 
 func on_player_died() -> void:
+	# v40: ölüm derecesi (renk çekilir, soğur, vinyet daralır; duraklatmada da sürer) ve kameranın yavaş yaklaşması
+	Perde.olum(vig_mat)
+	if camera is CameraV2:
+		(camera as CameraV2).olum()
 	await get_tree().create_timer(1.4).timeout
 	player_died.emit()
 
@@ -3563,6 +3698,8 @@ func _isin_tick(delta: float) -> void:
 	if isin_t <= 0.0 or player == null:
 		return
 	if player.dead or float(Game.run.get("hp", 0.0)) < isin_hp - 0.01 or player.grabbed_by != null:
+		if isin_t <= 0.16:
+			Perde.isin(false)   # v40: kapanmaya başlayan perde geri çekilir
 		isin_t = 0.0
 		isin_hedef = -1
 		isin_bozuk += 1
@@ -3570,12 +3707,17 @@ func _isin_tick(delta: float) -> void:
 		Ses.play("ui_iptal", -4.0)
 		return
 	var k := 1.0 - isin_t / ISIN_SURE
+	var t_once := isin_t
 	isin_t -= delta
 	player.vis_scale = Vector2(1.0 - 0.25 * k, 1.0 + 0.35 * k)
 	if int(isin_t * 30.0) % 4 == 0:
 		FX.soul(player.center() + Vector2(randf_range(-10, 10), randf_range(-16, 8)), KutTasi.KUT, 2)
+	# v40: kanalın son 0,16 sn'sinde mürekkep çözülmesi ekranı kaplar; varışta çekilir (kesme perdenin ardında kalır)
+	if t_once > 0.16 and isin_t <= 0.16:
+		Perde.isin(true)
 	if isin_t <= 0.0:
 		_isin_bitir()
+		Perde.isin(false)
 
 
 func _isin_bitir() -> void:
@@ -3638,6 +3780,7 @@ func _process(_delta: float) -> void:
 
 
 func _process_ic(_delta: float) -> void:
+	_isik_tick()   # v40: sis bandı / hüzme kayması (yurt ve konakta da)
 	# v25: kapının kemeri boyunca (yerden 96 px yukarıya dek) geçmek yeter: zıplayarak kapının içinden geçen oyuncu
 	# (eskiden yalnızca ayak noktası 30 px yakınsa) kapıyı kaçırıp bölüm sonundaki duvara takılmaz
 	var dpe: Vector2 = player.global_position - exit_pos if player else Vector2(999, 999)

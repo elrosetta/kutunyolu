@@ -17,14 +17,32 @@
  "deep_color": [0.05, 0.04, 0.09],
  "deep_amount": 0.85,
  "decor_tint": [0.94, 0.96, 1.0],
+ "shadow": 0.7,
+ "shadow_col": [0.03, 0.03, 0.1],
+ "shadow_density": 0.78,
  "grade": {
   "strength": 0.5,
   "saturation": 1.0,
   "contrast": 1.1,
   "mid_tint": [0.98, 1.0, 1.04],
   "shadow_tint": [0.9, 0.82, 1.06],
-  "edge_color": [0.03, 0.02, 0.09, 1.0]
+  "edge_color": [0.03, 0.02, 0.09, 1.0],
+  "lift": [0.01, 0.014, 0.028],
+  "gamma": [1.0, 1.0, 1.03],
+  "gain": [0.98, 1.0, 1.04],
+  "high_tint": [1.05, 0.98, 0.9],
+  "high_k": 0.5,
+  "vibrance": 0.08,
+  "vig_in": 0.36,
+  "vig_out": 0.9,
+  "vig_round": 0.72,
+  "grain": 0.008,
+  "mist": 0.09,
+  "mist_color": [0.28, 0.34, 0.5],
+  "mist_soft": 0.34,
+  "mist_drift": 0.8
  },
+ "huzme": {"color": [0.5, 0.62, 0.95], "intensity": 0.08, "angle": 0.25, "count": 4.0, "width": 0.5, "top_fade": 1.8, "band_k": 1.0, "blob_k": 0.0, "heat_k": 0.0, "speed": 0.6},
  "fg": {
   "grass": "res://assets/bg/otuken_v2_fg_grass.png",
   "grass_fx": 1.3
