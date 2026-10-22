@@ -6919,3 +6919,128 @@ Geri bildirim: "Görselleri cilalayalım — her şey çok daha güzel, kaliteli
 * Yaratık çubuklarının durum simgeleri (`EnemyBar._icon`, dünya ölçeğinde 7 px) elle çizilmiş kaldı; `icons2.png`'den şimdilik
   yalnız `harita` (tam ekran harita başlığı) çiziliyor; ates / buz / zehir / kan / damga / nazar / nisan / ok / yildiz / hiz /
   nakis / muhur menü ölçeğindeki gelecek kullanımlar (kart satırları, ipucu, sanat bedeli) için hazır.
+
+
+## v40: ışık ve renk cilası
+
+Amaç: aynı çizimlerle "sinematik" bir kare — biyom başına anahtar / ortam / kenar ışığı, yumuşak gölge, mürekkep ışık
+hüzmeleri, canlı yerel ışıklar, film derecelendirmesi (lift / gamma / gain, üç tonlu ayrık tonlama), alçak pus, ince tane,
+daha yumuşak kamera ve mürekkep perdeli geçişler. Ortam dokuları (paralaks, karo, süs) ve arayüz bu işin dışında
+(ky-ortam / ky-arayuz). Her şey veriyle (`data/stil_v2.json`, `yurt_v2.json`, `konak.json`) ayarlanır; "Işık ve parlama"
+düzeyleri korunur: **Az** = derecelendirme / parlama / hüzme / gölge yok (vignette.gdshader), **Hafif** = derecelendirme +
+yalnızca geniş parlama, gölgesiz, hüzmesiz, **Tam** = hepsi.
+
+### Işık (`Level._build_lighting`, `add_light`, `light_tex`)
+* **Noktasal ışık düşüşü** (`light_tex`): eski gradyan 0,45'te tek kırılmalıydı (sert halkalı ışık); şimdi ters kare benzeri
+  dört noktalı yumuşak düşüş (çekirdek sıcak, etek uzun). Bütün çıra / ocak / Kut / mermi ışıkları bunu paylaşır.
+* **Yumuşak gölge**: gölgeli nokta ışıkları (yalnızca Tam) `SHADOW_FILTER_PCF5`, `shadow_filter_smooth` 2,6; gölge rengi
+  siyah değil biyomun koyu tonu (`art.shadow_col`, yoğunluk `art.shadow_density`): Ötüken lacivert-mor, Bozkır bordo,
+  Şahmeran koyu petrol, Kaf gece mavisi, Tamu kızıl-kara.
+* **Parlama katmanları**: `set_glow_level` 2. (yarım), 3. ve 5. seviye (Godot varsayılanı 3 + 5): ışık kaynaklarının
+  çekirdeği dar, alev / kristal halesi orta, sisli ortam geniş hâle; Hafif yalnızca 5. seviye ve şiddet 0,85.
+* **Işık titremesi** (`scripts/core/IsikTitrek.gd`, `Level.titrek(l, tür)`): eski iki adımlı Tween (0,8 → 1,0 → 0,8)
+  mekanik nabızdı. Üç uyumsuz sinüs + seyrek rastgele atım (rüzgâr yalaması / çıtırtı) + yavaş nefes; konum yalpası ve sıcak
+  renk kayması (alev beyaz-sarıya). Türler: `mesale` (çıra, meşale, fener, ateş topu), `ocak` (ocak, kazan, mangal, usta
+  tezgâhı), `lav`, `kristal` (yavaş nefes, titreme yok), `zehir`. Işık kapalıysa (v38 ışık sınırı) eklenmez.
+* **Mermi / efekt ışıkları**: ateş topu ışığı 60 → 84 px, enerji 0,8 → 1,0, titrek; `FX.flash_light` (vuruş / patlama
+  flaşı) aynı yumuşak düşüşü kullanır. Bezirgân fener direği ve sırt feneri titrek.
+* **Kenar ışığı** (`shaders/ink_char.gdshader`, `rim_k` 0,55 / `rim_w` 1,6): sprite alfasının dört komşu örneğinden ekran
+  uzayında sözde normal (UV türevleriyle; aynalama / dönüş / esneme güvenli), `NORMAL` yazılır; `light()` içinde ışığa bakan
+  kenarda ışığın renginde ince parlama (ay: 0,9 - gölge payı; noktasal: 0,8). İç yüzey düz kalır, cel çizimi bozulmaz;
+  meşale yanından geçen Bengü'nün silüeti sıcak kenar alır.
+
+### Hüzme (`shaders/isik_huzme.gdshader`, `Level._build_huzme`, `_isik_tick`)
+Dünyanın üstünde (katman 2), derecelendirmenin (5) altında tam ekran toplamalı geçiş; yalnızca Tam ve `--derecesiz` yokken.
+Doku yok, yalnızca ALU. Üç kip, biyom `huzme` anahtarıyla karışır: `band` eğik, nefes alan ışık perdeleri (üç uyumsuz
+frekans, aşağı doğru sönüş), `blob` yavaş süzülen yumuşak ışık lekeleri, `heat` alttan yükselen titrek kor. `scroll` kamera
+x'iyle kayar (ortama bağlı). Biyomlar: Ötüken ay hüzmeleri (soğuk mavi, 4, dik), Bozkır altın saat yelpazesi (3, yatık,
+-0,8 rad), Şahmeran biyolüminesans (band 0,5 + blob 0,9, turkuaz), Kaf kar parıltısı (buz mavisi, hızlı), Tamu lav ışığı
+(heat, kızıl-turuncu, alttan). Arena: `boss_huzme` (daha kısık). Yurt: lacivert ay hüzmesi 0,08; konak 0,05.
+
+### Derecelendirme (`shaders/grade_v2.gdshader`)
+Tek geçiş, sırayla: (renk sapması yalnızca vuruşta) → sRGB → **lift / gamma / gain** (ASC CDL sırası; lift yalnızca
+koyulara) → doygunluk + **canlılık** (`vibrance`: az doygun renkleri çok doygunlardan daha çok canlandırır) → üç tonlu ayrık
+tonlama (`shadow_tint` / `mid_tint` / **`high_tint` + `high_k`**) → S eğrisi → **sis bandı** (`mist`: alçak pus; iki oktav
+değer gürültüsüyle sürüklenir, `mist_y` oyuncunun ayak çizgisinin altına Level her kare yazar, koyuları kaldırır, açıkları
+bırakır: ışık kaynakları sisin içinden parlar) → ölüm derecesi → biçimlendirilebilir **vinyet** (`vig_in` / `vig_out` /
+`vig_round`) → vuruş vinyeti → **film tanesi** (`grain`, canlı, açıklarda azalır) → v38 titreşim. Vuruşta 0,18 sn **renk
+sapması** (`ca`, `Level.flash_red`; Sarsıntı ve flaş ayarıyla ölçeklenir). Az düzeyinde `vignette.gdshader` yalnızca vinyet +
+ölüm karartması.
+
+Biyom dereceleri (`stil_v2.json` `grade`): Ötüken soğuk yeşil orta ton, mor gölge, sıcak açık, pus yeşil-gri 0,13; Bozkır
+altın saat (sıcak gain, mor gölge, toz pusu 0,10, canlılık 0,10); Şahmeran turkuaz-yeşil, mavi gölge, canlılık 0,18, pus
+petrol 0,12; Kaf buz mavisi (mavi gain / gamma, lila gölge, pus 0,16); Tamu kızıl (sıcak gain, bordo gölge, kor pusu 0,08,
+karşıtlık 1,12). Tane 0,008-0,012. Vinyet 0,34-0,36 / 0,82-0,90, oval 0,70-0,78.
+
+* **Derinlik havası** (`mood`, `Level._derinlik_havasi`): biyomun ikinci derinliği kendi havasında ("1": daha geç saat /
+  daha koyu / daha sıcak): Ötüken daha sisli ve mor, Bozkır gün batımı kızılı, Şahmeran daha koyu ve daha çok leke, Kaf
+  pembe alacakaranlık (güneş 1,0 / 0,82 / 0,86), Tamu daha sert karşıtlık, daha güçlü kor. Sözlük anahtarlar (`grade`,
+  `huzme`) iç içe birleşir (`_art_birlestir`).
+* **Arena** (`boss_grade` / `boss_huzme`): daha dar vinyet (0,26-0,30 / 0,78-0,84), karşıtlık 1,14-1,16, hüzme kısık.
+* **Konak** (`konak.json` `genel.grade` / `genel.huzme`): ocak sıcaklığı (sıcak açık ton 0,55, pus 0,06, vinyet 0,36 / 0,9),
+  biyom derecesinin üstüne biner. **Yurt** (`yurt_v2.json`): lacivert gölge, sıcak açık, pus 0,09, hüzme 0,08.
+
+### Kamera (`scripts/world/CameraV2.gd`)
+* Öncü kayma üstel yaklaşma yerine kritik sönümlü yay (`_smooth_damp`, 0,42 sn; saldırıda 0,12): dönüşte sıçramaz.
+* **İniş çöküşü**: 260 px/sn üstü düşüşten yere değince 2-7 birim aşağı çöker, 0,25 sn'de toparlanır (Sarsıntı ayarıyla).
+* **Boşta nefes**: 1,4 sn hareketsizlikten sonra çok yavaş süzülme (2,4 x 1,5 birim; 0,46 / 0,31 rad/sn), ilk harekette söner.
+* **Boss tanıtımı** (`boss_intro`, 2,2 sn): kamera kükreyen boss'a doğru süzülür (yarıya dek), çerçeve 0,8'e açılır, oyuncuya
+  döner; oyuncu bu sırada oynayabilir.
+* **Ölüm** (`olum`): 1,10x yavaş yaklaşma, öncü kayma söner; duraklatmada da sürer.
+
+### Geçişler (`scripts/core/Perde.gd`, `shaders/ink_perde.gdshader`)
+Ağaç köküne bir kez eklenen katman 6 (vinyet 5 ile arayüz 10 arası); t = 0 iken ColorRect gizli (piksel doldurma yok).
+Canlandırma Tween değil elle, **gerçek zamanla ve kare başına en çok 100 ms**: bölüm kurulumunun ardındaki ilk kare (doku /
+gölgelendirici) 0,5-2 sn sürebiliyor, Tween o karede süreyi tüketip perdeyi atlıyordu; 250 ms'den uzun kare hiç sayılmaz
+(perde kapalı bekler), en geç 3 sn sonra kesin açılır. `--perdesiz` kapatır.
+* **Bölüm başı** (`acilis("bolum")`): perde kapalı başlar, 0,08 sn bekler, kuru fırça süpürmesiyle (gürültülü cephe, kıl
+  çizgileri, cephenin ardında kâğıt boşlukları) 0,75 sn'de açılır; arena sağdan, bordo kenarlı 0,9 sn.
+* **Yurt / konak**: düz solma; konak amber kenarlı 1,1 sn, yurt lacivert 1,0 sn.
+* **Işınlanma** (`isin`): kanalın son 0,16 sn'sinde mürekkep lekeleri büyüyüp birleşerek ekranı kaplar (Kut rengi yalnızca
+  lekelerin kenarında: `edge = a (1 - a) 4`), varışta 0,42 sn'de çekilir; kesme perdenin ardında kalır. Kanal bozulursa
+  perde geri çekilir.
+* **Ölüm** (`olum`): derecelendirme malzemesinde `death` 0 → 1 (1,4 sn, gerçek zaman): renk çekilir, soğur, vinyet daralır
+  ve koyulaşır; yeni bölümde sıfırlanır.
+
+### Ayarlar
+"Işık ve parlama" ipucu güncellendi (Tam: yumuşak gölgeli meşale ışıkları, ışık hüzmeleri, tam parlama ve film
+derecelendirmesi). Düşük / Orta hazır ayarlarında (Az / Hafif) hüzme ve yumuşak gölge yok; derecelendirmenin yeni adımları
+(sis, tane, canlılık) aynı tek geçişte (fazladan doku okuması yalnızca vuruş sapmasında).
+
+### Ölçüm ve kanıt
+* **Çekim** (`tools/tests/isik40_cekim.gd`, `-- --isik40=<klasör> --isik40_on=once|sonra [--isik40_sahne=biyom,yurt,konak,
+  boss,isin,olum,gecis] --pencere=1920x1080 --grafik=2 --muhur=0`): her sahne aynı tohum ve aynı kare (10 derinlik giriş +
+  bölüm ortası, yurt, 3 konak, 3 arena x 4 kare, ışınlanma 4 kare, ölüm 4 kare, perde 3 kare); perde tamamen açılana dek
+  bekler. "Önce" ana dal (3bcc902) dosyalarıyla aynı araçla alındı. **Sayfalar** (`tools/tests/isik40_sayfa.py <çekim>
+  <çıktı>`): önce | sonra yan yana, biyom başına bir sayfa, yurt / konak, arena, geçiş şeridi; her çift için ortalama
+  parlaklık / doygunluk / koyu (< 0,03) ve patlak (> 0,97) piksel yüzdesi (`tonal_rapor.txt`).
+* `docs/v40/isik/`: `biyom_<otuken|bozkir|sahmeran|kaf|tamu>.jpg`, `yurt_konak.jpg`, `boss.jpg`, `gecisler.jpg`,
+  `tonal_rapor.txt` (1920x1080, Yüksek); `hd_biyom_<b>.jpg`, `hd_yurt.jpg` (2560x1440, Ultra, 2K doku; yalnızca sonra).
+* Tonal: koyu piksel payı her biyomda düştü (Ötüken %19 → 12, Tamu %38 → 20, konak Tamu %44 → 20: lift + pus, gölgeler
+  mürekkep rengi), patlak %0,0-0,9 (Kaf kar, değişmedi), doygunluk Şahmeran / Tamu'da 0,62-0,67 → 0,84-0,88 (canlılık +
+  sıcak gain), Ötüken / Bozkır / Kaf +0,04-0,10. Ölümde doygunluk 0,58 → 0,27.
+
+### Başarım (Intel UHD 750; ölçümler paralel ajanların Godot süreçleri çalışırken alındı: gürültülü, en iyi koşu verilir)
+* `--gpu_perf` 1920x1080, Yüksek, Ötüken 1 (tohum 3), "önce" (3bcc902 dosyaları) ile aynı oturumda dönüşümlü: önce GPU
+  17,4 / 23,0 ms (p95 18,8; v38 tablosu 18,3), sonra 20,5 / 25,1 ms (p95 22,1), FPS 47,7 → 41,6 (en iyi koşular). Ayrıştırma
+  (`--huzmesiz`, `--golgesiz`, `--sertgolge`, `--derecesiz`, kenar ışığı kapalı): ilk sürümde tam ekran hüzme geçişi ~2,5 ms,
+  derecelendirme eklentileri (sis gürültüsü, tane, canlılık, lift / gamma / gain) ~2 ms, PCF5 gölge ~0,5-1 ms, kenar ışığı
+  ~0,3 ms. Hüzme çeyrek çözünürlüklü SubViewport'a alındı (480x270 HDR, toplamalı gerdirme; görüntü aynı, ort. piksel farkı
+  < 4 / 255) ve sis gürültüsü tek oktava indi: toplam ek maliyet ~6 → ~3 ms. Tamu 9 ve vahşet aynı bantta (24,6 / 27,0 ms,
+  önce 33,2 / 24,6: gürültü). Orta (Hafif: derecelendirme var, hüzme / gölge yok): GPU 5,5 / 8,3 / 5,8 ms (v38 4,3 / 4,5 /
+  4,3), kare CPU'ya bağlı (49-55 FPS). Düşük (Az): derecelendirme kapalı, değişmedi.
+* `--perf` (başsız, makine yüklü): bölüm kurma 20 tohum ort. 475 ms (v38 473), ilk kare 82 ms; düğüm sayıları iki turda aynı
+  (sızıntı yok). Kamera 0,07 ms/kare, bolum (sis / hüzme yazımı dahil) 0,20 ms; IsikTitrek 40-55 ışıkta ölçülemeyecek kadar
+  küçük (kare başına birkaç sinüs).
+* Testler (betik hatası 0): `--otomatik --derinlik=1/3/5/7/9 --muhur=0`, `--sahne`, `--yurt --yurt-tur`, `--konak`,
+  `--boss=kara_boru_han/sahmeran/erlik_han`, `--isinlan`, `--piksel_tara`, `--otomatik --g_isik=0/1` (Az / Hafif), `--perf`.
+  Düzeltilenler (ilk sürüm): `Perde._get` adı `Object._get` ile çakışıp Level → Ayarlar zincirini derlenemez bırakıyordu
+  (`_ornek`); `set_glow_level` sırası 0..6; `Perde` kök çocukları kurulurken (ilk bölüm `Main._ready` içinden) `add_child`
+  yasak: ekleme ertelenir, iş ağaca girince uygulanır; perde Tween'i bölüm kurulumunun uzun ilk karesinde atlanıyordu (elle,
+  gerçek zamanlı canlandırma).
+
+### Bilinen
+* Yüksek'te 1080p GPU maliyeti v38'e göre ~3 ms (%15) yüksek; Orta +1-2 ms. Daha ucuz seçenek gerekirse `--sertgolge`
+  (PCF5 yerine keskin gölge, ~1 ms) ve `--huzmesiz` bayrakları veriye / ayara bağlanabilir.
+* Çekim aracı "giriş" karelerini biyom başlığı ekrandayken alır (1,6 sn); önce / sonra aynı kare olduğu için karşılaştırma
+  bozulmaz. Ölüm derecesi 0,3 sn'de henüz hafif (`olum_a`), 0,9 sn'den sonra tam (`olum_b-d`).

@@ -1,6 +1,8 @@
 {
  "_not": "v32 Konak: her Kut Kapısı'ndan (ve bosstan) sonra kurulan gezgin kervan konağı (Level.build_konak). Karo x konumları (TS = 24); süs adları sus_v2.json / decor_v2.json (yh_* yurt süsleri biyoma göre seçilir; konak_ates ve usta_tezgah usta_ink.py). ates: konak ateşi (Umay Ocağı: yanından geçince taşınan Kut Umay'a ulaşır), tezgah: Bengisu'nun tezgâhı (usta tezgâhın 26 birim sağında), bezirgan: Sartak'ın yeri (bir önceki derinlikte pazar çıkmadıysa gelir), kapi: Kut Kapısı. ambient / decor_tint biyom art'ının üstüne yazılır.",
- "genel": {"genislik": 64, "yuzey": 30, "oyuncu": 5, "ates": 22, "tezgah": 33, "bezirgan": 47, "kapi": 58, "muzik": "yurt"},
+ "genel": {"genislik": 64, "yuzey": 30, "oyuncu": 5, "ates": 22, "tezgah": 33, "bezirgan": 47, "kapi": 58, "muzik": "yurt",
+  "grade": {"strength": 0.52, "vig_in": 0.36, "vig_out": 0.9, "high_tint": [1.06, 0.96, 0.86], "high_k": 0.55, "mist": 0.06, "grain": 0.007},
+  "huzme": {"intensity": 0.05}},
  "biyom": {
   "otuken": {"ambient": [0.42, 0.44, 0.58], "props": [["yh_cadir", 11.5, -5], ["yh_kazan", 16.5, -2], ["yh_fener", 27.5, -2, true], ["yh_hali_2", 24.0, 1], ["yh_at", 41.0, -2, true], ["yh_balbal_1", 53.5, -3], ["yh_kandil", 55.6, -1]]},
   "bozkir": {"ambient": [0.5, 0.46, 0.5], "props": [["yh_cadir", 11.5, -5], ["yh_tug_k", 15.2, -6], ["yh_hali_1", 24.0, 1], ["yh_kandil", 27.6, -1], ["yh_at", 41.0, -2, true], ["yh_tug_m", 53.0, -6, true], ["yh_kazan", 55.8, -2]]},

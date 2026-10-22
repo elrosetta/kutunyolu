@@ -82,7 +82,9 @@ func _ready() -> void:
 		gm2.light_mode = CanvasItemMaterial.LIGHT_MODE_UNSHADED
 		material = gm2
 		if level and level.has_method("add_light"):
-			level.add_light(Vector2.ZERO, Color(1.0, 0.55, 0.2) if kind == "fireball" else get_meta("col", Color(1, 0.8, 0.5)), 60.0, 0.8, self)
+			# v40: ateş topu daha geniş, titrek ışık (yanından geçtiği zemini ve düşmanı yalar)
+			var fl: PointLight2D = level.add_light(Vector2.ZERO, Color(1.0, 0.55, 0.2) if kind == "fireball" else get_meta("col", Color(1, 0.8, 0.5)), 84.0 if kind == "fireball" else 60.0, 1.0 if kind == "fireball" else 0.8, self)
+			IsikTitrek.attach(fl, "mesale")
 	if kind in ["spore", "eagle", "curse"]:
 		var gm := CanvasItemMaterial.new()
 		gm.blend_mode = CanvasItemMaterial.BLEND_MODE_ADD
