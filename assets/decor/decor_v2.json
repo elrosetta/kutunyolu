@@ -153,5 +153,17 @@
    0
   ],
   "texel": 4.0
+ },
+ "anit_otuken_v2": {
+  "size": [
+   1040,
+   660
+  ],
+  "origin": [
+   520,
+   648
+  ],
+  "texel": 4.0,
+  "noflip": false
  }
 }

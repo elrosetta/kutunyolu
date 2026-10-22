@@ -152,5 +152,17 @@
    0
   ],
   "texel": 4.0
+ },
+ "anit_bozkir_v2": {
+  "size": [
+   1120,
+   600
+  ],
+  "origin": [
+   560,
+   584
+  ],
+  "texel": 4.0,
+  "noflip": true
  }
 }

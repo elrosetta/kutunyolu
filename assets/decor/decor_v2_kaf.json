@@ -106,5 +106,18 @@
    0
   ],
   "texel": 4.0
+ },
+ "anit_kaf_v2": {
+  "size": [
+   880,
+   720
+  ],
+  "origin": [
+   440,
+   704
+  ],
+  "texel": 4.0,
+  "noflip": true,
+  "glow": true
  }
 }

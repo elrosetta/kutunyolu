@@ -47,6 +47,7 @@ class TamuSpec(Z.Spec):
     ceil_dark = (18, 6, 8)
     ink_w = 3.2
     edge_amp = (1.4, 3.0, 3.5)
+    face = dict(face_dark=(14, 6, 10), face_light=(150, 80, 56), face_hang=None)
 
     def top_band(self, art, emit, cov, top_d, m, rng, seed):
         K = ik.K

@@ -151,5 +151,18 @@
    0
   ],
   "texel": 4.0
+ },
+ "anit_sahmeran_v2": {
+  "size": [
+   720,
+   800
+  ],
+  "origin": [
+   360,
+   784
+  ],
+  "texel": 4.0,
+  "noflip": false,
+  "glow": true
  }
 }

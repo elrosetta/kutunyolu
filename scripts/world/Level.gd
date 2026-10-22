@@ -2272,6 +2272,8 @@ func _build_particles() -> void:
 		camera.add_child(leaves)
 	else:
 		leaves.free()
+	# v40 ortam cilası: temas gölgeleri, hava canlıları, rüzgâr esintisi, bakış anıtları (scripts/world/OrtamCila.gd)
+	OrtamCila.kur(self, leaves if is_instance_valid(leaves) else null)
 	if art.has("drip_tex"):
 		# v2 mağara: tavandan düşen su damlaları (düz aşağı, hızlanarak; ışıklı ince damla)
 		var dr := CPUParticles2D.new()
@@ -2694,6 +2696,20 @@ func _place_decor() -> void:
 		var ix0 := int(rm["ix0"])
 		var ix1 := int(rm["ix1"])
 		var next_torch: int = ix0 + rng.randi_range(6, 14)
+		# v40: süs yoğunluğu oda türüne göre (odak noktaları yoğun, geçitler sakin): ödül odası ve harabe / mağara dolu,
+		# köprü ve kuyu seyrek; eşikler ölçeklenir, rng çağrı sayısı değişmez
+		var yog := 1.0
+		var kind: String = String(rm.get("kind", ""))
+		if OrtamCila.KAPALI:
+			pass
+		elif rm["role"] == "odul":
+			yog = 1.5
+		elif kind in ["harabe", "magara"]:
+			yog = 1.3
+		elif kind in ["kopru", "kuyu"]:
+			yog = 0.7
+		elif kind == "teras" and bool(rm.get("acik", false)):
+			yog = 1.2
 		for x in range(ix0, ix1 + 1):
 			var sy := room_floor(rm, x)
 			if cell(x, sy) != 1 or cell(x, sy - 1) != 0:
@@ -2702,7 +2718,7 @@ func _place_decor() -> void:
 				_decor("cira", x, sy, -2, true)
 				next_torch = x + (rng.randi_range(26, 36) if style != "magara" else rng.randi_range(14, 22))
 				continue
-			var r := rng.randf()
+			var r := rng.randf() / yog
 			# tavan altında ağaç/direk olmaz; mağarada mantar ve kaya çoğalır
 			var roofed := cell(x, sy - 5) == 1 or cell(x, sy - 6) == 1
 			if r < 0.02 and not roofed and _has_decor("cicek"):

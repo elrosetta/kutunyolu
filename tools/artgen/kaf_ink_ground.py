@@ -26,6 +26,7 @@ ST = dict(
     snow_lit=SNOW_LIT, snow_mid=SNOW_MID, snow_sh=SNOW_SH, snow_rim=(255, 255, 255), snow_shadow=(26, 26, 60),
     ice=ICE, rim=(176, 206, 255), rim_a=0.6, ceil_dark=(14, 14, 34), snow_th=11,
     grass_tip=(200, 196, 170), grass_top=(160, 150, 130), grass_mid=(110, 104, 110), grass_dark=(54, 52, 72),
+    face_dark=(18, 16, 40), face_light=(190, 214, 255), face_hang=None,
 )
 ST['rock_fn'] = lambda seed, rx, ry: Z.rock_small(seed, rx, ry, base=(118, 126, 172), light=(-0.6, -0.8), cap=SNOW_LIT)
 

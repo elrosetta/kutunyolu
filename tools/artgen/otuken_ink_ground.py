@@ -145,6 +145,10 @@ def ground_cell(m, var, seed):
         bd = d_bot
         dark = (1 - smoothstep(0, 10, bd)) * cov * 0.5
         art.fill_mask(dark, c01((20, 18, 26)))
+    # v40: yar yüzü fırça dokusu (tortul darbeleri, çatlak, köşeden sarkan kök / ot)
+    import ink_zemin
+    ink_zemin.face_strokes(art, m, cov, d_left, d_right, d_top, rng,
+                           dict(rim=RIM, face_dark=(24, 18, 28), face_light=(120, 150, 130), face_hang=(GRASS_DARK, (2, 4))), -1.0)
     # --- gömülü kaya (değişkene göre, kenarda)
     if var == 1 and (m & (2 | 8)) and not (m & 4):
         side = 2 if (m & 2) else 8
