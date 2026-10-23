@@ -30,6 +30,11 @@ static func yerlesim(g: PackedByteArray, W: int, H: int, rooms: Array, exit: Vec
 		var r3 := _yerlesim(g, W, H, rooms, exit, avoid, ARALIK, 4, ARALIK, 5)
 		if r3.size() > r.size():
 			r = r3
+	if r.size() < 4:
+		# v42 birleştirme: düz tabanı az mağara / iniş bölümü (hikâye odası düzeni değiştirince): yol boyunca 8 odaya kadar
+		var r4 := _yerlesim(g, W, H, rooms, exit, avoid, ARALIK, 3, ARALIK, 8)
+		if r4.size() > r.size():
+			r = r4
 	return r
 
 
