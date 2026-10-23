@@ -1,4 +1,16 @@
 {
+ "altin_yaprak_v2": {
+  "size": [
+   56,
+   40
+  ],
+  "origin": [
+   28,
+   24
+  ],
+  "texel": 4.0,
+  "glow": true
+ },
  "bezirgan_kervan_v2": {
   "size": [
    736,
@@ -6,6 +18,18 @@
   ],
   "origin": [
    384,
+   400
+  ],
+  "texel": 4.0,
+  "glow": true
+ },
+ "bitig_tasi_v2": {
+  "size": [
+   240,
+   416
+  ],
+  "origin": [
+   120,
    400
   ],
   "texel": 4.0,
@@ -54,6 +78,18 @@
    32
   ],
   "texel": 4.0
+ },
+ "gun_sunagi_v2": {
+  "size": [
+   440,
+   384
+  ],
+  "origin": [
+   220,
+   368
+  ],
+  "texel": 4.0,
+  "glow": true
  },
  "konak_ates_v2": {
   "size": [
@@ -122,6 +158,18 @@
   "origin": [
    152,
    320
+  ],
+  "texel": 4.0,
+  "glow": true
+ },
+ "tan_halkasi_v2": {
+  "size": [
+   600,
+   224
+  ],
+  "origin": [
+   300,
+   200
   ],
   "texel": 4.0,
   "glow": true
@@ -460,5 +508,17 @@
    28
   ],
   "texel": 4.0
+ },
+ "zincirli_kus_v2": {
+  "size": [
+   304,
+   336
+  ],
+  "origin": [
+   152,
+   320
+  ],
+  "texel": 4.0,
+  "glow": true
  }
 }

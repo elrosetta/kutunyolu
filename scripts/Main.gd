@@ -25,6 +25,7 @@ func _ready() -> void:
 	hud = HUD.new()
 	hud.main = self
 	ui_layer.add_child(hud)
+	add_child(Gorum.new())   # v42: Gün Ana görümleri ve konuşma alt yazıları (oyun durmaz)
 	auto_test = OS.get_cmdline_user_args().has("--otomatik")
 	showcase = OS.get_cmdline_user_args().has("--sahne") or OS.get_cmdline_user_args().has("--savurus")
 	lab = OS.get_cmdline_user_args().has("--savurus")
@@ -102,6 +103,11 @@ func _ready() -> void:
 		var pf: Node = load("res://tools/tests/perf_testi.gd").new()
 		pf.set("main", self)
 		add_child(pf)
+	if OS.get_cmdline_user_args().has("--hikaye_test"):
+		# v42 Güneş Ana hikâyesi testi / çekimi (tools/tests/hikaye_testi.gd): sinema panelleri, görüm, örgü, son, konak
+		var hk: Node = load("res://tools/tests/hikaye_testi.gd").new()
+		hk.set("main", self)
+		add_child(hk)
 	if OS.get_cmdline_user_args().has("--sanat"):
 		# v27 savaş sanatları testi (tools/tests/sanat_testi.gd): bedel, bekleme, isabet, sınıf kuralı, kilit ve kayıt
 		var sat: Node = load("res://tools/tests/sanat_testi.gd").new()
@@ -165,7 +171,7 @@ func _ready() -> void:
 			_build_boss("kara_boru_han")
 		elif String(arg).begins_with("--boss="):
 			_build_boss(String(arg).trim_prefix("--boss="))
-	if auto_test or showcase or _ekran != "" or firca or sus or bengu_t or OS.get_cmdline_user_args().has("--mekanik") or OS.get_cmdline_user_args().has("--dovus") or OS.get_cmdline_user_args().has("--yay") or OS.get_cmdline_user_args().has("--unsur") or OS.get_cmdline_user_args().has("--denge") or OS.get_cmdline_user_args().has("--tomar") or OS.get_cmdline_user_args().has("--zeka") or OS.get_cmdline_user_args().has("--tuccar") or OS.get_cmdline_user_args().has("--harita") or OS.get_cmdline_user_args().has("--sanat") or OS.get_cmdline_user_args().has("--konak") or OS.get_cmdline_user_args().has("--isinlan") or OS.get_cmdline_user_args().has("--vahset") or OS.get_cmdline_user_args().has("--perf"):
+	if auto_test or showcase or _ekran != "" or firca or sus or bengu_t or OS.get_cmdline_user_args().has("--mekanik") or OS.get_cmdline_user_args().has("--dovus") or OS.get_cmdline_user_args().has("--yay") or OS.get_cmdline_user_args().has("--unsur") or OS.get_cmdline_user_args().has("--denge") or OS.get_cmdline_user_args().has("--tomar") or OS.get_cmdline_user_args().has("--zeka") or OS.get_cmdline_user_args().has("--tuccar") or OS.get_cmdline_user_args().has("--harita") or OS.get_cmdline_user_args().has("--sanat") or OS.get_cmdline_user_args().has("--konak") or OS.get_cmdline_user_args().has("--isinlan") or OS.get_cmdline_user_args().has("--vahset") or OS.get_cmdline_user_args().has("--perf") or OS.get_cmdline_user_args().has("--hikaye_test"):
 		hud.mode = "play"
 		get_tree().paused = false
 	else:
@@ -179,7 +185,7 @@ func _ready() -> void:
 var _test_kipi := false
 const TEST_BAYRAKLARI := ["--otomatik", "--sahne", "--savurus", "--ekran=", "--firca", "--fx_vitrin=", "--sus=", "--bengu", "--mekanik",
 	"--dovus", "--yay", "--unsur", "--denge", "--tomar", "--zeka", "--tuccar", "--harita", "--sanat", "--yaratik", "--silah27",
-	"--boss", "--piksel_tara", "--konak", "--isinlan", "--arayuz=", "--vahset", "--perf"]
+	"--boss", "--piksel_tara", "--konak", "--isinlan", "--arayuz=", "--vahset", "--perf", "--hikaye_test"]
 
 
 func _test_bayragi() -> bool:
@@ -227,6 +233,7 @@ func _build_level() -> void:
 	level = Level.new()
 	level.process_mode = Node.PROCESS_MODE_PAUSABLE
 	add_child(level)
+	Gorum.temizle()   # v42: önceki yerin sırada bekleyen konuşmaları
 	var seed_v := randi() if not auto_test else 1234 + int(Game.run.get("depth", 1))
 	for arg in OS.get_cmdline_user_args():
 		if String(arg).begins_with("--derinlik=") and not _depth_forced:
@@ -300,6 +307,7 @@ func _build_boss(bid: String) -> void:
 	level = Level.new()
 	level.process_mode = Node.PROCESS_MODE_PAUSABLE
 	add_child(level)
+	Gorum.temizle()   # v42: önceki yerin sırada bekleyen konuşmaları
 	level.build_boss(randi(), bid)
 	level.finished.connect(_on_finished)
 	level.player_died.connect(_on_died)
@@ -424,6 +432,7 @@ func _build_hub() -> void:
 	level = Level.new()
 	level.process_mode = Node.PROCESS_MODE_PAUSABLE
 	add_child(level)
+	Gorum.temizle()   # v42: önceki yerin sırada bekleyen konuşmaları
 	level.build_hub(77)
 	level.finished.connect(_on_finished)
 	level.player_died.connect(_on_died)
@@ -449,6 +458,7 @@ func _build_konak() -> void:
 	level = Level.new()
 	level.process_mode = Node.PROCESS_MODE_PAUSABLE
 	add_child(level)
+	Gorum.temizle()   # v42: önceki yerin sırada bekleyen konuşmaları
 	var seed_v := randi() if not auto_test else 4321 + int(Game.run.get("depth", 1))
 	for arg in OS.get_cmdline_user_args():
 		if String(arg).begins_with("--tohum="):
@@ -528,7 +538,7 @@ func _on_npc(id: String) -> void:
 				_ad_toreni()
 				return
 			Ses.play("npc_1")
-			hud.ozan_i = randi() % 4
+			hud.ozan_i = 0   # v42: destan özeti ilk sayfadan (Hikaye.ozan_sayfalari)
 			hud.mode = "ozan"
 		"alp_ata":
 			Ses.play("npc_2")
@@ -814,9 +824,11 @@ func _unhandled_input(event: InputEvent) -> void:
 			if event.is_action_pressed("ayarlar"):
 				_open_settings()
 			elif go:
-				hud.mode = "intro"
-				hud.intro_i = 0
 				Ses.play("ui_onay")
+				if not bool(Game.meta.get("giris_izlendi", false)):
+					_giris_oynat(true)   # v42: açılış sineması ilk kez kendiliğinden (sonra Ozan'dan)
+				else:
+					_after_intro()
 		"intro":
 			if event.is_action_pressed("duraklat"):
 				_after_intro()
@@ -965,9 +977,11 @@ func _unhandled_input(event: InputEvent) -> void:
 			if go:
 				hud.ozan_i += 1
 				Ses.play("npc_%d" % (1 + hud.ozan_i % 3))
-				if hud.ozan_i >= 4:
+				if hud.ozan_i >= Hikaye.ozan_sayfalari().size():
 					_start_play()
-			elif event.is_action_pressed("duraklat"):
+			elif event.is_action_pressed("techizat1"):
+				_giris_oynat(false)   # v42: Ozan açılış destanını yeniden anlatır
+			elif event.is_action_pressed("duraklat") or event.is_action_pressed("yuvarlan"):
 				_start_play()
 		"sanat":
 			# v27 savaş sanatları: W/S seç, Boşluk / Enter kuşan (Alp Ata'da öğren), Esc / L geri
@@ -1032,6 +1046,54 @@ func _ad_toreni() -> void:
 	Ses.play("ad_toren", 0.0)
 	if level and level.player:
 		FX.soul(level.player.center(), Color(1.0, 0.85, 0.45), 30)
+
+
+# ------------------------------------------------------------------ v42 Güneş Ana hikâyesi
+var sinema: Sinema = null
+
+
+func _giris_oynat(ilk: bool) -> void:
+	## Açılış sineması (Sinema.gd "giris"). ilk: başlıktan (bitince yurda), değilse Ozan'dan (bitince oyuna dönülür)
+	hud.mode = "sinema"
+	get_tree().paused = true
+	sinema = Sinema.oynat(self, "giris")
+	sinema.bitti.connect(func() -> void:
+		sinema = null
+		Game.meta["giris_izlendi"] = true
+		Game.save_meta()
+		if ilk:
+			_after_intro()
+		else:
+			Ses.music("yurt", 1.5)
+			_start_play())
+
+
+func hikaye_orgu_alindi(bid: String, _yeni: bool) -> void:
+	## GunParcasi: örgü alındı. Erlik'in Altın Örgüsü (tan henüz sökmediyse) görüm bitince son sinemayı başlatır.
+	if bid == "erlik_han" and not Hikaye.safak():
+		get_tree().create_timer(6.5, false).timeout.connect(hikaye_son)
+
+
+func hikaye_son() -> void:
+	## Son: zincir kırılır, Gün Ana yükselir, tan söker; jenerik. Sonra dünya "tan sökmüş" kalır: koşu biter (Kut
+	## bankaya), yeni koşu sabah ışığındaki yurtta başlar (yeni oyun+ aynı yoldan sürer).
+	if sinema != null or Hikaye.safak():
+		return
+	hud.mode = "sinema"
+	get_tree().paused = true
+	sinema = Sinema.oynat(self, "son")
+	sinema.bitti.connect(func() -> void:
+		sinema = null
+		Game.meta["son_izlendi"] = true
+		Game.bank_run_kut()
+		Game.save_meta()
+		Game.new_run()
+		Game.meta["runs"] = int(Game.meta.get("runs", 0)) + 1
+		Game.save_meta()
+		_build_hub()
+		_start_play()
+		hud.flash_msg = "Tan söktü. Ulu Kayın sabah ışığında; gece yine gelecek, yol yine aşağı iner."
+		hud.flash_t = 6.0)
 
 
 func _after_intro() -> void:
@@ -1462,6 +1524,15 @@ func _physics_process_ic(delta: float) -> void:
 		"ozan":
 			_start_play()
 			return
+		"ad":
+			# v42: konakta Ozan'a uğrayan bot ad törenine girebilir (yurtta hiç uğramıyordu)
+			if not Adlar.pending().is_empty():
+				_ad_toreni()
+			else:
+				_start_play()
+			return
+		"sinema":
+			return   # v42: hikâye sineması kendi kendine akar
 		"harita":
 			# v32 bot: rehberin istediği (ya da rastgele bulunmuş) taşı seçer
 			var found: Array = level.harita.bulunan() if level and level.harita else []

@@ -423,7 +423,7 @@ static func title_top(h: Control, vp: Vector2, t: float) -> void:
 	seal_mark(h, Vector2(x0 + tw + 26, cy - 30) - par * 0.6, 24.0, 0)
 	InkUI.quad(h, InkUI.tex("horn"), Vector2(x0 - 24, cy + 20) - par * 0.6, Vector2(18, 15), -PI * 0.5, Color(InkUI.GOLD, 0.9))
 	var fl := InkUI.font("lore")
-	var sub := "Erlik'in zincirini kır, Ulu Kayın'ı kurtar"
+	var sub := "Gün Ana'nın beş örgüsünü geri getir; tan yeniden söksün" if not Hikaye.safak() else "Tan söktü. Gece yine gelecek."   # v42
 	InkUI.draw_str(h, Vector2((vp.x - str_w(fl, sub, 12)) * 0.5, cy + 60), sub, fl, 12, Color(0.72, 0.92, 1.0), 2)
 	InkUI.orkhon(h, Rect2(vp.x * 0.5 - 120, cy + 68, 240, 11), Color(InkUI.GOLD, 0.32))
 	# Başla mührü: nabız atan kızıl yuvarlak damga, içinde fırça yazısı

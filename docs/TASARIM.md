@@ -7213,3 +7213,111 @@ harabe salonu) 1920x1080 (`--otomatik --bolum_turu=<tür> --tohum=<n> --pencere=
 * Düz bölümler daha kısa (7 kesim genişliği sabit: `Level.W` 172); oda başına yaratık yoğunluğu aynı, bölüm başına yaratık
   ~%19 az.
 * Açık yolda ızgaranın üst satırı hava: oyuncunun zıplaması oraya ulaşmaz (taban en az 5 karo aşağıda).
+
+## v42: Güneş Ana hikâyesi ve Konak yoldaşları
+
+Kullanıcı kararı: «Güneş Ana olsun — ama çok daha sanatsal; hikâye arka planda kalmasın. Bölüm aralarında yurda değil
+konaklara geliyoruz; orada Umay da öbürleri de yok, yalnız Bengisu ve tüccar var — onu da düzeltelim.» Hikâyenin tamamı
+`docs/HIKAYE.md`; satırlar `data/story.json`; ilerleme `scripts/core/Hikaye.gd`.
+
+### Öncül (kısa)
+
+Erlik, tan töreni gecesi **Gün Ana**'nın beş ışık örgüsünü (Al · Ak · Gök · Sarı · Altın — tanın beş evresi) kara
+kırkısıyla kesti, onu dokuz gecenin zinciriyle Tamu'ya bağladı; örgüleri beş bekçiye verdi (Kara Börü Han, Tepegöz,
+Şahmeran, Yelbegen, kendisi). Güneş doğmaz. **Bengü** o gece ateşi bekleyen **tan bekçisi**ydi ve düştü; Gün Ana'nın
+küçük kız kardeşi **Umay Ana** onu Ulu Kayın'dan yeniden yoğurdu. Gün Ana Bengü'ye görümlerde «kızım» der (Bengü tan
+vakti doğmuş, onun ilk ışığıyla yıkanmıştı). Beş bölüm: Kül Ocağı · Göğün Kör Gözü · Yeraltı Aynası · Boş Beşik ·
+Dokuz Gecenin Zinciri. Son: Bengü beş örgüyü kendi kesik saçıyla birbirine örer, zincir kırılır, Gün Ana köklerden
+yükselir, tan söker; dünya bundan sonra «sabahlı» kalır, gece yine gelir.
+
+### Oyunda nerede görünür
+
+| Ne | Nasıl | Dosya |
+|---|---|---|
+| Açılış sineması | 6 sumi-e panel (yordamsal mürekkep resim: Ulu Kayın ve üç kat, Gün Ana'nın doğuşu, Erlik ve zincir, Bengü'nün düşüşü, Umay'ın kanatları, aşağı inen yol). Panel kâğıda emilen mürekkep gibi belirir (koyu darbeler önce, ıslak kenar), Ken Burns kayması, altın varak ışıması nefes alır, anlatı harf harf fırçayla yazılır. İlk koşuda başlıktan sonra kendiliğinden; sonra Ozan'dan (E). Boşluk ilerler, Esc geçer. | `scripts/ui/Sinema.gd`, `shaders/sumi_panel.gdshader`, `assets/hikaye/*.jpg` + `_isik.png`, `tools/artgen/sumi.py`, `tools/artgen/hikaye_ink.py` |
+| Gün Ana görümü | Oyun durmaz: ekran ısınır, altın zerreler yükselir, Gün Ana'nın mürekkep silüeti (toplamalı, hayalet) yan tarafta belirip duman gibi dağılır, sözü fırçayla yazılır (3-6 sn; eylem tuşu 0,6 sn sonra söndürür). Biyoma ilk girişte (bölüm afişinden sonra, kalıcı bir kez), hikâye odasında, örgü alınınca. Menü açıkken bekler. | `scripts/ui/Gorum.gd`, `shaders/sumi_gorum.gdshader`, `assets/hikaye/gun_ana_gorum.png` |
+| Boss sözü | Kükreyişten (kamera girişi) sonra alt yazı; devrilince son sözü. Görüm gelirse söz kısalır. | `HikayeSahne.boss / boss_dustu`, `Gorum.konus` |
+| Gün Örgüsü | Boss devrilince düşen, rengiyle nefes alan sarmal örgü; dokunulunca (ya da 3 sn sonra oyuncuya akar — kapı açılmadan alınsın) kalıcı kayda yazılır, Gün Ana görümü + başlık («AL ÖRGÜ · Tan önce kızarır.»), ekranın ufku o an ısınır. Erlik'in Altın Örgüsü 6,5 sn sonra son sinemayı başlatır. | `scripts/world/GunParcasi.gd` |
+| Dünya ısınır | `grade_v2.gdshader` tek yeni parametre `safak` (+ `safak_renk`): ekranın %20-60'ında ufka doğru sıcak ağarma bandı (koyuları kaldırır), tüm tonlara hafif sıcaklık; > 0,6'da gök sabaha döner. Değer `Hikaye.safak_k()`: örgü başına 0,11; tan söktükten sonra 0,7; tan sökmüş yurtta 1,5. `Level._build_overlay_fx` yazar (tek satır). | `shaders/grade_v2.gdshader`, `Level.gd` |
+| Yurt | Ulu Kayın'ın (`yh_kayin`) dallarında her örgü için 7 altın yaprak (`altin_yaprak_v2`, salınır, ışır), düşen altın yaprak parçacıkları, sıcak ışık. Tan söktükten sonra yurt sabah ışığında (ortam / ay ışığı güneşe, derece sıcak; `HikayeSahne.yurt_sabah`). Yurt sakinlerinin başında ilerlemeye göre söz. | `HikayeSahne.yurt` |
+| Bölüm afişi | Bölümlerde biyom adı yerine hikâye bölümünün adı (fırça), üstünde «BİRİNCİ BÖLÜM», altında biyom · derinlik ve epigraf (harf harf); afiş 6 sn. | `HUD._draw_banner`, `_bolum_epigraf`, `_kart_sure` |
+| Bölüm sahnesi | `Level.sahne_yeri` (ana yolun en geniş düz tabanı): bölüme özgü süs (Ötüken: yanmış tan töreni çemberi; Bozkır / Tamu: kırık güneş kursu sunağı, yarığından altın sızar; Şahmeran / Kaf: zincirli tan kuşu) + **bitig taşı** (kaya resimli yazıt: ışınlı kadın, zincir, ağaç, davulcu kız); yanına gelince yazıt (story.json "lore", biyom başına 4-5) taşın üstünde okunur. Kaide / eşya / Kut Taşı / tüccar / kapı ile çakışmayan en orta yer seçilir; bölüm zarı tüketilmez. | `scripts/world/HikayeSahne.gd`, `tools/artgen/hikaye_sus.py` (`export_sus.py --hikaye`) |
+| Hikâye odası | `opts.hikaye_odasi` her üç bölümden birinde (tohum + derinlik; `--hikaye_odasi` zorlar): yaratıksız çıkmaz odada sıcak ışıkta sunak / zincirli kuş, içeri girince Gün Ana'nın anısı (biyom başına 3). | `HikayeSahne.oda_acik`, `Level._generate` |
+| Ölüm | Ölüm ekranının alt satırı ilerlemeye göre (örn. «Dört örgü bekliyor. Tan bekçisi yerde kalmaz.»). | `Hikaye.olum_satiri` |
+| Ozan | Destan özeti: açılan bölümlerin adı, epigrafı, Bengü'nün öğrendiği; dönen örgüler; son sayfada Ozan'ın sözü. E: açılış sinemasını yeniden oynatır. | `HUD._draw_ozan`, `Hikaye.ozan_sayfalari` |
+| Son | 5 panel (örgüler kendi saçıyla örülür, zincir kırılır, Gün Ana yükselir, tan söker, dalda kısa saçlı Bengü) + jenerik; sonra koşu biter (Kut bankaya), yeni koşu sabah yurdunda (yeni oyun+). Başlık alt yazısı da değişir. | `Main.hikaye_son` |
+
+### Konak yoldaşları
+
+Konak 64 → 80 karo (`data/konak.json`): soldan **Umay Ana** (ocağın solunda: Kut armağanları — yurttakiyle aynı ekran),
+**konak ateşi** (Umay Ocağı: yanından geçince Kut bankaya), **Ozan** (ateşin sağında: destan özeti, açılışı yeniden
+dinlet), **Bengisu Usta** + tezgâh, **Demirci Kam Kuzgun** (parşömen; dövdüğü eşya önüne düşer, konakta da alınır), at,
+**Alp Ata** (savaş sanatı öğretir / kuşandırır), **Bezirgân Sartak** (kuralı aynı: önceki derinlikte pazar çıkmadıysa),
+balbal / tuğ, Kut Kapısı. Kaf'ta Alp Ata ile Demirci, Tamu'da Ozan ile Umay yer değiştirir (`biyom.<id>.yoldas`). Hepsi
+her konakta: servisleri koşu içinde de gerekli (parşömen ve sanat açmak koşuyu bölmesin) ve 80 karoda sıkışmadan sığıyor.
+Sözleri ilerlemeye göre (`npcs.<id>.asama[örgü sayısı]`, `safak`, konakta bazen `konak`); Bengisu çift derinliklerde
+örgülere de değinir.
+
+Denge (v32 notu): v32'de Kut konakta bankaya giriyordu ama harcamak (Umay armağanları, parşömen, sanat) yalnız yurtta
+mümkündü — oyuncu ölene dek bankayı kullanamıyordu. v42'de bu üç harcama konakta da açık. Bankaya giren Kut zaten
+kalıcı olduğundan toplam güç değişmez; yalnızca harcamanın zamanı öne gelir (Kayın Özü / Umay'ın Şişesi koşu içinde
+alınınca o koşuda da etkili: Main zaten anında uyguluyordu). Kut Mührü ve Bengisu'nun altın ekonomisi değişmedi. Bot
+(`--otomatik`) konakta Umay'dan «can» alır; Ozan'a uğrarsa ad törenini geçer (yeni "ad" dalı).
+
+### Kayıt
+
+`Game.meta` yeni alanlar: `gun_parca` (alınan örgülerin boss kimlikleri), `gorumler` (görülen görümler), `giris_izlendi`,
+`son_izlendi`, `hikaye_surum` = 42. `Game.load_meta` → `Hikaye.meta_hazirla()`: eksikse varsayılan, tür bozuksa onarır,
+bilinmeyen / yinelenen kimlikleri atar. Eski kayıtla açılınca yeni açılış sineması bir kez oynar.
+
+### Sanat
+
+* `tools/artgen/sumi.py`: sumi-e fırça takımı — kıl kıl kuru fırça darbesi (mürekkep darbe boyunca azalır, kenar kılları
+  önce kurur), granülasyonlu yıkama + kurumuş kenar halkası, sis (mürekkebi siler), enso, sıçrantı, altın varak ve
+  ayrı ışıma dokusu, kâğıt (lif, çay lekesi, kenar kararması), kızıl sanatçı mührü (Kayı tamgası). Figürler Karagöz gölge
+  oyunu gibi tek parça silüet (eklem kapsülleri + çokgen) ya da birkaç geniş darbe.
+* `tools/artgen/hikaye_ink.py`: 11 panel (1600x900 JPG ~0,2 MB + yarım çözünürlük ışıma PNG), görüm silüeti
+  (`--gorum`); panelin alt bandının parlaklığı yazı rengini seçer (`paneller.json` "koyu").
+* `tools/artgen/hikaye_sus.py`: dünya süsleri inkkit / inkprop mürekkep-cel stilinde (gun_sunagi, bitig_tasi,
+  zincirli_kus, tan_halkasi, altin_yaprak); HD paket (x2 WebP + manifest) `KY_HD=2 export_sus.py --hikaye` +
+  `hd_paket.py --paketle` (kontrol: 6 / 6 TAMAM).
+
+### Birleştirme notu (ky-otag42)
+
+`Level.gd`: yalnızca kancalar — `_generate` (opts.hikaye_odasi), `build` sonu, `build_hub` (yurt_sabah, yurt),
+`build_boss` sonu, `_on_boss_died` (boss_dustu), `_build_overlay_fx` (safak), `_place_hub` NPC sözü, `_place_konak`
+(usta sözü + yeni `_konak_yoldaslar`). Kut Kapısı / çıkış alanına dokunulmadı. `HUD.gd`: `_draw_banner`
+(+ `_kart_sure`, `_bolum_epigraf`), `_draw_dead` alt satır, `_draw_ozan`, "sinema" kipi, konak ipucu metni.
+`Game.gd`: `load_meta` tek satır. `Main.gd`: Gorum düğümü, `--hikaye_test`, başlık → sinema, Ozan girdisi,
+`_giris_oynat`, `hikaye_orgu_alindi`, `hikaye_son`, bot "ad" / "sinema" dalları, yeni yer kurulurken `Gorum.temizle()`.
+
+### Testler
+
+* `--hikaye_test` (yeni, `tools/tests/hikaye_testi.gd`) SONUC 55 OK, 0 HATA: açılış 6 / son 5 panel ve dokuları,
+  bitti sinyali; Ötüken ilk giriş görümü ve kalıcı işaret; bölüm sahnesi ve bitig taşı okunur; hikâye odası üretilir
+  ve görüm oynar; beş boss: kükreyince söz, Gün Örgüsü düşer, oyuncuya akar, kalıcı kayıt n+1, örgü görümü; Erlik'in
+  örgüsü son sinemayı başlatır, sonra tan sökmüş yurt; yurtta 3 örgüde 21, tan sökünce 49 altın yaprak ve ufuk
+  sıcaklığı; konakta Umay / Ozan / Demirci / Alp Ata / Usta + Bezirgân, hepsinin sözü, beş hizmet ekranı açılır.
+  Kalıcı kaydın hikâye alanları test sonunda geri yazılır.
+* `--konak --muhur=0` GECTI (yeni: dört yoldaş konakta, sözleri, W balonu, ekranları açılır); `--yurt --yurt-tur`
+  Kut Kapısı'na 19,3 sn'de vardı (umay, demirci, ozan, alp_ata görüldü); `--boss=<her biri> --muhur=0` betik hatası 0;
+  `--harita --muhur=0` GECTI (hikâye odası artık çıkıyor: testin «boş oda» denetimi bu odayı sayımaz — içinde anlatı
+  sahnesi var; boş oda 0); `--otomatik --derinlik=1/3/5 --muhur=0 --fixed-fps 60 --quit-after 9000`: d1 64 sn'de, d3
+  92 sn'de Kut Kapısı → konak (yoldaşlarla) → sonraki bölüm, d5 bölümde; `--piksel_tara --otomatik --derinlik=3
+  --quit-after 2400` TOPLAM 0 (`assets/hikaye/` sumi-e dokuları mürekkep yolu sayılır). Betik hatası 0.
+
+### Görseller (`docs/v42/hikaye/`, 1920x1080, `--hikaye_test --pencere=1920x1080 --grafik=2 --hikaye_cikti=<klasör>`; test PNG yazar, depoya JPG q88)
+
+`giris_1..6.jpg` (açılış panelleri, yazı fırçayla), `son_1..5.jpg`, `son_jenerik.jpg`, `bolum_afis.jpg` (Kül Ocağı afişi
++ epigraf), `gorum.jpg` (Ötüken'de Gün Ana görümü), `hikaye_odasi.jpg`, `sahne.jpg` / `sahne_bitig.jpg` (bölüm sahnesi,
+yazıt okunurken), `orgu_<boss>.jpg` (beş örgü görümü, ufkun ısınışı), `yurt_3_orgu.jpg` (3 örgüde altın yapraklar),
+`yurt_sabah.jpg` (tan sökmüş yurt), `konak.jpg` / `konak_genis.jpg` / `konak_ozan.jpg` (ateş başında yoldaşlar, Ozan'ın
+destan özeti).
+
+### Bilinen
+
+* Paneller 1600x900: 1080p'de 1,2 kat gerilir (mürekkep yıkaması yumuşak; 4K'da hafif yumuşaklık). HD pakete girmez.
+* Görüm sesi yok (seslendirme yok); `buyu` + `ad_toren` efektleri kısık çalar. Gün Ana'nın sözleri yalnız yazı.
+* Yeni oyun+: örgüler kalıcı, bekçiler yine düşer ve yine örgü bırakır (alınca «yine senin» iletisi, dünya zaten
+  sıcak); ikinci kez son sineması oynamaz (Ozan'dan açılış yeniden dinlenebilir; son için ayrı bir tekrar yok).
+* Yurdun paralaks göğü gece resmi: sabah derece / ışıkla verilir (ay hilali gökte kalır — «gece yine gelecek»).
