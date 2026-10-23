@@ -1,6 +1,7 @@
 extends Node
 ## v25 harita testi: godot --headless --path . --quit-after 999999 -- --harita [--harita_tohum=N] [--harita_bolum=K]
-##   IZGARA: her stil (6) × N tohum (LevelGen.generate, Level.W × Level.H): ana yol (girişten Kut Kapısı'na) yalnızca
+##   IZGARA: v41: her biyom (5) × N tohum (--harita_tohum; biyomun level ayarları, derinliği, tür seçimi; --harita_tur=eski
+##           v34 üreticisi) (LevelGen.generate, Level.W × Level.H); TUR satırları: bölüm türü başına ölçüm. Ana yol (girişten Kut Kapısı'na) yalnızca
 ##           yürüyerek (yuvarlanmadan, baş boşluğu >= 2 karo) geçilebiliyor mu; yol boyunca en dar baş boşluğu; 3 karo ile
 ##           geçilebiliyor mu; girişten ulaşılan "yalnızca yuvarlanarak" (1 karo) ve 2 karoluk hücre sayısı.
 ##   BOLUM:  derinlik 1-9 × K tohum tam bölüm kurulur (Level.build): her düşmanın gövdesi (çarpışma boyu × görsel ölçek)
@@ -162,6 +163,12 @@ static func yol_olcum(path: Array, W: int) -> Dictionary:
 	var kz_max := 0
 	var kz_yon := 0
 	var kz_duz := 0
+	var dikey_karo := 0   # v41: >= 3 karoluk düşüş / tırmanışların toplam yüksekliği
+	var y_lo := 9999
+	var y_hi := -1
+	for i in range(0, path.size()):
+		y_lo = mini(y_lo, int(path[i]) / W)
+		y_hi = maxi(y_hi, int(path[i]) / W)
 	for i in range(1, path.size()):
 		var a: int = path[i - 1]
 		var b: int = path[i]
@@ -194,6 +201,8 @@ static func yol_olcum(path: Array, W: int) -> Dictionary:
 			if duz > 4:
 				zincir = 0
 			continue
+		if absi(dy) >= 3:
+			dikey_karo += absi(dy)
 		if dy >= 3:
 			dusus += 1
 			dusus_max = maxi(dusus_max, dy)
@@ -213,7 +222,7 @@ static func yol_olcum(path: Array, W: int) -> Dictionary:
 		duz = 0
 		zincir_max = maxi(zincir_max, zincir)
 	return {"uzunluk": ln, "sure": sure, "dusus": dusus, "tirmanis": tirmanis, "basamak": basamak, "zincir": zincir_max, "basamak_zinciri": kz_max,
-		"dusus_max": dusus_max, "dusus_hist": dusus_hist, "sersem": sersem}
+		"dusus_max": dusus_max, "dusus_hist": dusus_hist, "sersem": sersem, "dikey_karo": dikey_karo, "y_aralik": maxi(0, y_hi - y_lo)}
 
 
 static func _area(g: PackedByteArray, W: int, H: int, x: int, y: int) -> String:
@@ -242,7 +251,10 @@ static func _col(g: PackedByteArray, W: int, H: int, x: int, y: int) -> String:
 func _izgara(n_seed: int) -> void:
 	var W := int(_arg_or("--harita_w", str(Level.W)))   # --harita_w=230: eski genişlikle karşılaştırma
 	var H := Level.H
-	_p("IZGARA W=%d H=%d, %d stil × %d tohum" % [W, H, LevelGen.STYLES.size(), n_seed])
+	var zorla := _arg_or("--harita_tur", "")   # v41: eski = v34 üreticisi (önce ölçümü); acik / kale / inis / magara
+	var biyomlar := _biyomlar()
+	_p("IZGARA W=%d H=%d, %d biyom × %d tohum (v41: biyomun level ayarları, derinliği ve tür seçimi; tür zorla=%s)" % [W, H, biyomlar.size(), n_seed, zorla])
+	var tur_m := {}   # v41: tür -> ölçüm toplamları
 	var fixes := [0, 0, 0]
 	var tot := 0
 	var walk_ok := 0
@@ -270,7 +282,8 @@ func _izgara(n_seed: int) -> void:
 	var d_max := 0
 	var d_sersem := 0
 	var d_sersem_lv := 0
-	for style in LevelGen.STYLES:
+	for bcfg in biyomlar:
+		var style: String = String(bcfg["id"])
 		var s_walk := 0
 		var s_ok3 := 0
 		var s_min := 99
@@ -279,8 +292,15 @@ func _izgara(n_seed: int) -> void:
 		for k in n_seed:
 			var rng := RandomNumberGenerator.new()
 			rng.seed = 1000 + k * 7919 + style.length() * 31
+			var dpt: int = int(bcfg["d0"]) + k % 2
+			var gopts: Dictionary = (bcfg["level"] as Dictionary).duplicate()
+			gopts["pazar"] = k % 3 == 0
+			gopts["biyom"] = style
+			gopts["gecmis"] = _gecmis_sim(1000 + k * 7919, dpt)
+			if zorla != "":
+				gopts["tur"] = zorla
 			var t0 := Time.get_ticks_usec()
-			var r := LevelGen.generate(rng, W, H, 3, [style], {"pazar": k % 3 == 0})
+			var r := LevelGen.generate(rng, W, H, dpt, bcfg["styles"], gopts)
 			var gen_sn := float(Time.get_ticks_usec() - t0) / 1000000.0
 			var g: PackedByteArray = r["grid"]
 			var hts: Array = r["heights"]
@@ -322,7 +342,6 @@ func _izgara(n_seed: int) -> void:
 			m["dusey"] = hi - lo
 			tasi_min = mini(tasi_min, int(m["tasi"]))
 			cikmaz_min = mini(cikmaz_min, int(m["cikmaz"]))
-			dikey_min = mini(dikey_min, int(m["dikey_adim"]))
 			for key in m:
 				if typeof(m[key]) in [TYPE_INT, TYPE_FLOAT, TYPE_BOOL]:
 					m_sum[key] = float(m_sum.get(key, 0.0)) + float(m[key])
@@ -337,9 +356,22 @@ func _izgara(n_seed: int) -> void:
 				var yo := yol_olcum(wp, W)
 				var ek := {"gen_sn": gen_sn, "alan_w": bnd.size.x, "alan_h": bnd.size.y, "hava": hava, "yol_karo": yo["uzunluk"], "yol_sn": yo["sure"],
 					"dusus": yo["dusus"], "tirmanis": yo["tirmanis"], "basamak": yo["basamak"], "zincir": yo["zincir"], "kzincir": yo["basamak_zinciri"]}
+				ek["dikey_karo"] = yo["dikey_karo"]
+				ek["y_aralik"] = yo["y_aralik"]
 				for key in ek:
 					m_sum[key] = float(m_sum.get(key, 0.0)) + float(ek[key])
 					s_m[key] = float(s_m.get(key, 0.0)) + float(ek[key])
+				var tk := String(r.get("tur", "eski"))
+				var tm: Dictionary = tur_m.get(tk, {})
+				for key in ["dikey_karo", "y_aralik", "yol_karo", "dusus", "tirmanis", "gen_sn", "hava"]:
+					tm[key] = float(tm.get(key, 0.0)) + float(ek[key])
+				tm["n"] = int(tm.get("n", 0)) + 1
+				tm["dikey_adim"] = float(tm.get("dikey_adim", 0.0)) + float(m["dikey_adim"])
+				tm["duz"] = int(tm.get("duz", 0)) + int(m.get("duz", 1 if int(m["dikey_adim"]) <= 1 else 0))
+				tm[style] = int(tm.get(style, 0)) + 1
+				tur_m[tk] = tm
+				if not bool(LevelGen.TURLER.get(tk, {}).get("duz", false)):
+					dikey_min = mini(dikey_min, int(m["dikey_adim"]))
 				zincir_max = maxi(zincir_max, int(yo["zincir"]))
 				for h in yo["dusus_hist"]:
 					d_hist[h] = int(d_hist.get(h, 0)) + int(yo["dusus_hist"][h])
@@ -423,8 +455,82 @@ func _izgara(n_seed: int) -> void:
 	_check(ok_all == tot, "her bölümde giriş -> Kut Kapısı ve her ulaşılan hücreden dönüş (%d/%d)" % [ok_all, tot])
 	_check(tasi_min >= 3, "her bölümde en az 3 Kut Taşı (en az %d)" % tasi_min)
 	_check(cikmaz_min >= 2, "her bölümde en az 2 çıkmaz ödül odası (en az %d)" % cikmaz_min)
-	_check(dikey_min >= 1, "her bölümde ana yol en az bir kat iner / çıkar (en az %d)" % dikey_min)
+	_check(dikey_min >= 1, "düz olmayan türlerde ana yol en az bir kat iner / çıkar (en az %d)" % dikey_min)
 	_check(reach_min >= 0.85, "ayakta durma hücrelerinin en az %%85'i girişten ulaşılır (en az %%%.1f; kalanı yüksek cep / sarkıt üstü)" % (100.0 * reach_min))
+	# v41 bölüm türleri: tür başına sayı ve ana yol dikeyliği; düz bölüm oranı; koşu benzetimi (art arda 3 kuralı)
+	var n_duz := 0
+	var dk_top := 0.0
+	var da_top := 0.0
+	var n_t := 0
+	for tk in tur_m:
+		var tm: Dictionary = tur_m[tk]
+		var nn := float(tm["n"])
+		var bs := ""
+		for b in biyomlar:
+			if tm.has(String(b["id"])):
+				bs += "%s:%d " % [String(b["id"]), int(tm[String(b["id"])])]
+		_p("TUR %s n=%d (%s) düz=%%%.0f dikey_adım=%.2f dikey_karo=%.1f y_aralığı=%.1f yol=%.0f karo düşüş=%.2f tırmanış=%.2f hava=%.0f üretim=%.2f sn" % [tk, int(nn), bs.strip_edges(),
+			100.0 * float(tm["duz"]) / nn, float(tm["dikey_adim"]) / nn, float(tm["dikey_karo"]) / nn, float(tm["y_aralik"]) / nn, float(tm["yol_karo"]) / nn,
+			float(tm["dusus"]) / nn, float(tm["tirmanis"]) / nn, float(tm["hava"]) / nn, float(tm["gen_sn"]) / nn])
+		n_duz += int(tm["duz"])
+		dk_top += float(tm["dikey_karo"])
+		da_top += float(tm["dikey_adim"])
+		n_t += int(nn)
+	_p("TUR TOPLAM bölüm=%d düz (ana yol en çok 1 kat)=%%%.0f ana_yol_dikey_adım ort=%.2f ana_yol_dikey_karo (>=3 karoluk düşüş + tırmanış) ort=%.1f y_aralığı ort=%.1f düşüş=%.2f tırmanış=%.2f" % [n_t,
+		100.0 * float(n_duz) / maxf(1.0, float(n_t)), da_top / maxf(1.0, float(n_t)), dk_top / maxf(1.0, float(n_t)), float(m_sum.get("y_aralik", 0)) / tot,
+		float(m_sum.get("dusus", 0)) / tot, float(m_sum.get("tirmanis", 0)) / tot])
+	if zorla == "":
+		_check(float(n_duz) >= 0.35 * float(n_t), "bölümlerin en az %%35'i düz (%d/%d)" % [n_duz, n_t])
+		var kosu := _kosu_sim(400)
+		_p("TUR KOŞU benzetimi (400 koşu, derinlik 1-9): %s; art arda 3 düz olmayan=%d, düz oranı=%%%.0f" % [str(kosu["say"]), int(kosu["ihlal"]), 100.0 * float(kosu["duz"]) / float(kosu["n"])])
+		_check(int(kosu["ihlal"]) == 0, "art arda üç bölümün en az biri düz (ihlal %d)" % int(kosu["ihlal"]))
+
+
+func _biyomlar() -> Array:
+	## v41: oyunun biyomları (world.json impl): kimlik, ilk derinlik, stil havuzu, level ayarları (rows / yon)
+	var out: Array = []
+	for b in Data.world["biomes"]:
+		if not b.get("impl", false):
+			continue
+		var art: Dictionary = b.get("art", {})
+		out.append({"id": String(b["id"]), "d0": int((b.get("depths", [1, 1]) as Array)[0]), "styles": art.get("styles", []), "level": b.get("level", {})})
+	return out
+
+
+func _gecmis_sim(tohum: int, d: int) -> Array:
+	## v41: d'den önceki iki derinliğin türü (tür seçimi benzetimi; gerçek koşuda Game.run.turler)
+	var out: Array = []
+	for dd in range(maxi(1, d - 2), d):
+		var r := RandomNumberGenerator.new()
+		r.seed = tohum * 31 + dd
+		out.append(LevelGen.tur_sec(r, String(Game.biome_for_depth(dd).get("id", "diger")), out.duplicate()))
+	return out
+
+
+func _kosu_sim(n: int) -> Dictionary:
+	var say := {}
+	var ihlal := 0
+	var duz := 0
+	var top := 0
+	for k in n:
+		var r := RandomNumberGenerator.new()
+		r.seed = 77 + k * 1013
+		var g: Array = []
+		for d in range(1, 10):
+			var t := LevelGen.tur_sec(r, String(Game.biome_for_depth(d).get("id", "diger")), g.slice(maxi(0, g.size() - 6)))
+			g.append(t)
+			say[t] = int(say.get(t, 0)) + 1
+			top += 1
+			if bool(LevelGen.TURLER[t]["duz"]):
+				duz += 1
+			if g.size() >= 3:
+				var ok := false
+				for i in range(g.size() - 3, g.size()):
+					if bool(LevelGen.TURLER[String(g[i])]["duz"]):
+						ok = true
+				if not ok:
+					ihlal += 1
+	return {"say": say, "ihlal": ihlal, "duz": duz, "n": top}
 
 
 # ------------------------------------------------------------------ tam bölüm: yerleşim
@@ -1114,8 +1220,18 @@ func _ekran_kucuk() -> void:
 func _ekran_tam() -> void:
 	## v33: biyom başına (derinlik 1, 3, 5, 7, 9) bütünüyle keşfedilmiş tam ekran harita (M): Dead Cells örnek haritasıyla
 	## karşılaştırma (küçük oda / koridor ağı); bütün Kut Taşları bulunmuş
-	for d in [1, 3, 5, 7, 9]:
+	## v41: --tam_tur ile her bölüm türü iki biyomda (tür zorlanır: LevelGen.zorla_tur)
+	var plan: Array = []
+	if OS.get_cmdline_user_args().has("--tam_tur"):
+		plan = [["acik", 1], ["acik", 3], ["kale", 4], ["kale", 9], ["inis", 2], ["inis", 9], ["magara", 5], ["magara", 7]]
+	else:
+		for d in [1, 3, 5, 7, 9]:
+			plan.append(["", d])
+	for pl in plan:
+		var d: int = pl[1]
+		LevelGen.zorla_tur = String(pl[0])
 		var lv := _build(d, 3300 + d * 41 + int(_arg_or("--harita_tohum", "0")))
+		LevelGen.zorla_tur = ""
 		main._start_play()
 		await _phys(3)
 		_clear_foes(lv, Vector2.ZERO, 99999.0)
@@ -1124,7 +1240,7 @@ func _ekran_tam() -> void:
 			lv.harita.tasi_bul(i)
 		main._harita_ac()
 		await _phys(6)
-		await _snap("tam_%s_d%d_%s" % [lv.biome.get("id", "?"), d, lv.style])
+		await _snap("tam_%s%s_d%d_%s" % ["" if String(pl[0]) == "" else String(pl[0]) + "_", lv.biome.get("id", "?"), d, lv.style])
 		_p("tam: d=%d stil=%s sınır=%s oda=%d" % [d, lv.style, str(lv.bounds), lv.rooms.size()])
 		main._start_play()
 		await _phys(2)

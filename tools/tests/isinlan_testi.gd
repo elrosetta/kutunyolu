@@ -127,8 +127,8 @@ func _run() -> void:
 	var n_odul := 0
 	var n_yol := 0
 	for rm in lv.rooms:
-		if rm["role"] != "odul":
-			continue
+		if rm["role"] != "odul" or bool(rm.get("kilit", false)):
+			continue   # v41: kilitli oda (v34) anahtarla açılır; kapalı kilit ızgarada katı
 		n_odul += 1
 		var sp: Vector2i = LevelGen._floor_spot(lv.grid, Level.W, Level.H, rm, LevelGen._odul_mid(rm))
 		var p2 := LevelGen.path_cells(lv.grid, Level.W, Level.H, s.x, s.y, sp.x, sp.y)

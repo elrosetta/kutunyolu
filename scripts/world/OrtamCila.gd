@@ -264,7 +264,7 @@ func _anitlar() -> void:
 	for rm in level.rooms:
 		if rm.get("role", "") in ["yok", "cikis", "giris"] or rm.get("odul", "") != "":
 			continue
-		if not (String(rm.get("kind", "")) in ["salon", "teras", "harabe", "magara", "kule", "cukur"]):
+		if not (String(rm.get("kind", "")) in ["salon", "teras", "harabe", "magara", "kule", "cukur", "tepe", "avlu"]):
 			continue
 		var ix0 := int(rm["ix0"])
 		var ix1 := int(rm["ix1"])

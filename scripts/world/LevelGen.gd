@@ -58,7 +58,7 @@ const STIL := {
 
 ## Oda türüne göre hava yüksekliği (taban - tavan, karo): en az / en çok
 const YUK := {"salon": [5, 8], "magara": [6, 9], "harabe": [6, 9], "cukur": [6, 8], "kopru": [6, 8], "teras": [6, 9],
-	"kuyu": [8, 9], "kule": [7, 9], "odul": [5, 7], "giris": [6, 8]}
+	"kuyu": [8, 9], "kule": [7, 9], "odul": [5, 7], "giris": [6, 8], "tepe": [6, 9], "avlu": [8, 9]}
 
 ## Çıkmaz ödülleri (öncelik sırası; pazar istenirse başa eklenir). tomar: Kut Tomarı kaidesi; hazine: üst kademe
 ## eşya + altın (yükseltilmiş seki); sunak: tanrı lütfu; seckin: seçkin bekçi + eşya; zamanli: bölüm başından 90 sn
@@ -94,22 +94,119 @@ const KILIT_SANS := 0.75
 const CEP_SAYI := [2, 3]
 const UZANTI_ODUL := ["seckin", "lanetli", "hazine", "lanetli", "seckin"]
 
+## v41 BÖLÜM TÜRLERİ: art arda bölümler aynı mağara / tünel biçiminde olmasın. Tür biyom + derinlik + tohumla seçilir
+## (TUR_AGIRLIK; art arda üç bölümün en az biri DÜZ türdür: tur_sec), stilin (STIL) çizge ve oda parametrelerini ezer:
+##   acik   "Açık yol / Bozkır akını": 2 satır; ana yol üst satırda soldan sağa DÜZ akar (dikey adım yok; Kut Kapısı
+##          sapağı bir mahzene iner: en çok 1 kat). Üst satır göğe açık; açık odalar arası geçitler de açık (tünel değil),
+##          taban 1 karoluk basamaklı tepeler / düzlükler ("tepe" türü), yarıklar ve platformlar; dallar mahzenlere iner.
+##   kale   "Kale / harabe": 3 satır; ana yol orta satırda uzun salonlar (geniş birleşme sık), avlu arenaları, kuleler;
+##          en çok 1 dikey adım; dallar yukarı (dam / kule) ve aşağı (zindan).
+##   inis   "İniş" (Kaf'ta tırmanış): v33/v34 düşüş biçimi, yumuşatılmış: 3 satır, en çok 2 dikey adım, kısa kuyular.
+##   magara "Mağara ağı": v33/v34 biçimi (biyom satırları: dallar bütün katlara yayılır), ana yol en çok 2 dikey adım
+##          (yılan dönüşleriyle), kısa kuyular.
+##   eski   v34 üreticisinin aynısı (ölçüm karşılaştırması: --harita_tur=eski / --bolum_turu=eski).
+const TURLER := {
+	"acik": {"ad": "Açık yol", "duz": true, "rows": 2, "dikey": 1, "yilan": false, "acik": true,
+		"kinds": ["tepe", "tepe", "kopru", "tepe", "cukur", "harabe", "tepe"], "dal": [2, 3], "dongu": 0.2, "genis": 0.45, "tavan": 0},
+	"kale": {"ad": "Kale / harabe", "duz": true, "rows": 3, "dikey": 1, "yilan": false,
+		"kinds": ["harabe", "avlu", "salon", "kule", "harabe", "avlu"], "dal": [2, 4], "dongu": 0.3, "genis": 0.6, "tavan": 0},
+	"inis": {"ad": "İniş", "duz": false, "rows": 3, "dikey": 2, "yilan": true},
+	"magara": {"ad": "Mağara ağı", "duz": false, "dikey": 2, "yilan": true},
+}
+## Biyom başına tür ağırlıkları (Ötüken / Bozkır çoğunlukla açık; Kaf sırt + buz mağarası; Şahmeran mağara; Tamu kale +
+## iniş). Bilinmeyen biyom: "diger".
+const TUR_AGIRLIK := {
+	"otuken": {"acik": 5.0, "kale": 1.5, "inis": 2.5, "magara": 1.0},
+	"bozkir": {"acik": 6.0, "kale": 3.0, "inis": 1.0},
+	"kaf": {"acik": 4.0, "magara": 3.0, "inis": 2.0, "kale": 1.0},
+	"sahmeran": {"magara": 5.5, "inis": 2.5, "kale": 2.0},
+	"tamu": {"kale": 4.5, "inis": 4.0, "magara": 1.5},
+	"diger": {"acik": 3.0, "kale": 2.0, "inis": 3.0, "magara": 2.0},
+}
+## Türe uygun stiller (biyomun stil havuzunda varsa onlardan biri; yoksa havuzdan rastgele)
+const TUR_STIL := {"acik": ["orman", "ucurum", "bozkir"], "kale": ["harabe"], "magara": ["magara", "kuyu"]}
+## Gök açabilen biyomlar (açık yol türü yalnız bunlarda; Şahmeran / Tamu yeraltı)
+const ACIK_BIYOM := ["otuken", "bozkir", "kaf"]
+## Hikâye / anlatı yer tutucusu (v41 kancası): opts.hikaye_odasi = true ise ana yolun ilk yarısındaki bir kavşaktan tek
+## kapılı, yaratıksız, ödülsüz "hikaye" odası ayrılır (odul = "hikaye"); her bölümde ayrıca sonuçta "sahne": ana yol
+## odalarında en geniş düz taban aralığı ({room, x0, x1, y}: y ayakta durulan satır). Anlatı sahneleri bunlara kurulur.
+
 ## Son üretimin giriş / çıkış hücresi (eski imzalı reach_set / traps / _reachable sarmalayıcıları için)
 static var _son := {"sx": 5, "sy": 30, "gx": 250, "gy": 30}
+## v41: üretilen bölümün türü (_build ve oyma yardımcıları okur; generate her çağrıda kurar)
+static var _tur := "eski"
+## v41: testler / çekimler için tür zorlaması (opts.tur ve --bolum_turu= yoksa)
+static var zorla_tur := ""
+
+
+static func tur_sec(rng: RandomNumberGenerator, biyom: String, gecmis: Array) -> String:
+	## v41: biyom ağırlıklarıyla bölüm türü; son iki bölüm düz değilse (gecmis: önceki türler, en yenisi sonda) yalnız
+	## düz türlerden seçilir (art arda üç bölümün en az biri yatay ilerler)
+	var ag: Dictionary = TUR_AGIRLIK.get(biyom, TUR_AGIRLIK["diger"])
+	var zorla_duz := gecmis.size() >= 2
+	for i in range(maxi(0, gecmis.size() - 2), gecmis.size()):
+		if bool(TURLER.get(String(gecmis[i]), {}).get("duz", false)) or String(gecmis[i]) == "":
+			zorla_duz = false
+	var top := 0.0
+	var aday: Array = []
+	for t in ["acik", "kale", "inis", "magara"]:
+		var w := float(ag.get(t, 0.0))
+		if t == "acik" and not (biyom in ACIK_BIYOM) and ag == TUR_AGIRLIK["diger"]:
+			w = 0.0
+		if zorla_duz and not bool(TURLER[t]["duz"]):
+			w = 0.0
+		if zorla_duz and w <= 0.0 and bool(TURLER[t]["duz"]) and (t != "acik" or biyom in ACIK_BIYOM):
+			w = 1.0   # biyomun ağırlığı yoksa da düz tür (Şahmeran: kale)
+		if w > 0.0:
+			aday.append([t, w])
+			top += w
+	var r := rng.randf() * top
+	for a in aday:
+		r -= float(a[1])
+		if r <= 0.0:
+			return String(a[0])
+	return String(aday[aday.size() - 1][0]) if not aday.is_empty() else "inis"
 
 
 static func generate(rng: RandomNumberGenerator, W: int, H: int, depth: int, allowed: Array = [], opts: Dictionary = {}) -> Dictionary:
 	## Döndürür: bkz. dosya başı. opts: pazar (tüccar odası istensin), pazar_kapi (çıkışa yakın), rows / yon ezmesi.
 	var pool: Array = allowed if not allowed.is_empty() else STYLES
+	# v41 bölüm türü: opts.tur (ya da --bolum_turu=) zorlar; yoksa biyom + geçmişle seçilir
+	var tur := String(opts.get("tur", ""))
+	if tur == "":
+		tur = zorla_tur
+	for a in OS.get_cmdline_user_args():
+		if String(a).begins_with("--bolum_turu=") and tur == "":
+			tur = String(a).trim_prefix("--bolum_turu=")
+	if tur != "eski" and not TURLER.has(tur):
+		tur = tur_sec(rng, String(opts.get("biyom", "diger")), opts.get("gecmis", []))
+	_tur = tur
 	var style: String = pool[rng.randi_range(0, pool.size() - 1)]
-	if depth == 1 and rng.randf() < 0.5:
-		style = "orman"
+	if tur == "eski":
+		if depth == 1 and rng.randf() < 0.5:
+			style = "orman"
+	else:
+		var uygun: Array = []
+		for s in pool:
+			if String(s) in TUR_STIL.get(tur, []):
+				uygun.append(s)
+		if not uygun.is_empty() and (tur != "kale" or rng.randf() < 0.75):
+			style = String(uygun[rng.randi_range(0, uygun.size() - 1)])
+		opts = opts.duplicate()
+		var T: Dictionary = TURLER[tur]
+		if T.has("rows"):
+			opts["rows"] = mini(int(T["rows"]), int(opts.get("rows", STIL[style]["rows"]))) if tur == "inis" else int(T["rows"])
+		if bool(T["duz"]):
+			opts["yon"] = "duz"
+		elif String(opts.get("yon", STIL[style]["yon"])) == "serbest":
+			opts["yon"] = "inis"
 	var best: Dictionary = {}
 	var best_bad := 999999
 	for attempt in 12:
 		var r := _build(rng, W, H, style, opts)
 		_son = {"sx": r["spawn"].x, "sy": r["spawn"].y, "gx": r["exit"].x, "gy": r["exit"].y}
 		r["style"] = style
+		r["tur"] = tur
 		r["carved"] = 0
 		r["trapfix"] = 0
 		r["headfix"] = 0
@@ -136,6 +233,7 @@ static func generate(rng: RandomNumberGenerator, W: int, H: int, depth: int, all
 	best["metrics"]["ok"] = _reachable(best["grid"], W, H, best["heights"]) and traps(_haz_as_air(best["grid"]), W, H, best["heights"], best["grid"]).is_empty()
 	best["metrics"]["attempts"] = int(best.get("attempts", 1))
 	best["metrics"]["trapfix"] = int(best.get("trapfix", 0))
+	best["metrics"]["tur"] = tur
 	return best
 
 
@@ -157,9 +255,17 @@ static func _cell(g: PackedByteArray, x: int, y: int, W: int, H: int) -> int:
 # ================================================================== çizge
 static func _build(rng: RandomNumberGenerator, W: int, H: int, style: String, opts: Dictionary) -> Dictionary:
 	var P: Dictionary = STIL[style]
+	if _tur != "eski":
+		# v41: tür stilin çizge / oda parametrelerini ezer (bkz. TURLER)
+		P = P.duplicate()
+		for k in ["kinds", "dal", "dongu", "genis", "tavan", "acik"]:
+			if (TURLER[_tur] as Dictionary).has(k):
+				P[k] = TURLER[_tur][k]
 	var cols := mini(int(P["cols"]), (W - 2 * KENAR) / SW)
 	var rows := clampi(int(opts.get("rows", P["rows"])), 1, (H - 2 * KENAR) / SH)
 	var yon := String(opts.get("yon", P["yon"]))
+	var dikey: int = int(TURLER[_tur]["dikey"]) if _tur != "eski" else 99
+	var yilan: bool = bool(TURLER[_tur]["yilan"]) if _tur != "eski" else true
 	var grid := PackedByteArray()
 	grid.resize(W * H)
 	grid.fill(1)
@@ -177,11 +283,28 @@ static func _build(rng: RandomNumberGenerator, W: int, H: int, style: String, op
 			if rows > 1 and rng.randf() < 0.25:
 				er = rng.randi_range(0, rows - 2)
 				sr = er + 1
-	var path := _ana_yol(rng, cols, rows, sr, er, yon)
+		"duz":
+			# v41 düz türler: açık yol üst satırda (yer yüzü) akar; kale orta satırda, %35 bir kat iner / çıkar
+			sr = 0 if _tur == "acik" else mini(1, rows - 1)
+			er = sr
+			if _tur != "acik" and rows > 1 and rng.randf() < 0.35:
+				er = clampi(sr + (1 if rng.randf() < 0.7 else -1), 0, rows - 1)   # çoğunlukla zindana iner
+	if _tur != "eski" and absi(er - sr) > dikey:
+		# v41: giriş / çıkış satırları türün dikey sınırına sığar (kalan katlar dallara)
+		match yon:
+			"inis":
+				sr = rng.randi_range(0, rows - 1 - dikey)
+				er = sr + dikey
+			"cikis":
+				er = rng.randi_range(0, rows - 1 - dikey)
+				sr = er + dikey
+			_:
+				er = sr + signi(er - sr) * dikey
+	var path := _ana_yol(rng, cols, rows, sr, er, yon, dikey, yilan)
 	# v34: Kut Kapısı sapağı: yol sapaktan sonra "uzantı" olarak sürer (sonu ödül), kapı yandaki çıkmaz odada
 	var uzanti: Array = []
 	if rng.randf() < SAPAK_SANS:
-		var sap := _cikis_sapagi(rng, path, cols, rows, yon)
+		var sap := _cikis_sapagi(rng, path, cols, rows, yon, dikey, 0 if (_tur == "eski" or bool(TURLER[_tur]["duz"])) else 1)
 		if not sap.is_empty():
 			path = sap[0]
 			uzanti = sap[1]
@@ -214,6 +337,8 @@ static func _build(rng: RandomNumberGenerator, W: int, H: int, style: String, op
 	_shuffle(rng, rest)
 	oduller.append_array(rest)
 	oduller.append_array(["tomar", "hazine"])
+	if bool(opts.get("hikaye_odasi", false)):
+		oduller.push_front("hikaye")   # v41 anlatı kancası: yaratıksız, ödülsüz çıkmaz oda (bkz. TURLER altı)
 	if bool(opts.get("pazar", false)):
 		oduller.push_front("pazar")
 	var n_dal := 0
@@ -370,6 +495,10 @@ static func _build(rng: RandomNumberGenerator, W: int, H: int, style: String, op
 			rm["kind"] = "salon"
 		elif cells.size() > 1:
 			rm["kind"] = ["salon", "harabe", "teras", "kopru", "kuyu"][rng.randi_range(0, 4)]
+			if _tur == "acik":
+				rm["kind"] = ["tepe", "tepe", "harabe", "kopru", "tepe"][rng.randi_range(0, 4)]   # v41: geniş açık arazi
+			elif _tur == "kale":
+				rm["kind"] = ["harabe", "avlu", "salon", "harabe", "kopru"][rng.randi_range(0, 4)]   # v41: uzun salon / avlu
 		else:
 			rm["kind"] = String(kinds[rng.randi_range(0, kinds.size() - 1)])
 		rm["acik"] = bool(P["acik"]) and int((cells[0] as Vector2i).y) == 0
@@ -400,7 +529,7 @@ static func _build(rng: RandomNumberGenerator, W: int, H: int, style: String, op
 	if rng.randf() < KILIT_SANS:
 		var kc: Array = []
 		for rm in rooms:
-			if rm["role"] == "odul" and String(rm.get("_door_side", "sol")) in ["sol", "sag"] and not (String(rm["odul"]) in ["pazar", "zamanli"]) and not bool(rm.get("pencere", false)):
+			if rm["role"] == "odul" and String(rm.get("_door_side", "sol")) in ["sol", "sag"] and not (String(rm["odul"]) in ["pazar", "zamanli", "hikaye"]) and not bool(rm.get("pencere", false)):
 				kc.append(rm)
 		if not kc.is_empty():
 			kilit_rm = kc[rng.randi_range(0, kc.size() - 1)]
@@ -429,6 +558,11 @@ static func _build(rng: RandomNumberGenerator, W: int, H: int, style: String, op
 			n_kuyu += 1
 			if bool(dr.get("acik", false)):
 				n_acik += 1
+	if _tur == "acik":
+		# v41: göğe açık sütunlarda ızgaranın en üst satırı da hava (tepede kaya şeridi görünmesin; ulaşılmaz yükseklik)
+		for x in range(1, W - 1):
+			if grid[W + x] == 0:
+				grid[x] = 0
 	# --- işaretler, tehlikeler, Kut Taşları, kaideler
 	var chunks: Array = []
 	var zamanli: Array = []
@@ -560,15 +694,59 @@ static func _build(rng: RandomNumberGenerator, W: int, H: int, style: String, op
 	metrics["cep"] = cepler.size()
 	metrics["kilit"] = kilitli.size()
 	metrics["dal_yeri"] = kav_sum / maxf(1.0, float(kav_n))
+	# v41: tür ölçümleri ve anlatı sahnesi yeri
+	metrics["tur"] = _tur
+	metrics["duz"] = 1 if dikey_adim <= 1 else 0
+	var hikaye: Dictionary = {}
+	for rm in rooms:
+		if rm["role"] == "odul" and String(rm["odul"]) == "hikaye":
+			var hx := _floor_spot(grid, W, H, rm, _odul_mid(rm))
+			hikaye = {"room": int(rm["id"]), "x": hx.x, "y": hx.y}
+	var sahne := _sahne_yeri(grid, W, H, main_rooms)
 	var bnd := _sinirlar(grid, W, H)
 	for cp in cepler:
 		bnd = bnd.merge((cp["cep"] as Rect2i).grow(2)).intersection(Rect2i(0, 0, W, H))
 	return {"grid": grid, "heights": heights, "chunks": chunks, "rooms": rooms, "doors": doors, "path": path, "spawn": spawn,
 		"exit": exit, "tasi": tasi, "zamanli": zamanli, "kaide": kaide, "bounds": bnd, "metrics": metrics,
-		"cepler": cepler, "kilitli": kilitli, "pencereler": pencereler}
+		"cepler": cepler, "kilitli": kilitli, "pencereler": pencereler, "tur": _tur, "hikaye": hikaye, "sahne": sahne}
 
 
-static func _cikis_sapagi(rng: RandomNumberGenerator, path: Array, cols: int, rows: int, yon: String) -> Array:
+static func _sahne_yeri(g: PackedByteArray, W: int, H: int, main_rooms: Array) -> Dictionary:
+	## v41 anlatı sahnesi: ana yol odalarında (giriş / çıkış değil) en uzun düz, üstü 3 karo kayasız, kapı ağzına / kuyuya
+	## girmeyen taban aralığı. {room, x0, x1, y (ayakta durulan satır)}; bulunamazsa boş.
+	var best: Dictionary = {}
+	var best_n := 5
+	for rm in main_rooms:
+		if rm["role"] != "ana":
+			continue
+		var ix0 := int(rm["ix0"])
+		var fl: Array = rm["fl"]
+		var run0 := -1
+		for x in range(ix0, int(rm["ix1"]) + 2):
+			var ok := x <= int(rm["ix1"])
+			var fy := 0
+			if ok:
+				fy = int(fl[x - ix0])
+				ok = _cell(g, x, fy, W, H) == 1 and not _in_clear(rm, x, fy - 1)
+				for y in range(fy - 3, fy):
+					if _cell(g, x, y, W, H) == 1 or _cell(g, x, y, W, H) == 3:
+						ok = false
+				if ok and run0 >= 0 and int(fl[run0 - ix0]) != fy:
+					if x - run0 > best_n:
+						best_n = x - run0
+						best = {"room": int(rm["id"]), "x0": run0, "x1": x - 1, "y": int(fl[run0 - ix0]) - 1}
+					run0 = x
+			if ok and run0 < 0:
+				run0 = x
+			elif not ok and run0 >= 0:
+				if x - run0 > best_n:
+					best_n = x - run0
+					best = {"room": int(rm["id"]), "x0": run0, "x1": x - 1, "y": int(fl[run0 - ix0]) - 1}
+				run0 = -1
+	return best
+
+
+static func _cikis_sapagi(rng: RandomNumberGenerator, path: Array, cols: int, rows: int, yon: String, dikey := 99, en_az_dikey := 0) -> Array:
 	## v34: ana yolun son %60'ındaki j. kesimden (yolun sonuna en az bir oda kala) boş bir komşu kesime Kut Kapısı
 	## sapağı. Stil yönü korunur (inis: aşağı ya da yana; cikis: yukarı ya da yana). Döndürür [yeni yol (giriş .. j, sapak),
 	## uzantı (eski yolun j+1 .. sonu)] ya da boş dizi.
@@ -579,11 +757,18 @@ static func _cikis_sapagi(rng: RandomNumberGenerator, path: Array, cols: int, ro
 	for c in path:
 		seen[c] = true
 	var cands: Array = []   # [j, kesim, ağırlık]
+	var pv: Array = [0]   # v41: yolun j. kesimine dek dikey adım
+	for i in range(1, n):
+		pv.append(int(pv[i - 1]) + (1 if path[i].y != path[i - 1].y else 0))
 	for j in range(maxi(2, int(ceil(n * 0.4))), n - 1):
 		var cur: Vector2i = path[j]
 		for d in [Vector2i(0, 1), Vector2i(0, -1), Vector2i(1, 0), Vector2i(-1, 0)]:
 			var e: Vector2i = cur + d
 			if e.x < 0 or e.x >= cols or e.y < 0 or e.y >= rows or seen.has(e):
+				continue
+			# v41: türün dikey adım sınırı (düz türlerde ana yol en çok 1 kat; dikey türlerde en az 1)
+			var vv: int = int(pv[j]) + (1 if d.y != 0 else 0)
+			if vv > dikey or vv < en_az_dikey:
 				continue
 			var w := 1
 			match yon:
@@ -795,12 +980,15 @@ static func _shuffle(rng: RandomNumberGenerator, a: Array) -> void:
 		a[j] = t
 
 
-static func _ana_yol(rng: RandomNumberGenerator, cols: int, rows: int, sr: int, er: int, yon: String) -> Array:
+static func _ana_yol(rng: RandomNumberGenerator, cols: int, rows: int, sr: int, er: int, yon: String, dikey := 99, yilan := true) -> Array:
 	## Giriş (0, sr) -> çıkış (cols-1, er): sağa, dikey (stile göre: inis yalnız aşağı, cikis yalnız yukarı, serbest
 	## çoğunlukla aşağı ve en çok bir yukarı) ve v33'te bir dikey adımdan sonra 1-2 kesim SOLA (yılan: Dead Cells'in
 	## kıvrılan ana yolu). Her adımda çıkışa hâlâ varılabildiği (boş kesimlerden) denetlenir. Hedef uzunluk:
-	## sütun + satır farkı + 2-4.
+	## sütun + satır farkı + 2-4. v41: dikey (türün en çok dikey adımı), yilan (sola dönüş; düz türlerde yok: hedef
+	## uzunluk sütun + satır farkı).
 	var target := cols + absi(er - sr) + rng.randi_range(2, 4)
+	if not yilan:
+		target = cols + absi(er - sr)
 	var goal := Vector2i(cols - 1, er)
 	var best: Array = []
 	for attempt in 40:
@@ -810,6 +998,7 @@ static func _ana_yol(rng: RandomNumberGenerator, cols: int, rows: int, sr: int, 
 		var last := Vector2i.ZERO
 		var sola := 0
 		var up_n := 0
+		var v_n := 0
 		var guard := 0
 		while cur != goal and guard < 80:
 			guard += 1
@@ -818,7 +1007,7 @@ static func _ana_yol(rng: RandomNumberGenerator, cols: int, rows: int, sr: int, 
 			var en_az := (goal.x - cur.x) + absi(goal.y - cur.y)
 			if cur.x < cols - 1:
 				cand.append([cur + Vector2i(1, 0), 3 if kalan <= en_az + 1 else 2])
-			if cur.x > 0 and cur.y != sr and (last.y != 0 or (last.x < 0 and sola < 2)) and kalan >= en_az + 2:
+			if yilan and cur.x > 0 and cur.y != sr and (last.y != 0 or (last.x < 0 and sola < 2)) and kalan >= en_az + 2:
 				cand.append([cur + Vector2i(-1, 0), 3])
 			for dy in [-1, 1]:
 				var w := 0
@@ -827,6 +1016,8 @@ static func _ana_yol(rng: RandomNumberGenerator, cols: int, rows: int, sr: int, 
 						w = 3 if dy > 0 else 0
 					"cikis":
 						w = 3 if dy < 0 else 0
+					"duz":
+						w = 1
 					_:
 						w = 2 if dy > 0 else (1 if up_n == 0 else 0)
 				if last.y != 0:
@@ -839,6 +1030,9 @@ static func _ana_yol(rng: RandomNumberGenerator, cols: int, rows: int, sr: int, 
 			for cd in cand:
 				var n: Vector2i = cd[0]
 				if n.x < 0 or n.x >= cols or n.y < 0 or n.y >= rows or seen.has(n):
+					continue
+				# v41: türün dikey adım sınırı (bu adım + hedef satıra kalan fark)
+				if v_n + (1 if n.y != cur.y else 0) + absi(goal.y - n.y) > dikey:
 					continue
 				if not _yol_varir(seen, n, goal, cols, rows, yon, up_n + (1 if n.y < cur.y else 0)):
 					continue
@@ -854,6 +1048,8 @@ static func _ana_yol(rng: RandomNumberGenerator, cols: int, rows: int, sr: int, 
 				sola = 0
 			if mv.y < 0:
 				up_n += 1
+			if mv.y != 0:
+				v_n += 1
 			last = mv
 			path.append(nxt)
 			seen[nxt] = true
@@ -1004,6 +1200,8 @@ static func _room_box(rng: RandomNumberGenerator, rm: Dictionary, doors: Array) 
 	var nv := 0
 	var has_l := false
 	var has_r := false
+	var v_alt := false   # v41: tabanda kuyu (oda aşağı açılır)
+	var v_ust := false
 	var pen_l := false   # v34: pencere yanı daralmaz (parmaklık ardındaki ödül yakından görünsün)
 	var pen_r := false
 	for di in rm["doors"]:
@@ -1012,6 +1210,10 @@ static func _room_box(rng: RandomNumberGenerator, rm: Dictionary, doors: Array) 
 			continue
 		if d["dir"] == "v":
 			nv += 1
+			if int(d["a"]) == int(rm["id"]):
+				v_alt = true
+			else:
+				v_ust = true
 		elif int(d["b"]) == int(rm["id"]):
 			has_l = true
 			pen_l = pen_l or d["kind"] == "pencere"
@@ -1038,9 +1240,18 @@ static func _room_box(rng: RandomNumberGenerator, rm: Dictionary, doors: Array) 
 	var yk: Array = YUK.get("giris" if role == "giris" else String(rm["kind"]), [5, 8])
 	var fbs: Array = []
 	var hs: Array = []
+	# v41 kısa kuyular: aşağı açılan odanın tabanı kesimin altında (9-10), yukarıdan girilen odanınki üstte (7-8): kuyu
+	# 13-16 yerine 10-12 karo (eski türde değişmez)
+	var f_lo := 0
+	var f_hi := 3
+	if _tur != "eski":
+		if v_alt and not v_ust:
+			f_lo = 2
+		elif v_ust and not v_alt:
+			f_hi = 1
 	for c in range(int(rm["c0"]), int(rm["c1"]) + 1):
 		var y0 := _sector_y0(int(rm["r0"]))
-		var fb := y0 + 7 + rng.randi_range(0, 3)
+		var fb := y0 + 7 + rng.randi_range(f_lo, f_hi)
 		if not fbs.is_empty():
 			fb = clampi(fb, int(fbs[fbs.size() - 1]) - 2, int(fbs[fbs.size() - 1]) + 2)
 		var hmax := mini(int(yk[1]), fb - (y0 + 1))
@@ -1099,6 +1310,8 @@ static func _profile(rng: RandomNumberGenerator, rm: Dictionary, tavan: int) -> 
 			fl[i] = int(fl[i]) - dh
 			if not bool(rm["acik"]):
 				ce[i] = mini(int(ce[i]), int(fl[i]) - 5)
+	if _tur == "acik" and bool(rm["acik"]) and kind in ["tepe", "harabe"] and rm["role"] in ["ana", "dal"] and n >= 14:
+		_arazi(rng, fl, n, y0)
 	rm["fl"] = fl
 	rm["ce"] = ce
 	var lo := 999
@@ -1108,6 +1321,29 @@ static func _profile(rng: RandomNumberGenerator, rm: Dictionary, tavan: int) -> 
 		hi = maxi(hi, int(fl[i]))
 	rm["iy0"] = lo
 	rm["iy1"] = hi
+
+
+static func _arazi(rng: RandomNumberGenerator, fl: Array, n: int, y0: int) -> void:
+	## v41 açık yol arazisi: tabanı 3-7 sütunluk parçalarda 1 karo inip çıkan yumuşak tepeler (en çok 3 karo yukarı,
+	## 1 karo çukur), arada 8-11 sütunluk düzlükler (anıt / dövüş alanı). Kenarlarda 5 sütun düz (kapı / geçit ağzı);
+	## sona doğru temel yüksekliğe döner: her basamak tek zıplama, çoğu yürünerek çıkılan 1 karo.
+	var kenar := 5
+	var off := 0
+	var i := kenar
+	while i < n - kenar:
+		var ln := rng.randi_range(3, 7)
+		if rng.randf() < 0.22:
+			ln = rng.randi_range(8, 11)
+		var son := mini(n - kenar, i + ln)
+		for j in range(i, son):
+			fl[j] = clampi(int(fl[j]) + off, y0 + 5, y0 + 11)
+		i = son
+		var kalan := (n - kenar) - i
+		if kalan <= absi(off) * 3 + 2:
+			off -= signi(off)          # kenara yaklaşırken temel yüksekliğe dön
+		else:
+			var adim := -1 if rng.randf() < 0.6 else 1   # çoğunlukla yükselir (tepe)
+			off = clampi(off + adim, -3, 1)
 
 
 # ================================================================== kapılar
@@ -1129,6 +1365,9 @@ static func _door_geometry(rng: RandomNumberGenerator, rooms: Array, d: Dictiona
 		d["h"] = ch
 		(A["clear"] as Array).append(Rect2i(int(A["ix1"]) - 3, yd - ch - 1, 4, fa - yd + ch + 1))
 		(B["clear"] as Array).append(Rect2i(int(B["ix0"]), yd - ch - 1, 4, fbv - yd + ch + 1))
+		# v41: iki göğe açık yol odası arasında geçit de göğe açık (tünel değil: kesintisiz yer yüzü); ödül odası,
+		# pencere ve kilit / zamanlı kapı yerleri tünel kalır
+		d["acik_ust"] = _tur == "acik" and bool(A["acik"]) and bool(B["acik"]) and A["role"] != "odul" and B["role"] != "odul" and d["kind"] != "pencere"
 		if d["kind"] == "pencere":
 			return   # v34: pencere ödül odasının kapısı değil (kapı yanı / zamanlı kapı / Kut Taşı yeri gerçek kapıdan)
 		if A["role"] == "odul":
@@ -1187,6 +1426,19 @@ static func _carve_door(g: PackedByteArray, W: int, H: int, rooms: Array, d: Dic
 		return
 	var A: Dictionary = rooms[int(d["a"])]
 	var B: Dictionary = rooms[int(d["b"])]
+	if d["dir"] == "h" and bool(d.get("acik_ust", false)):
+		# v41 açık geçit: iki odanın kenar tabanı arasında 1 karoluk basamaklarla eğim, üstü göğe dek açık
+		var fa: int = int(A["fl"][(A["fl"] as Array).size() - 1])
+		var fbv: int = int(B["fl"][0])
+		var x0 := int(A["ix1"]) + 1
+		var x1 := int(B["ix0"]) - 1
+		for x in range(x0, x1 + 1):
+			var t := float(x - x0 + 1) / float(x1 - x0 + 2)
+			var fy := int(round(lerpf(float(fa), float(fbv), t)))
+			for y in range(1, fy):
+				_put(g, x, y, W, H, 0)
+			_put(g, x, fy, W, H, 1)
+		return
 	if d["dir"] == "h":
 		var yd := int(d["y"])
 		var ch := int(d["h"])
@@ -1331,6 +1583,19 @@ static func _features(g: PackedByteArray, W: int, H: int, rng: RandomNumberGener
 			_pillars(g, W, H, rng, rm, 1 * kx)
 			_platforms(g, W, H, rng, rm, rng.randi_range(1, 2) * kx, 3, 4)
 			_alcoves(g, W, H, rng, rm, rng.randi_range(0, 1))
+		"tepe":
+			# v41 açık yol: tepeler (_arazi), yarık, gözcü iskelesi, kayalar, tek yönlü çıkıntılar
+			if rng.randf() < 0.45:
+				_yarik(g, W, H, rng, rm)
+			if rng.randf() < 0.4:
+				_iskele(g, W, H, rng, rm)
+			_boulders(g, W, H, rng, rm, rng.randi_range(0, 2) * kx)
+			_platforms(g, W, H, rng, rm, rng.randi_range(0, 1) * kx, 3, 3)
+		"avlu":
+			# v41 kale avlusu (arena): yüksek, düz; iki yanda tek yönlü seyir sekileri, kemer, sütun
+			_platforms(g, W, H, rng, rm, 2 * kx, 3, 4)
+			_arches(g, W, H, rng, rm, rng.randi_range(0, 1) * kx)
+			_pillars(g, W, H, rng, rm, rng.randi_range(0, 1) * kx)
 
 
 static func _platforms(g: PackedByteArray, W: int, H: int, rng: RandomNumberGenerator, rm: Dictionary, count: int, h0: int, h1: int) -> void:
@@ -1568,6 +1833,52 @@ static func _bridge(g: PackedByteArray, W: int, H: int, rng: RandomNumberGenerat
 			var mid := a + wd / 2
 			for hx in range(mid - 1, mid + 1):
 				_put(g, hx, fy + 2, W, H, 3)
+		return
+
+
+static func _yarik(g: PackedByteArray, W: int, H: int, rng: RandomNumberGenerator, rm: Dictionary) -> void:
+	## v41 açık yol yarığı: düz bir parçada 3-5 karo geniş, 3 karo derin açıklık (koşarak zıplanır; düşen tek zıplamayla
+	## çıkar); 5 karoda ortada tek yönlü basamak taşı
+	var ix0 := int(rm["ix0"])
+	var fl: Array = rm["fl"]
+	var wd := rng.randi_range(3, 5)
+	if int(rm["ix1"]) - 5 - wd < ix0 + 5:
+		return
+	for t in 12:
+		var a := rng.randi_range(ix0 + 5, int(rm["ix1"]) - 5 - wd)
+		var fy: int = int(fl[a - ix0])
+		if not _span_free(rm, a - 2, a + wd + 1, fy - 1):
+			continue
+		for x in range(a, a + wd):
+			for y in range(fy, fy + 3):
+				_put(g, x, y, W, H, 0)
+			fl[x - ix0] = fy + 3
+		if wd >= 5:
+			_put(g, a + 2, fy, W, H, 2)
+		return
+
+
+static func _iskele(g: PackedByteArray, W: int, H: int, rng: RandomNumberGenerator, rm: Dictionary) -> void:
+	## v41 gözcü iskelesi (açık yolun "yukarı" dalı): tabandan 3 ve 6 karo yukarıda kaydırılmış iki tek yönlü platform
+	## (iki zıplama); tepesinden ufuk görünür
+	var ix0 := int(rm["ix0"])
+	var ix1 := int(rm["ix1"])
+	var fl: Array = rm["fl"]
+	if ix1 - 11 < ix0 + 4:
+		return
+	for t in 12:
+		var x := rng.randi_range(ix0 + 4, ix1 - 11)
+		var fy: int = int(fl[x - ix0])
+		var ok := true
+		for k in 8:
+			if int(fl[x + k - ix0]) != fy:
+				ok = false
+		if not ok or not _free_span(g, W, H, rm, x, fy - 3, 4, 3, 2) or not _free_span(g, W, H, rm, x + 4, fy - 6, 4, 3, 2):
+			continue
+		var sag := rng.randf() < 0.5
+		for k in 4:
+			_put(g, x + k + (4 if sag else 0), fy - 3, W, H, 2)
+			_put(g, x + k + (0 if sag else 4), fy - 6, W, H, 2)
 		return
 
 

@@ -1262,7 +1262,19 @@ func _generate() -> void:
 		opts[k] = biome["level"][k]
 	opts["pazar"] = _bz_istek
 	opts["pazar_kapi"] = _bz_kapi
+	# v41 bölüm türü: biyom + koşudaki önceki türler (art arda üç bölümün en az biri düz)
+	opts["biyom"] = String(biome.get("id", "diger"))
+	var gecmis: Array = Game.run.get("turler", [])
+	opts["gecmis"] = gecmis
 	var r := LevelGen.generate(rng, W, H, int(Game.run.get("depth", 1)), art.get("styles", []), opts)
+	tur = String(r.get("tur", "eski"))
+	sahne_yeri = r.get("sahne", {})
+	hikaye_yeri = r.get("hikaye", {})
+	var gy: Array = gecmis.duplicate()
+	gy.append(tur)
+	if gy.size() > 6:
+		gy = gy.slice(gy.size() - 6)
+	Game.run["turler"] = gy
 	grid = r["grid"]
 	heights = r["heights"]
 	style = r["style"]
@@ -1276,12 +1288,17 @@ func _generate() -> void:
 	metrics = r["metrics"]
 	kaide_xs = r["kaide"]
 	_gen = r
-	print("[harita] derinlik=%d stil=%s oda=%d ana=%d dal=%d çıkmaz=%d döngü=%d dikey=%d kapı=%d taşı=%d zamanlı=%d deneme=%d ok=%s" % [
-		int(Game.run.get("depth", 1)), style, int(metrics["oda"]), int(metrics["ana"]), int(metrics["dal"]), int(metrics["cikmaz"]),
+	print("[harita] derinlik=%d tür=%s stil=%s oda=%d ana=%d dal=%d çıkmaz=%d döngü=%d dikey=%d kapı=%d taşı=%d zamanlı=%d deneme=%d ok=%s" % [
+		int(Game.run.get("depth", 1)), tur, style, int(metrics["oda"]), int(metrics["ana"]), int(metrics["dal"]), int(metrics["cikmaz"]),
 		int(metrics["dongu"]), int(metrics["dikey_adim"]), int(metrics["kapi"]), int(metrics["tasi"]), int(metrics["zamanli"]), int(metrics["attempts"]), str(metrics["ok"])])
 
 
 var _gen: Dictionary = {}   # üreticinin ham sonucu (tasi / zamanli listeleri)
+## v41 bölüm türü (LevelGen.TURLER: acik / kale / inis / magara) ve anlatı kancaları: sahne_yeri (ana yolda en geniş
+## düz taban {room, x0, x1, y}), hikaye_yeri (opts.hikaye_odasi ile ayrılan çıkmaz odanın ayakta durma hücresi {room, x, y})
+var tur := "eski"
+var sahne_yeri: Dictionary = {}
+var hikaye_yeri: Dictionary = {}
 
 
 func main_rooms() -> Array:
@@ -1446,7 +1463,7 @@ func _kupler_yerlestir() -> void:
 			for id in n.odalar():
 				dolu[int(id)] = true
 	for rm in rooms:
-		if rm["role"] == "yok" or String(rm.get("odul", "")) == "pazar":
+		if rm["role"] == "yok" or String(rm.get("odul", "")) in ["pazar", "hikaye"]:
 			continue
 		var id := int(rm["id"])
 		var haz := false
@@ -2844,7 +2861,7 @@ func _spawn_enemies() -> void:
 					gruplar.append({"oda": int(rm["id"]), "karisik": false, "n": 1})
 	# ödül odası bekçileri (pazar ve seçkin odası hariç: seçkin odasının bekçisi _place_rooms)
 	for rm in rooms:
-		if rm["role"] != "odul" or String(rm.get("odul", "")) in ["pazar", "seckin"]:
+		if rm["role"] != "odul" or String(rm.get("odul", "")) in ["pazar", "seckin", "hikaye"]:
 			continue
 		if rng.randf() >= float(cfg.get("odul_bekci", 0.7)):
 			continue

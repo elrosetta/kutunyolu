@@ -7122,3 +7122,94 @@ temas gölgeleri, anıtlar (Tamu kemik kapısı d9'da) ve hava canlıları karş
 ### Bilinen
 * Konak çekimi zamanlaması tutarsız (bot kapıdan geçince konak testi kendini kapatır); konak için önce / sonra sayfası yok.
 * Anıtlar yalnızca uygun genişlikte düz taban bulunan bölümlerde çıkar (tohumların ~yarısında 1-2 anıt).
+
+## v41: bölüm türleri
+
+Geri bildirim: "Haritaların hepsi aynı mağara / tünel biçimine döndü. Bazı bölümler DÜZ (yatay) ilerlemeli; arada yine
+aşağı inelim ama bu kadar değil."
+
+### Türler (`scripts/world/LevelGen.gd`: `TURLER`, `TUR_AGIRLIK`, `tur_sec`)
+
+Her bölümün bir **türü** var; biyom + derinlik + tohumla seçilir ve stilin (`STIL`) çizge / oda parametrelerini ezer
+(stil yine biyomun havuzundan, türe uygun olanı yeğlenerek: süs / tehlike / doku stili aynen çalışır).
+
+| tür | çizge | oda biçimi | ana yol dikeyliği |
+|---|---|---|---|
+| `acik` **Açık yol / Bozkır akını** | 2 satır; ana yol üst satırda soldan sağa (yılan yok); dallar mahzene iner; Kut Kapısı sapağı bir mahzende | üst satır göğe açık; açık odalar arası geçitler de göğe açık (`acik_ust`: iki kenar tabanı arasında 1 karoluk basamaklarla eğim, tünel yok); "tepe" türü: `_arazi` tabanı 3-7 sütunluk parçalarda 1 karo inip çıkan tepeler (en çok 3 yukarı, 1 aşağı), 8-11 sütunluk düzlükler, kenarlarda 5 sütun düz; `_yarik` (3-5 karo, 3 derin; 5'te ortada basamak taşı), `_iskele` (gözcü iskelesi: 3 ve 6 karo yukarıda iki platform), köprü / çukur odaları; ızgaranın en üst satırı da açık sütunlarda hava (tepede kaya şeridi yok) | en çok 1 kat (mahzene sapak) |
+| `kale` **Kale / harabe** | 3 satır; ana yol orta satırda uzun salonlar (geniş birleşme %60), %35 bir kat (çoğunlukla zindana) iner / kuleye çıkar; dallar dam / kuleye ve zindana | `avlu` (yüksek düz arena, iki yanda seyir sekileri, kemer), harabe, kule; birleşen odalar harabe / avlu / salon | en çok 1 kat |
+| `inis` **İniş** (Kaf'ta tırmanış) | v33/v34 düşüş biçimi, en çok 3 satır, en çok 2 dikey adım | v34 odaları | 2 kat |
+| `magara` **Mağara ağı** | v33/v34 biçimi, biyomun satırları (Şahmeran 4: dallar bütün katlara yayılır), yılan dönüşleri, en çok 2 dikey adım | v34 odaları | 2 kat |
+| `eski` | v34 üreticisinin birebir aynısı (ölçüm: `--harita_tur=eski`, `--bolum_turu=eski`) | | sınırsız |
+
+Ortak (eski dışındaki türler): **kısa kuyular** (aşağı açılan odanın tabanı kesimde 9-10, yukarıdan girilen odanınki 7-8:
+kuyu 13-16 yerine 10-12 karo); giriş / çıkış satırı türün dikey sınırına sığar (kalan katlar dallara); Kut Kapısı sapağı
+(v34) türe uyarlanır: sapak öncesi yolun dikey adımı + sapak <= sınır, dikey türlerde en az 1 (açık yolda sapak mahzene
+iner, kalede kuleye / zindana, inişte yana).
+
+Ağırlıklar (`TUR_AGIRLIK`): Ötüken açık 5 / kale 1,5 / iniş 2,5 / mağara 1; Bozkır açık 6 / kale 3 / iniş 1; Kaf açık
+(sırtlar) 4 / mağara (buz mağarası) 3 / iniş 2 / kale 1; Şahmeran mağara 5,5 / iniş 2,5 / kale 2; Tamu kale 4,5 / iniş 4 /
+mağara 1,5. Açık yol yalnız gök açabilen biyomlarda (Ötüken, Bozkır, Kaf). **Art arda üç kuralı**: `Level._generate`
+koşudaki türleri `Game.run["turler"]`de tutar (son 6); son iki bölüm düz değilse yalnız düz türlerden seçilir (Şahmeran'da
+kale). Zorlama: `--bolum_turu=<tür>` (oyun / test), `LevelGen.zorla_tur` (çekim), `opts.tur`.
+
+`OrtamCila` anıt adaylarına `tepe` ve `avlu` eklendi (açık yolun 8-11 sütunluk düzlükleri anıta yer açar).
+
+### Anlatı kancası (hikâye odaları)
+
+* `opts.hikaye_odasi = true` (varsayılan kapalı): ödül sırasının başına `"hikaye"` girer; ana yolun erken bir kavşağından
+  tek kapılı, **ödülsüz ve yaratıksız** çıkmaz oda ayrılır (`Level` bekçi ve küp koymaz; kilitlenmez). Sonuç `r.hikaye` =
+  `{room, x, y}` (ayakta durma hücresi) -> `Level.hikaye_yeri`.
+* Her bölümde `r.sahne` -> `Level.sahne_yeri` = `{room, x0, x1, y}`: ana yol odalarında en uzun düz taban aralığı (üstü 3
+  karo kayasız, kapı ağzı / kuyu dışı; bölümlerin ~%85'inde, ort. 11 karo; bulunmazsa boş).
+* `Level.tur`: bölümün türü (anlatı türüne göre sahne seçebilir). Üretici başka hiçbir şey yerleştirmez.
+
+### Ölçüm (`--harita --harita_tohum=24`: 5 biyom x 24 tohum = 120 bölüm, biyomun `level` ayarları ve ilk iki derinliği; önce = aynı test `--harita_tur=eski`)
+
+`--harita` artık stil yerine biyom döngüsüyle ölçer (oyundaki gibi); yeni satırlar `TUR <tür>` (sayı, biyom dağılımı,
+düz oranı, ana yol dikey adımı / dikey karosu / y aralığı, düşüş / tırmanış, üretim) ve `TUR TOPLAM`, `TUR KOŞU`
+(400 koşu x derinlik 1-9 tür benzetimi, art arda 3 kuralı). "Düz" = ana yolda en çok 1 kat (dikey adım <= 1);
+"dikey karo" = ana yolun >= 3 karoluk düşüş ve tırmanışlarının toplam yüksekliği.
+
+| | v34 (eski) | v41 |
+|---|---|---|
+| tür dağılımı (120 bölüm) | — | açık 43, kale 30, iniş 27, mağara 20 |
+| düz bölüm (ana yol <= 1 kat) | %8 | **%72** (açık + kale %61; koşu benzetiminde %60) |
+| art arda 3 düz olmayan bölüm (400 koşu) | — | 0 |
+| ana yol dikey adımı ort. | 2,32 | **1,27 (-%45)** |
+| ana yol dikey karosu ort. | 35,0 | **21,1 (-%40)** (açık 17,7, kale 18,0, iniş 26,1, mağara 26,3) |
+| ana yol y aralığı ort. | 28,8 karo | 18,2 karo (-%37) |
+| düşüş / tırmanış (>= 3 karo) | 3,12 / 3,11 | 2,23 / 1,71 |
+| ızgara / hava karosu | 163 x 42 / 2416 | 165 x 34 / 2128 |
+| oda / ana yol odası / dal | 14,9 / 9,4 / 3,16 | 12,1 / 7,7 / 3,46 |
+| ana yol | 181 karo (/koşu 28,0 sn) | 155 karo (/koşu 24,0 sn) |
+| Kut Taşı / sapak / gizli cep / kilit / pencere | 4,0 / %61 / 1,75 / 0,37 / 1,25 (%98) | 4,0 / %70 / 1,83 / 0,51 / 0,51 (%45) |
+| erişim + dönüş, 3 karo baş boşluğu, yuvarlanma hücresi | 120 / 120, 120, 0 | 120 / 120, 120, 0 |
+| yaratık / bölüm (BOLUM, derinlik 1-9) | 25,2 (oda başına 1,69) | 20,5 (oda başına 1,69) |
+| geçersiz yaratık / eşya katıda / boş oda | 0 / 0 / 0 | 0 / 0 / 0 |
+| üretim ort. / en çok | 0,13 / 0,26 sn | 0,13 / 0,24 sn |
+
+### Test
+
+`--harita --harita_tohum=24` SONUC GECTI (yeni denetimler: düz olmayan türlerde ana yol en az 1 kat; bölümlerin en az %35'i
+düz; art arda üç kuralı); `--harita --harita_fizik --fizik_bolum=40` (gerçek oyuncu fiziği) GECTI: 658 hedef, 0 erişilemez (61 model hamlesi gerçek fizikte yapılamadı, hepsinin dolaşma yolu var); `--isinlan`
+(test kilitli ödül odasını artık saymaz: kapalı kilit ızgarada katı), `--konak`, `--tuccar --muhur=0` GECTI;
+`--otomatik --derinlik=1/3/5/7/9 --muhur=0 --fixed-fps 60 --quit-after 9000`: d1 (kale) 72 sn'de, d3 (açık) 54 sn'de
+Kut Kapısı (BOLUM_SONU), sonra 2. / 4. bölüm; d5 (mağara), d7 (iniş), d9 (iniş) dövüşmeyen bot 13-62 sn'de öldü (v33 / v34'te de
+derin bölümde ölüyordu; 1. derinlikten yeniden başlayıp kapıya vardı); `--piksel_tara --otomatik
+--derinlik=3 --quit-after 2400` TOPLAM 0. Betik hatası 0.
+
+### Görseller (`docs/v41/harita/`)
+
+`tam_<tür>_<biyom>_d<n>_<stil>.jpg` (`--harita_ekran=tam --tam_tur`: her tür iki biyomda, bütünüyle keşfedilmiş tam
+harita): açık yol Ötüken / Bozkır (göğe açık kesintisiz yüzey, tepeler, mahzenler), kale Bozkır / Tamu (uzun salon,
+kule ve zindan), iniş Ötüken / Tamu, mağara Şahmeran / Kaf. `oyun_acik_d1.jpg` (Ötüken orman yüzeyi), `oyun_acik_d3.jpg`
+(Bozkır: açık gök, tepe basamakları, yarık köprüsü), `oyun_acik_d7.jpg` (Kaf karlı sırt), `oyun_kale_d4.jpg` (Bozkır
+harabe salonu) 1920x1080 (`--otomatik --bolum_turu=<tür> --tohum=<n> --pencere=1920x1080 --bekle=14 --grafik=2`).
+
+### Bilinen
+
+* Pencere dalı (v34 parmaklık) yatay komşu boş kesim ister: düz türlerde ana yol satırı dolu olduğundan seyrek (bölümlerin
+  %45'inde; mağara / inişte eskisi gibi). Düz türlerde teaser olarak gizli cep, kilit ve göğe açık iskeleler kalır.
+* Düz bölümler daha kısa (7 kesim genişliği sabit: `Level.W` 172); oda başına yaratık yoğunluğu aynı, bölüm başına yaratık
+  ~%19 az.
+* Açık yolda ızgaranın üst satırı hava: oyuncunun zıplaması oraya ulaşmaz (taban en az 5 karo aşağıda).
