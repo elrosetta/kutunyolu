@@ -7213,3 +7213,138 @@ harabe salonu) 1920x1080 (`--otomatik --bolum_turu=<tür> --tohum=<n> --pencere=
 * Düz bölümler daha kısa (7 kesim genişliği sabit: `Level.W` 172); oda başına yaratık yoğunluğu aynı, bölüm başına yaratık
   ~%19 az.
 * Açık yolda ızgaranın üst satırı hava: oyuncunun zıplaması oraya ulaşmaz (taban en az 5 karo aşağıda).
+
+## v42: sınavlar ve otağlar
+
+İstek: "Bir bölümde belli bir sürede bitirirsek ve / veya hasar almadan ve / veya belli bir yaratığı (sayıca) öldürürsek
+gizli odalar olsun; bölüm sonunda OTAĞLARA girip güzel ödüller alalım."
+
+Esin: Dead Cells'in zamanlı kapıları (biyom başına sabit süre, kapının ardında ödül odası) ve hasarsız / lanetli ödüller
+(v34'te zamanlı kapı ve lanetli sandık zaten var). v42'de her bölüm üç **sınav** (mühür) taşır; kazanılan her mührün
+**otağı** bölüm sonunda, Kut Kapısı'nın önündeki **Otağ Yeri**'nde açılır.
+
+### Sınavlar (`scripts/core/Sinav.gd`, `Level.sinav`)
+
+| mühür | kural | sayılar |
+|---|---|---|
+| **Çabuk** (altın, kum saati tamgası) | Otağ Yeri'ne (bir otağın 2,5 karo yanı ya da Kut Kapısı'nın 7 karo önü) süresinde var | süre `OtagYeri.par_sure` = 30 + yol x 2 + ana yol odası x 5 + derinlik x 2 sn, 5'e yuvarlanır, 75-240 sn. "Yol" = girişten Kut Kapısı'na model hamleleriyle (`LevelGen._moves`) en kısa yolun koşu süresi (yatay karo / 6,46 + dikey karo x 0,12). 120 bölümde yol ort. 23,5 sn, süre ort. **121 sn (85-185)**; bot (dövüşmeden) 47 sn |
+| **Dokunulmaz** (ak, kalkan tamgası) | Otağ Yeri'ne dek CANINDAN hiç düşme | kalkanla tutulan / savuşturulan darbe, yuvarlanma ve dokunulmazlık kareleri sayılmaz (can düşmez); şişe, şifa otu serbest (can artışı bozmaz); tuzak, düşüş, lanetin fazlası sayılır. Işınlanma kanalıyla aynı ölçü: `Game.run.hp` düşüşü |
+| **Avcı** (kızıl, yay-ok tamgası) | tamgalı avı vur | %45 **Av Beyi**: yolun girişten 30 karo ötesindeki sıradan bir yaratık aynı türden SEÇKİN bir avla değişir (1 öldürme; Kut Taşı / giriş dibine kayarsa başka aday); yoksa **sürü**: bölümün en kalabalık türü (en az 4), N = %60'ı, 3-6. Hedeflerin başında nabız atan kızıl av tamgası (`AvIsaret`). Bölüm bitene dek kazanılabilir; kalan tamgalı yaratık yetmezse çatlar |
+| **Han Otağı** | üç mühür birden | Çabuk + Dokunulmaz Otağ Yeri'ne varınca, Avcı av bitince kilitlenir |
+
+Durum 0 sürüyor / 1 kazanıldı / -1 çatladı. Kaybetmek cezasızdır (yalnız o otağ kapalı kalır). Bölümden bölüme hiçbir şey
+taşınmaz; `Game.meta["sinav"]` yalnızca istatistik: `muhur` (kazanılan mühür sayısı), `en_iyi` (biyom_derinlik -> en iyi
+Çabuk varış süresi).
+
+Geri bildirim: kazanınca oyuncunun üstünde "<Ad> mührü!" + renkli halka + `otag_damga` (ıslak mühür basışı + kopuz üçlüsü
++ ince çan); HUD'daki mühür 2,2 kattan basılarak iner, arkasında mürekkep sıçrar. Kaybedince küçük gri "<Ad> mührü
+çatladı" + `otag_catlak` (kuru mum çatlaması, kısık; -7 dB) ve mührün üstünde 0,4 sn'de uzayan çatlak. Otağ açılınca
+`otag_ac` (keçe perde + uzak çan) ve halka.
+
+### Arayüz (`HUD._draw_sinav`, `_draw_sinav_banner`, `_draw_otag_prompt`)
+
+* Sağ üst, biyom kartının altında üç küçük mum mühür (otag_v2 `ui_muhur` + `ui_tamga_*`): bekleyen soluk krem, kazanılan
+  sınavın renginde (altın / ak / kızıl), çatlayan gri + çatlak. Çabuk'un solunda kalan süre (son 15 sn kızıl nabız),
+  Avcı'nın solunda av sayısı "1/4". Üçü kazanılınca altında küçük Han mührü.
+* Bölüm afişinin altında soluk tek satır: "Sınavlar · Çabuk 1:55 · Dokunulmaz · Avcı: Av Beyi: Kara Kam".
+* Otağın kapısında: açıksa "W Çabuk Otağı: gir", kapalıysa neden (sınavın kuralı / "mühür çatladı" / "boş").
+
+### Otağ Yeri (`scripts/world/OtagYeri.gd`, `Otag.gd`)
+
+Yerleşim yalnızca ızgara + oda verisiyle (üreticinin sonucuyla da çalışır: `--harita` Level kurmadan ölçer): Kut Kapısı'nın
+odasından geriye ana yol sırasıyla en çok 3 oda (dar bölümde 5) taranır. Otağ yeri = 3 sütun düz katı taban, üstünde 5 karo
+hava (tehlike / platform / kuyu ağzı değil), oda kenarından 2 karo içeride; çıkış odasında yalnızca kapıya YAKLAŞILAN yanda ve
+kapıdan en az 5 karo uzakta (v34'ün 10 sütunluk Kut Kapısı önü boş kalır; açık yolda mahzen, kalede kule / zindan, inişte
+kuyu dibi: hepsi aynı kural). Küçük otağlar 3 karo arayla yan yana, Han Otağı'nın yanı 4 karo; Kut Taşı, kaide, ödül
+işareti, zamanlı kapı, yerdeki ganimet, lanetli sandık, kilit ve Bezirgân'ın tezgâhı çevresi boş (yerdeki ganimet yüzünden 4
+yer çıkmazsa yalnız üreticinin işaretleri sakınılır). Sıra Kut Kapısı'ndan geriye: **Han, Çabuk, Dokunulmaz, Avcı** (oyuncu
+kapıya giderken önce Avcı'nın otağını görür; en sonda Han kapının yanında). Otağlar dünyada arka plan (çarpışmasız, z -1):
+erişim, dönüş ve fizik değişmez. 4 yer çıkmazsa Han'sız 3 otağ kurulur; üç mühürde Han'ın ödülü ilk açılan otağa katılır.
+
+Otağ (`Otag.gd`, `decor_root` altında): kapalıyken kapının üstünde mum mühür + sınavın tamgası (bekleyen: krem disk, renkli
+soluk nabız; çatlak: gri disk, kara çatlak), açılınca (`tazele`) atlas parçası `otag_<tür>_acik`'e geçer, sıcak ışık
+(PointLight2D, 90 birim) yanar, ışıma katmanı nabız atar; alındıktan sonra ışık yarıya iner.
+
+### Otağ içi ve ödüller (`scripts/ui/OtagIc.gd`, `Level.otag_gir` / `otag_odul_ver`, `Sinav.odul`)
+
+Açık otağın kapısında W: oyun durur (HUD "otag" kipi: duraklatma menüsü çizilmez), kendi CanvasLayer'ında otağ içi:
+`otag_ic` (kerege kafesi, kızıl uuk sırıkları, tündükten ay ışığı, asılı kızıl / lacivert kilimler, yer kilimi, ocak) ve
+ödül sandığı; sandık 0,3 sn titrer, 0,6 sn'de açılır (`otag_odul`: kapak + altın şıngırtısı + kopuz dörtlüsü), ödül
+satırları nadirlik rengiyle sırayla belirir. W / Boşluk / Esc: çıkılır; altın ve Kut doğrudan eklenir, eşya / tomar /
+parşömen otağın kapısına düşer (kuşanma her zamanki gibi). Otağ bir kez açılır. Bot (`--otomatik`) 1,6 sn sonra kendiliğinden
+çıkar.
+
+| otağ | sandık (k = `Pazar.derinlik_k`, kademe = derinliğin kademesi) |
+|---|---|
+| Çabuk | 30 x k altın + 1 eşya (kademe + 1, Bezirgân'ın nadirlik zarı 3 sütun ileri, en az Nadir) |
+| Dokunulmaz | Kut Tomarı + %35 (açılmamış eşya varsa) parşömen |
+| Avcı | 5 + derinlik Kut + bir **av silahı** (yay / atılan / mızrak türünden açılmış silah; kademe, en az Nadir) |
+| Han Otağı | **Efsanevi** eşya (kademe + 1; %70 silah) + 20 x k altın + 6 Kut |
+
+### Ekonomi (`--otag` DEGER; altın karşılığı = altın + eşyanın Bezirgân fiyatı + Kut Tomarı fiyatı + Kut x 2)
+
+Önce: otağ yok (bölüm sonunda ödül yok). Sonra, sandık başına ortalama (40 zar) ve varsayılan kazanma oranlarıyla (Çabuk
+%50, Dokunulmaz %20, Avcı %60, Han %6) bölüm başına beklenen değer; "bölüm ganimeti" = tam temizlenen bölümün altını
+(~150 x altin_k) + 3 kaide eşyası + 3 Kut Tomarı aynı ölçüyle:
+
+| d | Çabuk | Dokunulmaz | Avcı | Han | beklenen / bölüm | bölüm altını | bölüm ganimeti | beklenen / altın | beklenen / ganimet |
+|---|---|---|---|---|---|---|---|---|---|
+| 1 | 160 | 230 | 157 | 354 | 241 | 150 | 1087 | x1.61 | x0.22 |
+| 2 | 233 | 300 | 225 | 453 | 339 | 195 | 1422 | x1.74 | x0.24 |
+| 3 | 275 | 370 | 269 | 562 | 407 | 240 | 1782 | x1.70 | x0.23 |
+| 4 | 340 | 435 | 295 | 677 | 474 | 285 | 2196 | x1.67 | x0.22 |
+| 5 | 373 | 505 | 392 | 782 | 569 | 330 | 2463 | x1.73 | x0.23 |
+| 6 | 450 | 575 | 445 | 849 | 658 | 375 | 2945 | x1.76 | x0.22 |
+| 7 | 546 | 645 | 472 | 974 | 744 | 420 | 3343 | x1.77 | x0.22 |
+| 8 | 509 | 715 | 546 | 1077 | 789 | 465 | 3835 | x1.70 | x0.21 |
+| 9 | 556 | 780 | 557 | 1245 | 843 | 510 | 4321 | x1.65 | x0.20 |
+
+Okuma: bir bölümün otağları (ortalama oyuncu) bölüm ganimetine **~%22** ekler (ortalama x0,22; altın ölçüsüyle x1,70);
+doğrudan altın bölüm altınının yalnızca ~%11'i (Çabuk ve Han'ın altını 30 / 20 x k: d1'de 30 altın = yarım Bezirgân malı); asıl değer eşya ve Dokunulmaz'ın Kut Tomarı. Kut Tomarı
+koşunun en güçlü ödülüdür (230 x k) ama yalnız hasarsız bölümde gelir: bölümde 3 tomar varken hasarsız oyuncu 4 alır
+(+%33 stat hızı), ortalama oyuncu +%7. Efsanevi eşya yalnızca Han'da (%6) ve bir kademe üstten: kaide eşyası Efsanevi
+çıkma şansı d1'de %0,4. Bezirgân fiyatları ve bölüm altını değişmedi.
+
+### Görseller (`tools/artgen/otag_ink.py` -> `assets/fx/ink/otag_v2.png` + `_e` + `otag_v2.json`; HD `assets_hd/x2/fx/ink/otag_v2.webp`, manifest, denetim TAMAM ort 0,0016)
+
+`yurt_ink._yurt` gövdesi (kerege duvar, uuk kubbe, tündük, kilim kuşakları, kolan ipleri) ile dört otağ x açık / kapalı:
+Çabuk krem keçe + ALTIN kuşak, altın sancakta kum saati; Dokunulmaz ak keçe + ak / gök kuşak, ak sancakta kalkan (daire +
+haç); Avcı krem keçe + KIZIL kuşak, kızıl sancakta yay-ok; Han büyük ak keçe, kızıl + lacivert + altın, alemli tuğ, iki yan
+tuğ ve lacivert yan örtüler. Alınlıkta sınavın tamgası (açıkken ışır). Kapalı kapı koyu keçe perde + çapraz ip + mühür
+oyuğu; açık kapı yukarı dürülmüş perde, içeride sıcak ışık ve kilim, yere sızan ışık (ışıma katmanı). Ayrıca `otag_ic`
+(240 x 135 birim), `sandik_kapali / acik`, `ui_tamga_cabuk / dokunulmaz / avci / han` ve `ui_muhur` (beyaz: oyunda
+renklendirilir). Sesler `tools/audiogen/v42_otag.py`: `otag_damga`, `otag_catlak`, `otag_ac`, `otag_odul`.
+
+### Ölçüm ve test
+
+* `--harita --harita_tohum=24` (120 bölüm, yeni `OTAG` satırları): GECTI. `OTAG bölüm=120 yer ort=4,00, 4 otağ (Han dahil) %100, en az 3
+  %100, hepsi erişilir 120/120, Kut Kapısı dibinde 0, iki odaya yayılan %93, kapıya uzaklık yakın 6,3 / uzak 32,1 karo`;
+  türler açık 43/43, iniş 27/27, mağara 20/20, kale 30/30. `OTAG Çabuk süresi: yol ort 23,5 sn (yolu bulunamayan 0), süre ort
+  121 sn (85-185)`. Yeni denetimler: her bölümde en az 3 otağ yeri, %90'ında Han'a da yer, her otağ girişten erişilir, Kut
+  Kapısı önü boş. Önceki denetimlerin hepsi aynı (erişim + dönüş 120 / 120 vb.).
+* `--otag --muhur=0` (yeni, `tools/tests/otag_testi.gd`): kurulum (Sinav, süre, 4 otağ sırası, ayakta / erişilir / kapı
+  önünde değil, tamgalı av, bekleyen otağa girilemez), kaybetme (darbe -> Dokunulmaz, süre -> Çabuk, av kalmadı -> Avcı,
+  3 çatlama olayı, çatlak otağlar kapalı), kazanma (av oyunun yolundan öldürülür, şişe Dokunulmaz'ı bozmaz, Otağ Yeri'ne
+  varış, Han açık), dört otağa giriş (oyun durur) ve ödül (altın / Kut / yere düşenler tam; Çabuk Nadir+, Dokunulmaz Kut
+  Tomarı, Avcı av silahı, Han Efsanevi), ikinci giriş reddi, istatistik; dört bölüm türü x d1 / d4 Otağ Yeri; DEGER. GECTI.
+* `--harita --harita_fizik` 30 bölüm (5 parça x 6, `--fizik_bas=0/6/12/18/24`) GECTI: 488 hedef, 0 erişilemez (otağlar
+  çarpışmasız arka plan: fizik değişmez). `--konak --muhur=0`, `--tuccar --muhur=0` GECTI. `--otomatik --derinlik=1 --muhur=0
+  --fixed-fps 60 --quit-after 9000`: 45,3 sn'de Kut Kapısı (BOLUM_SONU; bot yolda Çabuk Otağı'na girdi: +30 altın, Destansı
+  muska, kendiliğinden çıktı), sonra konak ve 2. bölüm; `--derinlik=3`: 48,2 sn'de Kut Kapısı, sonra 4. bölüm. `--piksel_tara
+  --otomatik --derinlik=3 --quit-after 2400` TOPLAM 0 (otag_v2 atlası `assets/fx/ink/` altında). Bütün koşularda SCRIPT ERROR 0.
+
+### Görseller (`docs/v42/otag/`, 1920x1080 `--otag --otag_ekran=<klasör> --pencere=1920x1080 --grafik=2 --bekle=16`)
+
+`afis.jpg` (bölüm afişinin altında sınav satırı; sağ üstte üç bekleyen mühür, Çabuk'un kalan süresi, Av Beyi 0/1),
+`hud.jpg` + `hud_yakin.png` (Avcı altın, Dokunulmaz çatlak, Çabuk sürüyor), `yer.jpg` (Otağ Yeri: Çabuk açık ve ışıyor,
+Han kapalı ve mühürlü, Kut Kapısı), `ic.jpg` (Çabuk Otağı içi, açılmış sandık, ödül satırları), `yer_odul.jpg` (çıkınca
+kapıya düşen ödül), `han.jpg` (Bozkır, üç mühür: Han Otağı açık, "W Han Otağı: gir"), `han_ic.jpg` (Han Otağı içi,
+Efsanevi eşya).
+
+### Bilinen
+
+* Kapı odası çoğu bölümde 1-2 otağa yer verir: Otağ Yeri bölümlerin %93'ünde iki odaya yayılır (kapıya en yakın otağ ort.
+  6,3, en uzak 32 karo): kapıya giden son koridor otaklarla dizilidir, tek bir avlu değil.
+* Dokunulmaz ölçüsü can düşüşüdür: Umay / Deli Dumrul ölümden döndürse de mühür çatlar; ışınlanma kanalıyla aynı kural.
+* Bot otağlara yalnızca yolda W'ye denk gelirse girer (kendiliğinden çıkar); av aramaz.
+* Haritada (`HaritaUI`) otağ ve av işareti yok (harita dosyası bu sürümde değişmedi).

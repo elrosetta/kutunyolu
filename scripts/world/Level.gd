@@ -175,6 +175,7 @@ func build(seed_value: int) -> void:
 	_kupler_yerlestir()   # v34: her odada "bir şey" (boş oda kalmaz)
 	_pt = _adim(&"kur_kupler_yerlestir", _pt)
 	sayac_ilk = sayac()
+	_sinav_kur()          # v42: bölüm sınavları (Çabuk / Dokunulmaz / Avcı) ve Kut Kapısı önündeki Otağ Yeri
 	Ses.music(biome.get("id", "otuken"))
 	Perde.acilis("bolum")   # v40: mürekkep fırçası perdesi açılır
 
@@ -3469,6 +3470,8 @@ func on_enemy_died(e: Enemy) -> void:
 	_v12_on_kill(e)
 	if e.has_meta("yavru"):
 		return   # v39: çağrılan Şulmus yavrusu ganimet bırakmaz
+	if sinav != null:
+		sinav.olduruldu(e)   # v42 Avcı sınavı
 	_lanet_oldurme()   # v34
 	# v24: seçkin +6 -> +10 tane (tüccar ekonomisi). v34: yaratık sayısı ~1,9 kat: sıradan yaratığın altını 2-4 -> 1-2
 	# tane (+%25 bir tane daha); bölüm başına altın v33'ün ~1,5 katı (küp / gizli cep / lanetli sandık dahil)
@@ -3855,6 +3858,8 @@ func _process_ic(_delta: float) -> void:
 		elif tap and bezirgan != null and bezirgan.near:
 			bezirgan.talk()
 			tuccar_requested.emit()
+		elif tap and otag_yakin() != null:
+			otag_gir(otag_yakin())   # v42 sınav otağı
 		elif tap and sandik_yakin() != null:
 			sandik_yakin().ac()   # v34 lanetli sandık
 		elif tap and tasi_yakin() >= 0 and isin_t <= 0.0:
@@ -3863,5 +3868,160 @@ func _process_ic(_delta: float) -> void:
 		if harita != null:
 			harita.tick(_delta, player.global_position)
 		Game.run["bolum_sure"] = float(Game.run.get("bolum_sure", 0.0)) + _delta
+		if sinav != null:
+			sinav.tick(_delta)   # v42
 		_isin_tick(_delta)
 	_hazard_tick(_delta)
+
+
+# ------------------------------------------------------------------ v42 sınavlar ve otağlar
+## Sinav (scripts/core/Sinav.gd): üç mühür; OtagYeri (yerleşim, Çabuk süresi); Otag (otağ düğümü); OtagIc (otağ içi).
+var sinav: Sinav
+var otaglar: Array = []        # Otag düğümleri (Kut Kapısı'na yakından uzağa: han, cabuk, dokunulmaz, avci)
+var otag_yerleri: Array = []   # OtagYeri.yerlesim sonucu
+var otag_ic: Node              # açık otağ içi (OtagIc; test)
+
+
+func _sinav_kur() -> void:
+	sinav = Sinav.new()
+	var avoid: Array = []
+	for c in _gen.get("tasi", []):
+		avoid.append(c)
+	for kc in kaide_xs:
+		avoid.append(Vector2i(int(kc.x), int(kc.y)))
+	for z in _gen.get("zamanli", []):
+		avoid.append(Vector2i(int(z["x"]), int(z["y"]) - 1))
+	for ch in chunks:
+		for mk in ch.get("marks", []):
+			avoid.append(Vector2i(int(mk[1]), int(mk[2])))
+	if bezirgan != null:
+		# Bezirgân'ın tezgâhı ve kilimi (bezirgan_alani) otağsız kalır
+		var bc := Vector2i(int(floor(bezirgan.global_position.x / TS)), int(floor(bezirgan.global_position.y / TS)) - 1)
+		for dx in range(-8, 9, 2):
+			avoid.append(bc + Vector2i(dx, 0))
+	var gen_avoid := avoid.duplicate()
+	for p in pickups:
+		if is_instance_valid(p):
+			avoid.append(Vector2i(int(floor(p.position.x / TS)), int(floor(p.position.y / TS))))
+	for n in sandiklar + kilitler:
+		if is_instance_valid(n):
+			avoid.append(Vector2i(int(floor(n.position.x / TS)), int(floor(n.position.y / TS)) - 1))
+	otag_yerleri = _otag_yer_sec(avoid)
+	if otag_yerleri.size() < 4:
+		# yerdeki ganimet otağ yerini kapattıysa: üreticinin işaretleri dışındakiler otağın önünde kalabilir
+		var y2 := _otag_yer_sec(gen_avoid)
+		if y2.size() > otag_yerleri.size():
+			otag_yerleri = y2
+	sinav.kur(self, rng)
+	var turler: Array = OtagYeri.SIRA if otag_yerleri.size() >= 4 else ["cabuk", "dokunulmaz", "avci"]
+	for i in mini(otag_yerleri.size(), turler.size()):
+		var y: Dictionary = otag_yerleri[i]
+		var o := Otag.new()
+		o.level = self
+		o.tur = String(turler[i])
+		o.cell = Vector2i(int(y["x"]), int(y["y"]))
+		o.position = Vector2(o.cell.x * TS + TS / 2.0, (o.cell.y + 1) * TS)
+		decor_root.add_child(o)
+		otaglar.append(o)
+	print("[otag] yer=%d otağ=%d par=%d sn (yol %.1f sn) av=%s (%s x%d)" % [otag_yerleri.size(), otaglar.size(), int(sinav.par), sinav.yol_sn, sinav.av_mod, sinav.av_tur, sinav.av_gerek])
+
+
+func _otag_yer_sec(avoid: Array) -> Array:
+	var r := OtagYeri.yerlesim(grid, W, H, rooms, exit_cell, avoid)
+	if bezirgan != null:
+		r = r.filter(func(y: Dictionary) -> bool: return not bezirgan_alani(int(y["x"]), 4))
+	return r
+
+
+func otag_yerinde() -> bool:
+	## Otağ Yeri'ne varıldı mı: bir otağın 2,5 karo yanı ya da Kut Kapısı'nın 7 karo önü (aynı kat)
+	if player == null:
+		return false
+	var p := player.global_position
+	for o in otaglar:
+		if absf(p.x - o.position.x) < 2.5 * TS and absf(p.y - o.position.y) < 3.0 * TS:
+			return true
+	return absf(p.x - exit_pos.x) < 7.0 * TS and absf(p.y - exit_pos.y) < 4.0 * TS
+
+
+func otag_yakin() -> Otag:
+	for o in otaglar:
+		if is_instance_valid(o) and o.near:
+			return o
+	return null
+
+
+func otag_gir(o: Otag) -> bool:
+	## Açık ve alınmamış otağa gir (OtagIc); kapalıysa kısa açıklama. true: girildi
+	if o == null or (otag_ic != null and is_instance_valid(otag_ic)):
+		return false
+	if not o.acik():
+		var d := o.durum()
+		var msg := "Mühür çatladı: otağ kapalı" if d == -1 else ("Kapalı · " + sinav.aciklama(o.tur))
+		FX.text(o.global_position + Vector2(0, -78), msg, Color(0.8, 0.76, 0.7), 8)
+		Ses.play("ui_iptal", -6.0)
+		return false
+	if o.alindi:
+		FX.text(o.global_position + Vector2(0, -78), "Otağ boş", Color(0.8, 0.76, 0.7), 8)
+		return false
+	o.alindi = true
+	var d2 := int(Game.run.get("depth", 1))
+	var od := Sinav.odul(o.tur, d2, int(Game.run.get("tier", 0)), rng)
+	if o.tur != "han" and sinav.hepsi() and not _han_otagi_var() and not _han_verildi:
+		# Han Otağı'na yer çıkmadıysa (dar bölüm) onun ödülü ilk açılan otağa katılır
+		_han_verildi = true
+		var hn := Sinav.odul("han", d2, int(Game.run.get("tier", 0)), rng)
+		od["altin"] = int(od["altin"]) + int(hn["altin"])
+		od["kut"] = int(od["kut"]) + int(hn["kut"])
+		(od["items"] as Array).append_array(hn["items"])
+	var cl := CanvasLayer.new()
+	cl.layer = 12
+	cl.process_mode = Node.PROCESS_MODE_ALWAYS
+	add_child(cl)
+	var ic := OtagIc.new()
+	ic.level = self
+	ic.otag = o
+	ic.odul = od
+	cl.add_child(ic)
+	otag_ic = ic
+	return true
+
+
+var _han_verildi := false
+
+
+func _han_otagi_var() -> bool:
+	for o in otaglar:
+		if o.tur == "han":
+			return true
+	return false
+
+
+func otag_odul_ver(o: Otag, od: Dictionary) -> void:
+	## Otağ sandığının ödülü: altın ve Kut doğrudan, eşya / tomar / parşömen otağın kapısına
+	var at := o.global_position
+	if int(od.get("altin", 0)) > 0:
+		Game.run["gold"] = int(Game.run.get("gold", 0)) + int(od["altin"])
+		Game.run["altin_kazanc"] = int(Game.run.get("altin_kazanc", 0)) + int(od["altin"])
+		Ses.play("altin", -4.0)
+	if int(od.get("kut", 0)) > 0:
+		Game.run["kut"] = int(Game.run.get("kut", 0)) + int(od["kut"])
+		if player:
+			player.add_kut(2.0 * float(od["kut"]))
+	var dx := -16.0
+	for it in od.get("items", []):
+		drop_item(it, at + Vector2(dx, -30))
+		dx += 32.0
+	if int(od.get("tomar", 0)) > 0:
+		drop_scroll(at + Vector2(dx, 0))
+		dx += 32.0
+	if String(od.get("parsomen", "")) != "":
+		drop_blueprint(String(od["parsomen"]), at + Vector2(dx, -10))
+	FX.ring(at + Vector2(0, -20), 40, Sinav.RENK.get(o.tur, Color(1, 0.85, 0.45)), 0.5)
+	o.tazele()
+
+
+func otag_tazele() -> void:
+	for o in otaglar:
+		if is_instance_valid(o):
+			o.tazele()

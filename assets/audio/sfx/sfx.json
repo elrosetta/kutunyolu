@@ -1869,5 +1869,25 @@
   "loop": false,
   "len": 0.522,
   "hedef_db": -13.0
+ },
+ "otag_damga": {
+  "loop": false,
+  "len": 1.75,
+  "hedef_db": -17.0
+ },
+ "otag_catlak": {
+  "loop": false,
+  "len": 1.3,
+  "hedef_db": -20.0
+ },
+ "otag_ac": {
+  "loop": false,
+  "len": 1.747,
+  "hedef_db": -18.0
+ },
+ "otag_odul": {
+  "loop": false,
+  "len": 1.95,
+  "hedef_db": -16.0
  }
 }

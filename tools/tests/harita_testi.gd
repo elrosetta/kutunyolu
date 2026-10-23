@@ -282,6 +282,7 @@ func _izgara(n_seed: int) -> void:
 	var d_max := 0
 	var d_sersem := 0
 	var d_sersem_lv := 0
+	var ot := {"n": 0, "yer": 0, "dort": 0, "uc": 0, "erisim": 0, "kapi_yakin": 0, "uzak_top": 0.0, "yakin_top": 0.0, "oda2": 0, "par_top": 0.0, "par_min": 999.0, "par_max": 0.0, "yol_top": 0.0, "yolsuz": 0, "tur": {}}   # v42 Otağ Yeri
 	for bcfg in biyomlar:
 		var style: String = String(bcfg["id"])
 		var s_walk := 0
@@ -329,6 +330,8 @@ func _izgara(n_seed: int) -> void:
 					if rs[i] == 1:
 						n_reach += 1
 			var rk := float(n_reach) / maxf(1.0, float(n_stand))
+			r["_d"] = dpt
+			_otag_olc(ot, r, g, W, H, rs)   # v42
 			reach_min = minf(reach_min, rk)
 			var lo := 999
 			var hi := 0
@@ -456,6 +459,7 @@ func _izgara(n_seed: int) -> void:
 	_check(tasi_min >= 3, "her bölümde en az 3 Kut Taşı (en az %d)" % tasi_min)
 	_check(cikmaz_min >= 2, "her bölümde en az 2 çıkmaz ödül odası (en az %d)" % cikmaz_min)
 	_check(dikey_min >= 1, "düz olmayan türlerde ana yol en az bir kat iner / çıkar (en az %d)" % dikey_min)
+	_otag_rapor(ot)   # v42
 	_check(reach_min >= 0.85, "ayakta durma hücrelerinin en az %%85'i girişten ulaşılır (en az %%%.1f; kalanı yüksek cep / sarkıt üstü)" % (100.0 * reach_min))
 	# v41 bölüm türleri: tür başına sayı ve ana yol dikeyliği; düz bölüm oranı; koşu benzetimi (art arda 3 kuralı)
 	var n_duz := 0
@@ -1466,3 +1470,80 @@ func _ekran_tepegoz() -> void:
 				if is_instance_valid(b._beam2):
 					var bm: Isin = b._beam2
 					_p("göz e%d %s kare=%d anim=%s/%d göz=%s ışın_başı=%s fark=%.1f" % [ph, "sag" if side > 0 else "sol", i, b.anim.anim, b.anim.frame, str(b._tg_eye().round()), str(bm.origin.round()), bm.origin.distance_to(b._tg_eye())])
+
+
+# ------------------------------------------------------------------ v42 Otağ Yeri (OtagYeri.yerlesim) ölçümü
+func _otag_olc(ot: Dictionary, r: Dictionary, g: PackedByteArray, W: int, H: int, rs: PackedByteArray) -> void:
+	var ex: Vector2i = r["exit"]
+	var avoid: Array = []
+	for c in r.get("tasi", []):
+		avoid.append(c)
+	for kc in r.get("kaide", []):
+		avoid.append(kc)
+	for z in r.get("zamanli", []):
+		avoid.append(Vector2i(int(z["x"]), int(z["y"]) - 1))
+	for ch in r.get("chunks", []):
+		for mk in ch.get("marks", []):
+			avoid.append(Vector2i(int(mk[1]), int(mk[2])))
+	var yer := OtagYeri.yerlesim(g, W, H, r["rooms"], ex, avoid)
+	ot["n"] = int(ot["n"]) + 1
+	ot["yer"] = int(ot["yer"]) + yer.size()
+	if yer.size() >= 4:
+		ot["dort"] = int(ot["dort"]) + 1
+	if yer.size() >= 3:
+		ot["uc"] = int(ot["uc"]) + 1
+	var odalar := {}
+	var uzak := 0
+	var yakin := 999
+	var hepsi_erisir := true
+	for y in yer:
+		var x := int(y["x"])
+		var yy := int(y["y"])
+		odalar[int(y["oda"])] = true
+		var dx := absi(x - ex.x) + absi(yy - ex.y)
+		uzak = maxi(uzak, dx)
+		yakin = mini(yakin, dx)
+		if rs[yy * W + x] != 1:
+			hepsi_erisir = false
+		if absi(x - ex.x) < 5 and absi(yy - ex.y) < 4:
+			ot["kapi_yakin"] = int(ot["kapi_yakin"]) + 1
+	if hepsi_erisir:
+		ot["erisim"] = int(ot["erisim"]) + 1
+	ot["uzak_top"] = float(ot["uzak_top"]) + uzak
+	ot["yakin_top"] = float(ot["yakin_top"]) + (yakin if yakin < 999 else 0)
+	if odalar.size() >= 2:
+		ot["oda2"] = int(ot["oda2"]) + 1
+	var tk := String(r.get("tur", "?"))
+	var tt: Dictionary = ot["tur"]
+	if not tt.has(tk):
+		tt[tk] = [0, 0]
+	tt[tk][0] += 1
+	tt[tk][1] += 1 if yer.size() >= 4 else 0
+	var ys := OtagYeri.yol_suresi(g, W, H, r["spawn"], ex)
+	if ys < 0.0:
+		ot["yolsuz"] = int(ot["yolsuz"]) + 1
+		ys = 24.0
+	var mana := 0
+	for rm in r["rooms"]:
+		if int(rm.get("ana_i", -1)) >= 0 and rm["role"] != "yok":
+			mana += 1
+	var ps := OtagYeri.par_sure(ys, mana, int(r.get("_d", 1)))
+	ot["yol_top"] = float(ot["yol_top"]) + ys
+	ot["par_top"] = float(ot["par_top"]) + ps
+	ot["par_min"] = minf(float(ot["par_min"]), ps)
+	ot["par_max"] = maxf(float(ot["par_max"]), ps)
+
+
+func _otag_rapor(ot: Dictionary) -> void:
+	var n := maxf(1.0, float(ot["n"]))
+	var ts := ""
+	for k in ot["tur"]:
+		ts += "%s %d/%d " % [k, int(ot["tur"][k][1]), int(ot["tur"][k][0])]
+	_p("OTAG bölüm=%d yer ort=%.2f 4_otağ (Han dahil)=%%%.0f en_az_3=%%%.0f hepsi_erişilir=%d/%d Kut_Kapısı_dibinde=%d iki_odaya_yayılan=%%%.0f kapıya_uzaklık yakın=%.1f uzak=%.1f karo | tür (4 otağ): %s" % [int(ot["n"]),
+		float(ot["yer"]) / n, 100.0 * float(ot["dort"]) / n, 100.0 * float(ot["uc"]) / n, int(ot["erisim"]), int(ot["n"]), int(ot["kapi_yakin"]), 100.0 * float(ot["oda2"]) / n,
+		float(ot["yakin_top"]) / n, float(ot["uzak_top"]) / n, ts.strip_edges()])
+	_p("OTAG Çabuk süresi: yol ort=%.1f sn (yolu bulunamayan %d) par ort=%.0f sn (%.0f-%.0f)" % [float(ot["yol_top"]) / n, int(ot["yolsuz"]), float(ot["par_top"]) / n, float(ot["par_min"]), float(ot["par_max"])])
+	_check(int(ot["uc"]) == int(ot["n"]), "her bölümde en az 3 sınav otağı yeri (%d/%d)" % [int(ot["uc"]), int(ot["n"])])
+	_check(float(ot["dort"]) >= 0.9 * n, "bölümlerin en az %%90'ında Han Otağı'na da yer (%d/%d)" % [int(ot["dort"]), int(ot["n"])])
+	_check(int(ot["erisim"]) == int(ot["n"]), "her otağın kapısı girişten erişilir (%d/%d)" % [int(ot["erisim"]), int(ot["n"])])
+	_check(int(ot["kapi_yakin"]) == 0, "Kut Kapısı önü (5 karo) boş (%d otağ dipte)" % int(ot["kapi_yakin"]))

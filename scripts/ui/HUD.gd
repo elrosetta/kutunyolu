@@ -482,6 +482,7 @@ func _draw_banner(vp: Vector2) -> void:
 			sub += "  ·  Bezirgân Sartak'ın kervanı bu yolda"   # v24
 		col = PixUI.GOLD
 	InkHUD.banner(self, vp, title, sub, col, a, clampf(_card_t / 0.9, 0.0, 1.0))
+	_draw_sinav_banner(vp, a * clampf((_card_t - 0.9) / 0.6, 0.0, 1.0))   # v42
 
 
 # ------------------------------------------------------------------ oyun içi
@@ -554,6 +555,7 @@ func _draw_hud(vp: Vector2) -> void:
 	var tm0 := float(R["time"])
 	var mh := ("%d. mühür · " % Zorluk.muhur()) if Zorluk.muhur() > 0 else ""   # v22 Kut Mührü
 	InkHUD.place(self, vp, place, "%s%d. derinlik · %d:%02d · %d" % [mh, int(R.get("depth", 1)), int(tm0 / 60.0), int(tm0) % 60, int(R["kills"])], PixUI.GOLD if not level.hub else Color(0.6, 1.0, 1.0))
+	_draw_sinav(vp)   # v42 sınav mühürleri
 	# ---- v32 küçük harita (sağ alt; parşömen, sis, Kut Taşları): dövüşü kalabalıklaştırmasın diye boss / yurtta yok
 	if mode == "play" and not get_tree().paused and level.get("harita") != null and not level.hub and level.boss_id == "":
 		HaritaUI.minimap(self, vp, level, _t)
@@ -562,6 +564,7 @@ func _draw_hud(vp: Vector2) -> void:
 		_draw_world_marks(vp, pl)
 		_draw_ground_dps(pl)
 		_draw_tut(vp)
+		_draw_otag_prompt(pl)   # v42
 		if level.get("isin_t") != null and float(level.isin_t) > 0.0:
 			# ışınlanma kanalı: oyuncunun üstünde dolan halka
 			var sp2: Vector2 = (get_viewport().get_canvas_transform() * (pl.global_position + Vector2(0, -58))) / Ayarlar.ui_scale()
@@ -1785,3 +1788,112 @@ func _draw_ad(vp: Vector2) -> void:
 	if ad_t > 1.2:
 		var more := not Adlar.pending().is_empty()
 		_hint(vp, [["Boşluk", "sıradaki destan" if more else "devam"]])
+
+
+# ------------------------------------------------------------------ v42 sınav mühürleri (Sinav.gd) ve otağlar
+func _sinav_var() -> bool:
+	return level != null and level.get("sinav") != null and level.sinav != null and not level.hub and not level.konak and level.boss_id == ""
+
+
+func _sinav_muhur(c: Vector2, k: String, s: float) -> void:
+	## Tek mühür: bekleyen soluk mum + mürekkep tamga; kazanılan altın (basılınca büyükten iner, mürekkep sıçrar);
+	## kaybedilen gri + çatlak (çizgi 0,4 sn'de uzar)
+	var sv: Sinav = level.sinav
+	var d := sv.durum_of(k)
+	var t0 := -9.0
+	for ol in sv.olaylar:
+		if String(ol[0]) == k:
+			t0 = float(ol[2])
+	var dt := Game.clock() - t0
+	var col: Color = Sinav.RENK[k]
+	var disk := Color(0.78, 0.72, 0.6, 0.5)
+	var ink := Color(0.1, 0.08, 0.08, 0.85)
+	var sc := 1.0
+	if d == 1:
+		disk = col
+		if dt >= 0.0 and dt < 0.35:
+			sc = lerpf(2.2, 1.0, dt / 0.35)
+			disk.a = dt / 0.35
+		elif dt >= 0.35 and dt < 0.9:
+			InkUI.splat(self, c, s * 1.6 * (1.0 + (dt - 0.35)), Color(col, 0.35 * (1.0 - (dt - 0.35) / 0.55)))
+		elif dt < 0.0:
+			disk = Color(0.78, 0.72, 0.6, 0.5)
+	elif d == -1:
+		disk = Color(0.42, 0.4, 0.4, 0.75)
+		ink = Color(0.2, 0.19, 0.2, 0.9)
+	Otag.ui_draw(self, "ui_muhur", c, s * 1.5 * sc, disk)
+	Otag.ui_draw(self, "ui_tamga_" + k, c, s * 1.0 * sc, ink)
+	if d == -1:
+		var k2 := clampf(dt / 0.4, 0.0, 1.0)
+		var a := c + Vector2(-s * 0.55, -s * 0.5)
+		var b := c + Vector2(s * 0.1, s * 0.05)
+		var e := c + Vector2(-s * 0.1, s * 0.6)
+		draw_line(a, a.lerp(b, k2), Color(0.05, 0.04, 0.05), 1.2, true)
+		draw_line(b, b.lerp(e, k2), Color(0.05, 0.04, 0.05), 1.0, true)
+		draw_line(b, b.lerp(c + Vector2(s * 0.6, -s * 0.2), k2), Color(0.05, 0.04, 0.05), 0.9, true)
+
+
+func _draw_sinav(vp: Vector2) -> void:
+	## Sağ üst, biyom kartının altında: üç sınav mührü; Çabuk'un yanında kalan süre, Avcı'nın yanında av sayısı
+	if not _sinav_var():
+		return
+	var sv: Sinav = level.sinav
+	var fb := InkUI.font("body")
+	var x := vp.x - 16.0
+	var y := 50.0
+	var s := 12.0
+	for k in ["avci", "dokunulmaz", "cabuk"]:
+		var lbl := ""
+		var lc := Color(InkHUD.BONE, 0.7)
+		if k == "cabuk" and sv.durum["cabuk"] == 0:
+			var kl := maxf(0.0, sv.kalan())
+			lbl = "%d:%02d" % [int(kl) / 60, int(kl) % 60]
+			if kl < 15.0:
+				lc = Color(1.0, 0.55, 0.45, 0.75 + 0.25 * sin(_t * 8.0))
+		elif k == "avci" and sv.durum["avci"] == 0:
+			lbl = "%d/%d" % [sv.av_say, sv.av_gerek]
+		_sinav_muhur(Vector2(x - s * 0.75, y), k, s)
+		x -= s * 1.6
+		if lbl != "":
+			var w := InkHUD.str_w(fb, lbl, 8)
+			InkUI.draw_str(self, Vector2(x - w, y + 3.0), lbl, fb, 8, lc, 1)
+			x -= w + 3.0
+		x -= 5.0
+	if sv.hepsi():
+		var hc := Vector2(vp.x - 16.0 - s * 0.75, y + s * 1.45)
+		_sinav_muhur(hc, "han", s * 0.8)
+
+
+func _draw_sinav_banner(vp: Vector2, a: float) -> void:
+	## Bölüm afişinin altında üç sınavın tek satırı (soluk)
+	if not _sinav_var() or a <= 0.01:
+		return
+	var sv: Sinav = level.sinav
+	var fb := InkUI.font("body")
+	var parts := ["Çabuk %d:%02d" % [int(sv.par) / 60, int(sv.par) % 60], "Dokunulmaz", "Avcı: " + sv.av_ad]
+	var txt := "Sınavlar  ·  " + "  ·  ".join(parts)
+	var w := InkHUD.str_w(fb, txt, 9)
+	var y := 166.0
+	InkUI.wash(self, Rect2(vp.x * 0.5 - w * 0.5 - 30, y - 12, w + 60, 18), 0.45 * a)
+	var x0 := (vp.x - w) * 0.5
+	InkUI.draw_str(self, Vector2(x0, y), txt, fb, 9, Color(InkHUD.BONE, 0.62 * a), 1)
+	var i := 0
+	for k in ["cabuk", "dokunulmaz", "avci"]:
+		Otag.ui_draw(self, "ui_tamga_" + k, Vector2(x0 - 30.0 + i * 9.0, y - 3.0), 7.0, Color(Sinav.RENK[k], 0.7 * a))
+		i += 1
+
+
+func _draw_otag_prompt(pl: Node) -> void:
+	## Otağın kapısında: açık otağa "W gir", kapalı otağın üstünde neden kapalı olduğu
+	if not _sinav_var() or level.nearest_item(pl.global_position + Vector2(0, -10)) != null:
+		return
+	var o: Node = level.otag_yakin()
+	if o == null:
+		return
+	var sp: Vector2 = (get_viewport().get_canvas_transform() * (o.global_position + Vector2(0, -98 if o.tur == "han" else -84))) / Ayarlar.ui_scale()
+	var ad: String = "Han Otağı" if o.tur == "han" else Sinav.AD[o.tur] + " Otağı"
+	if o.acik() and not o.alindi:
+		_world_prompt(sp, KEY_ETKILES, ad + ": gir")
+	else:
+		var msg: String = ad + " · boş" if o.alindi else (ad + " · mühür çatladı" if o.durum() == -1 else ad + " · " + level.sinav.aciklama(o.tur))
+		PixUI.text(self, Vector2(sp.x - 150, sp.y), msg, Color(0.85, 0.8, 0.72, 0.85), 1, HORIZONTAL_ALIGNMENT_CENTER, 300, 2)

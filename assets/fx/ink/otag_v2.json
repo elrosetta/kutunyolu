@@ -1,0 +1,231 @@
+{
+ "texel": 4.0,
+ "filter": "linear",
+ "_not": "v42 sınav otağları atlası (tools/artgen/otag_ink.py). rect/pivot temel doku pikseli; texel: doku pikseli / dünya (arayüz) birimi.",
+ "sprites": {
+  "otag_cabuk_acik": {
+   "rect": [
+    516,
+    1068,
+    408,
+    424
+   ],
+   "pivot": [
+    204.0,
+    412.0
+   ],
+   "texel": 4.0,
+   "glow": true
+  },
+  "otag_cabuk_kapali": {
+   "rect": [
+    0,
+    1592,
+    408,
+    424
+   ],
+   "pivot": [
+    204.0,
+    412.0
+   ],
+   "texel": 4.0,
+   "glow": true
+  },
+  "otag_dokunulmaz_acik": {
+   "rect": [
+    412,
+    1592,
+    408,
+    424
+   ],
+   "pivot": [
+    204.0,
+    412.0
+   ],
+   "texel": 4.0,
+   "glow": true
+  },
+  "otag_dokunulmaz_kapali": {
+   "rect": [
+    0,
+    2020,
+    408,
+    424
+   ],
+   "pivot": [
+    204.0,
+    412.0
+   ],
+   "texel": 4.0,
+   "glow": true
+  },
+  "otag_avci_acik": {
+   "rect": [
+    412,
+    2020,
+    408,
+    424
+   ],
+   "pivot": [
+    204.0,
+    412.0
+   ],
+   "texel": 4.0,
+   "glow": true
+  },
+  "otag_avci_kapali": {
+   "rect": [
+    0,
+    2448,
+    408,
+    424
+   ],
+   "pivot": [
+    204.0,
+    412.0
+   ],
+   "texel": 4.0,
+   "glow": true
+  },
+  "otag_han_acik": {
+   "rect": [
+    0,
+    544,
+    512,
+    520
+   ],
+   "pivot": [
+    256.0,
+    508.0
+   ],
+   "texel": 4.0,
+   "glow": true
+  },
+  "otag_han_kapali": {
+   "rect": [
+    0,
+    1068,
+    512,
+    520
+   ],
+   "pivot": [
+    256.0,
+    508.0
+   ],
+   "texel": 4.0,
+   "glow": true
+  },
+  "otag_ic": {
+   "rect": [
+    0,
+    0,
+    960,
+    540
+   ],
+   "pivot": [
+    0.0,
+    0.0
+   ],
+   "texel": 4.0,
+   "glow": true
+  },
+  "sandik_kapali": {
+   "rect": [
+    412,
+    2448,
+    192,
+    176
+   ],
+   "pivot": [
+    96.0,
+    164.0
+   ],
+   "texel": 4.0,
+   "glow": false
+  },
+  "sandik_acik": {
+   "rect": [
+    608,
+    2448,
+    192,
+    176
+   ],
+   "pivot": [
+    96.0,
+    164.0
+   ],
+   "texel": 4.0,
+   "glow": true
+  },
+  "ui_tamga_cabuk": {
+   "rect": [
+    804,
+    2448,
+    128,
+    128
+   ],
+   "pivot": [
+    64.0,
+    64.0
+   ],
+   "texel": 8.0,
+   "glow": false
+  },
+  "ui_tamga_dokunulmaz": {
+   "rect": [
+    0,
+    2876,
+    128,
+    128
+   ],
+   "pivot": [
+    64.0,
+    64.0
+   ],
+   "texel": 8.0,
+   "glow": false
+  },
+  "ui_tamga_avci": {
+   "rect": [
+    132,
+    2876,
+    128,
+    128
+   ],
+   "pivot": [
+    64.0,
+    64.0
+   ],
+   "texel": 8.0,
+   "glow": false
+  },
+  "ui_tamga_han": {
+   "rect": [
+    264,
+    2876,
+    128,
+    128
+   ],
+   "pivot": [
+    64.0,
+    64.0
+   ],
+   "texel": 8.0,
+   "glow": false
+  },
+  "ui_muhur": {
+   "rect": [
+    396,
+    2876,
+    128,
+    128
+   ],
+   "pivot": [
+    64.0,
+    64.0
+   ],
+   "texel": 8.0,
+   "glow": false
+  }
+ }
+}

@@ -43,6 +43,11 @@ func _ready() -> void:
 		var kt: Node = load("res://tools/tests/konak_testi.gd").new()
 		kt.set("main", self)
 		add_child(kt)
+	if OS.get_cmdline_user_args().has("--otag"):
+		# v42 sınav ve otağ testi (tools/tests/otag_testi.gd): mühür kazanma / kaybetme, otağa giriş, ödüller, türler, değer
+		var ot: Node = load("res://tools/tests/otag_testi.gd").new()
+		ot.set("main", self)
+		add_child(ot)
 	if OS.get_cmdline_user_args().has("--mekanik"):
 		var mt: Node = load("res://tools/tests/mekanik_testi.gd").new()
 		mt.set("main", self)
@@ -165,7 +170,7 @@ func _ready() -> void:
 			_build_boss("kara_boru_han")
 		elif String(arg).begins_with("--boss="):
 			_build_boss(String(arg).trim_prefix("--boss="))
-	if auto_test or showcase or _ekran != "" or firca or sus or bengu_t or OS.get_cmdline_user_args().has("--mekanik") or OS.get_cmdline_user_args().has("--dovus") or OS.get_cmdline_user_args().has("--yay") or OS.get_cmdline_user_args().has("--unsur") or OS.get_cmdline_user_args().has("--denge") or OS.get_cmdline_user_args().has("--tomar") or OS.get_cmdline_user_args().has("--zeka") or OS.get_cmdline_user_args().has("--tuccar") or OS.get_cmdline_user_args().has("--harita") or OS.get_cmdline_user_args().has("--sanat") or OS.get_cmdline_user_args().has("--konak") or OS.get_cmdline_user_args().has("--isinlan") or OS.get_cmdline_user_args().has("--vahset") or OS.get_cmdline_user_args().has("--perf"):
+	if auto_test or showcase or _ekran != "" or firca or sus or bengu_t or OS.get_cmdline_user_args().has("--mekanik") or OS.get_cmdline_user_args().has("--dovus") or OS.get_cmdline_user_args().has("--yay") or OS.get_cmdline_user_args().has("--unsur") or OS.get_cmdline_user_args().has("--denge") or OS.get_cmdline_user_args().has("--tomar") or OS.get_cmdline_user_args().has("--zeka") or OS.get_cmdline_user_args().has("--tuccar") or OS.get_cmdline_user_args().has("--harita") or OS.get_cmdline_user_args().has("--sanat") or OS.get_cmdline_user_args().has("--konak") or OS.get_cmdline_user_args().has("--isinlan") or OS.get_cmdline_user_args().has("--vahset") or OS.get_cmdline_user_args().has("--perf") or OS.get_cmdline_user_args().has("--otag"):
 		hud.mode = "play"
 		get_tree().paused = false
 	else:
@@ -179,7 +184,7 @@ func _ready() -> void:
 var _test_kipi := false
 const TEST_BAYRAKLARI := ["--otomatik", "--sahne", "--savurus", "--ekran=", "--firca", "--fx_vitrin=", "--sus=", "--bengu", "--mekanik",
 	"--dovus", "--yay", "--unsur", "--denge", "--tomar", "--zeka", "--tuccar", "--harita", "--sanat", "--yaratik", "--silah27",
-	"--boss", "--piksel_tara", "--konak", "--isinlan", "--arayuz=", "--vahset", "--perf"]
+	"--boss", "--piksel_tara", "--konak", "--isinlan", "--arayuz=", "--vahset", "--perf", "--otag"]
 
 
 func _test_bayragi() -> bool:
