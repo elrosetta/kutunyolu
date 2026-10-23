@@ -42,6 +42,11 @@ uniform float mist_soft = 0.3;           // bandın yumuşaklığı (ekran yüks
 uniform float mist_drift = 1.0;          // sürüklenme hızı
 uniform float ca : hint_range(0.0, 4.0) = 0.0;          // renk sapması (ekran pikseli; yalnızca vuruş nabzında)
 uniform float death : hint_range(0.0, 1.0) = 0.0;       // ölüm derecesi
+// v42 tan: Gün Ana'nın dönen örgüleri dünyayı ısıtır (Hikaye.safak_k: örgü başına 0,11; tan söktükten sonra 0,7, yurtta 1).
+// Ekranın üst yarısında ufka doğru sıcak bir ağarma bandı (koyuları gül-safrana kaldırır, açıkları hemen hiç bozmaz)
+// ve tüm tonlara çok hafif sıcaklık. Level._build_overlay_fx yazar; örgü alınınca GunParcasi süzerek yükseltir.
+uniform float safak : hint_range(0.0, 1.5) = 0.0;
+uniform vec3 safak_renk = vec3(1.0, 0.62, 0.36);
 
 float hash21(vec2 p) {
 	p = fract(p * vec2(123.34, 456.21));
@@ -105,6 +110,20 @@ void fragment() {
 		float band = smoothstep(mist_y - mist_soft, mist_y + mist_soft * 0.35, UV.y);
 		float m = mist * band * (0.55 + 0.45 * n) * (1.0 - smoothstep(0.35, 0.95, l));
 		g = mix(g, mist_color, clamp(m, 0.0, 0.6));
+	}
+	if (safak > 0.001) {
+		// ufuk bandı: ekranın %20-60'ı arası, ortası %42 civarında; alçak gürültüyle dalgalanır
+		float hz = exp(-pow((UV.y - 0.42 + (vnoise(vec2(UV.x * 2.0, 3.0)) - 0.5) * 0.08) / 0.2, 2.0));
+		float lo = 1.0 - smoothstep(0.25, 0.85, l);
+		g += safak_renk * hz * lo * safak * 0.16;
+		g *= mix(vec3(1.0), vec3(1.05, 1.0, 0.93), clamp(safak, 0.0, 1.0) * 0.6);
+		// tan sökmüş dünya (safak > 0,6): gök sıcak sabaha döner (yurt 1,5 = tam sabah)
+		float sabah = clamp((safak - 0.6) / 0.9, 0.0, 1.0);
+		if (sabah > 0.0) {
+			float sky = 1.0 - smoothstep(0.15, 0.75, UV.y);
+			vec3 warm = g * vec3(1.22, 1.02, 0.8) + vec3(0.06, 0.035, 0.0);
+			g = mix(g, warm, sabah * (0.45 + 0.55 * sky));
+		}
 	}
 	g = mix(c, g, amount);
 	// --- ölüm: renk çekilir, soğur, kararır (Perde.olum sürer)

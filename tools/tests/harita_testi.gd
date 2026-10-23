@@ -674,7 +674,8 @@ static func icerik(lv: Node) -> Dictionary:
 				out["d_dal"] += n_d
 			"odul":
 				out["d_odul"] += n_d
-		if int(say.get(id, 0)) == 0 and String(rm.get("odul", "")) != "pazar":
+		# v42: hikâye odası (opts.hikaye_odasi) bilerek yaratıksız / ödülsüz: içinde anlatı sahnesi ve Gün Ana görümü var
+		if int(say.get(id, 0)) == 0 and not (String(rm.get("odul", "")) in ["pazar", "hikaye"]):
 			out["bos"] += 1
 			bos_ad.append("%s#%d(%s)" % [rm["role"], id, String(rm.get("kind", ""))])
 		if String(rm["role"]) in ["ana", "cikis"] and n_d == 0:

@@ -534,6 +534,7 @@ func load_meta() -> void:
 		var d: Variant = JSON.parse_string(f.get_as_text())
 		if d is Dictionary:
 			meta.merge(d, true)
+	Hikaye.meta_hazirla()   # v42: hikâye alanları (gun_parca, gorumler, giris_izlendi, son_izlendi) varsayılan / göç
 
 
 func save_meta() -> void:

@@ -413,6 +413,12 @@
   "bg/yurt_v2_4_fog.webp",
   "dff6eaac03c1f8651fb3958cb851f868"
  ],
+ "decor/altin_yaprak_v2.png": [
+  56,
+  40,
+  "decor/altin_yaprak_v2.webp",
+  "058a8a418e0020c5a47156a05a85fc7d"
+ ],
  "decor/anit_bozkir_v2.png": [
   1120,
   600,
@@ -478,6 +484,12 @@
   400,
   "decor/bitig_bozkir_v2.webp",
   "796ffd89dafe598512ee18a994ea5571"
+ ],
+ "decor/bitig_tasi_v2.png": [
+  240,
+  416,
+  "decor/bitig_tasi_v2.webp",
+  "cea252d7231e42e0489b21a7af77d080"
  ],
  "decor/bulut_1_v2.png": [
   376,
@@ -622,6 +634,12 @@
   660,
   "decor/dilek_agaci_v2.webp",
   "f0cd722f230c875fca2f091e7ffb54ac"
+ ],
+ "decor/gun_sunagi_v2.png": [
+  440,
+  384,
+  "decor/gun_sunagi_v2.webp",
+  "6a2368b21becc310cb6bbca947787f76"
  ],
  "decor/kam_diregi_bozkir_v2.png": [
   340,
@@ -887,6 +905,12 @@
   "decor/sunak_v2.webp",
   "22a6c0961a4c1a77692b393b3315228d"
  ],
+ "decor/tan_halkasi_v2.png": [
+  600,
+  224,
+  "decor/tan_halkasi_v2.webp",
+  "d2047e235d65486c722bf55492ca6051"
+ ],
  "decor/totem_tuy_v2.png": [
   80,
   80,
@@ -1060,6 +1084,12 @@
   56,
   "decor/yh_yol_3_v2.webp",
   "74eaa951a63c9a562c320d3c1098cdfd"
+ ],
+ "decor/zincirli_kus_v2.png": [
+  304,
+  336,
+  "decor/zincirli_kus_v2.webp",
+  "31e40232285e49557f4e8ab933d5df1f"
  ],
  "fx/anim/focus_charge_v2.png": [
   3072,

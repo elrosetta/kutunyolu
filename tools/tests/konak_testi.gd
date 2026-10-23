@@ -67,6 +67,7 @@ func _run() -> void:
 		return
 	await _akis()
 	await _ocak()
+	await _yoldaslar()
 	await _usta()
 	await _kapi()
 	await _boss()
@@ -144,6 +145,33 @@ func _ocak() -> void:
 	lv.player.velocity = Vector2.ZERO
 	await _frames(4)
 	_check(int(Game.run["kut"]) == 0 and int(Game.meta.get("kut_bank", 0)) == bank0 + 25, "ocak Kut'u Umay'a ulaştırdı (banka %d → %d)" % [bank0, int(Game.meta.get("kut_bank", 0))])
+
+
+# ------------------------------------------------------------------ v42 yoldaşlar
+func _yoldaslar() -> void:
+	## Konakta yurdun dört sakini de var; hizmet ekranları açılır (Umay / Ozan / Demirci / Alp Ata); sözleri hikâyeden
+	var lv: Node = main.level
+	var bek := {"umay": "umay", "ozan": "ozan", "demirci": "demirci", "alp_ata": "sanat"}
+	for id in bek:
+		var npc: Node = null
+		for n in lv.npcs:
+			if n.id == id:
+				npc = n
+		_check(npc != null, "konakta %s var" % id)
+		if npc == null:
+			continue
+		_check(String(npc.soz) != "", "%s sözü: «%s»" % [id, String(npc.soz)])
+		lv.player.global_position = npc.global_position + Vector2(-20, -2)
+		lv.player.velocity = Vector2.ZERO
+		await _frames(3)
+		_check(npc.near, "oyuncu %s yanında (W balonu)" % id)
+		lv.npc_requested.emit(id)
+		await _frames(2)
+		var ok: bool = main.hud.mode == bek[id] or (id == "ozan" and main.hud.mode == "ad")
+		_check(ok and get_tree().paused, "%s ekranı konakta açıldı (%s)" % [id, main.hud.mode])
+		main._start_play()
+		await _frames(2)
+	_check(main.hud.mode == "play" and not get_tree().paused, "yoldaşlardan sonra oyun sürüyor")
 
 
 # ------------------------------------------------------------------ Bengisu Usta

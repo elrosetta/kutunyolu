@@ -19,7 +19,7 @@ var _out := ""
 var _scans := 0
 
 ## mürekkep / yumuşak varlık yolları (bunlar v1 sayılmaz)
-const INK_YOL := ["_v2", "/ink/", "/fonts/", "assets/fx/ink_p/", "/ink_"]
+const INK_YOL := ["_v2", "/ink/", "/fonts/", "assets/fx/ink_p/", "/ink_", "assets/hikaye/"]   # v42: sumi-e sinema / görüm dokuları
 
 
 func _ready() -> void:

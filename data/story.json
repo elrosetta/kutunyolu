@@ -1,74 +1,239 @@
 {
-  "title": "Kut'un Yolu",
-  "intro": [
-    "Gök Tengri dünyayı üç kat yarattı: Gök, Yer ve Yeraltı.",
-    "Üçünü bir arada tutan Ulu Kayın'dı, Hayat Ağacı. Kökleri Erlik'in karanlığına, dalları Ülgen'in ışığına uzanırdı.",
-    "Her canlıya Gök'ten inen hayat bereketine Kut denirdi. Kut, ağacın damarlarından dünyaya akardı.",
-    "Erlik Han, ağacın köklerine kara bir zincir doladı. Kut çekilmeye başladı. Güneş bir sabah doğmadı; gökte yalnız solgun bir ay kaldı. Yer karardı, iyeler azdı, ölüler dinlenemez oldu.",
-    "Sen Bengü'sün, bozkırın son alplarından biri. Erlik'in ordusuna karşı düştün.",
-    "Ruhun kuş olup Ulu Kayın'ın dalına konacakken Umay Ana seni tuttu: \"Kutun daha tükenmedi.\"",
-    "Seni ağacın özünden yeniden yoğurdu. Her düştüğünde yeniden doğacaksın.",
-    "Ama her doğuş ağaçtan bir yaprak koparır. Erlik'in zincirini kırmadan ağaç kurursa, ne sen kalırsın ne dünya."
+ "_not": "v42 Güneş Ana hikâyesi (docs/HIKAYE.md). Erlik, tan töreni gecesi Gün Ana'nın beş ışık örgüsünü kesti, onu dokuz gecenin zinciriyle Tamu'ya bağladı; örgüleri beş bekçiye dağıttı. Bengü (tan bekçisi) örgüleri toplar. Okuyan: scripts/core/Hikaye.gd (ilerleme Game.meta: gun_parca, gorumler, giris_izlendi, son_izlendi). giris / son: sinema panelleri (Sinema.gd; resim assets/hikaye/<ad>.jpg + _isik.png). Satırlar ilerlemeye göre: 'asama' anahtarı alınan örgü sayısı (0..5), 'safak' son izlendikten sonra.",
+ "title": "Kut'un Yolu",
+ "intro": [
+  "Gök Tengri dünyayı üç kat kurdu. Üçünü bir ağaç tuttu: Ulu Kayın.",
+  "Her sabah Gün Ana, Kaf'ın ardından doğar; kucağındaki güneşi göğe bırakırdı. Beş örgüsünden tan sökerdi.",
+  "Bir tan töreni gecesi Erlik köklerden çıktı. Kara kırkıyla beş örgüyü kesti, Gün Ana'yı dokuz gecenin zinciriyle yerin dibine bağladı.",
+  "Ateşi bekleyen alp sendin, Bengü. Düştün.",
+  "Ruhun kuş olup dala konacakken Umay Ana seni tuttu: «Kardeşimin ışığını geri getir.»",
+  "O günden beri güneş doğmaz. Beş örgü, beş bekçi. Yol aşağı iner."
+ ],
+ "giris": [
+  {"resim": "giris_1", "metin": "Gök Tengri dünyayı üç kat kurdu.\nÜçünü bir ağaç tuttu: Ulu Kayın.", "sure": 6.5, "kay": [0.0, 0.04, 1.0, 1.06]},
+  {"resim": "giris_2", "metin": "Her sabah Gün Ana, Kaf'ın ardından doğardı.\nBeş örgüsünden tan sökerdi.", "sure": 7.0, "kay": [0.0, -0.03, 1.08, 1.0]},
+  {"resim": "giris_3", "metin": "Bir tan töreni gecesi Erlik köklerden çıktı.\nKara kırkıyla beş örgüyü kesti; Gün Ana'yı dokuz gecenin zinciriyle yerin dibine bağladı.", "sure": 8.0, "kay": [0.03, 0.0, 1.0, 1.07]},
+  {"resim": "giris_4", "metin": "Ateşi bekleyen alp sendin, Bengü.\nDüştün.", "sure": 6.0, "kay": [-0.02, 0.02, 1.1, 1.02]},
+  {"resim": "giris_5", "metin": "Ruhun kuş olup dala konacakken Umay Ana seni tuttu:\n«Kardeşimin ışığını geri getir.»", "sure": 7.0, "kay": [0.0, 0.0, 1.0, 1.06]},
+  {"resim": "giris_6", "metin": "O günden beri güneş doğmaz.\nBeş örgü, beş bekçi. Yol aşağı iner.", "sure": 7.0, "kay": [0.0, -0.04, 1.05, 1.0]}
+ ],
+ "son": [
+  {"resim": "son_1", "metin": "Beş örgüyü avucunda ördün.\nAltıncı tel senin saçındı.", "sure": 7.0, "kay": [0.0, 0.0, 1.0, 1.06]},
+  {"resim": "son_2", "metin": "Dokuz gecenin zinciri\nbir sabahın ağırlığını taşıyamadı.", "sure": 6.5, "kay": [0.0, 0.02, 1.08, 1.0]},
+  {"resim": "son_3", "metin": "Gün Ana köklerden yükseldi.\nUlu Kayın'ın her dalı onu tanıdı.", "sure": 7.0, "kay": [0.0, 0.05, 1.0, 1.05]},
+  {"resim": "son_4", "metin": "Ve tan söktü.", "sure": 7.5, "kay": [0.0, 0.0, 1.06, 1.0]},
+  {"resim": "son_5", "metin": "Gece yine gelecek; Erlik ölmez.\nAma artık sabah da gelecek.", "sure": 8.0, "kay": [0.02, 0.0, 1.0, 1.05]}
+ ],
+ "jenerik": [
+  ["KUT'UN YOLU", ""],
+  ["Bir tan bekçisinin destanı", ""],
+  ["Bengü", "son tan bekçisi"],
+  ["Gün Ana", "sabahın anası"],
+  ["Umay Ana", "kız kardeşi, doğumların koruyucusu"],
+  ["Erlik Han", "yeraltının efendisi, Ülgen'in kardeşi"],
+  ["Kara Börü Han · Tepegöz · Şahmeran · Yelbegen", "örgülerin bekçileri"],
+  ["Demirci Kam Kuzgun · Ozan Bilge Kopuz · Alp Ata", "yurt ve konak"],
+  ["Bengisu Usta · Bezirgân Sartak", "kervan"],
+  ["Türk ve Altay mitlerinden, Dede Korkut'un yolundan", ""],
+  ["elrosetta ve Claude", "yapım"],
+  ["Gece yine gelecek.", "Ulu Kayın bekliyor."]
+ ],
+ "orguler": {
+  "kara_boru_han": {"id": "al", "ad": "Al Örgü", "renk": [1.0, 0.42, 0.32], "alt": "Tan önce kızarır.", "gorum": "Al örgüm... Tan önce kızarırdı, hatırla. Gök utanır gibi."},
+  "tepegoz": {"id": "ak", "ad": "Ak Örgü", "renk": [1.0, 0.96, 0.86], "alt": "Sonra gök ağarır.", "gorum": "Ak örgüm döndü. Gök ağarmayı yeniden öğrenecek."},
+  "sahmeran": {"id": "gok", "ad": "Gök Örgü", "renk": [0.55, 0.85, 1.0], "alt": "Sabahın mavisi.", "gorum": "Gök örgüm. Şahmeran'a kızma; o da bekledi, o da üşüdü."},
+  "yelbegen": {"id": "sari", "ad": "Sarı Örgü", "renk": [1.0, 0.86, 0.36], "alt": "İlk ışın.", "gorum": "Sarı örgüm... İlk ışın hep senin yüzüne düşerdi. Az kaldı, kızım."},
+  "erlik_han": {"id": "altin", "ad": "Altın Örgü", "renk": [1.0, 0.74, 0.28], "alt": "Güneşin yüreği.", "gorum": "Altın örgüm. Şimdi gel. Ör beni."}
+ },
+ "bolumler": {
+  "otuken": {"no": "Birinci Bölüm", "ad": "Kül Ocağı", "epigraf": "Tan ateşi söndüğü gece sen de söndün. Külün hâlâ sıcak.", "ogrenilen": "Bengü tan bekçisiydi: töreni bekleyen, güneşi davulla göğe çağıran alp. Erlik o gece köklerden çıktı; ilk kurban ateş oldu."},
+  "bozkir": {"no": "İkinci Bölüm", "ad": "Göğün Kör Gözü", "epigraf": "Bozkır güneşe bakardı. Şimdi güneşin yerinden tek bir göz bakıyor.", "ogrenilen": "Ölülerin ruh kuşları doğuya, Ülgen'e uçar. Doğu kalmayınca bozkırın ölüleri yolda kaldı. Tepegöz ak örgüyü gözüne gömdü."},
+  "sahmeran": {"no": "Üçüncü Bölüm", "ad": "Yeraltı Aynası", "epigraf": "Işık yere düşünce su olur derler. Şahmeran o suyu ayna yaptı.", "ogrenilen": "Şahmeran örgüyü Erlik'ten saklıyordu. Umay ile Gün Ana kız kardeştir; Bengü tan vakti doğmuş, Gün Ana'nın ilk ışığıyla yıkanmıştı."},
+  "kaf": {"no": "Dördüncü Bölüm", "ad": "Boş Beşik", "epigraf": "Gün Ana her sabah Kaf'ın ardından doğardı. Dağ, boş bir beşiği sallıyor.", "ogrenilen": "Kaf, güneşin beşiğidir. Yelbegen yeraltına inen yolu bekler; sarı örgüyü yedi boynuna dolamış."},
+  "tamu": {"no": "Beşinci Bölüm", "ad": "Dokuz Gecenin Zinciri", "epigraf": "En derin karanlıkta bile biri ışığı hatırlar.", "ogrenilen": "Erlik, Ülgen'in kardeşidir; göğü kaybettiği gece güneşi kıskandı. Zincirin her halkası bir gecedir; dokuzu da sayılınca kırılır."}
+ },
+ "gorumler": {
+  "otuken": "Bengü... kızım. Ateş sönmedi; sen hâlâ yanıyorsun.",
+  "bozkir": "Bozkırda ölüler doğuyu bekler. Doğu yok artık. Onlar için de yürü.",
+  "sahmeran": "Kardeşim Umay seni tuttu. Ben de seni ilk ışığımla yıkamıştım. Hatırla.",
+  "kaf": "Kaf'ın ardında beşiğim boş. Üşüyorum, kızım.",
+  "tamu": "Yakınsın. Zincirin her halkası bir gece. Dokuzunu da say.",
+  "safak": "Her sabah seni görüyorum, kızım. Gece gelince korkma."
+ },
+ "oda": {
+  "otuken": ["Davulunu hatırla. Tan senin vuruşunla sökerdi.", "Erlik köklerden geldi; sen ateşin önündeydin. Kaçmadın.", "Ormanın iyeleri ışığımı arıyor. Onları affet."],
+  "bozkir": ["Kurganların altında ölüler uyanık yatıyor. Sabahı bekliyorlar.", "Bir zamanlar bozkırın her çadırı bana açılırdı.", "Atların bile gölgesi yok artık. Gölge, ışık ister."],
+  "sahmeran": ["Kardeşim Umay doğumu bekler, ben sabahı doğururum. İkimiz de anayız.", "Şahmeran'ın aynasında yüzümü gördüm; tanıyamadım.", "Su, ışığı unutmaz. Dokun ona."],
+  "kaf": ["Beşiğin ipleri dondu. Sallayan el yok.", "Yelbegen'in yedi başı yedi gece uyumaz.", "Buradan bakınca dünya küçüktür, kızım. Ve sabahsız."],
+  "tamu": ["Zincir soğuk değil; zincir unutkan. Beni unutmasın diye adını söylüyorum: Bengü.", "Erlik ağlar bazen. Kimse duymaz.", "Bir halka daha. Say, kızım."]
+ },
+ "boss": {
+  "kara_boru_han": {"ad": "Kara Börü Han", "once": "Ay'a uluyan soyum güneşi hiç sevmedi, kurt kızı. Boynumdaki al ışık ödülüm.", "sonra": "Al ışık... Asena'ya söyle: ben ayı seçtim."},
+  "tepegoz": {"ad": "Tepegöz", "once": "Gözüme bak. İçinde güneş var. Artık benim.", "sonra": "Karanlık... Basat da böyle bırakmıştı beni."},
+  "sahmeran": {"ad": "Şahmeran", "once": "Dur, alp kızı. Bu ışığı Erlik'ten ben sakladım. Taşıyabileceğini göster.", "sonra": "Al onu. Umay'a söyle: kız kardeşi için ben de bekledim."},
+  "yelbegen": {"ad": "Yelbegen", "once": "Yedi başım var, yedisi de aç. Sarı ışık sekizincisi olacaktı.", "sonra": "Kaf'ın ardı... boş kalmayacak demek."},
+  "erlik_han": {"ad": "Erlik Han", "once": "Kardeşim Ülgen göğü aldı, bana yerin altı kaldı. Güneş de benim artık, Bengü.", "sonra": "Gece yine gelecek, alp. Her akşam. Ben hep geleceğim."}
+ },
+ "npcs": {
+  "umay": {
+   "name": "Umay Ana",
+   "role": "Doğumların ve çocukların koruyucusu, Gün Ana'nın kız kardeşi. Seni her ölümde yeniden doğurur; topladığın Kut'la kalıcı güç verir.",
+   "first": [
+    "Gözlerini aç, yavrum. Ulu Kayın'ın dalındasın.",
+    "Erlik kardeşimin örgülerini kesti; Gün Ana yerin dibinde zincirli. Güneş o yüzden doğmuyor.",
+    "Seni ağacın özünden yoğurdum. Düşersen yine kalkacaksın; ama her kalkış ağaca bir yaprağa mal olur.",
+    "Beş örgü, beş bekçi. Kut'unu getir; kanadımın altında güçlenirsin."
+   ],
+   "repeat": [
+    "Yine düştün, yine kalktın. Kurt soyu böyledir.",
+    "Kut'u getirdin mi? Ağaç her tanesini hatırlar.",
+    "Kardeşim seni rüyanda çağırıyorsa cevap ver.",
+    "Yorulursan dalda dinlen. Ama uzun kalma; yapraklar düşüyor."
+   ],
+   "asama": [
+    ["Kardeşimin sesi gelmiyor artık. Sen git, ben ağacı tutarım.", "Her yaprak bir sabah, yavrum. Az kaldı demek isterdim."],
+    ["Al örgü döndü! Ağacın bir dalı altın oldu, gördün mü?", "Kardeşim kıpırdadı. Uykusunda adını söyledi."],
+    ["İki örgü. Doğuda bir ağarma var; kimse inanmıyor ama ben gördüm.", "Ak örgüyü Tepegöz'ün gözünden mi aldın? Cesur kızım."],
+    ["Şahmeran sana neler söyledi? Evet... biz kız kardeşiz. Sen de bizdensin.", "Üç örgü. Ağacın yarısı ışık tutuyor."],
+    ["Dört örgü. Kaf'ın beşiği ısındı.", "Son kapı Erlik'in evi. Korkma; ben arkandayım."],
+    ["Beşi de döndü... Gün'ü çöz, yavrum. Git.", "Bir saç teli bile bazen bir zincirden ağırdır."]
+   ],
+   "safak": ["Tan söktü, yavrum. Kardeşim her sabah seni soruyor.", "Gece yine gelir. Ama artık sabahı biliyoruz.", "Dinlen biraz. Sonra yine yürürsün; yol bitmez."],
+   "konak": ["Ocağın başındayım, yavrum. Kut'unu buraya da getirebilirsin.", "Kanadım seninle yol alır."]
+  },
+  "demirci": {
+   "name": "Demirci Kam Kuzgun",
+   "role": "Ata bilgisi parşömenlerinden yeni silahlar döver.",
+   "first": [
+    "Bir alp mı, bir hayalet mi? Fark etmez, ikisi de silah ister.",
+    "Düşmanların taşıdığı ata bilgisi parşömenlerini getir. Okuyabildiğim her şeyi döverim."
+   ],
+   "repeat": [
+    "Örsün sesi Erlik'i rahatsız eder. İyi.",
+    "Gök demiri bulursan sakla. Yıldızdan düşen demir kimseye eğilmez.",
+    "Kalkansız alp, kınsız kılıca benzer."
+   ],
+   "asama": [
+    ["Güneş yoksa demir de soğuk kalır. Körüğe daha çok basıyorum."],
+    ["Al ışık örsüme vurdu bu sabah. Demir kızardı, kendiliğinden."],
+    ["İki örgü... Ocağım ilk kez Kut istemeden yanıyor."],
+    ["Zinciri kıracak kılıcı dövemem; zincir demirden değil, geceden."],
+    ["Dört örgü. Erlik'in kırkısını dövenle aynı soydanım, biliyor musun? Utancımı sen silersin."],
+    ["Git. Kılıcın keskin, yüreğin daha keskin."]
+   ],
+   "safak": ["Güneşte dövülen demir başka çınlar. Dinle!"],
+   "konak": ["Kervanla demir taşımak zor iş. Ama örs nereye, ben oraya."]
+  },
+  "ozan": {
+   "name": "Ozan Bilge Kopuz",
+   "role": "Dede Korkut'un yolundan bir ozan. Destanı anlatır; tan bekçisinin yolunu yazar.",
+   "first": [
+    "Soyunu sopunu sormam, yiğit; yolunu sorarım.",
+    "Her derinliğin bir destanı var. Sen yürüdükçe ben yazacağım."
+   ],
+   "repeat": [
+    "Tepegöz'ü Basat yendi derler. Belki bir gün seni de anlatırlar.",
+    "Şahmeran ölmedi, yiğit. Erlik onu bağladı sadece.",
+    "Ad koymadan ölen yiğidin destanı eksik kalır."
+   ],
+   "asama": [
+    ["Destan şöyle başlar: «Bir sabah güneş doğmadı...» Gerisini sen yazacaksın."],
+    ["«Al örgüyü kurt boynundan aldı...» Güzel dize. Devam et."],
+    ["«...ak örgüyü devin gözünden.» Kopuzum bile titredi."],
+    ["«...gök örgüyü yılan anasının aynasından.» Üç sabah, iki gece kaldı."],
+    ["«...sarı örgüyü yedi başlı devin boynundan.» Son dize Tamu'da yazılır."],
+    ["Beş dize tamam. Destanın sonunu sen söyle, ben çalarım."]
+   ],
+   "safak": ["Destan bitti mi? Hayır; destanlar sabahla yeniden başlar.", "Tan bekçisi Bengü: dilimde bir ad, kopuzumda bir sabah."],
+   "konak": ["Ateşin başında destan daha iyi dinlenir."]
+  },
+  "alp_ata": {
+   "name": "Alp Ata",
+   "role": "Savaş sanatları ustası; tan bekçilerini o yetiştirirdi.",
+   "first": ["Seni ben yetiştirdim, Bengü. Hatırlamıyorsun, biliyorum. Bileğin hatırlar."],
+   "repeat": ["Kılıç elin uzantısıdır, el yüreğin.", "Nişanını doldur; sanat sabırla gelir."],
+   "asama": [
+    ["Tan bekçisi düşmez derdik. Sen düştün ve kalktın. Bu daha zor."],
+    ["Al örgü... Kurt Han'ın ulumasına karşı durdun demek."],
+    ["Tepegöz'ün gözüne bakan alp, artık hiçbir şeyden korkmaz."],
+    ["Şahmeran'ı öldürmedin, örgüyü hak ettin. Fark büyük."],
+    ["Yelbegen'in yedi başı... Ben ancak üçünü görmüştüm."],
+    ["Erlik'e giderken bir şey öğreteyim: geri adım da bir sanattır."]
+   ],
+   "safak": ["Sabah idmanı! Ne zamandır bu sözü söyleyemedim."],
+   "konak": ["Kervanla yaşlı bir alp de yürür. Öğreteceğim çok şey var."]
+  },
+  "usta": {
+   "name": "Bengisu Usta",
+   "asama": [
+    ["Nakış ışık ister. Fenerimi yaklaştır."],
+    ["Al ışık nakışlara iyi gelir; kalemim titremedi bugün."],
+    ["Ak örgünün ışığında ilk kez renkleri gördüm."],
+    ["Gök örgü... Unsur aşıları daha kolay tutuyor."],
+    ["Sarı ışık! Kalite taşını görebiliyorum artık."],
+    ["Altın ışıkla nakış vurmak... ustamın düşüydü."]
+   ],
+   "safak": ["Güneşte nakış! Ustam görse ağlardı."]
+  },
+  "bezirgan": {
+   "name": "Bezirgân Sartak",
+   "asama": [
+    ["Karanlıkta mal satmak kolay; kimse kusuru görmez."],
+    ["Bir örgü döndü diyorlar. Fiyatlar düşmez, ama umut ucuzladı."],
+    ["Yolda doğu biraz ağarmış. Kervan yönünü buldu."],
+    ["Üç örgü! Mumcu esnafı bana kızgın."],
+    ["Dört örgü. Kaf'ın ardına kervan çıkarmayı düşünüyorum."],
+    ["Erlik'in kapısına mal götürmem. Sen götürürsün."]
+   ],
+   "safak": ["Sabah pazarı! Ömrümde ilk kez."]
+  }
+ },
+ "lore": {
+  "otuken": [
+   "Taşa kazınmış: bir kadın, saçları beş ışın. Altında küçük bir davulcu.",
+   "Kurt izleri, sonra hiçbir iz. Sanki sürü aya yürümüş.",
+   "Bir kam davulu, derisi yırtık. Kenarına kazınmış: «Tan bekçisi Bengü'ye.»",
+   "Söndürülmüş tören ateşi. Küllerin içinde yarım bir örgü bağı.",
+   "Kütüğe kazınmış çetele: kırk üç çentik, sonra bir çizgi. «Güneş kırk üç gündür doğmadı.»"
   ],
-  "npcs": {
-    "umay": {
-      "name": "Umay Ana",
-      "role": "Doğumun ve çocukların koruyucusu. Seni her ölümde yeniden doğurur; topladığın Kut'la kalıcı güç verir.",
-      "first": [
-        "Gözlerini aç, yavrum. Ulu Kayın'ın dalındasın.",
-        "Erlik köklere zincir vurdu. Kut çekiliyor; güneş doğmaz oldu, dünya soluyor.",
-        "Seni ağacın özünden yoğurdum. Düşersen yine kalkacaksın; ama her kalkış ağaca bir yaprağa mal olur.",
-        "Ötüken'e in. Ormanın iyelerine ne olduğunu gör. Topladığın Kut'u bana getir."
-      ],
-      "repeat": [
-        "Yine düştün, yine kalktın. Kurt soyu böyledir.",
-        "Kut'u getirdin mi? Ağaç her tanesini hatırlar.",
-        "Erlik'in kızlarına inanma. Tatlı söyler, acı bağlar.",
-        "Yorulursan dalda dinlen. Ama uzun kalma; yapraklar düşüyor."
-      ]
-    },
-    "demirci": {
-      "name": "Demirci Kam Kuzgun",
-      "role": "Ata bilgisi parşömenlerinden yeni silahlar döver.",
-      "first": [
-        "Bir alp mı, bir hayalet mi? Fark etmez, ikisi de silah ister.",
-        "Düşmanların taşıdığı ata bilgisi parşömenlerini getir. Okuyabildiğim her şeyi döverim."
-      ],
-      "repeat": [
-        "Örsün sesi Erlik'i rahatsız eder. İyi.",
-        "Gök demiri bulursan sakla. Yıldızdan düşen demir kimseye eğilmez.",
-        "Kalkansız alp, kınsız kılıca benzer."
-      ]
-    },
-    "ozan": {
-      "name": "Ozan Bilge Kopuz",
-      "role": "Dede Korkut'un yolundan bir ozan. Hikâyeyi anlatır, destan şarkıları çalar.",
-      "first": [
-        "Soyunu sopunu sormam, yiğit; yolunu sorarım.",
-        "Her biyomun bir destanı var. Sen yürüdükçe ben yazacağım."
-      ],
-      "repeat": [
-        "Tepegöz'ü Basat yendi derler. Belki bir gün seni de anlatırlar.",
-        "Şahmeran ölmedi, yiğit. Erlik onu bağladı sadece.",
-        "Ad koymadan ölen yiğidin destanı eksik kalır."
-      ]
-    }
-  },
-  "lore": {
-    "otuken": [
-      "Bir dilek ağacı. Bağlanmış çaputların hepsi kararmış, yalnız biri hâlâ al renkte.",
-      "Bir balbal: \"Burada Kara Han yatar. Kırk düşman öldürdü. Kırk birincisi Erlik oldu.\"",
-      "Sönmüş bir ocak başında ağaç iyesine bırakılmış süt ve ekmek. Küflenmiş; kimse almamış.",
-      "Kurt izleri, sonra hiçbir iz. Sanki sürü yere batmış.",
-      "Bir kam davulu, derisi yırtık. Üstüne kazınmış: \"Ruh kuşu dala konmadı.\"",
-      "Ağaçların arasında süzülen soluk ışıklar. Kamlar bunlara 'yolunu kaybetmiş ruh' der. Ardından gitme.",
-      "Kütüğe kazınmış çetele: kırk üç çentik, sonra bir çizgi. \"Güneş kırk üç gündür doğmadı.\""
-    ]
-  },
-  "death_lines": [
-    "Umay Ana seni yeniden yoğuruyor.",
-    "Ruh kuşun dala konmadı.",
-    "Ulu Kayın'dan bir yaprak düştü.",
-    "Kurt soyu düşer, yine kalkar."
+  "bozkir": [
+   "Balbalın yüzü doğuya dönük. Gözlerine birisi kül sürmüş.",
+   "Kurgan taşı: «Ruh kuşum doğuya uçsun. Doğu yoksa beni burada bekleyin.»",
+   "Taşa kazınmış bir göz; içinde güneş. Gözün altında kırık bir yay.",
+   "Çadır kazığına bağlı ak bir kurdele. Rüzgâr yok; yine de sallanıyor."
+  ],
+  "sahmeran": [
+   "Duvarda yılan pulları gibi parlayan yazı: «Işığı sakla, kızım gelinceye dek.»",
+   "Bir yer altı gölü. Suyunda ay değil, hiç görmediğin bir sabah yansıyor.",
+   "Taşa kazınmış iki kadın: biri kanatlı, biri ışınlı. El ele.",
+   "Kırık bir ayna; her parçasında başka bir tan."
+  ],
+  "kaf": [
+   "Buza gömülmüş bir beşik. İpleri altın, donmuş.",
+   "Dağ yazıtı: «Burada güneş doğardı. Sayın: bir, iki, üç...» Gerisi buz.",
+   "Yedi boyunlu bir dev, yedi gözü kapalı; sekizinci boynunda sarı bir ip.",
+   "Kayaya kazınmış bir davulcu kız, yüzü doğuya."
+  ],
+  "tamu": [
+   "Zincir halkası, insan boyunda. Üstünde kazınmış: «Birinci gece.»",
+   "Erlik'in yazıtı: «Kardeşime: göğü al, bana sabahı bırak.»",
+   "Kararmış bir saç teli, kor gibi sıcak.",
+   "Duvarda tırnakla kazınmış dokuz çizgi; sekizinin üstü çizili."
   ]
+ },
+ "death_lines": [
+  "Umay Ana seni yeniden yoğuruyor.",
+  "Ruh kuşun dala konmadı.",
+  "Ulu Kayın'dan bir yaprak düştü.",
+  "Kurt soyu düşer, yine kalkar."
+ ],
+ "olum": [
+  ["Ulu Kayın'dan bir yaprak düştü.", "Ruh kuşun dala konmadı.", "Karanlıkta Gün Ana adını söyledi."],
+  ["Al ışık seni bekliyor; yaprak düştü, dal kaldı.", "Umay Ana seni yeniden yoğuruyor."],
+  ["İki örgü ağaçta parlıyor. Düşen yaprak altına düştü.", "Kurt soyu düşer, yine kalkar."],
+  ["Gök örgü göğe yazıldı; sen yine yaz.", "Umay Ana seni yeniden yoğuruyor."],
+  ["Dört örgü bekliyor. Tan bekçisi yerde kalmaz.", "Kaf'ın beşiği seni bekliyor."],
+  ["Beş örgü avucunda dururken düştün. Kalk; zincir bekler.", "Gün Ana: «Kızım, kalk.»"]
+ ],
+ "olum_safak": ["Güneşin altında düştün. Bu sefer yaprak altın.", "Sabah yine geldi; sen de gel."]
 }

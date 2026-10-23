@@ -178,6 +178,7 @@ func build(seed_value: int) -> void:
 	_sinav_kur()          # v42: bölüm sınavları (Çabuk / Dokunulmaz / Avcı) ve Kut Kapısı önündeki Otağ Yeri
 	Ses.music(biome.get("id", "otuken"))
 	Perde.acilis("bolum")   # v40: mürekkep fırçası perdesi açılır
+	HikayeSahne.kur(self)   # v42: bölüm sahnesi (sahne_yeri), hikâye odası (hikaye_yeri), ilk giriş görümü
 
 
 func _derinlik_havasi() -> void:
@@ -282,6 +283,7 @@ func build_boss(seed_value: int, bid_boss: String) -> void:
 	if camera is CameraV2:
 		(camera as CameraV2).boss_intro()   # v40: kamera kükreyen boss'a doğru süzülüp döner
 	Perde.acilis("boss")
+	HikayeSahne.boss(self)   # v42: kükreyişten sonra boss'un sözü
 
 
 func _generate_arena() -> void:
@@ -640,6 +642,7 @@ func build_hub(seed_value: int) -> void:
 	for k in yv2:
 		if not String(k).begins_with("_"):
 			art[k] = yv2[k]
+	HikayeSahne.yurt_sabah(art)   # v42: tan söktüyse yurt sabah ışığında
 	_build_tiles()
 	decor_root = Node2D.new()
 	decor_root.z_index = -2
@@ -663,6 +666,7 @@ func build_hub(seed_value: int) -> void:
 	_build_lighting()
 	_build_background()
 	_place_hub()
+	HikayeSahne.yurt(self)   # v42: Ulu Kayın'da alınan her örgü için altın yapraklar
 	_spawn_player()
 	camera.limit_right = HUB_W * TS
 	_build_particles()
@@ -790,10 +794,13 @@ func _place_konak(G: Dictionary, B: Dictionary) -> void:
 	n.id = "usta"
 	n.display_name = Usta.ad()
 	n.soz = Usta.soz(String(biome.get("id", "")), "usta_kisa")
+	if Hikaye.parca_sayi() > 0 and int(Game.run.get("depth", 1)) % 2 == 0:
+		n.soz = Hikaye.soz("usta", int(Game.run.get("depth", 1)))   # v42: dönen örgülere sözü
 	n.level = self
 	n.position = _hub_px(tx, 0.0) + Vector2(26.0, 0.0)
 	actors.add_child(n)
 	npcs.append(n)
+	_konak_yoldaslar(G)   # v42: Umay Ana, Ozan, Demirci, Alp Ata kervanla
 	# Bezirgân: bir önceki derinlikte pazar çıkmadıysa kervan konağa gelir
 	if not bool(Game.run.get("bezirgan_gordu", false)) or Level.bezirgan_zorla:
 		var bx := int(G.get("bezirgan", 47))
@@ -824,6 +831,28 @@ func _place_konak(G: Dictionary, B: Dictionary) -> void:
 	kp.gravity = Vector2(0, -2)
 	kp.scale_amount_min = 0.08
 	kp.scale_amount_max = 0.16
+
+
+func _konak_yoldaslar(G: Dictionary) -> void:
+	## v42 Konak yoldaşları (data/konak.json "yoldas": [id, karo x]): yurdun dört sakini de kervanla yol alır — Umay Ana
+	## ocağın başında (Kut armağanları), Ozan ateşin öbür yanında (destan özeti, açılışı yeniden dinlet), Demirci Kam
+	## Kuzgun (parşömen), Alp Ata (savaş sanatı). Hizmet ekranları yurttakilerle aynı (Main._on_npc). Sözleri hikâye
+	## ilerlemesine göre (Hikaye.soz); biyoma göre yerleri konak.json "biyom.<id>.yoldas" ile değişebilir.
+	var salt := int(Game.run.get("depth", 1)) + int(Game.meta.get("runs", 0))
+	var bid := String(biome.get("id", ""))
+	var yer: Array = Data.load_json("res://data/konak.json").get("biyom", {}).get(bid, {}).get("yoldas", G.get("yoldas", []))
+	var adlar: Dictionary = Data.story.get("npcs", {})
+	for yd in yer:
+		var id := String(yd[0])
+		var n := NPC.new()
+		n.id = id
+		n.display_name = String(adlar.get(id, {}).get("name", id))
+		n.soz = Hikaye.soz(id, salt, true)
+		n.level = self
+		n.position = _hub_px(float(yd[1]), 0.0)
+		actors.add_child(n)
+		npcs.append(n)
+		salt += 1
 
 
 func _konak_tick() -> void:
@@ -934,6 +963,7 @@ func _place_hub() -> void:
 		var n := NPC.new()
 		n.id = d[0]
 		n.display_name = d[1]
+		n.soz = Hikaye.soz(String(d[0]), int(Game.meta.get("runs", 0)))   # v42: ilerlemeye göre söz
 		n.level = self
 		n.position = Vector2(int(d[2]) * TS + TS / 2.0, surface_y(int(d[2])) * TS)
 		actors.add_child(n)
@@ -1267,6 +1297,7 @@ func _generate() -> void:
 	opts["biyom"] = String(biome.get("id", "diger"))
 	var gecmis: Array = Game.run.get("turler", [])
 	opts["gecmis"] = gecmis
+	opts["hikaye_odasi"] = HikayeSahne.oda_acik(int(Game.run.get("depth", 1)), int(rng.seed))   # v42: üç bölümde bir
 	var r := LevelGen.generate(rng, W, H, int(Game.run.get("depth", 1)), art.get("styles", []), opts)
 	tur = String(r.get("tur", "eski"))
 	sahne_yeri = r.get("sahne", {})
@@ -2344,6 +2375,8 @@ func _build_overlay_fx() -> void:
 				sm.set_shader_parameter(k, float(v))
 		if art.has("heat_haze"):
 			sm.set_shader_parameter("heat", float(art["heat_haze"]))
+		# v42: dönen örgüler ufku ısıtır; tan söktükten sonra yurt tam sabah
+		sm.set_shader_parameter("safak", 1.5 if hub and Hikaye.safak() else Hikaye.safak_k())
 	vig.material = sm
 	vig_mat = sm
 	cl.add_child(vig)
@@ -3551,6 +3584,7 @@ func _on_boss_died(e: Enemy) -> void:
 		# v22 Kut Mühürleri: son boss bir sonraki zorluk kademesini açar (bir sonraki koşuda takılı gelir)
 		if Zorluk.on_final_boss():
 			FX.text(e.center() + Vector2(0, -e.size.y - 66), "YENİ KUT MÜHRÜ: %s" % Zorluk.muhur_adi(Zorluk.muhur_acik()).to_upper(), Color(0.95, 0.5, 0.35), 12)
+	HikayeSahne.boss_dustu(self, e)   # v42: son söz + Gün Örgüsü
 	boss = null
 	boss_died.emit()
 	get_tree().create_timer(1.6).timeout.connect(open_boss_gate)

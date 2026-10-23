@@ -56,7 +56,7 @@ const TUT := {
 	# v27 savaş sanatları
 	"sanat": [[["T", "savaş sanatı"], ["Esc → T", "sanat seç"]], "Alp Nişanı hazır: T ile kuşandığın savaş sanatını kullan (sağ altta tamga ve taneler). Nişan isabetle, öldürerek, çarpışma ve kusursuz kaçışla dolar. Yeni sanatları yurtta Alp Ata öğretir; Sanat Tomarları da bulunur."],
 	# v32 konak
-	"konak": [[["W", "ocak / usta"]], "Konak: kervan seninle yol alıyor. Ateşin yanından geçince taşıdığın Kut Umay'a ulaşır. Bengisu Usta altınla silahına nakış (ek özellik) vurur, nakışları yeniden döver, unsur aşılar, kaliteyi yükseltir; Kut Mührü ucuz bir kumardır. Sağdaki kapı derine indirir."],
+	"konak": [[["W", "ocak / usta"]], "Konak: kervan seninle yol alıyor. Umay Ana ocağın başında (Kut armağanları), Ozan destanı anlatır, Demirci parşömen döver, Alp Ata sanat öğretir. Ateşin yanından geçince taşıdığın Kut Umay'a ulaşır. Bengisu Usta altınla silahına nakış (ek özellik) vurur, nakışları yeniden döver, unsur aşılar, kaliteyi yükseltir; Kut Mührü ucuz bir kumardır. Sağdaki kapı derine indirir."],
 	# v32 harita ve Kut Taşı
 	# v34 Kahraman İnişi
 	"kahraman": [[["S+Boşluk", "havada: kahraman inişi"]], "Kahraman İnişi: havadayken S'ye basılı tutup Boşluk'a bas. Yere çakılır, çevredeki düşmanları şok dalgasıyla sersemletip savurursun; ne kadar yüksekten, o kadar güçlü. Çok yüksekten öylece düşersen kısa sersemlersin, inişle hiç sersemlemezsin."],
@@ -427,10 +427,12 @@ func _draw_ic() -> void:
 		"ad":
 			_draw_ad(vp)
 			return
+		"sinema":
+			return   # v42: hikâye sineması kendi katmanında (Sinema.gd)
 	if Game.run.is_empty() or level == null or level.player == null:
 		return
 	var paused_play := mode == "play" and get_tree().paused
-	if _card_t < 4.0 and mode == "play" and not paused_play:
+	if _card_t < _kart_sure() and mode == "play" and not paused_play:
 		_draw_banner(vp)
 	_draw_hud(_hud_vp())
 	vp = _menu_vp()
@@ -459,9 +461,18 @@ func _draw_ic() -> void:
 				_reveal(vp)   # v40: menüden dönüşte fırça perdesi
 
 
+func _kart_sure() -> float:
+	## v42: bölüm afişi bölüm başlığı + epigraf taşıyorsa daha uzun kalır (okunabilsin)
+	if level != null and not level.hub and not level.konak and level.boss_id == "" and not Hikaye.bolum(String(level.biome.get("id", ""))).is_empty():
+		return 6.0
+	return 4.0
+
+
 func _draw_banner(vp: Vector2) -> void:
-	## Bölüm girişi: büyük ad, ince süslü çizgiler
-	var a := clampf(minf(_card_t * 2.0, (4.0 - _card_t) * 1.5), 0.0, 1.0)
+	## Bölüm girişi: büyük ad, ince süslü çizgiler. v42: bölümlerde hikâye bölümünün adı (fırçayla), üstünde bölüm
+	## sırası, altında biyom / derinlik ve epigraf (Hikaye.bolum)
+	var ks := _kart_sure()
+	var a := clampf(minf(_card_t * 2.0, (ks - _card_t) * 1.5), 0.0, 1.0)
 	var bm: Dictionary = level.biome
 	var title: String
 	var sub: String
@@ -473,7 +484,7 @@ func _draw_banner(vp: Vector2) -> void:
 	elif level.konak:
 		# v32: konak bir sonraki derinliğin eşiğinde
 		title = "KONAK · %s" % _up(String(bm.get("name", "")))
-		sub = "%d. derinliğin eşiği  ·  ocak Kut'u Umay'a ulaştırır  ·  Bengisu Usta silah nakışlar%s  ·  kapı derine indirir" % [int(Game.run["depth"]), "  ·  Sartak'ın kervanı burada" if level.get("bezirgan") != null else ""]
+		sub = "%d. derinliğin eşiği  ·  ocak başında Umay Ana ve Ozan  ·  Demirci, Alp Ata, Bengisu Usta%s  ·  kapı derine indirir" % [int(Game.run["depth"]), "  ·  Sartak'ın kervanı" if level.get("bezirgan") != null else ""]
 		col = Color(0.55, 1.0, 0.85)
 	else:
 		title = _up(String(bm.get("name", "Kararan Ötüken")))
@@ -481,8 +492,36 @@ func _draw_banner(vp: Vector2) -> void:
 		if level.get("bezirgan") != null:
 			sub += "  ·  Bezirgân Sartak'ın kervanı bu yolda"   # v24
 		col = PixUI.GOLD
+		var ch := Hikaye.bolum(String(bm.get("id", "")))
+		if not ch.is_empty() and level.boss_id == "":
+			title = String(ch.get("ad", title))
+			sub = "%s  ·  %d. derinlik" % [String(bm.get("name", "")), int(Game.run["depth"])] + ("  ·  Bezirgân Sartak'ın kervanı bu yolda" if level.get("bezirgan") != null else "")
+			InkHUD.banner(self, vp, title, sub, col, a, clampf(_card_t / 0.9, 0.0, 1.0))
+			_bolum_epigraf(vp, ch, a)
+			return
 	InkHUD.banner(self, vp, title, sub, col, a, clampf(_card_t / 0.9, 0.0, 1.0))
 	_draw_sinav_banner(vp, a * clampf((_card_t - 0.9) / 0.6, 0.0, 1.0))   # v42
+
+
+func _bolum_epigraf(vp: Vector2, ch: Dictionary, a: float) -> void:
+	## v42: afişin üstünde bölüm sırası (yazıt harfleriyle), altında epigraf (anlatı yazısı, fırça yazısı bitince)
+	var fc := InkUI.font("caps")
+	var no := InkHUD.tr_upper(String(ch.get("no", "")))
+	var nw := InkHUD.str_w(fc, no, 10)
+	InkUI.draw_str(self, Vector2((vp.x - nw) * 0.5, 84.0), no, fc, 10, Color(PixUI.GOLD, 0.85 * a), 2)
+	var ea := a * clampf((_card_t - 1.1) / 0.8, 0.0, 1.0)
+	if ea <= 0.0:
+		return
+	var fl := InkUI.font("lore")
+	var ep := "«%s»" % String(ch.get("epigraf", ""))
+	var ws := InkHUD.wrap_f(ep, fl, 13, 460.0)
+	var y := 172.0
+	InkUI.wash(self, Rect2(vp.x * 0.5 - 250, y - 16, 500, ws.size() * 17.0 + 14.0), 0.55 * ea)
+	for i in ws.size():
+		var s := String(ws[i])
+		var shown := clampi(int((_card_t - 1.1) * 40.0) - i * 60, 0, s.length())
+		var w := InkHUD.str_w(fl, s, 13)
+		InkUI.draw_str(self, Vector2((vp.x - w) * 0.5, y + i * 17.0), s.substr(0, shown), fl, 13, Color(1.0, 0.9, 0.72, ea), 2)
 
 
 # ------------------------------------------------------------------ oyun içi
@@ -1056,7 +1095,7 @@ func _draw_dead(vp: Vector2) -> void:
 	_dim(vp, 0.76, Color(0.05, 0.01, 0.03))
 	var e := _ease_open()
 	InkHUD.dead_backdrop(self, vp, e)
-	_title(vp, 70, "RUH KUŞUN DALA KONMADI", Color(1.0, 0.55, 0.45), "Umay Ana seni yeniden yoğuruyor.")
+	_title(vp, 70, "RUH KUŞUN DALA KONMADI", Color(1.0, 0.55, 0.45), Hikaye.olum_satiri())   # v42: ilerlemeye göre
 	var R: Dictionary = Game.run
 	_run_tiles(vp, 128.0, Color(1.0, 0.6, 0.5), e)
 	# koşunun parşömeni: yitik Kut, banka, bekleyen parşömen, en derin
@@ -1234,22 +1273,20 @@ func _draw_umay(vp: Vector2) -> void:
 
 
 func _draw_ozan(vp: Vector2) -> void:
+	## v42: Ozan destanı özetler — açılan bölümler (ad, epigraf, öğrenilen), dönen örgüler, son sayfada Ozan'ın sözü;
+	## E açılış sinemasını yeniden oynatır (Main)
 	_dim(vp, 0.8, Color(0.05, 0.03, 0.02))
-	_title(vp, 30, "OZAN BİLGE KOPUZ", PixUI.GOLD)
-	var npc: Dictionary = Data.story["npcs"]["ozan"]
-	var lines: Array = npc["first"] + npc["repeat"]
-	var R: Dictionary = Game.run
-	var lore: Array = Data.story["lore"].get("otuken", [])
+	_title(vp, 30, "OZAN BİLGE KOPUZ", PixUI.GOLD, "«Destanın şimdiye dek böyle, tan bekçisi.»")
+	var pages: Array = Hikaye.ozan_sayfalari()
+	var pg: Array = pages[clampi(ozan_i, 0, pages.size() - 1)]
 	var said: Array = []
-	for k in mini(ozan_i + 1, 4):
-		if k < 3:
-			said.append(lines[(k + int(Game.meta.get("runs", 0))) % lines.size()])
-		else:
-			said.append(lore[int(Game.meta.get("runs", 0)) % maxi(1, lore.size())])
+	for s in pg:
+		said.append(String(s).trim_prefix("«").trim_suffix("»"))
 	InkHUD.ozan(self, vp, said)
+	var R: Dictionary = Game.run
 	var tm := float(R.get("time", 0.0))
-	PixUI.text(self, Vector2(0, vp.y - 44), "Bu koşu: %d. derinlik  ·  %d düşman  ·  %d:%02d  ·  en derin: %d" % [int(R.get("depth", 1)), int(R.get("kills", 0)), int(tm) / 60, int(tm) % 60, int(Game.meta.get("best_depth", 1))], PixUI.DIM, 1, HORIZONTAL_ALIGNMENT_CENTER, vp.x)
-	_hint(vp, [["Boşluk", "dinle"], ["Esc", "ayrıl"]])
+	PixUI.text(self, Vector2(0, vp.y - 44), "Sayfa %d / %d  ·  Bu koşu: %d. derinlik  ·  %d düşman  ·  %d:%02d  ·  en derin: %d  ·  örgü %d / 5" % [mini(ozan_i + 1, pages.size()), pages.size(), int(R.get("depth", 1)), int(R.get("kills", 0)), int(tm) / 60, int(tm) % 60, int(Game.meta.get("best_depth", 1)), Hikaye.parca_sayi()], PixUI.DIM, 1, HORIZONTAL_ALIGNMENT_CENTER, vp.x)
+	_hint(vp, [["Boşluk", "sonraki sayfa"], ["E", "açılış destanını dinle"], ["Esc", "ayrıl"]])
 	_reveal(vp)
 
 
