@@ -137,6 +137,16 @@ static var _son := {"sx": 5, "sy": 30, "gx": 250, "gy": 30}
 static var _tur := "eski"
 ## v41: testler / çekimler için tür zorlaması (opts.tur ve --bolum_turu= yoksa)
 static var zorla_tur := ""
+## v43 EL YAPIMI ODALAR VE GEÇİTLER (bkz. OdaSablon.gd, GecitGen.gd, docs/TASARIM.md v43): ana yol / dal odalarının çoğu
+## data/odalar/*.json şablonlarından (aynalı da) dikilir; her dikey bağlantı biyoma göre bir geçit türüdür (zincir, ip
+## merdiven, kök duvarı, kırık merdiven, yar çıkıntıları, rüzgâr bacası, iskele, düşüş deliği); koridor yükseklikleri
+## 3-7 ve tavan biçimleri (kemer / kırık), yordamsal odalarda kemer / mağara / kırık çatı / tonoz tavanları, platform
+## ritmi. sablon_kapali (ya da --sablon_yok): v42 üreticisi (önce ölçümü); "eski" türde de kapalı.
+static var sablon_kapali := false
+static var _v43 := true
+static var _biyom := "diger"
+const SABLON_SANS := 0.88
+const SIMGE_SANS := 0.9
 
 
 static func tur_sec(rng: RandomNumberGenerator, biyom: String, gecmis: Array) -> String:
@@ -181,6 +191,8 @@ static func generate(rng: RandomNumberGenerator, W: int, H: int, depth: int, all
 	if tur != "eski" and not TURLER.has(tur):
 		tur = tur_sec(rng, String(opts.get("biyom", "diger")), opts.get("gecmis", []))
 	_tur = tur
+	_biyom = String(opts.get("biyom", "diger"))
+	_v43 = not sablon_kapali and tur != "eski" and not OS.get_cmdline_user_args().has("--sablon_yok")
 	var style: String = pool[rng.randi_range(0, pool.size() - 1)]
 	if tur == "eski":
 		if depth == 1 and rng.randf() < 0.5:
@@ -483,6 +495,8 @@ static func _build(rng: RandomNumberGenerator, W: int, H: int, style: String, op
 			n_genis += 1
 	# --- oda türleri, kutular, taban / tavan profilleri
 	var kinds: Array = P["kinds"]
+	var kullan := {}          # v43: bu bölümde kullanılan şablonlar (aynı oda iki kez çıkmaz)
+	var simge_var := false    # v43: bölümün sahne parçası (simge şablonu) kondu mu
 	for rm in rooms:
 		if rm["role"] == "yok":
 			_room_rect(rm)
@@ -505,10 +519,17 @@ static func _build(rng: RandomNumberGenerator, W: int, H: int, style: String, op
 		rm["clear"] = []
 		rm["kuyular"] = []
 		_room_box(rng, rm, doors)
-		_profile(rng, rm, int(P["tavan"]))
-	# --- kapı geometrisi (yan koridorlar, kuyular)
+		rm["_otag_yakin"] = rm["role"] == "ana" and int(rm.get("ana_i", -1)) >= path.size() - 3
+		if _v43 and _sablon_sec(rng, rm, kullan, simge_var, path.size()):
+			simge_var = simge_var or bool(rm["tpl"]["simge"])
+		else:
+			_profile(rng, rm, int(P["tavan"]))
+	if _v43:
+		_sablon_kuyu_denetle(rng, rooms, doors, int(P["tavan"]))
+	# --- kapı geometrisi (yan koridorlar, kuyular / v43 geçit türleri)
+	var gecit_kul := {}
 	for dr in doors:
-		_door_geometry(rng, rooms, dr)
+		_door_geometry(rng, rooms, dr, gecit_kul)
 	# pazar dikey kapılı odaya düştüyse yan kapılı başka bir ödül odasıyla yer değiştirir (tüccar istendiyse kaybolmasın;
 	# boss öncesi Bezirgân kesin). Yan kapılı ödül odası yoksa kuyulu odada kalır: tezgâh _odul_mid ile kuyudan uzak yana
 	# kurulur (kuyu odanın bir ucuna yaslanır).
@@ -552,12 +573,15 @@ static func _build(rng: RandomNumberGenerator, W: int, H: int, style: String, op
 			_features(grid, W, H, rng, rm, style)
 	var n_kuyu := 0
 	var n_acik := 0
+	var gecitler: Array = []   # v43: dikey geçitlerin çizim / tırmanma verisi (Level: GecitCiz, Player tırmanma)
 	for dr in doors:
 		_carve_door(grid, W, H, rooms, dr)
 		if dr["kind"] != "sil" and dr["dir"] == "v":
 			n_kuyu += 1
 			if bool(dr.get("acik", false)):
 				n_acik += 1
+			if dr.has("gecit_veri"):
+				gecitler.append(dr["gecit_veri"])
 	if _tur == "acik":
 		# v41: göğe açık sütunlarda ızgaranın en üst satırı da hava (tepede kaya şeridi görünmesin; ulaşılmaz yükseklik)
 		for x in range(1, W - 1):
@@ -577,7 +601,7 @@ static func _build(rng: RandomNumberGenerator, W: int, H: int, style: String, op
 		if rm["role"] == "odul":
 			var mk := _odul_marks(grid, W, H, rng, rm, zamanli, doors)
 			chunks.append({"name": String(rm["odul"]), "x": int(rm["ix0"]), "marks": mk, "room": int(rm["id"])})
-		elif rm["role"] in ["ana", "dal"]:
+		elif rm["role"] in ["ana", "dal"] and not rm.has("tpl"):
 			_hazard_strips(grid, W, H, rng, rm, style)
 	# v34 gizli cepler (kırık duvar), kilitli kapı ve anahtarı
 	var cepler := _gizli_cepler(grid, W, H, rng, rooms)
@@ -706,9 +730,33 @@ static func _build(rng: RandomNumberGenerator, W: int, H: int, style: String, op
 	var bnd := _sinirlar(grid, W, H)
 	for cp in cepler:
 		bnd = bnd.merge((cp["cep"] as Rect2i).grow(2)).intersection(Rect2i(0, 0, W, H))
+	# v43 ölçümleri: şablon kapsamı (ana yol + dal odaları), bölümdeki ayrı şablon sayısı, geçit türleri, simge
+	var n_ad := 0
+	var n_tpl := 0
+	var adlar := {}
+	var simge := ""
+	for rm in rooms:
+		if rm["role"] in ["ana", "dal"]:
+			n_ad += 1
+			if rm.has("tpl"):
+				n_tpl += 1
+		if rm.has("tpl"):
+			adlar[String(rm["tpl"]["ad"])] = true
+			if bool(rm["tpl"]["simge"]):
+				simge = String(rm["tpl"]["ad"])
+	var gt := {}
+	for gv in gecitler:
+		gt[String(gv["tip"])] = int(gt.get(String(gv["tip"]), 0)) + 1
+	metrics["sablon_oda"] = n_tpl
+	metrics["sablon_aday"] = n_ad
+	metrics["sablon_cesit"] = adlar.size()
+	metrics["simge"] = 1 if simge != "" else 0
+	metrics["gecit_tur"] = gt
+	metrics["gecit_cesit"] = gt.size()
 	return {"grid": grid, "heights": heights, "chunks": chunks, "rooms": rooms, "doors": doors, "path": path, "spawn": spawn,
 		"exit": exit, "tasi": tasi, "zamanli": zamanli, "kaide": kaide, "bounds": bnd, "metrics": metrics,
-		"cepler": cepler, "kilitli": kilitli, "pencereler": pencereler, "tur": _tur, "hikaye": hikaye, "sahne": sahne}
+		"cepler": cepler, "kilitli": kilitli, "pencereler": pencereler, "tur": _tur, "hikaye": hikaye, "sahne": sahne,
+		"gecitler": gecitler, "propler": _propler(rooms, doors), "simge": simge}
 
 
 static func _sahne_yeri(g: PackedByteArray, W: int, H: int, main_rooms: Array) -> Dictionary:
@@ -1223,6 +1271,8 @@ static func _room_box(rng: RandomNumberGenerator, rm: Dictionary, doors: Array) 
 	rm["_sol"] = has_l
 	rm["_sag"] = has_r
 	rm["_nv"] = nv
+	rm["_valt"] = v_alt
+	rm["_vust"] = v_ust
 	var role: String = rm["role"]
 	var maxs := 4
 	if role == "giris" or nv >= 2:
@@ -1288,7 +1338,14 @@ static func _profile(rng: RandomNumberGenerator, rm: Dictionary, tavan: int) -> 
 		ce[i] = clampi(cv, y0 + 1, f - 5)
 		if bool(rm["acik"]):
 			ce[i] = 1
-	if not bool(rm["acik"]):
+	if not bool(rm["acik"]) and _v43:
+		# v43: tavan biçimi türe / biyoma göre (basamak / kemer / mağara / kırık çatı / tonoz)
+		# ödül / pazar odası (tezgâh, kaide), çıkış ve ondan önceki iki oda (Otağ Yeri) basamaklı kalır
+		var son_oda: bool = rm["role"] == "cikis" or bool(rm.get("_otag_yakin", false))
+		var bic := _tavan_bicimi(rng, kind) if rm["role"] != "odul" and not son_oda else "basamak"
+		rm["tavan_bicim"] = bic
+		_tavan_uygula(rng, ce, fl, n, y0, bic)
+	elif not bool(rm["acik"]):
 		# basamaklı tavan (Dead Cells odalarının girintili çıkıntılı silueti): 4-9 sütunluk parçalar 0-3 karo alçalır;
 		# %20 parça tavana açılan cep (3-5 karo yukarı)
 		var x := 0
@@ -1346,10 +1403,384 @@ static func _arazi(rng: RandomNumberGenerator, fl: Array, n: int, y0: int) -> vo
 			off = clampi(off + adim, -3, 1)
 
 
+# ================================================================== v43 el yapımı oda şablonları
+static func _sablon_sec(rng: RandomNumberGenerator, rm: Dictionary, kullan: Dictionary, simge_var: bool, n_yol: int) -> bool:
+	## Ana yol / dal odası için uygun bir şablon (biyom, tür, rol, göğe açıklık, kapı / kuyu yuvaları; bölümde
+	## kullanılmamış) seçer ve odaya uygular. Simge (sahne parçası) şablonu ana yolun orta yarısında bir kez.
+	var role := String(rm["role"])
+	if not (role in ["ana", "dal"]) or bool(rm.get("sapak", false)):
+		return false
+	var cells: Array = rm["cells"]
+	if cells.size() > 2:
+		return false
+	var genis := cells.size() > 1
+	var ai := int(rm.get("ana_i", -1))
+	# Kut Kapısı'na giden son iki oda Otağ Yeri'dir (v42): yalnızca uzun düz tabanlı şablonlar
+	var otag_yakin: bool = role == "ana" and ai >= n_yol - 3
+	# simge: ana yolda (giriş / Kut Kapısı'na giden son iki oda dışında) ilk uygun oda; yoksa bir dal odası
+	var simge_yer: bool = not simge_var and ((role == "ana" and ai >= 1 and not otag_yakin) or role == "dal")
+	if not simge_yer and rng.randf() > SABLON_SANS:
+		return false
+	var cands: Array = []
+	var simgeler: Array = []
+	for t in OdaSablon.hepsi():
+		if kullan.has(String(t["ad"])):
+			continue
+		if not OdaSablon.uygun(t, _biyom, _tur, role, bool(rm["acik"]), genis):
+			continue
+		if not OdaSablon.yuva_uyar(t, bool(rm["_sol"]), bool(rm["_sag"]), bool(rm["_vust"]), bool(rm["_valt"]), 5):
+			continue
+		if otag_yakin and (int(t["duz"]) < 10 or bool(t["simge"])):
+			continue   # Otağ Yeri odaları: yalnızca uzun düz tabanlı şablon
+		if bool(t["simge"]):
+			if not simge_var:
+				simgeler.append(t)
+		else:
+			cands.append(t)
+	if simge_yer and not simgeler.is_empty() and rng.randf() < SIMGE_SANS:
+		cands = simgeler
+	if cands.is_empty():
+		return false
+	var top := 0.0
+	for t in cands:
+		top += float(t["agirlik"])
+	var r := rng.randf() * top
+	var sec: Dictionary = cands[cands.size() - 1]
+	for t in cands:
+		r -= float(t["agirlik"])
+		if r <= 0.0:
+			sec = t
+			break
+	kullan[String(sec["ad"])] = true
+	_sablon_uygula(rng, rm, sec)
+	return true
+
+
+static func _sablon_uygula(rng: RandomNumberGenerator, rm: Dictionary, t: Dictionary) -> void:
+	## Şablonu odanın kesimine yerleştirir (kapılı yana yaslı), taban / tavan profillerini (fl / ce) şablondan çıkarır.
+	var w := int(t["w"])
+	var maxw := 20 if w <= 20 else 44
+	var bos := maxi(0, maxw - w)
+	var xoff := rng.randi_range(0, bos)
+	if bool(rm["_sol"]) and not bool(rm["_sag"]):
+		xoff = rng.randi_range(0, mini(2, bos))
+	elif bool(rm["_sag"]) and not bool(rm["_sol"]):
+		xoff = bos - rng.randi_range(0, mini(2, bos))
+	rm["_box"] = [int(rm["ix0"]), int(rm["ix1"])]
+	rm["_kind0"] = rm["kind"]
+	var x0 := _sector_x0(int(rm["c0"])) + 2 + xoff
+	var y0 := _sector_y0(int(rm["r0"])) + 1
+	rm["ix0"] = x0
+	rm["ix1"] = x0 + w - 1
+	rm["tpl"] = t
+	rm["tpl_x0"] = x0
+	rm["tpl_y0"] = y0
+	rm["kind"] = String(t["tip"])
+	var rows: Array = t["rows"]
+	var h := int(t["h"])
+	var fl: Array = []
+	var ce: Array = []
+	for i in w:
+		var f := -1
+		for y in range(h - 1, -1, -1):
+			if OdaSablon.hucre(String(rows[y])[i]) == 0:
+				var alt := 1 if y + 1 >= h else OdaSablon.hucre(String(rows[y + 1])[i])
+				if alt == 1 or alt == 3:
+					f = y0 + y + 1
+					break
+		if f < 0:
+			f = y0 + h - 1
+		var c := -1
+		for y in h:
+			if OdaSablon.hucre(String(rows[y])[i]) != 1:
+				c = y0 + y
+				break
+		if c < 0 or c >= f:
+			c = f - 1
+		fl.append(f)
+		ce.append(c)
+	if int(t["L"]) >= 0:
+		fl[0] = y0 + int(t["L"]) + 1
+	if int(t["R"]) >= 0:
+		fl[w - 1] = y0 + int(t["R"]) + 1
+	rm["fl"] = fl
+	rm["ce"] = ce
+	var lo := 999
+	var hi := 0
+	for i in w:
+		lo = mini(lo, int(ce[i]))
+		hi = maxi(hi, int(fl[i]))
+	rm["iy0"] = lo
+	rm["iy1"] = hi
+	var tt: Array = []
+	for k in t["T"]:
+		tt.append([x0 + int(k[0]), x0 + int(k[1])])
+	var bb: Array = []
+	for k in t["B"]:
+		bb.append([x0 + int(k[0]), x0 + int(k[1]), y0 + int(k[2])])
+	rm["tpl_T"] = tt
+	rm["tpl_B"] = bb
+	var isr: Array = []
+	for m in t["isaret"]:
+		isr.append([String(m[0]), x0 + int(m[1]), y0 + int(m[2])])
+	rm["isaret"] = isr
+
+
+static func _sablon_geri(rng: RandomNumberGenerator, rm: Dictionary, tavan: int) -> void:
+	## Şablon dikey geçide yer vermiyorsa oda yordamsal kutusuna döner
+	var b: Array = rm["_box"]
+	rm["ix0"] = int(b[0])
+	rm["ix1"] = int(b[1])
+	rm["kind"] = rm["_kind0"]
+	for k in ["tpl", "tpl_x0", "tpl_y0", "tpl_T", "tpl_B", "isaret", "_box", "_kind0"]:
+		rm.erase(k)
+	_profile(rng, rm, tavan)
+
+
+static func _sablon_kuyu_denetle(rng: RandomNumberGenerator, rooms: Array, doors: Array, tavan: int) -> void:
+	## Her dikey kapıda iki odanın yuvaları en az 5 sütun örtüşmeli; örtüşmüyorsa (simge olmayan) şablon geri alınır
+	for it in 4:
+		var degisti := false
+		for d in doors:
+			if d["kind"] == "sil" or d["dir"] != "v":
+				continue
+			var A: Dictionary = rooms[int(d["a"])]
+			var B: Dictionary = rooms[int(d["b"])]
+			if not (A.has("tpl") or B.has("tpl")):
+				continue
+			var sx := _sector_x0((d["ca"] as Vector2i).x)
+			var ok := false
+			for ia in _kuyu_araliklari(A, true):
+				for ib in _kuyu_araliklari(B, false):
+					var lo := maxi(maxi(int(ia[0]), int(ib[0])), maxi(maxi(int(A["ix0"]), int(B["ix0"])) + 2, sx + 4))
+					var hi := mini(mini(int(ia[1]), int(ib[1])), mini(mini(int(A["ix1"]), int(B["ix1"])) - 2, sx + SW - 5))
+					if hi - lo + 1 >= 5:
+						ok = true
+			if ok:
+				continue
+			var R: Dictionary = A
+			if not A.has("tpl") or (B.has("tpl") and bool(A["tpl"]["simge"])):
+				R = B
+			_sablon_geri(rng, R, tavan)
+			degisti = true
+		if not degisti:
+			break
+
+
+static func _sablon_oy(g: PackedByteArray, W: int, H: int, rm: Dictionary) -> void:
+	## Şablonu ızgaraya basar; göğe açık odada en üst havanın üstü göğe dek açılır
+	var t: Dictionary = rm["tpl"]
+	var rows: Array = t["rows"]
+	var x0 := int(rm["tpl_x0"])
+	var y0 := int(rm["tpl_y0"])
+	for yy in int(t["h"]):
+		var s: String = rows[yy]
+		for xx in int(t["w"]):
+			var c := s[xx]
+			if c == " ":
+				continue
+			_put(g, x0 + xx, y0 + yy, W, H, OdaSablon.hucre(c))
+	if bool(rm["acik"]):
+		# göğe açık: şablonun 0. satırı hava olan sütunlarda üstü göğe dek açılır (çatı / gövde çizilen sütunlar kalır)
+		var r0: String = rows[0]
+		for xx in int(t["w"]):
+			if OdaSablon.hucre(r0[xx]) == 0:
+				for y in range(1, y0):
+					_put(g, x0 + xx, y, W, H, 0)
+
+
+static func _propler(rooms: Array, doors: Array) -> Dictionary:
+	## v43 şablon süsleri (Level / GecitCiz çizer): kütük köprüler, tırmanılır sarkıtlar, yumuşak yığınlar, su, asılı
+	## süsler, simge çapası, yaratık / ganimet işaretleri
+	var out := {"kutuk": [], "tirman": [], "yumusak": [], "su": [], "sus": [], "simge": [], "ganimet": []}
+	for rm in rooms:
+		if not rm.has("tpl"):
+			continue
+		var t: Dictionary = rm["tpl"]
+		var rows: Array = t["rows"]
+		var x0 := int(rm["tpl_x0"])
+		var y0 := int(rm["tpl_y0"])
+		var h := int(t["h"])
+		for yy in h:
+			var s: String = rows[yy]
+			var xa := -1
+			for xx in int(t["w"]) + 1:
+				var on: bool = xx < int(t["w"]) and s[xx] == "="
+				if on and xa < 0:
+					xa = xx
+				elif not on and xa >= 0:
+					out["kutuk"].append([x0 + xa, x0 + xx - 1, y0 + yy, int(rm["id"])])
+					xa = -1
+		var su_satir := {}
+		for m in t["isaret"]:
+			var c := String(m[0])
+			var mx := int(m[1])
+			var my := int(m[2])
+			match c:
+				"t":
+					var ust := my
+					while ust > 0 and OdaSablon.hucre(String(rows[ust - 1])[mx]) != 1:
+						ust -= 1
+					var alt := my
+					while alt + 1 < h and OdaSablon.hucre(String(rows[alt + 1])[mx]) == 0:
+						alt += 1
+					out["tirman"].append([float(x0 + mx) + 0.05, float(y0 + ust), float(x0 + mx) + 0.95, float(y0 + alt + 1)])
+				"~":
+					var alt2 := my
+					while alt2 + 1 < h and OdaSablon.hucre(String(rows[alt2 + 1])[mx]) == 0:
+						alt2 += 1
+					out["yumusak"].append([x0 + mx, x0 + mx, y0 + alt2 + 1])
+				"w":
+					su_satir[my] = (su_satir.get(my, []) as Array) + [mx]
+				"d":
+					var ust2 := my
+					while ust2 > 0 and OdaSablon.hucre(String(rows[ust2 - 1])[mx]) != 1:
+						ust2 -= 1
+					out["sus"].append([x0 + mx, y0 + my, y0 + ust2, int(rm["id"])])
+				"*":
+					out["simge"].append([x0 + mx, y0 + my, int(rm["id"])])
+				"$":
+					out["ganimet"].append([x0 + mx, y0 + my, int(rm["id"])])
+		for sy in su_satir:
+			var xs: Array = su_satir[sy]
+			xs.sort()
+			var a := int(xs[0])
+			var p := a
+			for k in range(1, xs.size() + 1):
+				if k < xs.size() and int(xs[k]) == p + 1:
+					p = int(xs[k])
+					continue
+				var dip := int(sy)
+				while dip + 1 < h and OdaSablon.hucre(String(rows[dip + 1])[a]) == 0:
+					dip += 1
+				out["su"].append([x0 + a, x0 + p, y0 + int(sy), y0 + dip + 1])
+				if k < xs.size():
+					a = int(xs[k])
+					p = a
+	return out
+
+
+static func _tavan_bicimi(rng: RandomNumberGenerator, kind: String) -> String:
+	## v43 yordamsal oda tavanı: tür + biyoma göre basamak / kemer / mağara / kırık çatı / tonoz
+	var ag := {"basamak": 0.35, "kemer": 0.35, "tonoz": 0.15, "kirik": 0.15}
+	if kind in ["magara", "kuyu"]:
+		ag = {"magara": 0.6, "kirik": 0.2, "basamak": 0.2}
+	elif kind in ["harabe", "kule", "avlu"]:
+		ag = {"kemer": 0.3, "tonoz": 0.3, "kirik": 0.25, "basamak": 0.15}
+	elif kind in ["cukur", "kopru"]:
+		ag = {"magara": 0.3, "kirik": 0.3, "basamak": 0.2, "kemer": 0.2}
+	if _biyom == "sahmeran":
+		ag["magara"] = float(ag.get("magara", 0.0)) + 0.5
+	elif _biyom == "tamu":
+		ag["kirik"] = float(ag.get("kirik", 0.0)) + 0.25
+		ag["tonoz"] = float(ag.get("tonoz", 0.0)) + 0.2
+	elif _biyom == "kaf":
+		ag["magara"] = float(ag.get("magara", 0.0)) + 0.25
+	var top := 0.0
+	for k in ag:
+		top += float(ag[k])
+	var r := rng.randf() * top
+	for k in ag:
+		r -= float(ag[k])
+		if r <= 0.0:
+			return String(k)
+	return "basamak"
+
+
+static func _tavan_uygula(rng: RandomNumberGenerator, ce: Array, fl: Array, n: int, y0: int, bic: String) -> void:
+	match bic:
+		"kemer":
+			# kemer: duvar diplerinde alçak, ortada yüksek
+			var ah := rng.randi_range(2, 4)
+			for i in n:
+				var k := sin(PI * (float(i) + 0.5) / float(n))
+				ce[i] = clampi(int(ce[i]) + 2 - int(round(pow(k, 0.6) * float(ah + 2))), y0 + 1, int(fl[i]) - 5)
+		"magara":
+			# mağara: düzensiz, sivri tavan (her sütunda -1 / 0 / +1 yürüyüş, ara ara 2 karoluk sarkıt dişi)
+			var off := 0
+			for i in n:
+				off = clampi(off + rng.randi_range(-1, 1), -3, 2)
+				var dis := 2 if rng.randf() < 0.08 else 0
+				ce[i] = clampi(int(ce[i]) + off + dis, y0 + 1, int(fl[i]) - 5)
+		"kirik":
+			# kırık çatı: tek basamak + 1-2 çökük delik (yukarı 3-5 karo, kenarları dişli)
+			var x := 0
+			var off2 := rng.randi_range(0, 2)
+			while x < n:
+				var ln := rng.randi_range(5, 10)
+				for i in range(x, mini(n, x + ln)):
+					ce[i] = clampi(int(ce[i]) + off2, y0 + 1, int(fl[i]) - 5)
+				off2 = rng.randi_range(0, 2)
+				x += ln
+			for k in rng.randi_range(1, 2):
+				var hw := rng.randi_range(2, 4)
+				var hx := rng.randi_range(2, maxi(2, n - hw - 3))
+				var hh := rng.randi_range(3, 5)
+				for i in range(hx, mini(n, hx + hw)):
+					var e := hh - (1 if (i == hx or i == hx + hw - 1) and rng.randf() < 0.6 else 0)
+					ce[i] = clampi(int(ce[i]) - e, y0 + 1, int(fl[i]) - 5)
+		"tonoz":
+			# tonoz: art arda kemerler (5-8 sütunluk), aralarda sarkan kemer ayakları
+			var p := rng.randi_range(5, 8)
+			var faz := rng.randi_range(0, p - 1)
+			for i in n:
+				var k := absf(sin(PI * float(i + faz) / float(p)))
+				ce[i] = clampi(int(ce[i]) + int(round((1.0 - k) * 2.5)) - 1, y0 + 1, int(fl[i]) - 5)
+		_:
+			var x2 := 0
+			while x2 < n:
+				var ln2 := rng.randi_range(4, 9)
+				var off3 := rng.randi_range(0, 3)
+				if rng.randf() < 0.2:
+					off3 = -rng.randi_range(3, 5)
+				for i in range(x2, mini(n, x2 + ln2)):
+					ce[i] = clampi(int(ce[i]) + off3, y0 + 1, int(fl[i]) - 5)
+				x2 += ln2
+
+
+static func _ritim(g: PackedByteArray, W: int, H: int, rng: RandomNumberGenerator, rm: Dictionary) -> void:
+	## v43 platform ritmi: yüksek odada yükselen 2-3 tek yönlü basamak dizisi (her biri 3 karo yukarı, 3-4 sütun öteye;
+	## 2-4 karo uzun), merdiven gibi değil, düzensiz bir tırmanış
+	var ix0 := int(rm["ix0"])
+	var ix1 := int(rm["ix1"])
+	var fl: Array = rm["fl"]
+	for t in 8:
+		var x := rng.randi_range(ix0 + 2, ix1 - 6)
+		var yon := 1 if rng.randf() < 0.5 else -1
+		var n := rng.randi_range(2, 3)
+		var fy := int(fl[x - ix0])
+		var ok := true
+		var parca: Array = []
+		var cx := x
+		for k in n:
+			var ln := rng.randi_range(2, 4)
+			var y := fy - 3 * (k + 1)
+			var a := cx if yon > 0 else cx - ln + 1
+			if a < ix0 + 1 or a + ln - 1 > ix1 - 1:
+				ok = false
+				break
+			for xx in range(a, a + ln):
+				if int(fl[xx - ix0]) != fy:
+					ok = false
+			if not ok or not _free_span(g, W, H, rm, a, y, ln, 3, 2):
+				ok = false
+				break
+			parca.append([a, ln, y])
+			cx = (a + ln - 1 + rng.randi_range(2, 3)) if yon > 0 else (a - rng.randi_range(2, 3))
+		if not ok or parca.size() < 2:
+			continue
+		for p in parca:
+			for xx in range(int(p[0]), int(p[0]) + int(p[1])):
+				_put(g, xx, int(p[2]), W, H, 2)
+		return
+
+
 # ================================================================== kapılar
-static func _door_geometry(rng: RandomNumberGenerator, rooms: Array, d: Dictionary) -> void:
+static func _door_geometry(rng: RandomNumberGenerator, rooms: Array, d: Dictionary, gecit_kul: Dictionary = {}) -> void:
 	## Yan kapı: A'nın sağ kenarından B'nin sol kenarına koridor; taban satırı yd iki odanın kapı yanındaki tabanından
 	## yüksek olanı (öbür yanda en çok 2-3 karoluk eşik), 4-5 karo yüksek. Dikey kapı: kuyu (bkz. dosya başı).
+	## v43: koridor 3-7 karo yüksek, tavanı düz / kemer / kırık, iki taban arası 1 karoluk basamaklarla (eşik yok; ödül /
+	## pencere koridoru eskisi gibi düz ve 4 karo: zamanlı / kilitli kapı); dikey kapı biyoma göre geçit türü (GecitGen).
 	if d["kind"] == "sil":
 		return
 	var A: Dictionary = rooms[int(d["a"])]
@@ -1358,13 +1789,29 @@ static func _door_geometry(rng: RandomNumberGenerator, rooms: Array, d: Dictiona
 		var fa: int = int(A["fl"][(A["fl"] as Array).size() - 1])
 		var fbv: int = int(B["fl"][0])
 		var yd := mini(fa, fbv)
-		var ch := 4 if (A["role"] == "odul" or B["role"] == "odul" or rng.randf() < 0.8) else 5
+		var odul_k: bool = A["role"] == "odul" or B["role"] == "odul"
+		var ch := 4 if (odul_k or rng.randf() < 0.8) else 5
 		d["x"] = int(A["ix1"]) + 1
 		d["x2"] = int(B["ix0"]) - 1
 		d["y"] = yd
+		if _v43 and not odul_k and d["kind"] != "pencere":
+			# v43 koridor çeşitliliği: kısa sıkışık geçit (3), olağan (4-5), yüksek kemerli geçit (6-7)
+			var ln := int(d["x2"]) - int(d["x"]) + 1
+			var rr := rng.randf()
+			if rr < 0.14 and ln <= 10 and absi(fa - fbv) <= 1:
+				ch = 3
+			elif rr < 0.5:
+				ch = 4
+			elif rr < 0.76:
+				ch = 5
+			else:
+				ch = rng.randi_range(6, 7)
+			d["rampa"] = fa != fbv
+			d["tavan"] = ["duz", "kemer", "kirik", "kemer", "kirik"][rng.randi_range(0, 4)] if ln >= 6 and ch >= 4 else "duz"
 		d["h"] = ch
-		(A["clear"] as Array).append(Rect2i(int(A["ix1"]) - 3, yd - ch - 1, 4, fa - yd + ch + 1))
-		(B["clear"] as Array).append(Rect2i(int(B["ix0"]), yd - ch - 1, 4, fbv - yd + ch + 1))
+		var mh := ch + (2 if String(d.get("tavan", "duz")) == "kemer" else 0)
+		(A["clear"] as Array).append(Rect2i(int(A["ix1"]) - 3, yd - mh - 1, 4, fa - yd + mh + 1))
+		(B["clear"] as Array).append(Rect2i(int(B["ix0"]), yd - mh - 1, 4, fbv - yd + mh + 1))
 		# v41: iki göğe açık yol odası arasında geçit de göğe açık (tünel değil: kesintisiz yer yüzü); ödül odası,
 		# pencere ve kilit / zamanlı kapı yerleri tünel kalır
 		d["acik_ust"] = _tur == "acik" and bool(A["acik"]) and bool(B["acik"]) and A["role"] != "odul" and B["role"] != "odul" and d["kind"] != "pencere"
@@ -1379,30 +1826,6 @@ static func _door_geometry(rng: RandomNumberGenerator, rooms: Array, d: Dictiona
 	else:
 		var ca: Vector2i = d["ca"]
 		var sx := _sector_x0(ca.x)
-		var lo := maxi(maxi(int(A["ix0"]), int(B["ix0"])), sx + 2) + 2
-		var hi := mini(mini(int(A["ix1"]), int(B["ix1"])), sx + SW - 3) - 2 - (KUYU_W - 1)
-		for R in [A, B]:
-			if R["role"] == "giris":
-				lo = maxi(lo, int(R["ix0"]) + 11)   # doğuş yeri ve giriş taşı (ix0+3, ix0+9) düz kalsın
-			if R["role"] == "cikis" and int(R["c1"]) == ca.x:
-				hi = mini(hi, int(R["ix1"]) - 8 - (KUYU_W - 1))   # Kut Kapısı (ix1-4) kuyudan uzak
-		var cands: Array = []
-		for hx in range(lo, maxi(lo, hi) + 1):
-			var ok := true
-			for R in [A, B]:
-				for k in R["kuyular"]:
-					if hx <= int(k[1]) + 3 and hx + KUYU_W - 1 >= int(k[0]) - 3:
-						ok = false
-			if ok:
-				cands.append(hx)
-		var hx: int = lo
-		if not cands.is_empty():
-			hx = cands[rng.randi_range(0, cands.size() - 1)]
-			if A["role"] == "odul" or B["role"] == "odul":
-				hx = cands[0] if rng.randf() < 0.5 else cands[cands.size() - 1]   # ödül / tezgâh öbür yana sığsın
-		d["x"] = hx
-		d["y"] = int(A["fl"][clampi(hx - int(A["ix0"]), 0, (A["fl"] as Array).size() - 1)])
-		d["flip"] = rng.randf() < 0.5
 		# ana yol yukarıdan aşağı iniyorsa düşüş deliği açık; dal / döngü / tırmanılan ana yol: tek yönlü kapak
 		d["acik"] = d["kind"] == "ana" and int(A["ana_i"]) >= 0 and int(B["ana_i"]) > int(A["ana_i"])
 		# v34: uzantı (sapaktan sonra süren yol) aşağı iniyorsa açık düşüş (yol gibi görünür); Kut Kapısı sapağı kapaklı
@@ -1410,15 +1833,135 @@ static func _door_geometry(rng: RandomNumberGenerator, rooms: Array, d: Dictiona
 			d["acik"] = true
 		if bool(d.get("kapak", false)):
 			d["acik"] = false
+		var tipler: Array = ["kuyu"]
+		if _v43:
+			# düşüş deliği (geri dönüşsüz) yalnız aşağı inen ana yolda, ödül / sapak odasına değil
+			var dusus_ok: bool = bool(d["acik"]) and d["kind"] == "ana" and B["role"] != "odul" and not bool(B.get("sapak", false)) and not bool(A.get("kavsak", false))
+			tipler = GecitGen.sirala(rng, _biyom, _tur, gecit_kul, dusus_ok)
+			tipler.append("kuyu")
+		var hx := -1
+		var gw := KUYU_W
+		var tip := "kuyu"
+		# dört geçiş: (1) iki taban geçit boyunca düz, (2) düz değil (taban geçidin dibine indirilir), (3) şablon yuvası
+		# dışında da (şablonu keser), (4) v33 kuyusu yedek
+		for gecis in 4:
+			for ti in tipler.size():
+				var t2 := String(tipler[ti])
+				if (gecis < 3 and t2 == "kuyu" and tipler.size() > 1) or (gecis == 3 and t2 != "kuyu"):
+					continue
+				var gw2 := int(GecitGen.GENISLIK[t2])
+				if gecis < 3 and t2 in ["cikinti", "ruzgar", "merdiven", "iskele"] and (A["role"] == "cikis" or B["role"] == "cikis"):
+					continue   # Kut Kapısı odasında dar geçit (Otağ Yeri'ne düz taban kalsın)
+				var cands := _kuyu_adaylari(A, B, sx, gw2, gecis == 0 and _v43, gecis >= 2 or not _v43)
+				if _v43 and gecis < 3:
+					for R in [A, B]:
+						if R["role"] == "odul" and String(R.get("odul", "")) == "pazar":
+							# pazar: tezgâh (11 karo) geçidin bir yanına sığmalı
+							var c2: Array = []
+							for cx in cands:
+								if maxi(int(cx) - int(R["ix0"]), int(R["ix1"]) - (int(cx) + gw2 - 1)) >= 13:
+									c2.append(cx)
+							cands = c2
+				if cands.is_empty():
+					continue
+				tip = t2
+				gw = gw2
+				hx = int(cands[rng.randi_range(0, cands.size() - 1)])
+				if A["role"] == "odul" or B["role"] == "odul":
+					hx = int(cands[0]) if rng.randf() < 0.5 else int(cands[cands.size() - 1])   # ödül / tezgâh öbür yana sığsın
+					if _v43 and (String(A.get("odul", "")) == "pazar" or String(B.get("odul", "")) == "pazar"):
+						hx = int(cands[0])   # v43: pazar: geçit sol uçta, tezgâh sağda (sol kanadı geniş)
+				break
+			if hx >= 0:
+				break
+		if hx < 0:
+			hx = maxi(maxi(int(A["ix0"]), int(B["ix0"])), sx + 2) + 2
+			tip = "kuyu"
+			gw = KUYU_W
+		gecit_kul[tip] = int(gecit_kul.get(tip, 0)) + 1
+		d["x"] = hx
+		d["gw"] = gw
+		d["gecit"] = tip
+		d["y"] = int(A["fl"][clampi(hx - int(A["ix0"]), 0, (A["fl"] as Array).size() - 1)])
+		d["flip"] = rng.randf() < 0.5
+		if _v43:
+			d["flip2"] = rng.randf() < 0.5
+			var gl: Array = []
+			for k in 6:
+				gl.append(rng.randi_range(2, 3))
+			d["genislikler"] = gl
+			# zincirin asıldığı yer: üst odanın tavanı (göğe açıksa 7 karo yukarıda kiriş)
+			var ce_a: int = int(A["ce"][clampi(hx + gw / 2 - int(A["ix0"]), 0, (A["ce"] as Array).size() - 1)])
+			d["capa"] = int(d["y"]) - 7 if bool(A["acik"]) else maxi(ce_a, int(d["y"]) - 9)
 		for R in [A, B]:
-			(R["kuyular"] as Array).append([hx, hx + KUYU_W - 1])
-			(R["clear"] as Array).append(Rect2i(hx - 1, 0, KUYU_W + 2, 999))
+			(R["kuyular"] as Array).append([hx, hx + gw - 1])
+			(R["clear"] as Array).append(Rect2i(hx - 1, 0, gw + 2, 999))
 		if A["role"] == "odul":
 			A["_door_side"] = "alt"
 			A["_door_x"] = hx
+			A["_door_w"] = gw
 		if B["role"] == "odul":
 			B["_door_side"] = "ust"
 			B["_door_x"] = hx
+			B["_door_w"] = gw
+
+
+static func _kuyu_araliklari(R: Dictionary, ust_oda: bool) -> Array:
+	## v43: odanın dikey geçide verebileceği sütun aralıkları: şablon odasında taban (B) / tavan (T) yuvaları, yordamsal
+	## odada iç alan
+	if R.has("tpl"):
+		var out: Array = []
+		for k in (R["tpl_B"] if ust_oda else R["tpl_T"]):
+			out.append([int(k[0]), int(k[1])])
+		return out
+	return [[int(R["ix0"]) + 2, int(R["ix1"]) - 2]]
+
+
+static func _kuyu_adaylari(A: Dictionary, B: Dictionary, sx: int, gw: int, duz_iste: bool, yuva_yok := false) -> Array:
+	## Geçidin sol sütunu adayları: iki odanın ortak iç alanı (v33 kuralları: giriş doğuşu / Kut Kapısı uzak, başka
+	## kuyuya 3 karo yaklaşmaz); v43: şablon yuvalarının içinde, iki tabanı geçit boyunca düz (duz_iste)
+	var lo := maxi(maxi(int(A["ix0"]), int(B["ix0"])), sx + 2) + 2
+	var hi := mini(mini(int(A["ix1"]), int(B["ix1"])), sx + SW - 3) - 2 - (gw - 1)
+	for R in [A, B]:
+		if R["role"] == "giris":
+			lo = maxi(lo, int(R["ix0"]) + 11)   # doğuş yeri ve giriş taşı (ix0+3, ix0+9) düz kalsın
+		if R["role"] == "cikis" and int(R["c1"]) == (sx - KENAR) / SW:
+			hi = mini(hi, int(R["ix1"]) - 8 - (gw - 1))   # Kut Kapısı (ix1-4) kuyudan uzak
+	var ivA := _kuyu_araliklari(A, true)
+	var ivB := _kuyu_araliklari(B, false)
+	var cands: Array = []
+	for hx in range(lo, maxi(lo, hi) + 1):
+		if hx > hi and not yuva_yok:
+			break
+		var ok := true
+		for R in [A, B]:
+			for k in R["kuyular"]:
+				if hx <= int(k[1]) + 3 and hx + gw - 1 >= int(k[0]) - 3:
+					ok = false
+		if not ok:
+			continue
+		if _v43 and not yuva_yok:
+			var ia := false
+			for iv in ivA:
+				if hx >= int(iv[0]) and hx + gw - 1 <= int(iv[1]):
+					ia = true
+			var ib := false
+			for iv in ivB:
+				if hx >= int(iv[0]) and hx + gw - 1 <= int(iv[1]):
+					ib = true
+			if not (ia and ib):
+				continue
+		if duz_iste and _v43:
+			for R in [A, B]:
+				var fl: Array = R["fl"]
+				var f0 := int(fl[clampi(hx - int(R["ix0"]), 0, fl.size() - 1)])
+				for x in range(hx - 1, hx + gw + 1):
+					if int(fl[clampi(x - int(R["ix0"]), 0, fl.size() - 1)]) != f0:
+						ok = false
+			if not ok:
+				continue
+		cands.append(hx)
+	return cands
 
 
 static func _carve_door(g: PackedByteArray, W: int, H: int, rooms: Array, d: Dictionary) -> void:
@@ -1442,6 +1985,9 @@ static func _carve_door(g: PackedByteArray, W: int, H: int, rooms: Array, d: Dic
 	if d["dir"] == "h":
 		var yd := int(d["y"])
 		var ch := int(d["h"])
+		if _v43 and (bool(d.get("rampa", false)) or String(d.get("tavan", "duz")) != "duz"):
+			_carve_koridor(g, W, H, A, B, d)
+			return
 		# koridor + iki odanın kenarındaki ağız (oda tavanı alçaksa da geçit açık)
 		for x in range(int(A["ix1"]) - 1, int(B["ix0"]) + 2):
 			for y in range(yd - ch, yd):
@@ -1464,6 +2010,23 @@ static func _carve_door(g: PackedByteArray, W: int, H: int, rooms: Array, d: Dic
 		d["y"] = fyA
 		d["y2"] = fyB
 		var flip: bool = d["flip"]
+		if String(d.get("gecit", "kuyu")) != "kuyu":
+			# v43 geçit türü: kendi biçimi (GecitGen.oy); harita "?" işareti düşüş yolunun ortasında. Taban geçit
+			# boyunca düz değilse üst oda tabanı geçidin ağzında en alçak satıra iner (ağız kapanmasın)
+			var gw0 := int(d["gw"])
+			for x in range(hx, hx + gw0):
+				fyA = maxi(fyA, int(A["fl"][clampi(x - int(A["ix0"]), 0, (A["fl"] as Array).size() - 1)]))
+				fyB = maxi(fyB, int(B["fl"][clampi(x - int(B["ix0"]), 0, (B["fl"] as Array).size() - 1)]))
+			for x in range(hx, hx + gw0):
+				for y in range(int(A["fl"][clampi(x - int(A["ix0"]), 0, (A["fl"] as Array).size() - 1)]), fyA):
+					_put(g, x, y, W, H, 0)
+			d["y"] = fyA
+			d["y2"] = fyB
+			var gv := GecitGen.oy(g, W, H, d, _biyom)
+			d["gecit_veri"] = gv
+			d["dus_x"] = int(gv["lane"][0])
+			d["tir_x"] = int(gv["x0"])
+			return
 		var dx0 := hx + 3 if flip else hx          # düşüş bacası (3)
 		var wx := hx + 2 if flip else hx + 3       # ara duvar (1)
 		var cx0 := hx if flip else hx + 4          # tırmanış bacası (2)
@@ -1493,8 +2056,55 @@ static func _carve_door(g: PackedByteArray, W: int, H: int, rooms: Array, d: Dic
 				_put(g, x, ry, W, H, 2)
 
 
+static func _carve_koridor(g: PackedByteArray, W: int, H: int, A: Dictionary, B: Dictionary, d: Dictionary) -> void:
+	## v43 koridor: taban iki odanın kenar tabanı arasında 1 karoluk basamaklarla (yürürken kendiliğinden çıkılır), tavan
+	## düz / kemer (ortası 1-2 karo yüksek) / kırık (2-3 sütunda bir 0-1 karo oynar); her sütunda en az ch karo hava
+	var fa: int = int(A["fl"][(A["fl"] as Array).size() - 1])
+	var fbv: int = int(B["fl"][0])
+	var ch := int(d["h"])
+	var x0 := int(d["x"])
+	var x1 := int(d["x2"])
+	var n := x1 - x0 + 1
+	var bic := String(d.get("tavan", "duz"))
+	var ramp: bool = bool(d.get("rampa", false))
+	var kirik := 0
+	var hseed := (x0 * 73856093) ^ (int(d["y"]) * 19349663)
+	var prev_fy := fa
+	for i in range(-2, n + 2):
+		var x := x0 + i
+		var t := clampf(float(i + 1) / float(n + 1), 0.0, 1.0)
+		var fy := int(d["y"])
+		if ramp:
+			fy = int(round(lerpf(float(fa), float(fbv), t))) if i >= 0 and i < n else (fa if i < 0 else fbv)
+			if i >= 0 and i < n:
+				fy = clampi(fy, prev_fy - 1, prev_fy + 1)
+				prev_fy = fy
+		var ek := 0
+		if i >= 0 and i < n:
+			match bic:
+				"kemer":
+					ek = int(round(sin(PI * t) * (2.0 if n >= 9 else 1.0)))
+				"kirik":
+					if i % 2 == 0:
+						kirik = ((hseed >> (i % 16)) & 1)
+					ek = kirik
+		var top := fy - ch - ek
+		if i < 0 or i >= n:
+			top = mini(top, int(d["y"]) - ch)
+		for y in range(top, fy):
+			_put(g, x, y, W, H, 0)
+		if i >= 0 and i < n:
+			_put(g, x, fy, W, H, 1)
+			for y in range(fy + 1, fy + 4):
+				if y < H - 1 and _cell(g, x, y, W, H) == 0:
+					_put(g, x, y, W, H, 1)
+
+
 # ================================================================== oda oyma ve süsler
 static func _carve_room(g: PackedByteArray, W: int, H: int, rm: Dictionary) -> void:
+	if rm.has("tpl"):
+		_sablon_oy(g, W, H, rm)
+		return
 	var ix0 := int(rm["ix0"])
 	var ix1 := int(rm["ix1"])
 	var fl: Array = rm["fl"]
@@ -1539,6 +2149,8 @@ static func _features(g: PackedByteArray, W: int, H: int, rng: RandomNumberGener
 	## sütunlar, kemer, sarkıtlar, kayalar, yan cepler, çukur, köprü, üst güverte
 	var kind: String = rm["kind"]
 	var role: String = rm["role"]
+	if rm.has("tpl"):
+		return   # v43: el yapımı oda: iç parçalar şablonun kendisi
 	if role == "odul":
 		_odul_shape(g, W, H, rng, rm)
 		return
@@ -1547,6 +2159,8 @@ static func _features(g: PackedByteArray, W: int, H: int, rng: RandomNumberGener
 		_alcoves(g, W, H, rng, rm, rng.randi_range(0, 1))
 		return
 	var kx := 2 if (rm["cells"] as Array).size() > 1 else 1
+	if _v43 and kind in ["salon", "harabe", "kule", "avlu", "magara", "teras"] and rng.randf() < 0.4:
+		_ritim(g, W, H, rng, rm)   # v43: yükselen düzensiz platform dizisi
 	match kind:
 		"salon":
 			_platforms(g, W, H, rng, rm, rng.randi_range(1, 2) * kx, 3, 3)
@@ -1608,10 +2222,15 @@ static func _platforms(g: PackedByteArray, W: int, H: int, rng: RandomNumberGene
 	while placed < count and tries < 30:
 		tries += 1
 		var ln := rng.randi_range(3, 5)
+		var h4 := false
+		if _v43:
+			# v43 platform ritmi: 2-6 karo uzun, ara ara 4 karo yukarıda (çift zıplama)
+			ln = [2, 3, 3, 4, 5, 6][rng.randi_range(0, 5)]
+			h4 = rng.randf() < 0.25
 		if ix1 - ln - 2 < ix0 + 2:
 			return
 		var x := rng.randi_range(ix0 + 2, ix1 - ln - 2)
-		var y: int = int(fl[x - ix0]) - rng.randi_range(h0, h1)
+		var y: int = int(fl[x - ix0]) - (4 if h4 else rng.randi_range(h0, h1))
 		if not _free_span(g, W, H, rm, x, y, ln, 3, 2):
 			continue
 		var flat := true
@@ -1944,8 +2563,9 @@ static func _odul_mid(rm: Dictionary) -> int:
 	if side in ["ust", "alt"]:
 		var hx := int(rm.get("_door_x", mid))
 		var sol := hx - 1 - ix0
-		var sag := ix1 - (hx + KUYU_W)
-		mid = (hx + KUYU_W + 1 + ix1) / 2 + 1 if sag >= sol else (ix0 + hx - 2) / 2
+		var kw := int(rm.get("_door_w", KUYU_W))
+		var sag := ix1 - (hx + kw)
+		mid = (hx + kw + 1 + ix1) / 2 + 1 if sag >= sol else (ix0 + hx - 2) / 2
 	elif bool(rm.get("pencere", false)):
 		# v34: pencereli ödül odası: ödül parmaklığın yakınında (ana yoldan görünsün)
 		mid = ix0 + 7 if String(rm.get("pencere_yan", "sol")) == "sol" else ix1 - 6
@@ -1968,7 +2588,16 @@ static func _odul_marks(g: PackedByteArray, W: int, H: int, rng: RandomNumberGen
 		"tomar":
 			marks.append(["M", mid, fy - 1])
 		"pazar":
-			marks.append(["P", mid + 2, fy - 1])
+			var px := mid + 2
+			if _v43 and _door_side(rm) in ["ust", "alt"]:
+				# v43: tezgâh (P'nin 7 karo solu .. 3 karo sağı) geçidin kapağına binmesin
+				var dx0 := int(rm.get("_door_x", 0))
+				var dx1 := dx0 + int(rm.get("_door_w", KUYU_W)) - 1
+				if dx0 < mid:
+					px = clampi(maxi(px, dx1 + 9), ix0 + 8, ix1 - 3)
+				else:
+					px = clampi(mini(px, dx0 - 5), ix0 + 8, ix1 - 3)
+			marks.append(["P", px, int(fl[px - ix0]) - 1])
 		"seckin":
 			var tx := clampi(mid + 5, ix0 + 2, ix1 - 2)
 			if _door_side(rm) == "sag":
@@ -1998,7 +2627,7 @@ static func _odul_tasi(g: PackedByteArray, W: int, H: int, rm: Dictionary) -> Ve
 	var x := ix0 + 4 if side == "sol" else ix1 - 4
 	if side in ["ust", "alt"]:
 		var hx := int(rm.get("_door_x", (ix0 + ix1) / 2))
-		x = hx - 2 if _odul_mid(rm) > hx else hx + KUYU_W + 1
+		x = hx - 2 if _odul_mid(rm) > hx else hx + int(rm.get("_door_w", KUYU_W)) + 1
 	return _floor_spot(g, W, H, rm, x)
 
 

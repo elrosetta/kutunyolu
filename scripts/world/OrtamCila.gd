@@ -271,10 +271,17 @@ func _anitlar() -> void:
 		if ix1 - ix0 < 14:
 			continue
 		adaylar.append(rm)
+	var n := 0
+	# v43: simge (sahne parçası) şablonunun "*" çapası: anıt oraya kesin konur
+	for s in level.propler.get("simge", []):
+		_anit_sprite(d, int(s[0]), int(s[1]) + 1, r.randf() < 0.5 and not bool(d.get("noflip", false)))
+		n += 1
+		for rm in adaylar.duplicate():
+			if int(rm.get("id", -1)) == int(s[2]):
+				adaylar.erase(rm)
 	if adaylar.is_empty():
 		return
 	adaylar.shuffle()
-	var n := 0
 	var TS: int = Level.TS
 	var wtile := int(ceil(float((d["size"] as Array)[0]) / float(d.get("texel", 4.0)) / TS))
 	var htile := int(ceil(float((d["size"] as Array)[1]) / float(d.get("texel", 4.0)) / TS))

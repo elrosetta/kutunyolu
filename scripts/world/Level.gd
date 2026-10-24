@@ -166,6 +166,7 @@ func build(seed_value: int) -> void:
 	_pt = _adim(&"kur_kut_taslari", _pt)
 	_build_particles()
 	_pt = _adim(&"kur_build_particles", _pt)
+	_v43_ciz()   # v43: geçit ve şablon süsleri
 	_build_overlay_fx()
 	_pt = _adim(&"kur_build_overlay_fx", _pt)
 	_place_bezirgan()
@@ -1320,17 +1321,99 @@ func _generate() -> void:
 	metrics = r["metrics"]
 	kaide_xs = r["kaide"]
 	_gen = r
+	_v43_kur(r)
 	print("[harita] derinlik=%d tür=%s stil=%s oda=%d ana=%d dal=%d çıkmaz=%d döngü=%d dikey=%d kapı=%d taşı=%d zamanlı=%d deneme=%d ok=%s" % [
 		int(Game.run.get("depth", 1)), tur, style, int(metrics["oda"]), int(metrics["ana"]), int(metrics["dal"]), int(metrics["cikmaz"]),
 		int(metrics["dongu"]), int(metrics["dikey_adim"]), int(metrics["kapi"]), int(metrics["tasi"]), int(metrics["zamanli"]), int(metrics["attempts"]), str(metrics["ok"])])
 
 
 var _gen: Dictionary = {}   # üreticinin ham sonucu (tasi / zamanli listeleri)
+## v43 el yapımı odalar ve geçitler: geçit türleri (LevelGen gecitler), şablon süsleri (propler), görseli GecitCiz'de olan
+## tek yönlü karolar (görünmez karo), oyuncunun tırmandığı / rüzgârın kaldırdığı / yumuşak indiği dörtgenler (px)
+var gecitler: Array = []
+var propler: Dictionary = {}
+var gecit_ciz: Node
+var _gizli_plt := {}
+var _tirman_rect: Array = []
+var _ruzgar_rect: Array = []
+var _yumusak_rect: Array = []
 ## v41 bölüm türü (LevelGen.TURLER: acik / kale / inis / magara) ve anlatı kancaları: sahne_yeri (ana yolda en geniş
 ## düz taban {room, x0, x1, y}), hikaye_yeri (opts.hikaye_odasi ile ayrılan çıkmaz odanın ayakta durma hücresi {room, x, y})
 var tur := "eski"
 var sahne_yeri: Dictionary = {}
 var hikaye_yeri: Dictionary = {}
+
+
+func _v43_kur(r: Dictionary) -> void:
+	gecitler = r.get("gecitler", [])
+	propler = r.get("propler", {})
+	_gizli_plt = {}
+	_tirman_rect = []
+	_ruzgar_rect = []
+	_yumusak_rect = []
+	for gv in gecitler:
+		for k in ["basamak", "kapak"]:
+			for c in gv[k]:
+				_gizli_plt[Vector2i(int(c[0]), int(c[1]))] = true
+		for tr in gv["tirman"]:
+			_tirman_rect.append(Rect2(float(tr[0]) * TS, float(tr[1]) * TS, (float(tr[2]) - float(tr[0])) * TS, (float(tr[3]) - float(tr[1])) * TS))
+		if not (gv["ruzgar"] as Array).is_empty():
+			var rz: Array = gv["ruzgar"]
+			_ruzgar_rect.append(Rect2(float(rz[0]) * TS, float(rz[1]) * TS, (float(rz[2]) - float(rz[0])) * TS, (float(rz[3]) - float(rz[1])) * TS))
+		if not (gv["yumusak"] as Array).is_empty():
+			var y: Array = gv["yumusak"]
+			_yumusak_rect.append(Rect2(float(int(y[0])) * TS - 12.0, float(int(y[2])) * TS - 30.0, float(int(y[1]) - int(y[0]) + 1) * TS + 24.0, 34.0))
+	for tr in propler.get("tirman", []):
+		_tirman_rect.append(Rect2(float(tr[0]) * TS, float(tr[1]) * TS, (float(tr[2]) - float(tr[0])) * TS, (float(tr[3]) - float(tr[1])) * TS))
+	for y2 in propler.get("yumusak", []):
+		_yumusak_rect.append(Rect2(float(int(y2[0])) * TS - 12.0, float(int(y2[2])) * TS - 30.0, float(int(y2[1]) - int(y2[0]) + 1) * TS + 24.0, 34.0))
+	for kt in propler.get("kutuk", []):
+		for x in range(int(kt[0]), int(kt[1]) + 1):
+			_gizli_plt[Vector2i(x, int(kt[2]))] = true
+
+
+func _v43_ciz() -> void:
+	if gecitler.is_empty() and propler.is_empty():
+		return
+	var bid := String(biome.get("id", "otuken"))
+	gecit_ciz = GecitCiz.kur(self, gecitler, propler, bid)
+	# asılı fenerler / ışıyan salkımlar ışık verir
+	for sd in propler.get("sus", []):
+		var p := Vector2(int(sd[0]) * TS + TS / 2.0, int(sd[1]) * TS + TS / 2.0)
+		match bid:
+			"otuken", "bozkir":
+				titrek(add_light(p, Color(1.0, 0.72, 0.38), 120.0, 0.9, decor_root))
+			"sahmeran":
+				add_light(p, Color(0.4, 1.0, 0.8), 90.0, 0.7, decor_root)
+	for gv in gecitler:
+		if String(gv["tip"]) == "zincir" and bid == "tamu":
+			# lav ışığı zincir bacasının dibinde
+			add_light(Vector2((int(gv["x0"]) + int(gv["x1"]) + 1) * TS / 2.0, int(gv["alt"]) * TS - 10.0), Color(1.0, 0.45, 0.2), 110.0, 0.6, decor_root)
+
+
+func tirman_at(p: Vector2, pay := 10.0) -> Rect2:
+	## v43: oyuncunun gövde ortası (p) bir tırmanılır yüzeyde mi (zincir, ip merdiven, kök / sarmaşık); değilse Rect2()
+	for r in _tirman_rect:
+		var rr: Rect2 = r
+		if p.x >= rr.position.x - pay and p.x <= rr.end.x + pay and p.y >= rr.position.y - 6.0 and p.y <= rr.end.y + 4.0:
+			return rr
+	return Rect2()
+
+
+func ruzgar_at(p: Vector2) -> bool:
+	## v43: Kaf rüzgâr bacası (yukarı esen rüzgâr)
+	for r in _ruzgar_rect:
+		if (r as Rect2).has_point(p):
+			return true
+	return false
+
+
+func yumusak_at(feet: Vector2) -> bool:
+	## v43: yumuşak iniş yığını (saman / kar / yaprak / su / kül): yüksek düşüş sersemletmez
+	for r in _yumusak_rect:
+		if (r as Rect2).has_point(feet):
+			return true
+	return false
 
 
 func main_rooms() -> Array:
@@ -1725,6 +1808,19 @@ func _make_tileset() -> TileSet:
 	var prow := int(meta["platform_row"])
 	for c in 6:
 		_tile(src, Vector2i(c, prow), 1, top, true)
+	# v43: görünmez tek yönlü karo (geçit basamağı / kapak, kütük köprü: görseli GecitCiz çizer)
+	var gimg := Image.create(ac, ac, false, Image.FORMAT_RGBA8)
+	gimg.fill(Color(0, 0, 0, 0))
+	var gsrc := TileSetAtlasSource.new()
+	gsrc.texture = ImageTexture.create_from_image(gimg)
+	gsrc.texture_region_size = Vector2i(ac, ac)
+	ts.add_source(gsrc, 1)
+	gsrc.create_tile(Vector2i(0, 0))
+	var gtd := gsrc.get_tile_data(Vector2i(0, 0), 0)
+	gtd.add_collision_polygon(1)
+	gtd.set_collision_polygon_points(1, 0, top)
+	gtd.set_collision_polygon_one_way(1, 0, true)
+	gtd.set_collision_polygon_one_way_margin(1, 0, float(_tile_px()) / TS)
 	return ts
 
 
@@ -1912,6 +2008,8 @@ func _lay_emit_tiles(ts: TileSet) -> void:
 	add_child(layer)
 	for L in [ground, overlay]:
 		for c in (L as TileMapLayer).get_used_cells():
+			if (L as TileMapLayer).get_cell_source_id(c) != 0:
+				continue
 			var ac: Vector2i = (L as TileMapLayer).get_cell_atlas_coords(c)
 			if cells.has(ac):
 				layer.set_cell(c, 0, ac)
@@ -1955,6 +2053,8 @@ func _lay_tiles(ts: TileSet, gmat: ShaderMaterial, tmat: ShaderMaterial) -> void
 					overlay.set_cell(Vector2i(x, y - 1), 0, Vector2i(rng.randi_range(0, gcols - 1), orow))
 				if (m & 4) and y + 1 < H and cell(x, y + 1) == 0 and rng.randf() < 0.55:
 					overlay.set_cell(Vector2i(x, y + 1), 0, Vector2i(int(ccols[rng.randi_range(0, ccols.size() - 1)]), orow))
+			elif c == 2 and _gizli_plt.has(Vector2i(x, y)):
+				ground.set_cell(Vector2i(x, y), 1, Vector2i(0, 0))
 			elif c == 2:
 				var kind := 1
 				if cell(x - 1, y) != 2:
@@ -2628,9 +2728,9 @@ func _place_towers() -> void:
 	while y < H - 1:
 		var x := 0
 		while x < W:
-			if cell(x, y) == 2:
+			if cell(x, y) == 2 and not _gizli_plt.has(Vector2i(x, y)):
 				var x0 := x
-				while x < W and cell(x, y) == 2:
+				while x < W and cell(x, y) == 2 and not _gizli_plt.has(Vector2i(x, y)):
 					x += 1
 				_tower_under(x0, x - 1, y)
 			else:
@@ -2868,8 +2968,22 @@ func _spawn_enemies() -> void:
 		var ix1 := int(rm["ix1"])
 		var placed := 0
 		var x := ix0 + 3 + rng.randi_range(0, 4)
+		var isr: Array = []
+		for m in rm.get("isaret", []):
+			if String(m[0]) == "g":
+				isr.append(int(m[1]))
+		if not isr.is_empty():
+			# v43 el yapımı oda: grup yerleri şablonun "g" işaretleri (tasarımcının seçtiği güvenli tabanlar)
+			var son := -99
+			for gx in isr:
+				if int(gx) - son < en_az - 2:
+					continue
+				if not _yaratik_yasak(int(gx), room_floor(rm, int(gx)) - 1) and cell(int(gx), room_floor(rm, int(gx))) != 3:
+					placed += _grup(rm, int(gx), st, false)
+					son = int(gx)
+			x = ix1   # aralıklı yerleşim atlanır
 		while x < ix1 - 2:
-			if not _yaratik_yasak(x, room_floor(rm, x) - 1):
+			if not _yaratik_yasak(x, room_floor(rm, x) - 1) and cell(x, room_floor(rm, x)) != 3:
 				placed += _grup(rm, x, st, false)
 			x += maxi(en_az, rng.randi_range(int(aralik[0]), int(aralik[1])) - Zorluk.yogunluk(depth))
 		if placed == 0 and rm["role"] != "giris":
@@ -2880,7 +2994,7 @@ func _spawn_enemies() -> void:
 			var mid := (ix0 + ix1) / 2
 			cols.sort_custom(func(a: int, b: int) -> bool: return absi(a - mid) < absi(b - mid))
 			for tx in cols:
-				if not _yaratik_yasak(tx, room_floor(rm, tx) - 1):
+				if not _yaratik_yasak(tx, room_floor(rm, tx) - 1) and cell(tx, room_floor(rm, tx)) != 3:
 					placed += _grup(rm, tx, st, false)
 					if placed > 0:
 						break
@@ -3662,6 +3776,16 @@ func _place_bezirgan() -> void:
 		if is_instance_valid(e) and not e.elite and absf(e.global_position.x - bezirgan.position.x) < temiz and absf(e.global_position.y - bezirgan.position.y) < 10.0 * TS and int(room_at(int(e.global_position.x / TS), int((e.global_position.y - 4.0) / TS)).get("id", -2)) == int(room_at(tx, ty - 1).get("id", -3)):
 			e.queue_free()
 			moved += 1
+	if not bezirgan_ok() and OS.get_cmdline_user_args().has("--bz_hata"):
+		var wr2 := bezirgan.world_rect()
+		print("[tuccar] alan karo x %d..%d y %d..%d ty=%d" % [int(wr2.position.x / TS), int(wr2.end.x / TS), int(wr2.position.y / TS), int(wr2.end.y / TS), ty])
+		for yy in range(int(wr2.position.y / TS) - 2, int(wr2.end.y / TS) + 2):
+			var ln := ""
+			for xx in range(int(wr2.position.x / TS) - 4, int(wr2.end.x / TS) + 5):
+				ln += ".#-^"[cell(xx, yy)]
+			print("[tuccar] %d %s" % [yy, ln])
+		var rr := room_at(tx, ty - 1)
+		print("[tuccar] oda %s kapı=%s x=%s w=%s ix=%d..%d" % [str(rr.get("odul", "")), str(rr.get("_door_side", "")), str(rr.get("_door_x", "")), str(rr.get("_door_w", "")), int(rr.get("ix0", 0)), int(rr.get("ix1", 0))])
 	print("[tuccar] derinlik=%d bezirgan=1 x=%d boss_oncesi=%s mal=%d duvar_ok=%s kaldirilan=%d" % [d, tx, str(boss_once), bezirgan.offers.size(), str(bezirgan_ok()), moved])
 
 
@@ -3946,6 +4070,10 @@ func _sinav_kur() -> void:
 		var y2 := _otag_yer_sec(gen_avoid)
 		if y2.size() > otag_yerleri.size():
 			otag_yerleri = y2
+	if OS.get_cmdline_user_args().has("--otag_hata") and otag_yerleri.size() < 4:
+		print("[otag] az yer: avoid=%d gen_avoid=%d hiç=%d bz=%s tür=%s" % [_otag_yer_sec(avoid).size(), _otag_yer_sec(gen_avoid).size(), OtagYeri.yerlesim(grid, W, H, rooms, exit_cell, []).size(), str(bezirgan != null), tur])
+		for rm in OtagYeri._ana(rooms).slice(0, 3):
+			print("[otag]   oda %s tpl=%s ix=%d..%d" % [rm["role"], str(rm.get("tpl", {}).get("ad", "-")), int(rm["ix0"]), int(rm["ix1"])])
 	sinav.kur(self, rng)
 	var turler: Array = OtagYeri.SIRA if otag_yerleri.size() >= 4 else ["cabuk", "dokunulmaz", "avci"]
 	for i in mini(otag_yerleri.size(), turler.size()):

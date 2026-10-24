@@ -7456,3 +7456,157 @@ destan özeti).
 * Yeni oyun+: örgüler kalıcı, bekçiler yine düşer ve yine örgü bırakır (alınca «yine senin» iletisi, dünya zaten
   sıcak); ikinci kez son sineması oynamaz (Ozan'dan açılış yeniden dinlenebilir; son için ayrı bir tekrar yok).
 * Yurdun paralaks göğü gece resmi: sabah derece / ışıkla verilir (ay hilali gökte kalır — «gece yine gelecek»).
+
+## v43: el yapımı odalar ve geçitler
+
+Geri bildirim: "Harita tasarımlarının üstünden geç: gerçekten yapay zekâ işi gibi durmasınlar, hepsi farklı olsun. Aşağı /
+yukarı geçiş yerleri bile tıpatıp aynı; zincir koy, bir şey koy!" Hedef: oyuncu bölümlerin tekrar eden parçalardan
+üretildiğini anlamasın.
+
+### Denetim (v42, 120 bölüm `--harita --harita_tohum=24` + `--harita_ekran=tam --tam_tur` + oyun içi çekimler)
+
+* **Kuyular tıpatıp aynı:** 546 dikey bağlantının hepsi aynı 6 sütunluk kuyu (3 sütun düşüş + ara duvar + 2 sütun
+  basamak, 3 satırda bir tek yönlü basamak, aynı tahta görsel, altında aynı kule ayakları). Biçim imzasıyla 120 bölümde
+  yalnızca **28 ayrı kuyu biçimi** (yükseklik farkı); bölüm içi tekrar puanı 0,20.
+* **Odalar dikdörtgen kutu:** 12-20 x 6-9 kutu, düz taban, 4-9 sütunluk parçalarda 0-3 karo alçalan aynı basamaklı tavan.
+  Oda biçim imzası (8 x 4 blok) bölüm içinde %13 tekrar; gözle bakınca hepsi "dişli kutu".
+* **Koridorlar:** %80'i 4, kalanı 5 karo yüksek, düz taban, düz tavan; kapı eşiği her zaman odanın kenarında tek basamak.
+* **Platform ritmi:** tek yönlü platformlar hep tabandan tam 3 karo yukarıda, 3-5 karo; sütun 2 x 2, kemer tabandan 4,
+  yan cep 2 x 4: her odada aynı ölçüler.
+* **Süs ritmi ve yerler:** çıra 26-36 karoda bir; Kut Taşı girişin 9 karo sağında, Kut Kapısı çıkış odasının ucundan 4
+  karo; ödül odası ortası; anıtlar yalnız rastgele geniş düz tabanda (tohumların yarısında).
+* **Akılda kalan yer yok:** bölümü tanıtan bir sahne parçası (simge) yok.
+
+### Şablon biçimi (`data/odalar/*.json`, kaynak `tools/odalar/*.txt`, derleyici `tools/odalar/odalar_derle.py`)
+
+Yeni oda eklemek: `tools/odalar/<grup>.txt` dosyasına bir blok yaz, `python tools/odalar/odalar_derle.py` çalıştır
+(genişlik / karakter denetimi), `--harita` testinin `SABLON` satırlarına bak (her şablon ve aynası yalıtılmış ızgarada
+denetlenir: yuvalar arası gidiş-dönüş, erişilen hücrelerde baş boşluğu, ganimet erişilir). JSON elle de yazılabilir.
+
+```
+@ devrik_kutuk | dosya=otuken | biyom=otuken | tur=* | rol=ana,dal | tip=kopru | gok=1 | simge=0 | agirlik=1
+....................
+L..g.............g.R
+####==========######
+####..........######
+####..~.......######
+####################
+```
+
+* Boyut: tek kesim en çok **20 x 12** (satır 0 = kesimin y0+1 satırı), iki kesimlik geniş salon 28-44 sütun. Taban
+  çoğunlukla 8-9. satırda.
+* Karakterler: `#` kaya, `.` hava, `-` tek yönlü platform, `^` tehlike (biyomun dikeni / lavı / zehri), `=` kütük / kiriş
+  köprü (tek yönlü; Ötüken devrik ağaç gövdesi, Bozkır ahşap kiriş, Kaf buz köprü, Şahmeran kaburga, Tamu demir kiriş
+  çizilir), `L` / `R` kapı yuvası (kenar sütunda ayakta durulan hücre, **5-8. satır**: taban y0+7..y0+10; üstünde 3 karo
+  hava), `T` / `B` dikey geçit hatırlatması (yuvalar biçimden kendiliğinden bulunur: T = sütun tavanın altından tabana dek
+  boş ve taban düz / katı; B = sütunun en alt havası düz katı tabana oturur; en az 5 sütun), `g` yer yaratığı, `a` hava
+  yaratığı, `$` ganimet / merak, `*` simge çapası (bölümün anıtı buraya konur), `t` tavandan sarkan tırmanılır zincir /
+  ip / sarmaşık (biyoma göre), `d` asılı süs (fener: sıcak ışık, kemik çıngırak, buz sarkıtı, ışıyan salkım), `~` yumuşak
+  iniş yığını, `w` su yüzeyi (sığ havuz, hava sayılır), boşluk dış kaya.
+* Kurallar: yürünen her hücrenin üstünde 2 karo daha kaya olmayan alan (platform sayılmaz); zıplama tek 3 / çift 4 karo,
+  yatay en çok 5; asılı kaya kütleleri tavana bağlı ya da altındaki tabandan en az 3 karo yukarıda; `gok=1` şablonun 0.
+  satırındaki hava sütunları göğe açık üst satır odasında göğe dek açılır (çatı / gövde çizilen sütunlar kalır).
+* Alanlar: `biyom` (`*` ya da otuken / bozkir / sahmeran / kaf / tamu), `tur` (`*` ya da acik / kale / inis / magara),
+  `rol` (varsayılan ana, dal), `tip` (süs yoğunluğu ve anıt adaylığı için oda türü), `gok`, `simge`, `agirlik`.
+
+**Kütüphane: 47 şablon (aynalarıyla 94)**: ortak 12 (yıkık köprü, kemerli salon, dikenli çukur, üst galeri, kırık kule,
+mağara kesesi, devrik sütunlar, sekili yarık, sarkıt mağarası, asma kafes (zincirli platformlar), çifte kemer avlusu,
+çökük tavan), Ötüken 7 (devrik kütük köprü, kök yumağı, **devrik ulu ağaç** simge, kovuk ağaç, kök merdiveni, sunak
+açıklığı, yosunlu basamak), Bozkır 7 (**kervansaray kapısı** simge, kervansaray avlusu (galerili), kurgan tepeleri, kuru
+dere, yıkık burç, gözcü iskelesi, tuz çukuru), Şahmeran 6 (**yılan havuzu** simge, sarmal tünel, kristal kesesi, ince
+köprülü mağara (su), zehirli dehliz, iki katlı in), Kaf 5 (**buz köprüsü** simge, rüzgâr sırtı, buz mağarası (sarkıtlar),
+çığ yarı, donmuş göl), Tamu 6 (**zincirli lav köprüsü** ve **Erlik kapısı** simge, kemik avlu, kafes kulesi, lav
+basamakları, kemik köprüsü), geniş 4 (geniş harabe, geniş mağara (havuzlar), geniş tepe (kurgan + kütük), sur).
+
+### Üretici (`LevelGen.gd`, `OdaSablon.gd`)
+
+* Çizge (ana yol, dallar, çıkmazlar, döngüler, Kut Kapısı sapağı, pencere dalı) değişmedi. Ana yol ve dal odalarının
+  %88'i için uygun şablon aranır (biyom, tür, rol, göğe açıklık, kapı / dikey yuva örtüşmesi, tek / iki kesim); bölümde
+  kullanılmış şablon yeniden seçilmez, yarısı aynalı. Şablon kesimin içinde kapılı yana yaslanır; taban / tavan profili
+  (fl / ce) şablondan çıkarılır: kapılar, kuyular, Kut Taşı / kaide / Otağ Yeri / sahne yeri / gizli cep eski kodla çalışır.
+* **Simge:** ana yolda (ya da dalda) bölüm başına bir sahne parçası şablonu; `*` çapasına biyomun anıtı kesin konur
+  (OrtamCila). 120 bölümün 83'ünde (biyoma / türe / yuvalara uyan sahne şablonu yoksa çıkmaz).
+* Kut Kapısı'na giden son iki oda yalnızca 10+ sütun düz tabanlı şablon alır (Otağ Yeri); giriş, çıkış ve ödül odaları
+  yordamsal kalır. Dikey kapıda iki odanın yuvaları 5 sütun örtüşmüyorsa (simge olmayan) şablon geri alınır.
+* **Yordamsal odalar:** tavan biçimi türe / biyoma göre basamak / **kemer** / **mağara** (düzensiz, sarkıt dişli) /
+  **kırık çatı** (çökük delikler) / **tonoz** (art arda kemerler); platformlar 2-6 karo, %25'i 4 karo yukarıda; yüksek
+  odalarda %40 **yükselen platform dizisi** (`_ritim`). Ödül, çıkış ve Otağ Yeri odaları basamaklı kalır.
+* **Koridorlar:** yükseklik 3 (kısa sıkışık geçit, %8) / 4 / 5 / 6-7 (yüksek geçit, %16); tavan düz / **kemer** /
+  **kırık**; iki oda tabanı farklıysa 1 karoluk basamaklarla rampa (eşik yok). Ödül ve pencere koridorları eskisi gibi
+  (zamanlı / kilitli kapı 4 karo geçit).
+
+### Geçit türleri (`GecitGen.gd`, çizim `GecitCiz.gd`)
+
+| tür | biçim | biyom ağırlığı |
+|---|---|---|
+| **zincir** | 6 sütun: ortada 2 sütun düşüş yolu, tavandan sarkan salınan demir zincir (tırmanılır), iki duvarda sırayla perçinli demir raflar (payandalı), kapak demir ızgara; Tamu'da dipte lav ışığı | Tamu 4,5; kale x1,5 |
+| **ip** | 5 sütun: 3 sütun düşüş + ip merdiven (iki halat, sık ince basamak, çarpışan basamaklar kalın tahta), kazıklı kiriş | Bozkır 4, Kaf 2, Ötüken 2 |
+| **kok** | 5 sütun: 2 sütun düşüş + 3 sütun kök duvarı (kıvrılan kalın kökler, filiz ve yaprak; Şahmeran'da ışıyan yosun), düzensiz kök düğümleri (3-3-2 aralık, yana kayar) | Ötüken 4, Şahmeran 3,5 |
+| **merdiven** | 8 sütun: iki yanda sırayla kırık taş sahanlıklar (iç ucu bir basamak yüksek), dipte moloz yığını; taş örgü (Tamu'da kemik ve kafatası) | kale x2, Tamu 2,5, Bozkır 2 |
+| **cikinti** | 7 sütun: iki duvardan düzensiz genişlikte (2-3) kaya / buz çıkıntıları, dipte kaya yığını; Kaf'ta kar başlığı ve buz sarkıtları | Kaf 3, Şahmeran 2,5 |
+| **ruzgar** | 6 sütun: dar buz çıkıntıları + yukarı esen rüzgâr (kar zerreleri ve çizgiler; Player: içindeyken zıpla / yukarı ile yükselir, düşüş yavaşlar) | Kaf 2,5 |
+| **iskele** | 7 sütun: 2 sütun düşüş + kaydırmalı tahta kat iskelesi (dikmeler, çaprazlar, iple bağlı; Kaf'ta buz mavisi) | Bozkır 3, Ötüken 2 |
+| **dusus** | 4 sütun açık delik, dipte yumuşak iniş; geri dönüşsüz (yalnız aşağı inen, kavşak olmayan ana yol) | hepsi ~1 |
+| kuyu | v33 kuyusu (yalnız sığmayan yerde yedek, %9) | |
+
+Her türün tek yönlü karoları (basamak, raf, düğüm, kalas, kapak) Level'de **görünmez karo** (aynı tek yönlü çarpışma)
+olarak döşenir; görseli GecitCiz çizer (çalışma anında vektör mürekkep + düz renk: HD paketi gerekmez), kule ayakları
+çizilmez. Açık düşüş yolunun dibinde (6+ karo) biyomun **yumuşak iniş yığını**: Ötüken yaprak, Bozkır saman, Kaf kar,
+Şahmeran su, Tamu kül (kor zerreli); yığına düşen oyuncu sersemlemez. Tür seçimi biyom + bölüm türü ağırlıklı, aynı
+bölümde kullanılan tür seyrekleşir; Kut Kapısı odasında dar türler, pazar odasında tezgâh geçidin bir yanına sığmalı.
+
+**Erişim modeli:** `_moves` değişmedi; her tür zıplama modeline sadık kurulur (basamak aralığı 2-3 satır, yatay 3-4
+sütun, katı sahanlıkların altında 3 karo baş boşluğu, en alttaki sahanlık tabandan en az 4 yukarıda + karşısında 1-3
+karoluk yığın). Tırmanma yalnızca oyuncu rahatlığıdır; bot zıplar.
+
+### Oyuncu (`Player.gd`, ayrı blok "v43 TIRMANMA")
+
+`_tirman_tick` (fizik döngüsünde `sanat.tick`'ten hemen sonra), `_tirman_birak`, `_ruzgar_tick`, `_yumusak_inis`;
+`_on_land` başında yumuşak iniş denetimi. Tırmanılır yüzeyin önünde yukarı (havada aşağı da) basınca tutunulur, 118 px/sn
+tırmanılır, zıpla ile yön tuşu yönüne sıçranır (aşağı + zıpla bırakır), yuvarlanma / saldırı / darbe bırakır, tepeye
+varınca kenara sıçranır; tırmanırken tek yönlü platformlar geçilir. Animasyon `tirman` / `tirman_bekle` satırları
+(ky-bengu43) varsa onlar, yoksa sıçrama kareleri; tırmanırken kollar (arm_root / arm_root_b) gizlenir.
+
+### Ölçüm (`--harita --harita_tohum=24`, 120 bölüm; önce = aynı kod `--sablon_yok`, v42 üreticisinin birebir aynısı)
+
+| | v42 | v43 |
+|---|---|---|
+| şablon kapsamı (ana yol + dal odaları) | %0 | **%65** (bölüm başına 4,4 ayrı şablon; 120 bölümde 44/47 şablon kullanıldı) |
+| dikey geçit türleri | kuyu %100 | ip %26, kök %17, çıkıntı %14, kuyu (yedek) %10, iskele %9, merdiven %8, zincir %8, rüzgâr %4, düşüş %4; bölüm başına 2,85 ayrı tür |
+| geçit tekrar puanı (bölüm içi) / 120 bölümde ayrı geçit biçimi | 0,20 / 28 (546'da) | **0,03 / 169** (544'te) |
+| oda tekrar puanı / ayrı oda biçimi | 0,13 / 704 (1449'da) | **0,08 / 705** (1449'da; biçim imzası kaba: 8 x 4 blok) |
+| koridor yüksekliği | 4: %86, 5: %14 | 3: %7, 4: %55, 5: %21, 6: %10, 7: %7 |
+| simge (sahne parçası) | — | 83/120 bölüm |
+| erişim + dönüş / yuvarlanma hücresi / 3 karo baş boşluğu | 120/120 / 0 / 120 | 120/120 / 0 / 120 |
+| ana yol (karo, /koşu) | 155, 24,0 sn | 162, 25,0 sn |
+| düz bölüm / art arda 3 kuralı | %72 / 0 | %72 / 0 |
+| Kut Taşı / Otağ Yeri 4 / erişilir / kapı dibinde | 4,00 / %100 / 120 / 0 | en az 3 / %100 / 120 / 0 |
+| üretim ort. / en çok | 0,13 / 0,21 sn | 0,13 / 0,24 sn |
+
+### Test
+
+Sonuçlar (hepsi `--quit-after` + zaman aşımıyla, SCRIPT ERROR 0): `--harita --harita_tohum=24` SONUC GECTI (120 bölüm,
+54 tam bölüm BOLUM, MERAK, OYUN, OTAG); `--harita --harita_fizik --fizik_bolum=40` (4 parça x 10, `--fizik_bas=0/10/20/30`):
+GECTI: 658 hedef, 0 erişilemez (139 model hamlesi gerçek fizikte yapılamadı, hepsinin dolaşma yolu var); `--isinlan`, `--konak --muhur=0`, `--tuccar --muhur=0` GECTI; `--otag --muhur=0`: üç koşudan biri GECTI, ikisinde
+rastgele tohumlu bölümde tek bir türde Otağ Yeri 2 / şişe denetimi KALDI; aynı test `--sablon_yok` (v42 üreticisi) ile de
+üç koşudan birinde GECTI (aynı iki hata türü: Bezirgân'ın tezgâh payı Otağ Yeri'ni daraltıyor, av avlanırken düşüş / diken):
+v43'e özgü değil. `--otomatik --fixed-fps 60 --quit-after 9000 --muhur=0`: d1 112-122 sn'de Kut Kapısı (BOLUM_SONU, keşif %81-82; v42'de 45 sn: bot şablon odalarında daha çok dolaşıyor),
+d3 97 sn'de BOLUM_SONU (sonra konak, 4. bölüm), d5 dövüşmeyen bot 29 sn'de öldü (v41 / v42'de de derin bölümde ölüyordu),
+1. derinlikten yeniden başladı; `--piksel_tara --otomatik --derinlik=3 --quit-after 2400` TOPLAM 0. Yeni denetimler: `SABLON` (en az 40 şablon yüklendi, her şablon ve
+aynası geçerli), `V43` satırları (kapsam en az %50, geçit tekrar puanı en çok 0,35), `--harita_png=<klasör>` (biyom başına
+üretici dökümü), `--harita_ekran=gecit [--gecit_tip=<tür>]` (her geçit türü oyun içinde, tırmanılan türlerde oyuncu
+tırmanırken; yumuşak iniş; simge odaları).
+
+### Görseller (`docs/v43/harita/`)
+
+`izgara_once_sonra_<biyom>_<tür>_<n>.png` (aynı tohum, üstte v42 / altta v43 üretici dökümü: renkli oda = şablon,
+renkli çerçeve = geçit türü, sarı kare = simge), `gecit_<tür>_<biyom>_d<n>.jpg` (1920x1080 `--grafik=2`: zincir, kök,
+ip merdiven, kırık merdiven, buz çıkıntısı, rüzgâr bacası, iskele, düşüş deliği), `gecit_yumusak_inis_<biyom>.jpg`,
+`simge_<biyom>_<şablon>.jpg` (sahne parçası odaları).
+
+### Bilinen
+
+* Tırmanma çizimleri ky-bengu43'ün `tirman` satırlarıyla birleşince tam görünür; bu dalda sıçrama kareleriyle oynar.
+* Şablon dikey geçide yer vermeyen nadir durumlarda geçit şablonu keser ya da v33 kuyusu yedek kalır (%9).
+* Simge yalnızca biyoma / türe / yuvalara uyan sahne şablonu varken çıkar (%69 bölüm); kalanında anıtlar (v40) sürer.
+* Geçit görselleri çalışma anında çizilir (vektör); doku atlası / HD paketi yok.

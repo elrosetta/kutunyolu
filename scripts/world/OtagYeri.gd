@@ -22,19 +22,24 @@ static func yerlesim(g: PackedByteArray, W: int, H: int, rooms: Array, exit: Vec
 	## gevşek (kapı payı 4, Han'ın yanı da 3).
 	var r := _yerlesim(g, W, H, rooms, exit, avoid, ARALIK, KAPI_PAY, HAN_ARALIK, 3)
 	if r.size() < 4:
-		var r2 := _yerlesim(g, W, H, rooms, exit, avoid, ARALIK, 4, ARALIK, 3)
+		var r2 := _yerlesim(g, W, H, rooms, exit, avoid, ARALIK, KAPI_PAY, ARALIK, 3)
 		if r2.size() > r.size():
 			r = r2
 	if r.size() < 4:
 		# dar bölüm (kuyulu iniş / mağara): kapıya giden yolda iki oda daha geriye bakılır
-		var r3 := _yerlesim(g, W, H, rooms, exit, avoid, ARALIK, 4, ARALIK, 5)
+		var r3 := _yerlesim(g, W, H, rooms, exit, avoid, ARALIK, KAPI_PAY, ARALIK, 5)
 		if r3.size() > r.size():
 			r = r3
 	if r.size() < 4:
 		# v42 birleştirme: düz tabanı az mağara / iniş bölümü (hikâye odası düzeni değiştirince): yol boyunca 8 odaya kadar
-		var r4 := _yerlesim(g, W, H, rooms, exit, avoid, ARALIK, 3, ARALIK, 8)
+		var r4 := _yerlesim(g, W, H, rooms, exit, avoid, ARALIK, KAPI_PAY, ARALIK, 8)
 		if r4.size() > r.size():
 			r = r4
+	if r.size() < 4:
+		# v43: el yapımı odalar düz tabanı azaltabilir: bütün ana yol (Kut Kapısı önü payı aynı)
+		var r5 := _yerlesim(g, W, H, rooms, exit, avoid, ARALIK, KAPI_PAY, ARALIK, 99)
+		if r5.size() > r.size():
+			r = r5
 	return r
 
 
