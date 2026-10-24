@@ -4053,10 +4053,13 @@ func _sinav_kur() -> void:
 		for mk in ch.get("marks", []):
 			avoid.append(Vector2i(int(mk[1]), int(mk[2])))
 	if bezirgan != null:
-		# Bezirgân'ın tezgâhı ve kilimi (bezirgan_alani) otağsız kalır
+		# Bezirgân'ın tezgâhı ve kilimi (bezirgan_alani) otağsız kalır. v43 birleştirme: bütün pay (tezgâh -7..+2, yanları 4)
+		# seçimden ÖNCE avoid'e girer: OtagYeri 4 yeri bunu bilerek seçer (eskiden 4 yer seçildikten sonra süzülüyor,
+		# Bezirgân'ın sütunlarına düşen yerler atılınca bazı bölümlerde 2 otağ kalıyordu)
 		var bc := Vector2i(int(floor(bezirgan.global_position.x / TS)), int(floor(bezirgan.global_position.y / TS)) - 1)
-		for dx in range(-8, 9, 2):
-			avoid.append(bc + Vector2i(dx, 0))
+		for dx in range(BZ_SOL - 3, BZ_SAG + 5, 2):
+			for dy in [-2, 2]:
+				avoid.append(bc + Vector2i(dx, dy))
 	var gen_avoid := avoid.duplicate()
 	for p in pickups:
 		if is_instance_valid(p):
@@ -4089,9 +4092,14 @@ func _sinav_kur() -> void:
 
 
 func _otag_yer_sec(avoid: Array) -> Array:
+	## v43 birleştirme: Bezirgân'ın payı yalnızca tezgâhın KATINDA (aynı satır bandı) geçerli. Eskiden yalnız sütuna
+	## bakılıyordu: pazar odası (ana yol dışında bir ödül odası) Otağ Yeri odalarının üstünde / altında kaldığında aynı
+	## sütunlardaki bütün otağ yerleri düşüyor, bazı bölümlerde 2 yer kalıyordu (--otag üç koşudan ikisinde KALDI).
+	## Asıl pay _sinav_kur'da seçimden önce avoid'e girer; bu süzgeç yalnız güvenlik içindir.
 	var r := OtagYeri.yerlesim(grid, W, H, rooms, exit_cell, avoid)
 	if bezirgan != null:
-		r = r.filter(func(y: Dictionary) -> bool: return not bezirgan_alani(int(y["x"]), 4))
+		var bz_y := int(floor(bezirgan.global_position.y / TS)) - 1
+		r = r.filter(func(y: Dictionary) -> bool: return not (bezirgan_alani(int(y["x"]), 4) and absi(int(y["y"]) - bz_y) < 6))
 	return r
 
 

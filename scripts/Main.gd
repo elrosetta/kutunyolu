@@ -1092,10 +1092,14 @@ func hikaye_sinema(k: String, deg := {}, sonra := Callable()) -> Sinema:
 		return null
 	hud.mode = "sinema"
 	get_tree().paused = true
+	# v43 birleştirme: _start_play bölüm afişini sıfırlıyordu: boss kartı / örgü sahnesi bitince arenada biyom afişi
+	# ("Bozkır Kurganları") baştan yeniden oynuyordu. Afişin sayacı sinema boyunca korunur.
+	var kart_t: float = hud._card_t
 	sinema = Sinema.oynat(self, k, deg)
 	sinema.bitti.connect(func() -> void:
 		sinema = null
 		_start_play()
+		hud._card_t = kart_t
 		if sonra.is_valid():
 			sonra.call())
 	return sinema

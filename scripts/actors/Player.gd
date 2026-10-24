@@ -6481,6 +6481,15 @@ func _gok_asasi(it: Dictionary, mv: float) -> void:
 
 func _die() -> void:
 	dead = true
+	if tirman:
+		# v43 birleştirme: tırmanırken ölündüyse tutunma bırakılır (ceset tek yönlü platformlardan düşmesin)
+		tirman = false
+		set_collision_mask_value(4, true)
+	# "olum" satırında kollar gövdeye çizili: saldırı / nişan pozunda kalan canlı kol şeritleri ve silah, yığılan
+	# gövdenin yanında havada asılı kalmasın (ölü dalda _update_weapon_visual çağrılmaz)
+	for a in [arm_root, arm_root_b]:
+		if a != null:
+			a.visible = false
 	anim.play("olum" if anim.has_anim("olum") else "hurt")   # v43: gerçek ölüm satırı (dizler çözülür, yığılır)
 	_end_trail()
 	Ses.play("bengu_olum", 0.0)
@@ -6704,9 +6713,11 @@ func _tirman_birak() -> void:
 	tirman = false
 	_tir_cd = TIRMAN_CD
 	set_collision_mask_value(4, true)
-	for a in [arm_root, arm_root_b]:
-		if a != null:
-			a.visible = true
+	# v43 birleştirme (ky-bengu43): tırmanma satırlarında kollar gövdeye çizili; canlı kol şeritleri (kol_f / kol_b,
+	# BenguKol) arm_root / arm_root_b'nin çocukları, tırmanırken onlarla gizli. Bırakınca kökleri körlemesine açmak
+	# yerine görünürlüğü silah görseli belirler: tepeye / dibe varılan karede (tick erken döner) eski pozda bir kol
+	# ve silah bir kare havada asılı kalıyordu
+	_update_weapon_visual()
 	_air_top = global_position.y
 	coyote = 0.0
 

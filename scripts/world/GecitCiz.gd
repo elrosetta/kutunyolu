@@ -189,11 +189,15 @@ func _sarmasik(x: float, y0: float, y1: float, faz: float) -> void:
 		_yaprak(p, Vector2(s * 7.0, 2.0), R("yaprak"))
 
 
-func _yaprak(p: Vector2, d: Vector2, c: Color) -> void:
+func _yaprak(p: Vector2, d: Vector2, c: Color, cv: CanvasItem = null) -> void:
+	## cv: çizilen tuval (sabit / katı katman); yoksa bu düğüm (yalnızca kendi _draw'ında). v43 birleştirme: kök
+	## kapağı ve yığın / kütük yaprakları sabit katmandan çağrılıyordu ("Drawing is only allowed inside _draw" hatası)
+	if cv == null:
+		cv = self
 	var n := Vector2(-d.y, d.x).normalized() * d.length() * 0.35
 	var poly := PackedVector2Array([p, p + d * 0.5 + n, p + d, p + d * 0.5 - n])
-	draw_colored_polygon(poly, c)
-	draw_polyline(PackedVector2Array([p, p + d * 0.5 + n, p + d, p + d * 0.5 - n, p]), MUREKKEP, 1.0)
+	cv.draw_colored_polygon(poly, c)
+	cv.draw_polyline(PackedVector2Array([p, p + d * 0.5 + n, p + d, p + d * 0.5 - n, p]), MUREKKEP, 1.0)
 
 
 func _ip_merdiven(gv: Dictionary, faz: float) -> void:
@@ -413,7 +417,7 @@ func _kok_kapak(c: CanvasItem, x: int, y: int) -> void:
 	c.draw_rect(r, R("kok"))
 	for k in 3:
 		c.draw_line(Vector2(x * TS + k * 8.0, y * TS + 2.0), Vector2(x * TS + k * 8.0 + 7.0, y * TS + 5.0), R("kok").lightened(0.3), 1.2)
-	_yaprak(Vector2(x * TS + 12.0, y * TS), Vector2(6.0, -4.0), R("yaprak"))
+	_yaprak(Vector2(x * TS + 12.0, y * TS), Vector2(6.0, -4.0), R("yaprak"), c)
 
 
 func _tas_orgu(c: CanvasItem, x: int, y: int) -> void:
@@ -536,7 +540,7 @@ func _yigin(c: CanvasItem, x0: int, x1: int, fy: int) -> void:
 			"saman":
 				c.draw_line(Vector2(px, py), Vector2(px + rr.randf_range(-6, 6), py - rr.randf_range(2, 6)), cc.darkened(0.35), 1.2)
 			"yaprak":
-				_yaprak(Vector2(px, py), Vector2(rr.randf_range(-5, 5), -3.0), Color(0.75, 0.3 + rr.randf() * 0.3, 0.12))
+				_yaprak(Vector2(px, py), Vector2(rr.randf_range(-5, 5), -3.0), Color(0.75, 0.3 + rr.randf() * 0.3, 0.12), c)
 			"kar":
 				c.draw_line(Vector2(px - 3, py), Vector2(px + 3, py), Color(0.7, 0.82, 0.95), 1.2)
 			"kul":
@@ -563,7 +567,7 @@ func _kutuk(c: CanvasItem, x0: int, x1: int, y: int) -> void:
 			c.draw_circle(Vector2(xb, yy + 6.0), 8.0, MUREKKEP)
 			c.draw_circle(Vector2(xb, yy + 6.0), 6.5, R("vurgu"))
 			c.draw_arc(Vector2(xb, yy + 6.0), 3.5, 0.0, TAU, 10, R("kok"), 1.2)
-			_yaprak(Vector2(xa + 10.0, yy - 2.0), Vector2(7.0, -6.0), R("yaprak"))
+			_yaprak(Vector2(xa + 10.0, yy - 2.0), Vector2(7.0, -6.0), R("yaprak"), c)
 		"kaf":
 			var r2 := Rect2(xa, yy - 1.0, xb - xa, 10.0)
 			c.draw_rect(r2.grow(1.2), MUREKKEP)

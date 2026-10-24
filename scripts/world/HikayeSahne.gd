@@ -185,7 +185,7 @@ func _yer_sec(adaylar: Array, hedef: float, yari: float) -> Dictionary:
 			if d == null or int(d[1]) != y or not bool(d[2]):
 				ok = false
 				break
-		if not ok or not _bos_mu(cx, yari + 0.5):
+		if not ok or not _bos_mu(cx, yari + 0.5, y):
 			continue
 		var dd := absf(cx - hedef)
 		if dd < en_d:
@@ -194,10 +194,19 @@ func _yer_sec(adaylar: Array, hedef: float, yari: float) -> Dictionary:
 	return en
 
 
-func _bos_mu(tx: float, yari: float) -> bool:
+func _bos_mu(tx: float, yari: float, ty := -999) -> bool:
 	## Karo x çevresinde (yari karo) kaideli eşya / tomar / sunak, Kut Taşı, zamanlı kapı, tüccar, giriş / çıkış yok mu
+	## v43 birleştirme: aynı katta (ty ± 5 satır) Otağ Yeri'nin otağları ve şablon simgesinin anıtı ("*" çapası,
+	## OrtamCila) da yok mu: bölüm sahnesi el yapımı sahne parçası odasında anıtın / otağların üstüne binmesin
 	var px := tx * TS + TS * 0.5
 	var r := yari * TS
+	if ty != -999:
+		for o in level.otaglar:
+			if is_instance_valid(o) and absf(o.global_position.x - px) < r + 60.0 and absi(int(o.cell.y) - ty) < 5:
+				return false
+		for s in level.propler.get("simge", []):
+			if absf(float(s[0]) * TS + TS * 0.5 - px) < r + 4.0 * TS and absi(int(s[1]) - ty) < 5:
+				return false
 	if level.bezirgan_alani(int(tx), int(ceil(yari)) + 1):
 		return false
 	for p in level.pickups:

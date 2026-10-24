@@ -160,9 +160,15 @@ func _kazanma() -> void:
 	# av: oyunun yolundan öldür (Enemy.take_hit -> _die -> Level.on_enemy_died -> Sinav.olduruldu)
 	var oldu := 0
 	lv.player.inv_t = 9999.0   # av avlanırken çevredeki yaratıklar oyuncuyu vurmasın (Dokunulmaz ayrıca sınanır)
+	# v43 birleştirme: test oyuncusu av boyunca donuk (fizik kapalı) ve girişte kalır (avın yanına konmaz): eskiden avın
+	# yanına konunca boşluğa / dikene düşüp düşüş hasarı, zehir ya da sürünün öbür tazılarının yakalama darbesi
+	# (inv_t'yi aşar) alıp Dokunulmaz'ı çatlatabiliyordu (koşuların ~%20'si). Kural aynı: can düşerse çatlar (_kaybetme
+	# sınar); burada sınanan av -> Avcı ve şişenin Dokunulmaz'ı bozmaması. Av yine oyunun yolundan ölür (take_hit).
+	lv.player.set_physics_process(false)
+	lv.player.poison_t = 0.0
+	var hp_av := float(Game.run["hp"])
 	for e in get_tree().get_nodes_in_group("dusman"):
 		if is_instance_valid(e) and e.has_meta("av") and not e.dead:
-			_koy(lv, e.global_position + Vector2(-30, 0))
 			for i in 30:
 				if not is_instance_valid(e) or e.dead:
 					break
@@ -181,7 +187,10 @@ func _kazanma() -> void:
 	lv.player.heal(5.0)
 	await _frames(2)
 	_check(sv.durum["dokunulmaz"] == 0, "can artışı (şişe) Dokunulmaz'ı bozmaz")
+	if sv.durum["dokunulmaz"] != 0:
+		_p("  tanı: av öncesi can %.1f, olaylar %s" % [hp_av, str(sv.olaylar)])
 	lv.player.inv_t = 0.0
+	lv.player.set_physics_process(true)
 	var o0: Node = lv.otaglar[1]
 	_sakin(lv, o0.global_position, 700.0)
 	await _frames(2)

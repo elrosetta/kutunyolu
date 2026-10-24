@@ -354,6 +354,9 @@ func _olaylar() -> void:
 # ------------------------------------------------------------------ boss örgüleri
 func _orguler() -> void:
 	_meta_kur([])
+	# v43 birleştirme: kart ilk üç karşılaşmada oynar; gerçek kayıttaki sayaç (ör. çekimlerden 3) testi bozmasın
+	# (_yedek sonda geri yükler)
+	Game.meta["boss_kart"] = {}
 	var depths := {"kara_boru_han": 2, "tepegoz": 4, "sahmeran": 6, "yelbegen": 8, "erlik_han": 10}
 	for bid in Hikaye.ORGU_SIRA:
 		Game.new_run()

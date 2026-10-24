@@ -46,7 +46,9 @@ func _av_sec(rng: RandomNumberGenerator) -> void:
 	var adaylar: Array = []
 	var say := {}
 	for e in level.actors.get_children():
-		if not (e is Enemy) or e.dead or e.is_boss or e.has_meta("yavru"):
+		# v43 birleştirme: kurulumda yerleşim denetiminin kaldırdığı (queue_free, kare sonunda silinecek) yaratıklar
+		# sayılmaz: sürü kalabalığı yanlış çıkıp (ör. Erlik Tazısı x4, bölümde 1) Avcı baştan kazanılamaz oluyordu
+		if not (e is Enemy) or e.dead or e.is_boss or e.has_meta("yavru") or e.is_queued_for_deletion():
 			continue
 		say[e.kind] = int(say.get(e.kind, 0)) + 1
 		if not e.elite and not e.flying and absf(e.global_position.x - level.spawn_cell.x * level.TS) > 30.0 * level.TS:
@@ -84,7 +86,7 @@ func _av_sec(rng: RandomNumberGenerator) -> void:
 	av_gerek = mini(av_gerek, int(say[en]))
 	av_ad = "%s x%d" % [String(Data.enemy_def(en).get("name", en)), av_gerek]
 	for e in level.actors.get_children():
-		if e is Enemy and not e.dead and e.kind == en and not e.is_boss:
+		if e is Enemy and not e.dead and e.kind == en and not e.is_boss and not e.is_queued_for_deletion():
 			isaretle(e)
 
 

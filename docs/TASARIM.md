@@ -7797,3 +7797,71 @@ ip merdiven, kırık merdiven, buz çıkıntısı, rüzgâr bacası, iskele, dü
 * Şablon dikey geçide yer vermeyen nadir durumlarda geçit şablonu keser ya da v33 kuyusu yedek kalır (%9).
 * Simge yalnızca biyoma / türe / yuvalara uyan sahne şablonu varken çıkar (%69 bölüm); kalanında anıtlar (v40) sürer.
 * Geçit görselleri çalışma anında çizilir (vektör); doku atlası / HD paketi yok.
+
+## v43 birleştirme denetimi
+
+main = v43-bengu43 + v43-sinema43 + v43-harita43 (738876c üstünde). Üç dalın birbirine dokunduğu yerler tek tek
+denetlendi; bulunanlar düzeltildi.
+
+### Anlamsal birleşme
+
+* **Tırmanma ve yaşayan kol (Player.gd):** ky-bengu43'ün `tirman` / `tirman_bekle` / `olum` satırlarında kollar gövdeye
+  çizili (satırın `arm` verisi yalnız silah pozu için açı kaydı). Canlı kol şeritleri `kol_f` / `kol_b` (BenguKol)
+  `arm_root` / `arm_root_b`'nin çocukları: harita dalının tırmanma bloğu kökleri gizleyince şeritler de, silah da gizli
+  (ip merdiven ve zincir çekimlerinde havada kol yok). Düzeltilen: `_tirman_birak` kökleri körlemesine açıyordu; tepeye /
+  dibe varılan karede tick erken döndüğü için eski pozda bir kol + silah bir kare havada kalıyordu → görünürlüğü artık
+  `_update_weapon_visual` belirler. `_die`: tırmanırken ölünürse tutunma bırakılır (tek yönlü platform çarpışması geri
+  gelir) ve canlı kollar gizlenir (yığılan `olum` gövdesinin yanında saldırı pozunda kol / silah asılı kalmıyordu).
+* **Boss kartı / atışma / örgü sahnesi ↔ arena:** boss arenası şablonla değil `_generate_arena` ile kurulur; kart
+  zamanlayıcısı arenanın çocuğu, `tirman_at` arenada boş döner (geçit / prop yok). Çakışma yok; `--boss=erlik_han` ve
+  `--hikaye_test` geçti. Düzeltilen: `Main.hikaye_sinema` bitince `_start_play` bölüm afişini sıfırlıyordu; boss
+  kartından / örgü sahnesinden sonra arenada biyom afişi baştan oynuyordu → afiş sayacı sinema boyunca korunur.
+* **Bölüm açılışı ↔ şablonlu bölüm başı:** giriş odası yordamsal kalır (şablon almaz); açılış `HikayeSahne.kur`'dan
+  0,35 sn sonra oynar, şablon kurulumu bundan önce biter. Çakışma yok.
+* **HikayeSahne ↔ şablon odaları:** `sahne_yeri` (LevelGen._sahne_yeri, şablondan çıkarılan fl profiliyle) ve
+  `hikaye_yeri` (hikâye ödül odası yordamsal) bulunuyor. Düzeltilen: bölüm sahnesinin büyük süsü / bitig taşı, şablon
+  simgesinin anıtının (`*` çapası, OrtamCila) ve Otağ Yeri otağlarının üstüne konabiliyordu → `_bos_mu` aynı katta
+  (± 5 satır) ikisini de boş tutar.
+* **GecitCiz:** kök kapağı, yumuşak iniş yığını ve kütük yaprakları sabit katmanın çiziminden düğümün kendi tuvaline
+  çiziliyordu (`_yaprak`): her bölümde yüzlerce "Drawing is only allowed inside _draw()" motor hatası ve eksik yaprak →
+  `_yaprak` çizilen tuvali alır.
+
+### Otağ Yeri ve --otag kararlılığı
+
+* **Bezirgân ↔ Otağ Yeri:** Bezirgân'ın payı 4 otağ yeri SEÇİLDİKTEN SONRA, yalnız sütuna bakılarak süzülüyordu: pazar
+  odası (ana yol dışında ödül odası) Otağ Yeri odalarının üstünde / altında kalınca o sütunlardaki yerler atılıyor, 2
+  otağ kalıyordu. Artık tezgâhın bütün payı (−7..+2 ve 4 karo yan, tezgâh satırı ± 5) seçimden önce avoid'e girer
+  (OtagYeri boş kalan başka yerleri seçer); süzgeç yalnız güvenlik için ve kat duyarlı.
+* **Avcı sürüsü (Sinav._av_sec):** kurulumda yerleşim denetiminin kaldırdığı (queue_free, kare sonunda silinecek)
+  yaratıklar sürü sayısına giriyordu (ör. "Erlik Tazısı x4", bölümde 1): Avcı baştan kazanılamaz oluyordu. Artık sayılmaz.
+* **Test (otag_testi.gd):** av avlanırken oyuncu avın yanına konuyor, boşluğa / dikene düşüp düşüş hasarı, zehir ya da
+  sürünün yakalama darbesi (inv_t'yi aşar) alıp Dokunulmaz'ı çatlatabiliyordu. Test oyuncusu artık av boyunca donuk (fizik
+  kapalı) ve girişte; av yine oyunun yolundan (`take_hit` → `on_enemy_died`) ölür. Kural değişmedi: can düşerse çatlar
+  (`_kaybetme` sınar). Hata kalırsa tanı satırı (av öncesi can, olaylar) yazılır.
+* Sonuç: `--otag --muhur=0` son test koduyla 13 koşunun 13'ü GECTI (son kodla art arda 5/5, SCRIPT ERROR 0); öncesinde
+  üç koşudan biri geçiyordu.
+* `--hikaye_test`: kart ilk üç karşılaşmada oynar; gerçek kayıttaki `boss_kart` sayacı 3'e varınca (ör. çekimlerden sonra)
+  "boss kartı oynadı" denetimi kalıyordu → test sayacı kendisi sıfırlar (sonda geri yüklenir).
+
+### Test (hepsi `--quit-after` + zaman aşımı, SCRIPT ERROR 0)
+
+`--harita --harita_tohum=24` GECTI (OTAG 4 otağ %100, kapsam %65, geçit tekrar 0,03); `--harita --harita_fizik` 20 bölüm
+(4 x 5, `--fizik_bas=0/5/10/15`) GECTI, 330 hedef 0 erişilemez; `--otag --muhur=0` 5/5; `--hikaye_test` 101/101 (dört
+koşudan birinde Al Örgü 10 sn içinde alınmadı, aşağıda); `--konak`, `--yurt --yurt-tur` (dört yoldaş, Kut Kapısı 19 sn),
+`--isinlan`, `--tuccar --muhur=0`, `--sanat --boss --muhur=0` GECTI; `--dovus --boss --kontrol` basılmamış savuruş 0,
+TAKILMA 0; `--bengu --boss` ve `--mekanik --zipla --boss` OZET hata=0; `--boss=erlik_han` temiz; `--otomatik` d1 136 sn'de
+CIKIS, d3 84 sn'de BOLUM_SONU; `--piksel_tara` TOPLAM 0; `--perf` gezinti ort 6,9 ms / p99 9,7 ms. Motor hatası
+("Drawing is only allowed") 0.
+
+### Görseller (scratch_v43/entegre/ekran/)
+
+`gecit_zincir_tamu_d9*.jpg`, `gecit_ip_bozkir_d3*.jpg` (tırmanma satırı, havada kol / silah yok), `simge_<biyom>_<şablon>.jpg`
+(beş sahne parçası odasında yeni Bengü), `boss_kart_tepegoz.jpg` (boss kartı arenada; kart tasarım gereği opak kâğıt).
+
+### Bilinen
+
+* `--hikaye_test`: Al Örgü düşünce oyuncu 120 px yanda; dört koşudan birinde örgü 10 sn içinde alınmadı (4 ardışık HATA).
+  Örgünün alınma zamanlaması (süzülüp inme) teste bağlı; oyun kuralı değil.
+* `--harita --harita_fizik --fizik_bolum=20` tek süreçte ~70 dk sürer (bölüm başına ~3,5 dk): parçalara bölünerek koşulmalı.
+* Çekimlerde `_clear_foes` tamgalı avı da kaldırdığı için "Avcı mührü çatladı" yazısı görünür (çekim yan etkisi).
+* Bu dosya HEAD'de LF satır sonlu (v43-sinema43 birleştirmesi CRLF'yi LF'ye çevirmiş); bu bölüm aynı biçimde eklendi.
