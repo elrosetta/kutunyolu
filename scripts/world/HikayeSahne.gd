@@ -11,8 +11,21 @@ extends Node2D
 ##  * Boss arenası: boss kükreyince sözü (story.json "boss"), devrilince son sözü ve Gün Örgüsü (GunParcasi.gd).
 ##  * Yurt: Ulu Kayın'ın (yh_kayin) dallarında alınan her örgü için bir altın yaprak kümesi, havada altın yapraklar;
 ##    tan söktükten sonra yurt sabah ışığında (yurt_sabah).
+## v43 öne çıkan hikâye (Sinema.gd motoru, data/story.json "olay"):
+##  * Biyoma ilk girişte (kalıcı, bir kez) bölüm açılışı sineması (data/sinema/bolum_acilis.json): biyomun ufkunda
+##    kamera kayar, bölüm adı + epigraf + Gün Ana'nın sesi; o zaman HUD afişi ve ayrı görüm oynamaz.
+##  * Olay görümleri: canı azalınca (can) ve boss kapısına yaklaşınca (kapi) Gün Ana konuşur — koşu başına her türden
+##    en çok bir, yakında düşman varken (dövüş) beklenir. Biyomdaki ilk ölüm satırı Hikaye.olum_satiri'nde.
+##  * Boss arenası: kükreyişten sonra boss kartı (ad fırçayla, unvan, tek söz, örgüsü parlar; ilk üç karşılaşmada),
+##    ardından Bengü ↔ bekçi söz atışması; devrilince bekçinin son sözü ve Bengü'nün cevabı.
+##  * Konak / yurt (yoldas): her yeni örgüyle Umay'ın bir kız kardeş anısı, her yeni bölümde Ozan'ın dizesi (bir kez).
 
 const TS := 24.0
+const BENGU_RENK := Color(0.72, 0.84, 1.0)    # v43: Bengü'nün konuşma rengi (tan mavisi)
+const BEKCI_RENK := Color(1.0, 0.62, 0.5)
+const OLAY_CAN := 0.3          # can bu oranın altına inince "can" görümü
+const OLAY_KAPI := 280.0       # boss kapısına bu kadar yakınken "kapi" görümü
+const DOVUS_UZAK := 330.0      # bu yarıçapta canlı düşman varsa dövüş sayılır (görüm bekler)
 ## bölüm sahnesi: [büyük süs, ikinci süs] (bitig taşı her zaman en sonda)
 const SAHNE := {"otuken": ["tan_halkasi"], "bozkir": ["gun_sunagi"], "sahmeran": ["zincirli_kus"], "kaf": ["zincirli_kus"], "tamu": ["gun_sunagi"]}
 const ODA := {"otuken": "gun_sunagi", "bozkir": "zincirli_kus", "sahmeran": "gun_sunagi", "kaf": "gun_sunagi", "tamu": "zincirli_kus"}
@@ -28,6 +41,9 @@ var okunan := 0                 # test: okunan bitig taşı
 var sahne_kuruldu := false      # test
 var sahne_merkez := Vector2.INF  # test / çekim: büyük süsün yeri
 var oda_kuruldu := false        # test
+var _acilis_plan := -1.0        # v43: bu kadar sn sonra bölüm açılışı sineması
+var acilis_oynadi := false      # test
+var olay_gosterilen: Array = []  # test: bu bölümde oynayan olay görümleri
 
 
 static func kur(lv: Node) -> HikayeSahne:
@@ -41,6 +57,11 @@ static func kur(lv: Node) -> HikayeSahne:
 	h._hikaye_odasi()
 	if not Hikaye.gorum_goruldu("biyom:" + h._biyom) or Hikaye.safak() and not Hikaye.gorum_goruldu("biyom_safak:" + h._biyom):
 		h.gorum_plan = 6.4   # bölüm afişi (6 sn) bittikten sonra
+	# v43: ilk girişte bölüm açılışı sineması (test kiplerinde yalnızca Sinema.oyun_ici_zorla ile)
+	if not Hikaye.gorum_goruldu("acilis:" + h._biyom) and not Hikaye.bolum(h._biyom).is_empty() and lv.boss_id == "":
+		var m: Node = lv.get_parent()
+		if m != null and m.has_method("hikaye_sinema") and (not bool(m.get("_test_kipi")) or Sinema.oyun_ici_zorla):
+			h._acilis_plan = 0.35
 	return h
 
 
@@ -270,9 +291,43 @@ static func boss(lv: Node) -> void:
 	var s := Hikaye.boss_soz(bid, "once")
 	if s == "":
 		return
-	lv.get_tree().create_timer(2.3, false).timeout.connect(func() -> void:
-		if is_instance_valid(lv) and lv.boss != null:
-			Gorum.konus(Hikaye.boss_ad(bid), s, Color(1.0, 0.62, 0.5)))
+	# v43: zamanlayıcı arenanın çocuğu (arena erken silinirse onunla gider; duraklamada beklemez)
+	var tm := Timer.new()
+	tm.one_shot = true
+	tm.wait_time = 1.8
+	lv.add_child(tm)
+	tm.timeout.connect(_boss_karti.bind(lv, bid))
+	tm.start()
+
+
+static func _boss_karti(lv: Node, bid: String) -> void:
+	## Boss kartı (ilk üç karşılaşmada; sonra yalnızca söz), ardından Bengü ↔ bekçi atışması
+	if not is_instance_valid(lv) or lv.boss == null:
+		return
+	var sayac: Dictionary = Game.meta.get("boss_kart", {}) if Game.meta.get("boss_kart") is Dictionary else {}
+	var m: Node = lv.get_parent()
+	var kart: Sinema = null
+	if int(sayac.get(bid, 0)) < 3 and m != null and m.has_method("hikaye_sinema"):
+		kart = m.hikaye_sinema("boss_kart", Sinema.boss_degisken(bid), func() -> void: _atisma(bid, false))
+	if kart != null:
+		sayac[bid] = int(sayac.get(bid, 0)) + 1
+		Game.meta["boss_kart"] = sayac
+		Game.save_meta()
+	else:
+		_atisma(bid, true)
+
+
+static func _atisma(bid: String, soz_de: bool) -> void:
+	## Dövüş öncesi kısa söz atışması (kart gösterildiyse bekçinin ilk sözü kartta okundu). Yeni yere geçilirse
+	## Gorum.temizle sıradaki sözleri atar.
+	if soz_de:
+		Gorum.konus(Hikaye.boss_ad(bid), Hikaye.boss_soz(bid, "once"), BEKCI_RENK)
+	var b := Hikaye.boss_soz(bid, "bengu")
+	if b != "":
+		Gorum.konus("Bengü", b, BENGU_RENK, 3.0)
+	var y := Hikaye.boss_soz(bid, "yanit")
+	if y != "":
+		Gorum.konus(Hikaye.boss_ad(bid), y, BEKCI_RENK, 3.2)
 
 
 static func boss_dustu(lv: Node, e: Node) -> void:
@@ -280,7 +335,10 @@ static func boss_dustu(lv: Node, e: Node) -> void:
 	var bid := String(lv.boss_id)
 	var s := Hikaye.boss_soz(bid, "sonra")
 	if s != "":
-		Gorum.konus(Hikaye.boss_ad(bid), s, Color(1.0, 0.62, 0.5))
+		Gorum.konus(Hikaye.boss_ad(bid), s, BEKCI_RENK)
+	var bs := Hikaye.boss_soz(bid, "bengu_sonra")
+	if bs != "":
+		Gorum.konus("Bengü", bs, BENGU_RENK, 3.4)   # v43: Bengü'nün cevabı
 	if Hikaye.orgu(bid).is_empty():
 		return
 	var gp := GunParcasi.new()
@@ -293,6 +351,11 @@ static func boss_dustu(lv: Node, e: Node) -> void:
 # ------------------------------------------------------------------ zaman
 func _process(delta: float) -> void:
 	_t += delta
+	if _acilis_plan > 0.0:
+		_acilis_plan -= delta
+		if _acilis_plan <= 0.0:
+			_bolum_acilisi()
+	_olaylar(delta)
 	if gorum_plan > 0.0:
 		gorum_plan -= delta
 		if gorum_plan <= 0.0:
@@ -338,3 +401,94 @@ func _draw() -> void:
 		draw_rect(Rect2(p.x - w * 0.5 - 6, y0 - 6, w + 12, lines.size() * 11.0 + 12), Color(0.03, 0.025, 0.03, 0.62))
 		for li in lines.size():
 			PixUI.text(self, Vector2(p.x - w * 0.5, y0 + li * 11.0), String(lines[li]), Color(1.0, 0.86, 0.6), 1, HORIZONTAL_ALIGNMENT_CENTER, w, 2)
+
+
+# ------------------------------------------------------------------ v43: bölüm açılışı, olay görümleri, yoldaşlar
+func _bolum_acilisi() -> void:
+	var m: Node = level.get_parent() if level else null
+	if m == null or not m.has_method("hikaye_sinema"):
+		return
+	var s: Sinema = m.hikaye_sinema("bolum_acilis", Sinema.bolum_degisken(_biyom), func() -> void:
+		if m.get("hud") != null:
+			m.hud._card_t = 99.0)   # afiş yerine sinema oynadı
+	if s == null:
+		return
+	acilis_oynadi = true
+	gorum_plan = -1.0   # Gün Ana'nın sesi sinemada okundu
+	Hikaye.gorum_isaretle("acilis:" + _biyom)
+	Hikaye.gorum_isaretle(("biyom_safak:" if Hikaye.safak() else "biyom:") + _biyom)
+
+
+var _olay_t := 0.0
+
+
+func _olaylar(delta: float) -> void:
+	## Koşu başına her türden en çok bir Gün Ana görümü; dövüşte (yakında düşman) ve görüm / sinema sürerken bekler
+	_olay_t += delta
+	if _olay_t < 0.5 or level == null or level.player == null or Gorum.aktif() or Sinema.etkin != null:
+		return
+	_olay_t = 0.0
+	var pl: Node = level.player
+	if bool(pl.get("dead")):
+		return
+	var gor: Array = Game.run.get("gorum_olay", []) if Game.run.get("gorum_olay") is Array else []
+	var tur := ""
+	var hp := float(Game.run.get("hp", 1.0))
+	if not ("can" in gor) and hp > 0.0 and hp < float(Game.run.get("max_hp", 1.0)) * OLAY_CAN:
+		tur = "can"
+	elif not ("kapi" in gor) and level.boss_id == "" and not level.hub and not level.konak and level.exit_pos != Vector2.ZERO:
+		var bid := String(Game.BOSS_AFTER.get(int(Game.run.get("depth", 1)), ""))
+		if bid != "" and not (bid in Game.run.get("boss_done", [])) and pl.global_position.distance_to(level.exit_pos) < OLAY_KAPI:
+			tur = "kapi"
+	if tur == "" or _dovus(pl.global_position):
+		return
+	var satirlar: Array = Data.story.get("olay", {}).get(tur, [])
+	if satirlar.is_empty():
+		return
+	var salt := int(Game.meta.get("runs", 0)) + int(Game.run.get("depth", 1))
+	Gorum.gorum(String(satirlar[posmod(salt, satirlar.size())]))
+	gor.append(tur)
+	Game.run["gorum_olay"] = gor
+	olay_gosterilen.append(tur)
+
+
+func _dovus(p: Vector2) -> bool:
+	for e in get_tree().get_nodes_in_group("dusman"):
+		if e is Node2D and not bool(e.get("dead")) and (e as Node2D).global_position.distance_to(p) < DOVUS_UZAK:
+			return true
+	return false
+
+
+static func yoldas(lv: Node) -> void:
+	## Konak / yurt kurulunca (Main): yeni örgüyle açılan Umay anısı ve yeni bölümün Ozan dizesi (kalıcı, bir kez)
+	var ol: Dictionary = Data.story.get("olay", {})
+	var n := Hikaye.parca_sayi()
+	var ani: Array = ol.get("umay_ani", [])
+	var gor := int(Game.meta.get("umay_ani", 0))
+	if n > gor and n <= ani.size():
+		var s := String(ani[n - 1])
+		_zamanla(lv, 2.6, func() -> void: Gorum.konus("Umay Ana", s, Color(0.62, 0.9, 0.86), 6.0))
+		Game.meta["umay_ani"] = n
+		Game.save_meta()
+	if not lv.konak:
+		return
+	var bm := String(lv.biome.get("id", ""))
+	var dz: Dictionary = ol.get("ozan_dize", {})
+	var oz: Array = Game.meta.get("ozan_dize", []) if Game.meta.get("ozan_dize") is Array else []
+	if dz.has(bm) and not (bm in oz):
+		var d := String(dz[bm])
+		_zamanla(lv, 9.5 if n > gor else 3.0, func() -> void: Gorum.konus("Ozan Bilge Kopuz", d, Color(1.0, 0.86, 0.55), 7.0))
+		oz.append(bm)
+		Game.meta["ozan_dize"] = oz
+		Game.save_meta()
+
+
+static func _zamanla(lv: Node, sn: float, f: Callable) -> void:
+	## Yerin çocuğu tek atımlık zamanlayıcı (yer silinince onunla gider; duraklamada bekler)
+	var tm := Timer.new()
+	tm.one_shot = true
+	tm.wait_time = sn
+	lv.add_child(tm)
+	tm.timeout.connect(f)
+	tm.timeout.connect(tm.queue_free)
+	tm.start()

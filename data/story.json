@@ -1,5 +1,5 @@
 {
- "_not": "v42 Güneş Ana hikâyesi (docs/HIKAYE.md). Erlik, tan töreni gecesi Gün Ana'nın beş ışık örgüsünü kesti, onu dokuz gecenin zinciriyle Tamu'ya bağladı; örgüleri beş bekçiye dağıttı. Bengü (tan bekçisi) örgüleri toplar. Okuyan: scripts/core/Hikaye.gd (ilerleme Game.meta: gun_parca, gorumler, giris_izlendi, son_izlendi). giris / son: sinema panelleri (Sinema.gd; resim assets/hikaye/<ad>.jpg + _isik.png). Satırlar ilerlemeye göre: 'asama' anahtarı alınan örgü sayısı (0..5), 'safak' son izlendikten sonra.",
+ "_not": "v42 Güneş Ana hikâyesi (docs/HIKAYE.md). Erlik, tan töreni gecesi Gün Ana'nın beş ışık örgüsünü kesti, onu dokuz gecenin zinciriyle Tamu'ya bağladı; örgüleri beş bekçiye dağıttı. Bengü (tan bekçisi) örgüleri toplar. Okuyan: scripts/core/Hikaye.gd (ilerleme Game.meta: gun_parca, gorumler, giris_izlendi, son_izlendi). giris / son: v42 panel metinleri (v43'ten beri sinemalar data/sinema/*.json çekim listeleriyle oynar). olay: v43 olay görümleri, Umay anıları, Ozan dizeleri; boss.<id>.bengu / yanit / bengu_sonra: v43 söz atışması. Satırlar ilerlemeye göre: 'asama' anahtarı alınan örgü sayısı (0..5), 'safak' son izlendikten sonra.",
  "title": "Kut'un Yolu",
  "intro": [
   "Gök Tengri dünyayı üç kat kurdu. Üçünü bir ağaç tuttu: Ulu Kayın.",
@@ -68,11 +68,11 @@
   "tamu": ["Zincir soğuk değil; zincir unutkan. Beni unutmasın diye adını söylüyorum: Bengü.", "Erlik ağlar bazen. Kimse duymaz.", "Bir halka daha. Say, kızım."]
  },
  "boss": {
-  "kara_boru_han": {"ad": "Kara Börü Han", "once": "Ay'a uluyan soyum güneşi hiç sevmedi, kurt kızı. Boynumdaki al ışık ödülüm.", "sonra": "Al ışık... Asena'ya söyle: ben ayı seçtim."},
-  "tepegoz": {"ad": "Tepegöz", "once": "Gözüme bak. İçinde güneş var. Artık benim.", "sonra": "Karanlık... Basat da böyle bırakmıştı beni."},
-  "sahmeran": {"ad": "Şahmeran", "once": "Dur, alp kızı. Bu ışığı Erlik'ten ben sakladım. Taşıyabileceğini göster.", "sonra": "Al onu. Umay'a söyle: kız kardeşi için ben de bekledim."},
-  "yelbegen": {"ad": "Yelbegen", "once": "Yedi başım var, yedisi de aç. Sarı ışık sekizincisi olacaktı.", "sonra": "Kaf'ın ardı... boş kalmayacak demek."},
-  "erlik_han": {"ad": "Erlik Han", "once": "Kardeşim Ülgen göğü aldı, bana yerin altı kaldı. Güneş de benim artık, Bengü.", "sonra": "Gece yine gelecek, alp. Her akşam. Ben hep geleceğim."}
+  "kara_boru_han": {"ad": "Kara Börü Han", "once": "Ay'a uluyan soyum güneşi hiç sevmedi, kurt kızı. Boynumdaki al ışık ödülüm.", "sonra": "Al ışık... Asena'ya söyle: ben ayı seçtim.", "bengu": "Al örgüyü boynundan çözeceğim, Han.", "yanit": "Kurt kurdu ısırmaz derler. Yalan.", "bengu_sonra": "Asena'ya söylerim. Ama ay da sabahı bekler."},
+  "tepegoz": {"ad": "Tepegöz", "once": "Gözüme bak. İçinde güneş var. Artık benim.", "sonra": "Karanlık... Basat da böyle bırakmıştı beni.", "bengu": "Gözündeki ışık senin değil, dev.", "yanit": "Basat da öyle demişti. Gel, bak.", "bengu_sonra": "Ak örgü... gök ağarmayı hatırlıyor."},
+  "sahmeran": {"ad": "Şahmeran", "once": "Dur, alp kızı. Bu ışığı Erlik'ten ben sakladım. Taşıyabileceğini göster.", "sonra": "Al onu. Umay'a söyle: kız kardeşi için ben de bekledim.", "bengu": "Sakladığın ışığı almaya geldim, ana.", "yanit": "Önce taşıyabileceğini göster, Umay'ın kızı.", "bengu_sonra": "Bekleyişin bitti, Şahmeran. Kız kardeşlere söyleyeceğim."},
+  "yelbegen": {"ad": "Yelbegen", "once": "Yedi başım var, yedisi de aç. Sarı ışık sekizincisi olacaktı.", "sonra": "Kaf'ın ardı... boş kalmayacak demek.", "bengu": "Yedi başın var; benim tek bir sözüm.", "yanit": "Sözü kim dinler, kurt kızı? Kaf'ın ardı boş.", "bengu_sonra": "Beşik ısınacak. Sarı örgü eve dönüyor."},
+  "erlik_han": {"ad": "Erlik Han", "once": "Kardeşim Ülgen göğü aldı, bana yerin altı kaldı. Güneş de benim artık, Bengü.", "sonra": "Gece yine gelecek, alp. Her akşam. Ben hep geleceğim.", "bengu": "Dokuz gece saydım, Erlik. Sabah geldi.", "yanit": "Kardeşim göğü aldı. Ben de sabahı alırım.", "bengu_sonra": "Gece yine gelsin. Ben nöbetteyim."}
  },
  "npcs": {
   "umay": {
@@ -235,5 +235,39 @@
   ["Dört örgü bekliyor. Tan bekçisi yerde kalmaz.", "Kaf'ın beşiği seni bekliyor."],
   ["Beş örgü avucunda dururken düştün. Kalk; zincir bekler.", "Gün Ana: «Kızım, kalk.»"]
  ],
- "olum_safak": ["Güneşin altında düştün. Bu sefer yaprak altın.", "Sabah yine geldi; sen de gel."]
+ "olum_safak": ["Güneşin altında düştün. Bu sefer yaprak altın.", "Sabah yine geldi; sen de gel."],
+ "olay": {
+  "_not": "v43 öne çıkan hikâye: olaya bağlı Gün Ana görümleri (koşu başına her türden en çok bir; dövüşte gösterilmez), Umay'ın kız kardeş anıları (her örgüyle bir yenisi, konak / yurtta bir kez), Ozan'ın bölüm dizeleri (bölüm başına bir kez).",
+  "can": [
+   "Kızım... nefesini say. Kurt yorulunca durur, ölmez.",
+   "Yaran sızlıyor; ben de üşüyorum. İkimiz de dayanırız.",
+   "Dur bir an. Gece acele etmez, sen de etme."
+  ],
+  "kapi": [
+   "Kapının ardında örgümü taşıyan bekliyor. Korkunu bana bırak.",
+   "Orada ışığımın bir teli var, kızım. Sesini duyuyorum.",
+   "Bekçi seni bekliyor. Ben de seni bekliyorum."
+  ],
+  "olum": {
+   "otuken": "Külün yine sıcak, kızım. Umay seni yine yoğuracak.",
+   "bozkir": "Bozkırın ölüleri yolda kaldı; sen kalma. Kalk.",
+   "sahmeran": "Ayna seni yuttu ama yansıman bende. Dön.",
+   "kaf": "Kaf'ın soğuğu kemiğine işledi. Beşiğim seni de ısıtırdı...",
+   "tamu": "Bir halka daha... Say, kızım. Dokuzu da sayılınca kırılır."
+  },
+  "umay_ani": [
+   "Biz küçükken ablam saçımı örerdi. Her sabah içine bir tel ışık bırakırdı; ben de onu çocuklara dağıtırdım.",
+   "Ablam güldüğünde gök ağarırdı. Ak örgü onun gülüşüydü, yavrum.",
+   "Şahmeran'ı tanırım: ablamın sırdaşıydı. Işığı Erlik'ten saklarken ben de yardım ettim.",
+   "Kaf'ın ardındaki beşiği ikimiz salladık. O güneşi, ben seni.",
+   "Beşi de döndü. Git, ör onu. Ablamı bana geri getir."
+  ],
+  "ozan_dize": {
+   "otuken": "Kül Ocağı'nda söndü ateş, bekçi kızın düştü başı; Umay tuttu ruh kuşunu, dal titredi, aktı yaşı.",
+   "bozkir": "Bozkır bakar kör gözüyle, ölüler yolda kalmış; Bengü yürür kurgan kurgan, ak örgüyü gözden almış.",
+   "sahmeran": "Yeraltında bir ayna var, su olmuş ışık içinde; iki kız kardeş bir ana, sır saklanmış derin yerde.",
+   "kaf": "Kaf Dağı boş beşik sallar, sarı örgü yedi boyunda; Gün Ana üşür yer altında, kızı gelir dağ yolunda.",
+   "tamu": "Dokuz gece, dokuz halka, Erlik sayar kendi yasını; Bengü sayar birer birer, sabah kırar zincir pasını."
+  }
+ }
 }

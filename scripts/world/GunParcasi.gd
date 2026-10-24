@@ -63,7 +63,6 @@ func _al() -> void:
 	Ses.play("kut_banka", -2.0, 0.85)
 	Ses.play("ad_toren", -6.0, 1.1)
 	var baslik := "%s · %s" % [InkHUD.tr_upper(String(o.get("ad", "Gün Örgüsü"))), String(o.get("alt", ""))]
-	Gorum.gorum(String(o.get("gorum", "")), baslik, _renk, 6.0)
 	Hikaye.gorum_isaretle("orgu:" + bid)
 	# ufuk ısınır: ekran derecesinin "safak" değeri yeni örgü sayısına süzülür
 	if level and level.get("vig_mat") != null:
@@ -76,8 +75,12 @@ func _al() -> void:
 		m.hud.flash_msg = ("%s döndü: Gün Ana'nın %d. örgüsü. Dünya bir tık ısındı." % [String(o.get("ad", "")), Hikaye.parca_sayi()]) if yeni else ("%s yine senin; Gün Ana seni tanıdı." % String(o.get("ad", "")))
 		m.hud.flash_t = 5.0
 	alindi.emit(bid)
+	# v43: ilk alışta örgü sahnesi (Main.hikaye_orgu_alindi); sahne oynamadıysa Gün Ana'nın görümü
+	var sahne := false
 	if m and m.has_method("hikaye_orgu_alindi"):
-		m.hikaye_orgu_alindi(bid, yeni)
+		sahne = bool(m.hikaye_orgu_alindi(bid, yeni))
+	if not sahne:
+		Gorum.gorum(String(o.get("gorum", "")), baslik, _renk, 6.0)
 	var tw2 := create_tween()
 	tw2.tween_property(self, "modulate:a", 0.0, 0.4)
 	tw2.tween_callback(queue_free)

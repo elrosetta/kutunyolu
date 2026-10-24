@@ -7456,3 +7456,86 @@ destan özeti).
 * Yeni oyun+: örgüler kalıcı, bekçiler yine düşer ve yine örgü bırakır (alınca «yine senin» iletisi, dünya zaten
   sıcak); ikinci kez son sineması oynamaz (Ozan'dan açılış yeniden dinlenebilir; son için ayrı bir tekrar yok).
 * Yurdun paralaks göğü gece resmi: sabah derece / ışıkla verilir (ay hilali gökte kalır — «gece yine gelecek»).
+
+## v43: sinematik motoru ve öne çıkan hikâye
+
+Kullanıcı kararı: açılış sineması çok sevildi, «çok daha iyi» olsun (Hollow Knight / Ori / Okami / Gris ayarında) ve hikâye
+oyun sırasında da önde dursun. v42'nin 6 + 5 düz paneli yerini veri güdümlü bir **çekim motoruna** bıraktı; açılış, son,
+boss kartları, örgü sahnesi ve bölüm açılışları aynı motoru kullanır.
+
+### Motor (scripts/ui/Sinema.gd, scripts/ui/SinemaEfekt.gd)
+
+* `Sinema.oynat(ebeveyn, ad, degisken)` → `data/sinema/<ad>.json`. Çekimler iki SubViewport'a dönüşümlü çizilir (her
+  birinin kendi World2D'si; oyunun tuvali karışmaz), birleştirici `shaders/sinema_ekran.gdshader` geçişi ve son işlemi
+  yapar: kesme, **mürekkep yıkaması** (koyu leke yayılır, ıslak halka), **fırça silmesi** (kıl izli yatay darbe), **kâğıt
+  yırtığı** (pürüzlü çapraz yırtık, beyaz lif + gölge), karart, ak ışık; kâğıt tanesi, kenar kararması, sinema bantları.
+* Her katman bir derinlik düzleminde (`d`): kamera `[t, x, y, z]` anahtarlarıyla kayar / yaklaşır; düzlemin kayması ve
+  yakınlaşması `d` ile ölçeklenir (paralaks; `d` 0 sabit, 1 kamera düzlemi, >1 ön plan). `odak` anahtarları odak dışı
+  düzlemi disk bulanıklığıyla yumuşatır (odak çekimi, `shaders/sinema_katman.gdshader`, ortak kod
+  `sinema_ortak.gdshaderinc`). Katman salınımı (ağaç tepesi, çaput), mürekkeple belirme (leke / soldan sağa yazı / enso
+  çemberi), `anim` anahtarları (x, y, r, s, a; eğri `io|i|o|lin`), `_isik` ışıma katmanı (toplamalı, nabızlı).
+* Canlı öğeler (`efektler`, zamanın işlevi — atlanınca aynı kare): `toz` (kül, yaprak, kor, altın zerre, tüy), `duman`,
+  `ates` (titreyen alev dilleri, sönme anı), `zincir` (yol boyunca yılan gibi uzar, `kir` anında kırılır, halkalar savrulur),
+  `orgu` (`akis` Gün Ana'nın başından beş ışık şeridi, `kes` makas anında kesilen uçlar düşer, `or` beş uç bir noktada
+  örülür, `tek`), `kus` (ruh kuşu, kanat çırpar, iz bırakır), `suru`, `isik` (huzme), `damla` (mürekkep damlası), `halka`,
+  `yuvalar` (Gün Örgüleri yuvaları).
+* Yazı: `anlati` (alt, fırçayla harf harf), `orta`, `soz`, `bolum` (sıra + fırça ad + kızıl çizgi), `ad` (dev fırça adı +
+  unvan). Ses: `ses: [[t, ad, dB, perde]]`; müzik ayrı oynatıcıda, döngüsüz, motorun saati müziğe uzlaşır.
+* **Geçmek için basılı tut** (Esc / Boşluk / Enter / saldırı / tık, 1,1 sn): sağ altta fırça çemberi dolar.
+* Film kaydı: `godot --path . --resolution 1280x720 --fixed-fps 30 --write-movie x.avi -- --sinema_kayit=giris`
+  (sinema oynar, bitince çıkar; yer tutuculu sinemalar için örnek değişkenler `Sinema.ornek_degisken`).
+
+### Çekim listesi biçimi
+
+```
+{ "muzik": {"ad": "sinema_giris", "db": 0}, "bant": 1.0, "acilis": 1.4, "tane": 0.03, "saydam": false, "jenerik": false,
+  "cekimler": [ { "id": "kayin", "sure": 9.0,
+     "gecis": {"tur": "murekkep|firca|yirtik|karart|beyaz|kesme", "sure": 1.6},
+     "kamera": [[t, x, y, z(, egri)], ...],  "odak": [[t, d], ...], "odak_guc": 14,
+     "sars": [[t, genlik, sure]], "flas": [[t, a, sure, [r,g,b]]], "zemin": [r,g,b,a], "bant": 1, "kenar": 0.35,
+     "katmanlar": [ {"resim": "kayin_agac" | "res://...png", "d": 0.5, "ofs": [x,y], "olcek": 1, "hiza": "alt|ust|orta",
+                     "salinim": 2.2, "acilis": [t0, t1], "kip": 0|1|2, "anim": [[t, {"x","y","r","s","a","e"}]],
+                     "bulanik": 0, "keskin": false, "isik_a": 0.85, "renk": [r,g,b,a], "istege_bagli": false} ],
+     "efektler": [ {"tur": "...", "d": 0.5, "t0", "t1", ...} ],
+     "yazi": [ {"t": 2.4, "sure": 5.6, "metin": "...", "stil": "anlati"} ],
+     "ses": [[0.0, "sin_ruzgar", -6.0]], "vurus": [0.5, 1.5] } ] }
+```
+Tuval 2560x1440 (4K'ya hazır; 1080p'de 0,75). `vurus`: müzik üreticisinin (tools/audiogen/v43_sinema.py) davul / vuruş
+koyacağı anlar — kesmeler ve makas darbeleri müzikle aynı JSON'dan eşlenir. `"{ad}"` yer tutucuları `degisken`le dolar.
+
+### Sinemalar
+
+| Dosya | Süre | İçerik |
+|---|---|---|
+| giris.json | 81,5 sn, 10 çekim | Ulu Kayın (aydan aşağı süzülme, yapraklar, Kut zerreleri) · Gün Ana Kaf'tan doğar (beş canlı örgü) · tan töreni (canlı ateş, kor, odak çekimi otlardan Bengü'ye, davul vuruşları) · Erlik köklerden yükselir (sarsıntı, iki zincir yılan gibi uzanır) · kara kırkı beş örgüyü keser (bıçaklar kapanır, uçlar düşer, beş vuruş) · Gün Ana zincirle aşağı çekilir · Bengü döne döne düşer (kül) · Umay'ın kanatları ruh kuşunu tutar · yol aşağı iner (beş uzak örgü ışığı) · başlık: «Kut'un Yolu» mürekkeple yazılır, enso çizilir, mühür basılır, müzikte büyük vuruş |
+| son.json | 41,5 sn + jenerik | beş örgü Bengü'nün avucunda örülür · zincir kırılır (ak ışık, huzme, halka) · Gün Ana köklerden yükselir · tan söker (güneş doğar, kuşlar, altın yapraklar) · Bengü dalda; jenerik |
+| boss_kart.json | 4,2 sn | bekçinin adı fırçayla, «<Örgü> BEKÇİSİ», tek söz, örgüsü rengiyle parlar (ilk üç karşılaşmada) |
+| orgu_sahne.json | 6,8 sn | örgü Gün Ana'nın silüetinde süzülür, beş yuvadan biri dolar, Gün Ana'nın sözü |
+| bolum_acilis.json | 8,5 sn | biyomun paralaks ufku (assets/bg/<biyom>_v2_*), bölüm sırası + adı + epigraf, Gün Ana'nın sesi |
+
+Sanat: tools/artgen/sinema43.py (sumi.py fırça takımı; çok katmanlı yıkama, kuru fırça, altın varak ışıması, kâğıt lifi;
+paralel üretim + `--birlestir` → assets/sinema/katmanlar.json; `--onizleme` temas sayfası). 72 WebP (katman + ışıma), ~9 MB.
+Bengü'nün sinema çizimi ky-bengu43 «Tan Bekçisi» tasarımıyla uyumlu: ak kurt postu kukuleta (uzun, ucu koyu kulaklar,
+camgöbeği Kut gözü) ve bele inen post pelerin, kök boya kızılı kaftan (#8e2834) ve safran şerit, geniş deri kemer (gümüş
+levhalar, güneş tokası), tek uzun örgü ucunda gümüş şolpılar, çivit şalvar, keçe çizme.
+Ses: tools/audiogen/v43_sinema.py — `sinema_giris` (gırtlak demi + ney + kopuz + kam davulu; Erlik'te kara gırtlak, düşüşte
+müzik çekilir, yolda davul hızlanır, başlıkta sub düşüşü + gong + kopuz akoru), `sinema_son`; 16 ses (`sin_*`: rüzgâr,
+parıltı, davul, ateş, gümbürtü, Erlik, zincir, makas, düşüş, kuş, kanat, vuruş, mühür, örgü, kart, kırılma).
+
+### Hikâye önde
+
+* **Gün Örgüleri göstergesi** (scripts/ui/OrguGosterge.gd): beş fırça çemberi, alınanlar renginde nefes alır;
+  duraklatma ekranında ve tam ekran haritada sürekli, oyunda örgü alınınca 6 sn tepede.
+* **Bölüm açılışı**: biyoma ilk girişte (kalıcı, `acilis:<biyom>`), HUD afişi ve ayrı görüm yerine.
+* **Olay görümleri** (story.json `olay`): can %30 altına inince, boss kapısına yaklaşınca — koşu başına her türden bir,
+  yakında düşman varken bekler; biyomdaki ilk ölümde ölüm ekranında Gün Ana'nın o biyoma sözü (`olum_biyom`).
+* **Boss arenası**: kart → Bengü ↔ bekçi atışması (`bengu`, `yanit`); devrilince bekçinin sözü + Bengü'nün cevabı
+  (`bengu_sonra`). İlk alışta örgü sahnesi, sonra gösterge; Erlik'in örgüsünden sonra son sineması.
+* **Konak / yurt**: her yeni örgüyle Umay'ın bir kız kardeş anısı (`umay_ani`), her yeni bölümün konağında Ozan'ın dizesi
+  (`ozan_dize`), bir kez.
+* Kalıcı kayıt alanları (yeni): `boss_kart` {bid: sayı}, `umay_ani`, `ozan_dize`, `olum_biyom`; koşu: `gorum_olay`,
+  `olum_ilk`. Test kiplerinde bölüm açılışı oynamaz (`Sinema.oyun_ici_zorla` ile zorlanır).
+
+Test: `--hikaye_test` 101 denetim (açılış 10 çekim / süre / doku / öğe, iki çekimin kare şeridi, beş boss kartı, örgü sahnesi
+yuvası, beş biyomun açılış ufku, bölüm açılışının kendiliğinden oynaması, olay görümleri ve dövüşte bekleme, boss atışması,
+örgü sahnesi, gösterge, son + jenerik, konakta Umay anısı ve Ozan dizesi). Görseller: docs/v43/sinema/.

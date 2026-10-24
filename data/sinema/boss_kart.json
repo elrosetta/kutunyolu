@@ -1,0 +1,24 @@
+{
+ "_not": "v43 boss kartı (kısa, koyu mürekkep kartı). degisken: ad, unvan, soz, renk [r,g,b].",
+ "acilis": 0.25,
+ "tane": 0.02,
+ "cekimler": [
+  {
+   "id": "kart",
+   "sure": 4.2,
+   "kenar": 0.45,
+   "zemin": [0.16, 0.145, 0.15, 1.0],
+   "kamera": [[0, 1280, 720, 1.0], [4.2, 1280, 720, 1.05]],
+   "katmanlar": [{"resim": "kart_bant", "d": 0.15, "acilis": [0.0, 0.6]}],
+   "efektler": [
+    {"tur": "orgu", "kip": "tek", "d": 0.0, "z": 5, "koken": [1280, 905], "uzunluk": 1250, "aci": 0, "genislik": 16, "renk": "{renk}", "t0": 0.25, "buyume": 1.1, "cik": 0.5, "t1": 4.2},
+    {"tur": "toz", "cesit": "kor", "d": 0.0, "sayi": 26, "alan": [500, 480, 2060, 980], "hiz": [40, -20], "boyut": 3.0, "renk": "{renk}", "t1": 4.2}
+   ],
+   "yazi": [
+    {"t": 0.15, "sure": 3.3, "metin": "{ad}", "stil": "ad", "alt": "{unvan}"},
+    {"t": 1.1, "sure": 2.4, "metin": "{soz}", "stil": "soz", "boy": 16, "hiz": 60, "renk": [1.0, 0.86, 0.7]}
+   ],
+   "ses": [[0.0, "sin_kart", -3.0]]
+  }
+ ]
+}

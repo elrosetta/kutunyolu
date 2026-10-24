@@ -1889,5 +1889,85 @@
   "loop": false,
   "len": 1.95,
   "hedef_db": -16.0
+ },
+ "sin_ruzgar": {
+  "loop": false,
+  "len": 4.5,
+  "hedef_db": -20.0
+ },
+ "sin_parilti": {
+  "loop": false,
+  "len": 2.2,
+  "hedef_db": -20.0
+ },
+ "sin_davul": {
+  "loop": false,
+  "len": 1.75,
+  "hedef_db": -15.0
+ },
+ "sin_ates": {
+  "loop": false,
+  "len": 3.995,
+  "hedef_db": -22.0
+ },
+ "sin_gumbur": {
+  "loop": false,
+  "len": 3.0,
+  "hedef_db": -16.0
+ },
+ "sin_erlik": {
+  "loop": false,
+  "len": 2.6,
+  "hedef_db": -15.0
+ },
+ "sin_zincir": {
+  "loop": false,
+  "len": 1.8,
+  "hedef_db": -18.0
+ },
+ "sin_makas": {
+  "loop": false,
+  "len": 0.81,
+  "hedef_db": -15.0
+ },
+ "sin_dusus": {
+  "loop": false,
+  "len": 6.5,
+  "hedef_db": -19.0
+ },
+ "sin_kus": {
+  "loop": false,
+  "len": 1.3,
+  "hedef_db": -20.0
+ },
+ "sin_kanat": {
+  "loop": false,
+  "len": 1.4,
+  "hedef_db": -18.0
+ },
+ "sin_vurus": {
+  "loop": false,
+  "len": 4.0,
+  "hedef_db": -13.0
+ },
+ "sin_muhur": {
+  "loop": false,
+  "len": 1.35,
+  "hedef_db": -17.0
+ },
+ "sin_orgu": {
+  "loop": false,
+  "len": 3.0,
+  "hedef_db": -17.0
+ },
+ "sin_kart": {
+  "loop": false,
+  "len": 2.5,
+  "hedef_db": -15.0
+ },
+ "sin_kirilma": {
+  "loop": false,
+  "len": 0.932,
+  "hedef_db": -14.0
  }
 }

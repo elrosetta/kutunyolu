@@ -1,0 +1,27 @@
+{
+ "_not": "v43 örgü alındı sahnesi (6,5 sn): örgü Gün Ana'nın silüetine akar, beş yuvadan biri dolar. degisken: orgu, gorum, renk, sira (0-4), dolu (önceden dolu yuvalar dizisi).",
+ "acilis": 0.4,
+ "tane": 0.015,
+ "cekimler": [
+  {
+   "id": "orgu",
+   "sure": 6.8,
+   "zemin": [0.03, 0.026, 0.035, 1.0],
+   "kenar": 0.5,
+   "kamera": [[0, 1280, 760, 1.08], [6.8, 1280, 700, 1.0]],
+   "katmanlar": [
+    {"resim": "res://assets/hikaye/gun_ana_gorum.png", "d": 0.3, "hiza": "orta", "olcek": 1.25, "acilis": [0.4, 2.6], "a": 0.55, "renk": [1.0, 0.8, 0.5]}
+   ],
+   "efektler": [
+    {"tur": "orgu", "kip": "tek", "d": 0.45, "z": 5, "koken": [1280, 700], "uzunluk": 1300, "aci": -12, "genislik": 22, "renk": "{renk}", "t0": 0.3, "buyume": 1.5},
+    {"tur": "yuvalar", "d": 0.0, "z": 9, "y": 1230, "dolu": "{dolu}", "yeni": "{sira}", "t_yeni": 3.0},
+    {"tur": "toz", "cesit": "altin", "d": 0.5, "sayi": 50, "alan": [500, 200, 2060, 1300], "hiz": [0, -30], "boyut": 4.5, "renk": "{renk}"}
+   ],
+   "yazi": [
+    {"t": 0.4, "sure": 5.4, "metin": "{orgu}", "stil": "ad", "alt": "GÜN ANA'NIN ÖRGÜSÜ"},
+    {"t": 2.6, "sure": 3.6, "metin": "«{gorum}»", "stil": "soz", "boy": 17, "renk": [1.0, 0.88, 0.62]}
+   ],
+   "ses": [[0.2, "sin_orgu", -2.0], [3.0, "sin_parilti", -6.0]]
+  }
+ ]
+}
