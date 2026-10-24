@@ -173,14 +173,17 @@ func _kur() -> void:
 	mat.shader = SHADER
 	material = mat
 	on.material = mat
-	# gür yele (sırttan beline iner) + yakın örgü (kulağın arkasından omuz üstüne)
-	var y := _z("kuyruk", 13, 2.15, Vector2(1.3, 2.4), M_SAC, 9.0)
+	# v43: saç TEK UZUN ÖRGÜDE toplanır (Tan Bekçisi: sonda Gün Ana'nın beş ışık örgüsüyle örülecek örgü): enseden
+	# kalçaya iner, ucunda şolpı (gümüş pul dizisi). Ad "kuyruk" kalır (testler / benzetim aynı davranışı ölçer).
+	# + kulağın önünden düşen kısa ince yan örgü.
+	mat.set_shader_parameter("bead_col", Color(0.70, 0.73, 0.80))   # şolpı gümüşü (eski turkuaz boncuk)
+	var y := _z("kuyruk", 14, 2.05, Vector2(0.6, 2.4), M_ORGU, 3.1)
 	y.gr = 0.8  # yele sırtın üstünde yatar (gövdenin önünde çizilir: post pelerinin üstüne düşer)
 	y.bukul0 = 0.2
 	y.bukul = 0.55
 	y.sert0 = 0.05
 	y.sert1 = 0.0
-	var o := _z("yakin_orgu", 8, 1.8, Vector2(2.2, 2.6), M_ORGU, 1.5)
+	var o := _z("yakin_orgu", 8, 1.7, Vector2(2.2, 2.6), M_ORGU, 1.1)
 	o.govde = false
 	o.drot = -0.55  # kulağın arkasından, başlığın yan postunun altından aşağı çıkar
 	o.bukul0 = 0.25
@@ -746,7 +749,13 @@ func _orgu(out: Array, sm: PackedVector2Array, z: Zincir, L: Vector2) -> void:
 	_serit(out, sm.slice(0, 3), _sabit(3, W * 0.66), M_HALKA, 0.0, L, 0.0, 0.08)
 	var nb := _normaller(sm)
 	var bc := sm[mini(n - 1, cut)]
-	_boncuk(out, bc + nb[mini(n - 1, cut)] * W * 0.2 + Vector2(0, 0.9), 0.8)
+	if z.ad == "kuyruk":
+		# şolpı: örgü ucunda sarkan gümüş pul dizisi (halkadan aşağı, örgüyle birlikte salınır)
+		for j in 4:
+			var k := mini(n - 1, cut - 1 + j)
+			_boncuk(out, sm[k] + nb[k] * W * (0.55 if j % 2 == 0 else -0.45) + Vector2(0, 0.4), 1.05 - 0.12 * float(j))
+	else:
+		_boncuk(out, bc + nb[mini(n - 1, cut)] * W * 0.2 + Vector2(0, 0.9), 0.8)
 
 
 static func _sabit(m: int, v: float) -> PackedFloat32Array:

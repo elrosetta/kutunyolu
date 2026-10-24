@@ -7456,3 +7456,107 @@ destan özeti).
 * Yeni oyun+: örgüler kalıcı, bekçiler yine düşer ve yine örgü bırakır (alınca «yine senin» iletisi, dünya zaten
   sıcak); ikinci kez son sineması oynamaz (Ozan'dan açılış yeniden dinlenebilir; son için ayrı bir tekrar yok).
 * Yurdun paralaks göğü gece resmi: sabah derece / ışıkla verilir (ay hilali gökte kalır — «gece yine gelecek»).
+
+
+## v43: yeni Bengü — karakter tasarımı ve yaşayan iskelet
+
+Geri bildirim: "Bengü'nün çizimini çok ORİJİNAL ve klas yapalım; kukla gibi değil, YAŞAYAN bir insan gibi görünsün:
+eklemler, saç, tip (karakter tasarımı), kıyafet." v39 oranları düzeltse de kukla hissi sürüyordu; asıl nedenler:
+omuzda dönen ayrı kol sprite'ı (menteşe), kapsül birleşimi uzuvlar (diz / dirsekte tümsek, kırık kontur), zırh
+plakaları (lamel yelek, omuzluk, dizlik: "oyuncak asker"), kask gibi okunan başlık, kıpırdamayan etek.
+
+### Karakter tasarımı: "Tan Bekçisi" (`tools/artgen/bengu43_ink.py`)
+Kimlik (docs/HIKAYE.md): Gün Ana'nın şafak ateşini bekleyen bozkır savaşçısı kadın; sonunda kendi örgüsünü Gün Ana'nın
+beş ışık örgüsüyle örecek. Kaynaklar: Kazak / Kırgız / Altay / Göktürk giyimi (önü kavuşturmalı kaftan — şapan, kemer
+plakaları, keçe çizme, şolpı gümüş saç süsü, tamga nakışı), okunurluk için Hades / Hyper Light Drifter / Hollow Knight
+silüet dersleri (tek baskın şekil, sınırlı palet, küçük boyda tanınan ikonlar).
+* **Silüetin üç ikonu:** (1) ak kurt derisi: başlık kask değil, kurdun üst başı (kısa burun, dik ve uçları koyu kulaklar,
+  camgöbeği Kut gözü) başın üstüne oturur, ense yelesiyle sırttan bele inen post pelerine akar (cf ile savrulur);
+  (2) enseden kalçaya inen TEK uzun örgü, ucunda şolpı (gümüş pul dizisi) — oyunda fizikli; (3) önü açık, belden sıkılı,
+  yırtmaçlı uzun kaftan: ön kenar kemerden geriye çapraz iner (ön uyluk görünür: kutu / kilt etek yok), arka etekler
+  oyunda iki kumaş şerit.
+* **Tip:** ~7,5 baş boy (baş + başlık x0,8), görünür ince boyun, ince bel (WAIST_K 0,86), uzun ince uzuvlar; zırh
+  plakası yok (dizlik, omuzluk, lamel yelek kaldırıldı). Zarafet = sadelik: ayrıntı yüzde, sırmada ve kemerde.
+* **Kıyafet:** kök boya kızılı kaftan + ince safran sırma yaka şeridi (kavuşturma çizgisi), kısa dik yaka, açık ön
+  kenarda safran astar; sırtta küçük sönük güneş tamgası (Gün Ana; ışıma katmanında hafif); geniş deri kemer, küçük
+  gümüş plakalar, güneş tokası (sıcak Kut közü), arka belde kısa bıçak; dar çivit şalvar, diz altına keçe çizme (sırma
+  ağız bandı, burnu hafif kalkık); ince deri bilek siperi ve eldiven.
+* **Palet ('tan'):** kızıl `#8e2834` (baskın), safran `#e0a53e` / sırma `#e2ae4c` (tek vurgu), ak post `#ece6d8`, çivit
+  şalvar `#2c3150`, kahve çizme; gölgeler soğuk mor. Soğuk, karanlık dünyada sıcak kahraman; en okunur öğe ak kurt başı.
+* **Konseptler** (`docs/v43/bengu/konsept_*.jpg`, `python tools/artgen/konsept43.py <klasör>`): A "Tan Kızılı" (seçildi:
+  ısı ve okunurluk), B "Şafak Çivit" (kısa ceket, kısa pelerin: karanlık biyomda kayboluyor), C "Kül Keçe" (uzun keçe
+  kaftan: soluk, yaratıklarla aynı değerde). Denenen ve bırakılan: asimetrik omuz postu — oyun boyunda yine omuzluk gibi
+  okundu; post pelerin + örgü aynı işi daha sade yapıyor.
+
+### Yaşayan iskelet: yaklaşım
+Silahlar savuruş boyunca SÜREKLİ açılarla (Player.SWINGS / COMBOS / HEAVIES, aşma, kırbaç gecikmesi, düzlem
+önkısalması) sürüldüğünden her silah pozunu tam gövde karesine pişirmek mümkün değildi. Karma yaklaşım:
+1. **Gövde kareleri** (Python, mürekkep-cel): uzuvlar `soft_limb` ile çizilir — Catmull-Rom omurga (eklemde yuvarlak
+   büküm) + uzunluk boyunca yumuşak en profili; diz / dirsek / omuz tek kesintisiz kontur, büküldükçe diz kapağı dolar,
+   büküm içinde kumaş kıvrımı belirir. Pozlar, kemik boyları, çapalar v39 ile aynı (bengu_govde): vuruş kutuları,
+   zamanlamalar, saç / kuşak çapaları değişmedi.
+2. **Silahlı ön / arka kol** (`scripts/core/BenguKol.gd`, yeni): üç ayrı dönen sprite yerine TEK bükülen doku şeridi
+   (mesh deform). Doku düz kolu (omuz başı -> dirsek -> bilek) içerir (`bengu43_ink.render_arm_strip`, `bengu_kol_v2`
+   0. / 3. sütun); oyunda şerit omuz -> dirsek -> bilek eğrisine (dirsekte büküme göre küçülen yarıçaplı Bezier köşe)
+   satır satır yerleştirilir (5 sütun x 21 satır, dirsek çevresinde sık), kesit eğrinin normaline dik; ön kol gerçek
+   boyuna esner (vuruş "ext" abartısı). Omuz başı pivot merkezli yuvarlak: kol dönerken omuz çevresi değişmez,
+   menteşe izi yok. Yumruk (2. / 5. sütun) bilekte ayrı sprite (kabzayı örter). Malzeme eski kol parçalarıyla aynı
+   (ink_char + `alt_uv` aynalı ışık satırı): kenar ışığı, ay gölgesi, vuruş parlaması aynen; darbe karesi (ImpactFrame)
+   şeridi `kopya` ile siluete katar. Eski `arm_upper` / `arm_fore` sprite'ları gizli kalır (konum hesabı / uyumluluk).
+   Player API'si (SWINGS poz anahtarları, `_pose_points`, `_hand_local`, `_blade_local`) DEĞİŞMEDİ.
+Skeleton2D + ağırlıklı Polygon2D yerine CPU'da eğri boyunca yerleşim seçildi: iki kemik için daha az düğüm, kesin
+denetim (köşe yarıçapı, katlanma sınırı), aynı malzeme, sıfır sahne değişikliği; maliyet kol başına ~105 köşe.
+
+### İkincil hareket
+* **Örgü** (`BenguSac.gd`): saç tek uzun örgüde ("kuyruk" zinciri: 14 nokta, örgü kipi, en 3,1; benzetim, çarpışma,
+  dönüşte kök açısal hız sınırı aynı) + kulak önünden kısa ince yan örgü. Ucunda şolpı: dört gümüş pul (boncuk kipi,
+  `bead_col` gümüş) örgüyle salınır. Örgü lobu enle ölçeklenir, parlama kısık (ip gibi açık okunmasın).
+* **Kaftan etekleri + kuşak** (`BenguKusak.gd`): iki yırtmaçlı arka etek paneli ('etek' çapasından; 8 nokta, geniş,
+  ağır, kökte sert: ikinci parça da kök doğrultusunu izler) + safran kuşağın iki kuyruğu. Koşuda geriye açılır,
+  sıçrayışta havalanır, dönüşte gecikmeyle savrulur (`docs/v43/bengu/donus_takip.jpg`); iki cel bandı, yırtmaç
+  kenarında safran astar, uçta sırma, mürekkep kontur.
+* **Post pelerin** (sprite): hız / savrulma (sk, cf) ile açılır, tutamlı uç; durgunda nefesle (br) gövde inip kalkar.
+* **Lastik ezilme kısıldı:** sıçrama 0,78 / 1,26 -> 0,9 / 1,12, yüksek düşüş 1,35 / 0,68 -> 1,12 / 0,9, yuvarlanma
+  1,15 / 0,85 -> 1,06 / 0,94, Kahraman İnişi başlangıcı 1,18 / 0,86 -> 1,08 / 0,93 (ezilme çizimde, dizlerde).
+
+### Yeni satırlar
+| Satır | Kare / fps | Not |
+|---|---|---|
+| `tirman` | 6 / 9, döngü | zincir / ip / sarmaşık: eller sırayla uzanır (ön / arka el yarım faz), dizler sırayla çekilir, kalça el çekişiyle kalkar; ön kol çizimde |
+| `tirman_bekle` | 2 / 2, döngü | asılı bekleme (ön el yukarıda, arka el göğüs hizasında, nefes) |
+| `olum` | 6 / 10 | darbe -> dizler çözülür -> yığılır; `Player._die` varsa bunu oynatır (yoksa `hurt`) |
+Tırmanma DURUMU ky-harita43'te (Player.gd'de sınırlı CLIMB bloğu); bu iki satır yalnızca çizim: `anim.play("tirman")`
+(hızla `anim.speed` ölçeklenebilir), durunca `anim.play("tirman_bekle")`; silahlı kol iskeleti tırmanırken gizli olmalı.
+
+### Kare / poz ekleme
+1. Poz: `bengu43_ink.py`'de `P(...)` döndüren işlev (alanlar: bob, lean, lf / lb bacak açıları, af / ab kol açıları
+   [0 aşağı, pi yukarı, + ileri], sk etek, pk kuşak, cf pelerin, br nefes, hdx / hdy baş, jaw, tw, sx) ya da ayak hedefli
+   `bengu_govde` pozları.
+2. `NEW_ANIMS[ad] = (kare, işlev, döngü, ön_kol_çizimde)` + `NEW_LAYOUT[ad] = {frames, fps, loop, arm}`.
+3. `cd tools/artgen; python export_ink.py --bengu` (~1 dk 40 sn) + `KY_HD=2 python export_ink.py --bengu` +
+   `python hd_paket.py --paketle`. Önizleme: `python preview_ink.py out.png --mod bengu43_ink idle:0 tirman:2`;
+   önce / sonra: `python onceson43.py out.jpg`. Palet değiştirmek: `bengu43_ink.SECIM` (+ BenguKusak `E_*` / `C_*`).
+`bengu_ink.py` arşiv olarak durur; `bengu43_ink.install()` onun `draw`'ını ve kol parçası çizimini değiştirir (pozlar,
+satır tabloları, render hattı ortak). `export_ink.export_bengu` / `_bengu_par` önce `bengu43_ink`'i yükler.
+
+### Çekim / test
+`godot --path . --resolution 1920x1080 --fixed-fps 60 --quit-after 12000 -- --bengu=<klasör> --bengu43_sayfa
+--boss=kara_boru_han --pencere=1920x1080 --grafik=2 [--derinlik=5]` (`tools/tests/bengu43_cekim.gd`: durgun, koşu,
+dönüş, dönüş + saldırı, sıçrama, yuvarlanma, darbe, Kahraman İnişi, kılıç / ağır / mızrak / gürz, yay, tırmanma,
+ölüm + tam ekran).
+Betik hatası 0 (SCRIPT ERROR yok): `--dovus --boss --kontrol` (`--quit-after 250000`) TAKILMA=0, KONTROL basış=272
+savuruş=136 basılmamış=0 oto_dönüş=0 oto_hamle=0 istenmeyen_ağır=0; `--savurus --quit-after 4000`; `--mekanik --zipla --boss`
+OZET hata=0; `--sanat --boss --muhur=0` SONUC GECTI hata=0; `--bengu --boss` OZET hata=0 (tek örgü + yan örgü zincir
+sağlığı, durgun / koşu / dönüş / düşüş denetimleri); `--otomatik --derinlik=1 --muhur=0 --fixed-fps 60 --quit-after 9000`;
+`--piksel_tara --otomatik --derinlik=3 --quit-after 2400` TOPLAM 0. `--perf --perf_faz=gezinti,savas3,savas7` (başsız):
+oyuncu 0,33 / 0,25 / 0,29 ms/kare, bengu (örgü benzetim + çizim verisi) 0,13 / 0,05 / 0,04 ms; yaşayan kol şeridi kol
+başına ~105 köşe (yalnız silahlıyken), kumaş etekler kuşakla aynı düğümde (2 x 8 nokta, 1/120 sn alt adım).
+HD x2: bengu_v2 5 sayfa + bengu_kol_v2 WebP, manifest md5 güncel (`hd_paket.py --kontrol sprites/bengu` TAMAM 7 dosya); `--doku=2` çekimi hatasız.
+
+### Görseller (`docs/v43/bengu/`)
+`konsept_tan.jpg`, `konsept_safak.jpg`, `konsept_kul.jpg` · `kareler_once_sonra.jpg` (sprite düzeyinde v39 / v43: durgun,
+koşu, sıçrama, düşüş, yuvarlanma, darbe, Kahraman İnişi, saldırılar, tırmanma, ölüm) · `oyun_otuken_once_sonra.jpg`,
+`oyun_sahmeran_once_sonra.jpg` (aynı saldırı anı, sol v39 sağ v43) · `hareket_sonra.jpg` / `kombo_sonra.jpg` /
+`hareket_sahmeran.jpg` (oyun içi kare dizileri; önceki hâl `docs/v39/bengu/` "sonra" satırları) · `donus_takip.jpg` (dönüş
+ve dönüş + saldırıda örgü / etek / kuşak takibi) · `tirman_olum.jpg` · `oyun_otuken_*.jpg`, `oyun_sahmeran_*.jpg`
+(1920x1080: durgun, koşu, saldırı, yaratıklarla).

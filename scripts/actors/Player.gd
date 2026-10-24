@@ -973,6 +973,8 @@ var arm_root_b: Node2D
 var arm_upper_b: Sprite2D
 var arm_fore_b: Sprite2D
 var arm_fist_b: Sprite2D
+var kol_f: BenguKol    # v43 yaşayan kol: bükülen kol şeridi (scripts/core/BenguKol.gd); eski üst / ön kol sprite'ları gizli
+var kol_b: BenguKol
 var wind_n := 0  # Rüzgâr Kılıcı: üçüncü kesik sayacı
 var arm_meta: Dictionary = {}
 var arm_inv := 1.0  # kol parçası doku yoğunluğunun tersi (bengu_kol.json "texel")
@@ -1185,6 +1187,11 @@ func _ready() -> void:
 	var fpv := Vector2(float(arm_meta["fist_pivot"][0]), float(arm_meta["fist_pivot"][1]))
 	arm_upper = _arm_piece(arm_tex, Rect2(0, 0, cw, ch), pv, am)
 	arm_fore = _arm_piece(arm_tex, Rect2(cw, 0, cw, ch), pv, am)
+	if arm_meta.get("mesh", false):
+		# v43: omuz -> dirsek -> bilek tek parça bükülen şerit (menteşe yok); üst / ön kol sprite'ları yalnızca konum için
+		kol_f = _kol_mesh(arm_root, arm_tex, Rect2(0, 0, cw, ch), pv, am)
+		arm_upper.visible = false
+		arm_fore.visible = false
 	weapon = Sprite2D.new()
 	weapon.region_enabled = true
 	weapon.centered = false
@@ -1212,6 +1219,10 @@ func _ready() -> void:
 		arm_upper_b = _arm_piece_in(arm_root_b, arm_tex, Rect2(cw * 3, 0, cw, ch), pv, am)
 		arm_fore_b = _arm_piece_in(arm_root_b, arm_tex, Rect2(cw * 4, 0, cw, ch), pv, am)
 		arm_fist_b = _arm_piece_in(arm_root_b, arm_tex, Rect2(cw * 5, 0, cw, ch), fpv, am)
+		if arm_meta.get("mesh", false):
+			kol_b = _kol_mesh(arm_root_b, arm_tex, Rect2(cw * 3, 0, cw, ch), pv, am)
+			arm_upper_b.visible = false
+			arm_fore_b.visible = false
 	# v20: uzun saç (verlet zinciri, çalışma zamanında mürekkep şeridi; yalnızca stil v2): gövdenin arkası + önü
 	sac = BenguSac.ekle(anim, self)
 	kusak = BenguKusak.ekle(anim, self)
@@ -1225,6 +1236,17 @@ func set_moon_shade(v: float) -> void:
 	for m in [anim.mat, arm_upper.material if arm_upper else null, weapon.material if weapon else null]:
 		if m is ShaderMaterial:
 			(m as ShaderMaterial).set_shader_parameter("moon_shade", v)
+
+
+func _kol_mesh(root_n: Node2D, tex: Texture2D, region: Rect2, pivot: Vector2, mat: Material) -> BenguKol:
+	## v43 yaşayan kol şeridi: kökün en altında (silah, yumruk üstünde kalır)
+	var k := BenguKol.new()
+	k.material = mat
+	k.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
+	k.kur(tex, region, pivot, float(arm_meta.get("texel", 4.0)), float(arm_meta.get("upper_len", 10.0)), float(arm_meta.get("fore_len", 9.4)))
+	root_n.add_child(k)
+	root_n.move_child(k, 0)
+	return k
 
 
 func _arm_piece_in(root_n: Node2D, tex: Texture2D, region: Rect2, pivot: Vector2, mat: Material) -> Sprite2D:
@@ -1284,6 +1306,8 @@ func _update_back_arm(it: Dictionary, h: Vector2, bd: Vector2, is_shield: bool) 
 		hb = e + Vector2(sin(ab.x + ab.y) * facing, cos(ab.x + ab.y)) * l2
 	_place_bone(arm_upper_b, sh_b, e, l1)
 	_place_bone(arm_fore_b, e, hb, l2)
+	if kol_b:
+		kol_b.kemik(sh_b, e, hb, facing)
 	arm_fist_b.position = hb
 	arm_fist_b.rotation = arm_fore_b.rotation
 	arm_fist_b.flip_h = facing < 0
@@ -2287,7 +2311,7 @@ func _on_land() -> void:
 		fall_stun_t = float(HERO["dmg_stun_t"] if big else HERO["stun_t"])
 		hero_stats["stun"] = int(hero_stats["stun"]) + 1
 		velocity.x = 0.0
-		vis_scale = Vector2(1.35, 0.68)
+		vis_scale = Vector2(1.12, 0.9)   # v43: 1,35 / 0,68 -> ezilme dizlerde (çizim), katman hafif
 		FX.dust(global_position, Vector2.UP, 8, 0.32)
 		FX.anim("landing_dust", global_position, 0.0, 1.0, Color(0.85, 0.8, 0.8, 0.8), false)
 		InkDust.burst(global_position, facing, 0.6)
@@ -2325,7 +2349,7 @@ func _hero_begin() -> void:
 	jumping = false
 	coyote = 0.0
 	air_hang = 0.0
-	vis_scale = Vector2(1.18, 0.86)
+	vis_scale = Vector2(1.08, 0.93)   # v43: 1,18 / 0,86
 	hero_stats["n"] = int(hero_stats["n"]) + 1
 	FX.ring(center(), 14.0, Color(0.2, 0.16, 0.26, 0.8), 0.18)
 	Ses.play("yuvarlan", -8.0, 0.7)
@@ -2505,7 +2529,7 @@ func _start_roll(dir: float) -> void:
 	_pd_done = false
 	Ses.play("yuvarlan", -6.0)
 	_ghost_t = 0.0
-	vis_scale = Vector2(1.15, 0.85)
+	vis_scale = Vector2(1.06, 0.94)   # v43: 1,15 / 0,85
 	if slot(mel_slot).get("mech_id", "") == "golge_adim":
 		sure_crits = int(slot(mel_slot).get("mech_v", 1))
 	FX.dust(global_position, Vector2(-facing, -0.6), 6, 0.3)
@@ -2516,7 +2540,7 @@ func _jump(air: bool) -> void:
 	jump_buf = 0.0
 	coyote = 0.0
 	jumping = true
-	vis_scale = Vector2(0.78, 1.26)
+	vis_scale = Vector2(0.9, 1.12)   # v43: 0,78 / 1,26 -> lastik değil, gövde açılır
 	Ses.play("zipla", -8.0, 1.15 if air else 1.0, 0.08)
 	if air:
 		FX.burst(global_position, Color(0.75, 0.95, 1.0), 10, 70, 0.35, 0.2, 20, true)
@@ -5795,6 +5819,8 @@ func _update_weapon_visual() -> void:
 	_blade_local = bd.normalized() * clampf(bd.length(), 0.15, 1.0) if bd.length() > 0.01 else Vector2(facing, 0)
 	_place_bone(arm_upper, sh, e, float(arm_meta.get("upper_len", 8.5)))
 	_place_bone(arm_fore, e, h, float(arm_meta.get("fore_len", 8.0)))
+	if kol_f:
+		kol_f.kemik(sh, e, h, facing)
 	arm_fist.position = h
 	arm_fist.rotation = arm_fore.rotation
 	arm_fist.flip_h = facing < 0
@@ -6448,7 +6474,7 @@ func _gok_asasi(it: Dictionary, mv: float) -> void:
 
 func _die() -> void:
 	dead = true
-	anim.play("hurt")
+	anim.play("olum" if anim.has_anim("olum") else "hurt")   # v43: gerçek ölüm satırı (dizler çözülür, yığılır)
 	_end_trail()
 	Ses.play("bengu_olum", 0.0)
 	Game.slowmo(0.3, 0.8)

@@ -207,6 +207,12 @@ func _tip(ad: String) -> Vector2:
 
 
 func _run() -> void:
+	if OS.get_cmdline_user_args().has("--bengu43_sayfa") and out_dir != "":
+		# v43: yeni Bengü çekimleri (dönüş takibi, tırmanma, ölüm dahil; tools/tests/bengu43_cekim.gd)
+		var c43: Node = load("res://tools/tests/bengu43_cekim.gd").new()
+		add_child(c43)
+		c43.run_all(main, out_dir)
+		return
 	if OS.get_cmdline_user_args().has("--bengu_sayfa") and out_dir != "":
 		# v39: hareket / saldırı kare dizileri + tam ekran çekimler (tools/tests/bengu39_cekim.gd)
 		var c: Node = load("res://tools/tests/bengu39_cekim.gd").new()

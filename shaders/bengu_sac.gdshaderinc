@@ -89,11 +89,11 @@ vec3 sac_rengi(float a, float hw, float v, float nl, float s, float ton, float o
 vec3 orgu_rengi(float a, float hw, float v, float nl, float s) {
 	// örgü: V biçimli loblar (her lob ortası açık, aralar mürekkep), lob gölgesi ışık yönüyle
 	float ndl = -a * nl + sqrt(max(0.0, 1.0 - a * a)) * 0.45;
-	float lob = fract(v / 0.85 + abs(a) * 0.5);
+	float lob = fract(v / (0.5 + hw * 0.6) + abs(a) * 0.5);   // v43: lob boyu örgü enine göre (kalın tek örgü)
 	float lobl = sin(lob * 3.14159);
 	float sh = ndl * 0.7 + (lobl - 0.5) * 0.6;
 	vec3 c = sh < 0.0 ? shade_col.rgb : mix(deep_col.rgb, base_col.rgb, 0.8);
-	c = mix(c, hi_col.rgb, smoothstep(0.45, 0.62, sh) * 0.6);
+	c = mix(c, hi_col.rgb, smoothstep(0.5, 0.7, sh) * 0.22);   // v43: 0,6 -> 0,22 (örgü ip gibi açık okunmasın)
 	float sep = 1.0 - smoothstep(0.08, 0.22, min(lob, 1.0 - lob));
 	c = mix(c, ink_col.rgb, sep * 0.9);
 	c = mix(c, shade_col.rgb * 0.8, (1.0 - smoothstep(0.0, 0.12, s)) * 0.7);

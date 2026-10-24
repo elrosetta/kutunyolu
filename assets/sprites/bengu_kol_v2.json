@@ -1,21 +1,22 @@
 {
  "cell": [
-  56,
-  68
+  40,
+  96
  ],
  "pivot": [
-  28,
+  20,
   14
  ],
  "fist_pivot": [
-  28,
-  34
+  20,
+  14
  ],
  "texel": 4.0,
  "filter": "linear",
  "upper_len": 10.0,
  "fore_len": 9.4,
  "alt_row": 1,
+ "mesh": true,
  "parts": [
   "upper",
   "fore",

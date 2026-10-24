@@ -1260,10 +1260,10 @@
   "d6778f39562d3eefd0dab1ab00302be0"
  ],
  "sprites/bengu_kol_v2.png": [
-  336,
-  136,
+  240,
+  192,
   "sprites/bengu_kol_v2.webp",
-  "b8354bfede43bac97d10506d1973823c"
+  "0defc06bb592cf7959e06c4f0bb6dfe8"
  ],
  "sprites/bengu_kurt_v2.png": [
   5120,
@@ -1275,25 +1275,31 @@
   3840,
   3840,
   "sprites/bengu_v2.webp",
-  "cc66b6b68e4ff40745702a6120baf1fe"
+  "5e10e1a43efbac862fc95d7e10668ecd"
  ],
  "sprites/bengu_v2_p1.png": [
   3840,
   3840,
   "sprites/bengu_v2_p1.webp",
-  "9369fd136deeb07821ffaa64d4900673"
+  "44ccbb4ea30bba5f10c604eba7851824"
  ],
  "sprites/bengu_v2_p2.png": [
   3840,
   3840,
   "sprites/bengu_v2_p2.webp",
-  "68fb16c20350800bf84584f1dd5d3cf1"
+  "0abbd836469a9b7cf020cb1c9c120d3a"
  ],
  "sprites/bengu_v2_p3.png": [
   3840,
-  3520,
+  3840,
   "sprites/bengu_v2_p3.webp",
-  "2f907d73d20daa87de7d192a9d044510"
+  "6f0608f150a7fe9d14594b0aa864ef9c"
+ ],
+ "sprites/bengu_v2_p4.png": [
+  3840,
+  640,
+  "sprites/bengu_v2_p4.webp",
+  "33c5a9271174221d6c6ecf8f296c89ea"
  ],
  "sprites/burkut_v2.png": [
   3328,

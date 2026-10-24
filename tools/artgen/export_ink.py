@@ -105,7 +105,7 @@ def _page_name(name, k):
 
 def _frame_meta(info):
     fr = {}
-    for k in ('hand_f', 'hand_b', 'mouth', 'hand', 'head', 'sh_f', 'sh_b', 'sac', 'neck', 'hip', 'kusak'):
+    for k in ('hand_f', 'hand_b', 'mouth', 'hand', 'head', 'sh_f', 'sh_b', 'sac', 'neck', 'hip', 'kusak', 'etek'):
         if info and k in info:
             fr[k] = [round(info[k][0], 2), round(info[k][1], 2)]
     for k in ('arm', 'arm_b'):
@@ -219,6 +219,7 @@ def export_sheet(name, layout_json, render, cell, origin, texel, only=(), extra_
 
 
 def _bengu_par(job):
+    import bengu43_ink   # noqa: F401  (süreç havuzunda da v43 çizimi)
     import bengu_ink as b
     rgba, nm, em, info = b.render_frame(job[0], job[1])
     if HD > 1:   # HD'de ışıma sayfası yazılmaz: yalnızca var mı bilgisi (süreçler arası aktarım küçük kalsın)
@@ -227,6 +228,7 @@ def _bengu_par(job):
 
 
 def export_bengu(only=()):
+    import bengu43_ink   # noqa: F401  v43 yeni Bengü: bengu_ink'in çizimini değiştirir (install), pozlar aynı
     import bengu_ink as b
     import bengu_govde as g
     # v28 gerçek gövde animasyonları: saldırı satırları yeni kare sayısıyla, aile çeşitleri sona eklenir; her satıra gövde
@@ -249,6 +251,7 @@ def export_bengu(only=()):
     _png(alb, os.path.join(SPR, 'bengu_kol_v2.png'), vram=False)
     json.dump({'cell': list(b.ARM_CELL), 'pivot': list(b.ARM_PIVOT), 'fist_pivot': list(b.FIST_PIVOT), 'texel': b.TEX,
                'filter': 'linear', 'upper_len': b.L_UP, 'fore_len': b.L_FORE, 'alt_row': 1,
+               'mesh': True,   # v43: 0. / 3. sütun bükülen kol şeridi (scripts/core/BenguKol.gd), 2. / 5. yumruk
                'parts': ['upper', 'fore', 'fist', 'upper_b', 'fore_b', 'fist_b']},
               open(os.path.join(SPR, 'bengu_kol_v2.json'), 'w', encoding='utf-8', newline='\n'), indent=1)
     print('sprite bengu_kol_v2', alb.shape)

@@ -116,6 +116,9 @@ func _add_targets(targets: Array) -> void:
 		# silahlı kol iskeleti de siluete dahil (oyuncu)
 		if "arm_root" in t and t.arm_root and t.arm_root.visible:
 			for ch in t.arm_root.get_children():
+				if ch is BenguKol and ch.visible:   # v43 yaşayan kol şeridi
+					add_child((ch as BenguKol).kopya(ct * ch.get_global_transform(), m))
+					continue
 				if ch is Sprite2D and ch.visible and ch.texture:
 					var w := Sprite2D.new()
 					w.texture = ch.texture
