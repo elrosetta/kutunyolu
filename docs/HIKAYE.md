@@ -2,7 +2,8 @@
 
 > Gece yine gelecek; Erlik ölmez. Ama artık sabah da gelecek.
 
-Bu belge oyunun hikâyesidir (v42). Bütün satırlar `data/story.json`'dadır; ilerleme ve seçim `scripts/core/Hikaye.gd`.
+Bu belge oyunun hikâyesidir (v42, v43'te sinematik motoru ve öne çıkan hikâye). Bütün satırlar `data/story.json`'dadır;
+ilerleme ve seçim `scripts/core/Hikaye.gd`, sinemaların çekim listeleri `data/sinema/*.json` (docs/TASARIM.md "v43").
 Yazım ilkesi sumi-e'dir: az söz, güçlü imge, çok boşluk. Kimse uzun konuşmaz; en uzun cümleyi Erlik kurar, çünkü o
 kendini haklı çıkarmak zorundadır.
 
@@ -81,6 +82,70 @@ yine düşer ama dünya bir daha kararmaz). Erlik'in son sözü yalan değildir:
 * **Demirci Kam Kuzgun** — Erlik'in kırkısını döven soydan olduğunu dördüncü örgüden sonra itiraf eder.
 * **Alp Ata** — tan bekçilerini o yetiştirmişti; Bengü hatırlamaz, bileği hatırlar.
 * **Bengisu Usta**, **Bezirgân Sartak** — kervanın iki eli; ışık döndükçe işleri kolaylaşır, fiyatlar düşmez.
+
+## Açılış sineması (v43, ~82 sn)
+
+Az söz, güçlü imge. On çekim, yedi cümle:
+
+1. **Ulu Kayın** — aydan ağaca süzülen kamera, Kut zerreleri gövdeden yükselir. *Gök Tengri dünyayı üç kat kurdu. Üçünü bir ağaç tuttu: Ulu Kayın.*
+2. **Gün Ana** — Kaf'ın ardından doğar; başından beş ışık örgüsü dalgalanır. *Her sabah Gün Ana Kaf'ın ardından doğar, beş örgüsünden tanı sökerdi.*
+3. **Tan töreni** — ateş, kor, kam davulu; odak otlardan Bengü'ye kayar. *Tan ateşini bir alp beklerdi. Adı Bengü'ydü.*
+4. **Erlik** — davul vuruşunda kesme: kökler yarılır, boynuzlu kütle yükselir, iki zincir yılan gibi uzanır. *Bir gece, Erlik köklerden çıktı.*
+5. **Kara kırkı** — kâğıt yırtılır; bıçaklar beş kez kapanır, beş örgü tek tek kesilir (beş davul). *Kara kırkısıyla beş örgüyü kesti.*
+6. **Zincir** — Gün Ana'nın ışığı sönerek yerin dibine çekilir. *Gün Ana'yı dokuz gecenin zinciriyle yerin dibine bağladı.*
+7. **Düşüş** — Bengü kül içinde döne döne düşer; müzik çekilir. *Ateşi bekleyen sendin, Bengü. Düştün.*
+8. **Umay** — ak ışıkla açılır; ruh kuşu yükselir, Umay'ın kanatları kapanır. *Ruhun kuş olup dala konacaktı.* — «Kardeşimin ışığını geri getir.»
+9. **Yol** — ay, kök kemeri, aşağıda beş uzak örgü ışığı. *O günden beri güneş doğmaz. Beş örgü, beş bekçi. Yol aşağı iner.*
+10. **Başlık** — «Kut'un Yolu» mürekkeple yazılır, altın enso çizilir, kızıl mühür basılır. *Gün Ana'nın Beş Örgüsü.*
+
+## Bekçilerle söz atışması (v43)
+
+Kükreyişten sonra boss kartı (adı fırçayla, «<Örgü> BEKÇİSİ», ilk sözü), ardından:
+
+| Bekçi | Bengü | Bekçi cevap verir | Devrilince Bengü |
+|---|---|---|---|
+| Kara Börü Han | Al örgüyü boynundan çözeceğim, Han. | Kurt kurdu ısırmaz derler. Yalan. | Asena'ya söylerim. Ama ay da sabahı bekler. |
+| Tepegöz | Gözündeki ışık senin değil, dev. | Basat da öyle demişti. Gel, bak. | Ak örgü... gök ağarmayı hatırlıyor. |
+| Şahmeran | Sakladığın ışığı almaya geldim, ana. | Önce taşıyabileceğini göster, Umay'ın kızı. | Bekleyişin bitti, Şahmeran. Kız kardeşlere söyleyeceğim. |
+| Yelbegen | Yedi başın var; benim tek bir sözüm. | Sözü kim dinler, kurt kızı? Kaf'ın ardı boş. | Beşik ısınacak. Sarı örgü eve dönüyor. |
+| Erlik Han | Dokuz gece saydım, Erlik. Sabah geldi. | Kardeşim göğü aldı. Ben de sabahı alırım. | Gece yine gelsin. Ben nöbetteyim. |
+
+Örgü ilk alındığında kısa örgü sahnesi: örgü Gün Ana'nın silüetinde süzülür, beş yuvadan biri dolar, Gün Ana'nın sözü okunur.
+
+## Yolda Gün Ana (v43 olay görümleri)
+
+Koşu başına her türden bir kez, dövüş bitince:
+* Can azalınca: «Kızım... nefesini say. Kurt yorulunca durur, ölmez.» · «Yaran sızlıyor; ben de üşüyorum. İkimiz de
+  dayanırız.» · «Dur bir an. Gece acele etmez, sen de etme.»
+* Boss kapısına yaklaşınca: «Kapının ardında örgümü taşıyan bekliyor. Korkunu bana bırak.» · «Orada ışığımın bir teli
+  var, kızım. Sesini duyuyorum.» · «Bekçi seni bekliyor. Ben de seni bekliyorum.»
+* Biyomdaki ilk ölüm (ölüm ekranında): Ötüken «Külün yine sıcak, kızım. Umay seni yine yoğuracak.» · Bozkır «Bozkırın
+  ölüleri yolda kaldı; sen kalma. Kalk.» · Şahmeran «Ayna seni yuttu ama yansıman bende. Dön.» · Kaf «Kaf'ın soğuğu
+  kemiğine işledi. Beşiğim seni de ısıtırdı...» · Tamu «Bir halka daha... Say, kızım. Dokuzu da sayılınca kırılır.»
+* Her biyoma ilk girişte bölüm açılışı: ufukta kamera kayar, bölüm adı, epigraf ve Gün Ana'nın biyom sözü.
+
+## Umay'ın anıları ve Ozan'ın dizeleri (v43)
+
+Her yeni örgüden sonra konakta / yurtta Umay bir kez anlatır:
+1. Biz küçükken ablam saçımı örerdi. Her sabah içine bir tel ışık bırakırdı; ben de onu çocuklara dağıtırdım.
+2. Ablam güldüğünde gök ağarırdı. Ak örgü onun gülüşüydü, yavrum.
+3. Şahmeran'ı tanırım: ablamın sırdaşıydı. Işığı Erlik'ten saklarken ben de yardım ettim.
+4. Kaf'ın ardındaki beşiği ikimiz salladık. O güneşi, ben seni.
+5. Beşi de döndü. Git, ör onu. Ablamı bana geri getir.
+
+Her yeni bölümün konağında Ozan destanın dizesini söyler:
+* Kül Ocağı: *Kül Ocağı'nda söndü ateş, bekçi kızın düştü başı; Umay tuttu ruh kuşunu, dal titredi, aktı yaşı.*
+* Göğün Kör Gözü: *Bozkır bakar kör gözüyle, ölüler yolda kalmış; Bengü yürür kurgan kurgan, ak örgüyü gözden almış.*
+* Yeraltı Aynası: *Yeraltında bir ayna var, su olmuş ışık içinde; iki kız kardeş bir ana, sır saklanmış derin yerde.*
+* Boş Beşik: *Kaf Dağı boş beşik sallar, sarı örgü yedi boyunda; Gün Ana üşür yer altında, kızı gelir dağ yolunda.*
+* Dokuz Gecenin Zinciri: *Dokuz gece, dokuz halka, Erlik sayar kendi yasını; Bengü sayar birer birer, sabah kırar zincir pasını.*
+
+## Bengü'nün görünüşü (sinema çizimi)
+
+Tan Bekçisi: ak kurt postundan kukuleta (kısa burun, ucu koyu uzun kulaklar, camgöbeği Kut gözü), enseden bele inen post
+pelerin; önü açık kök boya kızılı kaftan, sarılma çizgisinde safran şerit; geniş deri kemer, gümüş levhalar, Kut korlu
+güneş tokası; tek uzun örgü, ucunda gümüş şolpılar; çivit şalvar, keçe çizme; kemerinde kam davulu. Son sinemada kısa
+kesik saçla, kukuleta sırtına düşmüş.
 
 ## Motifler
 

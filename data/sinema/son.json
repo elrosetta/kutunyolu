@@ -1,0 +1,95 @@
+{
+ "_not": "v43 son sineması: örgüler örülür, zincir kırılır, Gün Ana yükselir, tan söker, Bengü dalda; ardından jenerik.",
+ "muzik": {"ad": "sinema_son", "db": 0.0},
+ "bant": 1.0,
+ "acilis": 1.6,
+ "jenerik": true,
+ "cekimler": [
+  {
+   "id": "sonor",
+   "sure": 8.5,
+   "kamera": [[0, 1240, 860, 1.06], [8.5, 1300, 860, 1.2]],
+   "katmanlar": [
+    {"resim": "sonor_arka", "d": 0.15},
+    {"resim": "sonor_bengu", "d": 0.55}
+   ],
+   "efektler": [
+    {"tur": "orgu", "kip": "or", "d": 0.55, "z": 30, "hedef": [1316, 890], "baslar": [[620, -80], [1000, -120], [1420, -110], [1820, -90], [2240, -40]], "genislik": 24, "t0": 0.8, "buyume": 4.4},
+    {"tur": "toz", "cesit": "altin", "d": 0.6, "sayi": 50, "alan": [700, 100, 2000, 1300], "hiz": [0, -26], "boyut": 4.0, "renk": [1.0, 0.85, 0.5, 0.9], "t0": 3.0}
+   ],
+   "yazi": [{"t": 2.6, "sure": 5.0, "metin": "Beş örgüyü avucunda ördün.\nAltıncı tel senin saçındı."}],
+   "ses": [[0.8, "sin_parilti", -10.0], [5.2, "sin_orgu", -6.0]],
+   "vurus": [5.2]
+  },
+  {
+   "id": "sonkir",
+   "sure": 7.0,
+   "gecis": {"tur": "kesme", "sure": 0.2},
+   "kamera": [[0, 1280, 720, 1.12], [2.6, 1280, 720, 1.2], [7.0, 1280, 720, 1.0, "o"]],
+   "sars": [[2.6, 22, 1.2]],
+   "flas": [[2.6, 0.9, 1.2, [1.0, 0.86, 0.55]]],
+   "katmanlar": [{"resim": "sonkir_arka", "d": 0.2}],
+   "efektler": [
+    {"tur": "zincir", "d": 0.6, "yol": [[-200, 760], [700, 700], [1280, 720], [1860, 700], [2760, 760]], "t0": -1.0, "t1": 0.0, "halka": 110, "kalinlik": 20, "dalga": 5, "kir": 2.6, "kir_u": 0.5, "renk": [0.5, 0.46, 0.48, 1.0]},
+    {"tur": "isik", "d": 0.6, "koken": [1280, 720], "acilar": [0, 30, 60, 90, 120, 150, 180, 210, 240, 270, 300, 330], "uzunluk": 1700, "genislik": 3.5, "renk": [1.0, 0.82, 0.45, 0.35], "t0": 2.6, "gir": 0.3},
+    {"tur": "halka", "d": 0.6, "liste": [[2.6, 1280, 720, 1500], [2.75, 1280, 720, 900]]},
+    {"tur": "toz", "cesit": "altin", "d": 0.8, "sayi": 80, "alan": [0, 0, 2560, 1440], "hiz": [0, -40], "boyut": 5.0, "renk": [1.0, 0.85, 0.5, 1.0], "t0": 2.6, "gir": 0.2}
+   ],
+   "yazi": [{"t": 3.8, "sure": 3.0, "metin": "Dokuz gecenin zinciri\nbir sabahın ağırlığını taşıyamadı."}],
+   "ses": [[0.0, "sin_zincir", -6.0, 0.8], [2.5, "sin_kirilma", 0.0]],
+   "vurus": [2.6]
+  },
+  {
+   "id": "sonyuksel",
+   "sure": 8.5,
+   "gecis": {"tur": "beyaz", "sure": 1.2},
+   "kamera": [[0, 1280, 1160, 1.16], [8.5, 1280, 620, 1.0]],
+   "katmanlar": [
+    {"resim": "sonyuksel_arka", "d": 0.1},
+    {"resim": "sonyuksel_agac", "d": 0.55, "salinim": 1.6, "isik_a": 1.2},
+    {"resim": "sonyuksel_gunana", "d": 0.55, "anim": [[0, {"y": 760, "a": 0.0}], [1.0, {"a": 1.0}], [6.5, {"y": 0, "e": "o"}]], "isik_a": 1.0}
+   ],
+   "efektler": [
+    {"tur": "toz", "cesit": "yaprak", "d": 0.8, "sayi": 30, "alan": [0, -100, 2560, 1500], "hiz": [-20, 80], "boyut": 18, "altin_oran": 0.8, "renk": [0.05, 0.05, 0.06, 0.9], "t0": 2.0},
+    {"tur": "isik", "d": 0.3, "koken": [1280, 300], "acilar": [70, 82, 94, 106, 118], "uzunluk": 1500, "genislik": 3, "renk": [1.0, 0.8, 0.45, 0.2], "t0": 3.0}
+   ],
+   "yazi": [{"t": 3.0, "sure": 5.0, "metin": "Gün Ana köklerden yükseldi.\nUlu Kayın'ın her dalı onu tanıdı."}],
+   "ses": [[0.4, "sin_parilti", -6.0, 0.7]],
+   "vurus": [0.0]
+  },
+  {
+   "id": "sontan",
+   "sure": 8.5,
+   "gecis": {"tur": "murekkep", "sure": 1.6},
+   "kamera": [[0, 1280, 820, 1.14], [8.5, 1280, 760, 1.04]],
+   "katmanlar": [
+    {"resim": "sontan_arka", "d": 0.08},
+    {"resim": "sontan_gunes", "d": 0.2, "anim": [[0, {"y": 440}], [7.5, {"y": 0, "e": "o"}]], "isik_a": 1.2},
+    {"resim": "sontan_on", "d": 0.7, "salinim": 1.4}
+   ],
+   "efektler": [
+    {"tur": "suru", "d": 0.35, "sayi": 12, "alan": [0, 220, 2560, 600], "hiz": [80, -6], "boyut": 18},
+    {"tur": "toz", "cesit": "yaprak", "d": 0.9, "sayi": 26, "alan": [0, -100, 2560, 1500], "hiz": [-30, 70], "boyut": 16, "altin_oran": 0.9, "renk": [0.08, 0.06, 0.06, 0.9]}
+   ],
+   "yazi": [{"t": 3.0, "sure": 4.4, "metin": "Ve tan söktü.", "stil": "orta", "boy": 30}],
+   "ses": [[3.0, "sin_vurus", -6.0, 0.8], [1.0, "sin_kus", -10.0]],
+   "vurus": [3.0]
+  },
+  {
+   "id": "sondal",
+   "sure": 9.0,
+   "gecis": {"tur": "firca", "sure": 1.2},
+   "kamera": [[0, 1180, 820, 1.18], [9.0, 1280, 740, 1.04]],
+   "katmanlar": [
+    {"resim": "sondal_arka", "d": 0.12},
+    {"resim": "sondal_on", "d": 0.7, "salinim": 1.0}
+   ],
+   "efektler": [
+    {"tur": "toz", "cesit": "yaprak", "d": 0.9, "sayi": 22, "alan": [0, -100, 2560, 1500], "hiz": [-24, 60], "boyut": 15, "altin_oran": 0.75, "renk": [0.08, 0.06, 0.06, 0.9]}
+   ],
+   "yazi": [{"t": 2.0, "sure": 6.0, "metin": "Gece yine gelecek; Erlik ölmez.\nAma artık sabah da gelecek."}],
+   "ses": [],
+   "vurus": []
+  }
+ ]
+}

@@ -1,0 +1,457 @@
+{
+ "baslik_arka": {
+  "w": 2560,
+  "h": 1440,
+  "ofs": [
+   0,
+   0
+  ],
+  "opak": true,
+  "sira": 0
+ },
+ "baslik_enso": {
+  "w": 1093,
+  "h": 1103,
+  "ofs": [
+   740,
+   147
+  ],
+  "sira": 2,
+  "isik": true
+ },
+ "baslik_muhur": {
+  "w": 112,
+  "h": 112,
+  "ofs": [
+   2002,
+   922
+  ],
+  "sira": 3
+ },
+ "baslik_yazi": {
+  "w": 1587,
+  "h": 332,
+  "ofs": [
+   488,
+   539
+  ],
+  "sira": 1
+ },
+ "dusus_arka": {
+  "w": 2560,
+  "h": 1440,
+  "ofs": [
+   0,
+   0
+  ],
+  "opak": true,
+  "sira": 0,
+  "isik": true
+ },
+ "dusus_bengu": {
+  "w": 321,
+  "h": 620,
+  "ofs": [
+   1121,
+   401
+  ],
+  "sira": 1,
+  "isik": true
+ },
+ "dusus_on": {
+  "w": 2560,
+  "h": 1440,
+  "ofs": [
+   0,
+   0
+  ],
+  "sira": 2
+ },
+ "erlik_arka": {
+  "w": 2560,
+  "h": 1440,
+  "ofs": [
+   0,
+   0
+  ],
+  "opak": true,
+  "sira": 0,
+  "isik": true
+ },
+ "erlik_figur": {
+  "w": 1603,
+  "h": 1243,
+  "ofs": [
+   477,
+   197
+  ],
+  "sira": 1,
+  "isik": true
+ },
+ "erlik_on": {
+  "w": 2560,
+  "h": 1440,
+  "ofs": [
+   0,
+   0
+  ],
+  "sira": 2
+ },
+ "gunana_arka": {
+  "w": 2560,
+  "h": 1440,
+  "ofs": [
+   0,
+   0
+  ],
+  "opak": true,
+  "sira": 0,
+  "isik": true
+ },
+ "gunana_figur": {
+  "w": 591,
+  "h": 836,
+  "ofs": [
+   1043,
+   498
+  ],
+  "sira": 1
+ },
+ "gunana_on": {
+  "w": 2560,
+  "h": 1440,
+  "ofs": [
+   0,
+   0
+  ],
+  "sira": 2
+ },
+ "kart_bant": {
+  "w": 2560,
+  "h": 1440,
+  "ofs": [
+   0,
+   0
+  ],
+  "sira": 1
+ },
+ "kayin_agac": {
+  "w": 2560,
+  "h": 1440,
+  "ofs": [
+   0,
+   0
+  ],
+  "sira": 1,
+  "isik": true
+ },
+ "kayin_arka": {
+  "w": 2560,
+  "h": 1440,
+  "ofs": [
+   0,
+   0
+  ],
+  "opak": true,
+  "sira": 0,
+  "isik": true
+ },
+ "kayin_on": {
+  "w": 2560,
+  "h": 1440,
+  "ofs": [
+   0,
+   0
+  ],
+  "sira": 2
+ },
+ "kirki_alt": {
+  "w": 1166,
+  "h": 160,
+  "ofs": [
+   431,
+   709
+  ],
+  "sira": 2,
+  "isik": true,
+  "pivot": [
+   440,
+   760
+  ]
+ },
+ "kirki_arka": {
+  "w": 2560,
+  "h": 1440,
+  "ofs": [
+   0,
+   0
+  ],
+  "opak": true,
+  "sira": 0,
+  "isik": true
+ },
+ "kirki_ust": {
+  "w": 1597,
+  "h": 624,
+  "ofs": [
+   0,
+   227
+  ],
+  "sira": 1,
+  "isik": true,
+  "pivot": [
+   440,
+   760
+  ]
+ },
+ "sondal_arka": {
+  "w": 2560,
+  "h": 1440,
+  "ofs": [
+   0,
+   0
+  ],
+  "opak": true,
+  "sira": 0,
+  "isik": true
+ },
+ "sondal_on": {
+  "w": 2560,
+  "h": 1440,
+  "ofs": [
+   0,
+   0
+  ],
+  "sira": 1,
+  "isik": true
+ },
+ "sonkir_arka": {
+  "w": 2560,
+  "h": 1440,
+  "ofs": [
+   0,
+   0
+  ],
+  "opak": true,
+  "sira": 0
+ },
+ "sonor_arka": {
+  "w": 2560,
+  "h": 1440,
+  "ofs": [
+   0,
+   0
+  ],
+  "opak": true,
+  "sira": 0,
+  "isik": true
+ },
+ "sonor_bengu": {
+  "w": 428,
+  "h": 591,
+  "ofs": [
+   909,
+   743
+  ],
+  "sira": 1
+ },
+ "sontan_arka": {
+  "w": 2560,
+  "h": 1440,
+  "ofs": [
+   0,
+   0
+  ],
+  "opak": true,
+  "sira": 0
+ },
+ "sontan_gunes": {
+  "w": 776,
+  "h": 762,
+  "ofs": [
+   892,
+   606
+  ],
+  "sira": 1,
+  "isik": true
+ },
+ "sontan_on": {
+  "w": 2560,
+  "h": 1440,
+  "ofs": [
+   0,
+   0
+  ],
+  "sira": 2,
+  "isik": true
+ },
+ "sonyuksel_agac": {
+  "w": 2560,
+  "h": 1440,
+  "ofs": [
+   0,
+   0
+  ],
+  "sira": 1,
+  "isik": true
+ },
+ "sonyuksel_arka": {
+  "w": 2560,
+  "h": 1440,
+  "ofs": [
+   0,
+   0
+  ],
+  "opak": true,
+  "sira": 0,
+  "isik": true
+ },
+ "sonyuksel_gunana": {
+  "w": 533,
+  "h": 839,
+  "ofs": [
+   994,
+   372
+  ],
+  "sira": 2,
+  "isik": true
+ },
+ "toren_arka": {
+  "w": 2560,
+  "h": 1440,
+  "ofs": [
+   0,
+   0
+  ],
+  "opak": true,
+  "sira": 0,
+  "isik": true
+ },
+ "toren_bengu": {
+  "w": 474,
+  "h": 577,
+  "ofs": [
+   1395,
+   673
+  ],
+  "sira": 1,
+  "isik": true
+ },
+ "toren_on": {
+  "w": 2560,
+  "h": 1440,
+  "ofs": [
+   0,
+   0
+  ],
+  "sira": 2
+ },
+ "umay_arka": {
+  "w": 2560,
+  "h": 1440,
+  "ofs": [
+   0,
+   0
+  ],
+  "opak": true,
+  "sira": 0,
+  "isik": true
+ },
+ "umay_kanat_sag": {
+  "w": 969,
+  "h": 1163,
+  "ofs": [
+   1350,
+   15
+  ],
+  "sira": 2,
+  "isik": true,
+  "pivot": [
+   1360,
+   700
+  ]
+ },
+ "umay_kanat_sol": {
+  "w": 968,
+  "h": 1129,
+  "ofs": [
+   241,
+   27
+  ],
+  "sira": 1,
+  "isik": true,
+  "pivot": [
+   1200,
+   700
+  ]
+ },
+ "umay_yuz": {
+  "w": 418,
+  "h": 535,
+  "ofs": [
+   1071,
+   134
+  ],
+  "sira": 3,
+  "isik": true
+ },
+ "yol_arka": {
+  "w": 2560,
+  "h": 1440,
+  "ofs": [
+   0,
+   0
+  ],
+  "opak": true,
+  "sira": 0,
+  "isik": true
+ },
+ "yol_bengu": {
+  "w": 182,
+  "h": 342,
+  "ofs": [
+   1189,
+   575
+  ],
+  "sira": 1,
+  "isik": true
+ },
+ "yol_on": {
+  "w": 2560,
+  "h": 1440,
+  "ofs": [
+   0,
+   0
+  ],
+  "sira": 2
+ },
+ "zincir_arka": {
+  "w": 2560,
+  "h": 1440,
+  "ofs": [
+   0,
+   0
+  ],
+  "opak": true,
+  "sira": 0
+ },
+ "zincir_gunana": {
+  "w": 557,
+  "h": 877,
+  "ofs": [
+   980,
+   109
+  ],
+  "sira": 1,
+  "isik": true
+ },
+ "zincir_on": {
+  "w": 2560,
+  "h": 1440,
+  "ofs": [
+   0,
+   0
+  ],
+  "sira": 2
+ }
+}

@@ -90,6 +90,7 @@ static func full(h: Control, vp: Vector2, lv: Node, sel: int, t: float, isin_t: 
 	h.draw_circle(pp, 4.0, InkUI.SEAL, true, -1.0, true)
 	h.draw_circle(pp, 4.0, BONE, false, 1.2, true)
 	h.draw_circle(pp, 7.0 + 2.0 * sin(t * 5.0), Color(InkUI.SEAL, 0.5), false, 1.0, true)
+	OrguGosterge.ciz(h, Vector2(84.0, 30.0), 1.0, 1.0)   # v43: Gün Örgüleri (hikâye ilerlemesi)
 	# başlık
 	var fc := InkUI.font("caps")
 	var title := InkHUD.tr_upper(String(lv.biome.get("name", "Harita")))

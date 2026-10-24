@@ -619,6 +619,8 @@ func _draw_hud(vp: Vector2) -> void:
 			fy = maxf(fy, 34.0 + 22.0 + _tut_txt.size() * 10.0 + 4.0)
 		PixUI.panel(self, Rect2((vp.x - fw) / 2.0, fy, fw, 15), Color(PixUI.GOLD, a), Color(PixUI.INK, PixUI.INK.a * a))
 		PixUI.text(self, Vector2(0, fy + 1.0), flash_msg, Color(PixUI.GOLD, a), 1, HORIZONTAL_ALIGNMENT_CENTER, vp.x)
+	if mode == "play" and not get_tree().paused:
+		OrguGosterge.hud(self, vp)   # v43: örgü alınınca tepede birkaç saniye
 	# ---- yerdeki eşya
 	if mode != "play" or get_tree().paused:
 		return
@@ -1126,6 +1128,7 @@ func _draw_done(vp: Vector2) -> void:
 func _draw_pause(vp: Vector2) -> void:
 	draw_rect(Rect2(Vector2.ZERO, vp), Color(0.02, 0.015, 0.04, 0.62))
 	_title(vp, 64, "DURAKLATILDI", PixUI.GOLD)
+	OrguGosterge.ciz(self, Vector2(vp.x - 84.0, 30.0), 1.0, 1.0)   # v43: Gün Örgüleri (hikâye ilerlemesi)
 	var R: Dictionary = Game.run
 	var pw := 340.0
 	var x := (vp.x - pw) / 2.0

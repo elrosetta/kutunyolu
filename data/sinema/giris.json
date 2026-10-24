@@ -1,0 +1,212 @@
+{
+ "_not": "v43 açılış sineması (Sinema.gd). Çekim süreleri müzik vuruşlarına göre: tools/audiogen/v43_sinema.py bu dosyadan çekim başlarını ve 'vurus' listelerini okur. Biçim: docs/TASARIM.md 'v43: sinematik motoru'.",
+ "muzik": {"ad": "sinema_giris", "db": 0.0},
+ "bant": 1.0,
+ "acilis": 1.4,
+ "tane": 0.03,
+ "cekimler": [
+  {
+   "id": "kayin",
+   "sure": 9.0,
+   "kamera": [[0, 1760, 380, 1.42], [9.0, 1220, 690, 1.06]],
+   "katmanlar": [
+    {"resim": "kayin_arka", "d": 0.12},
+    {"resim": "kayin_agac", "d": 0.5, "salinim": 2.2, "salinim_hiz": 0.6, "acilis": [1.2, 4.6]},
+    {"resim": "kayin_on", "d": 1.25, "salinim": 1.4, "bulanik": 5.0}
+   ],
+   "efektler": [
+    {"tur": "duman", "d": 0.3, "sayi": 9, "alan": [0, 850, 2560, 1150], "hiz": [26, 0], "boyut": 900, "renk": [0.86, 0.88, 0.95, 0.14]},
+    {"tur": "toz", "cesit": "altin", "d": 0.5, "sayi": 46, "alan": [900, 250, 1300, 1350], "hiz": [4, -46], "boyut": 4.0, "renk": [1.0, 0.82, 0.45, 0.9], "t0": 2.0},
+    {"tur": "toz", "cesit": "yaprak", "d": 0.9, "sayi": 14, "alan": [1500, -100, 2560, 1440], "hiz": [-40, 70], "boyut": 16, "renk": [0.05, 0.045, 0.06, 0.85]}
+   ],
+   "yazi": [{"t": 2.4, "sure": 5.6, "metin": "Gök Tengri dünyayı üç kat kurdu.\nÜçünü bir ağaç tuttu: Ulu Kayın."}],
+   "ses": [[0.0, "sin_ruzgar", -6.0], [1.4, "sin_parilti", -14.0, 0.8]],
+   "vurus": []
+  },
+  {
+   "id": "gunana",
+   "sure": 9.0,
+   "gecis": {"tur": "murekkep", "sure": 1.8},
+   "kamera": [[0, 1280, 1020, 1.2], [9.0, 1280, 650, 1.04]],
+   "katmanlar": [
+    {"resim": "gunana_arka", "d": 0.1},
+    {"resim": "gunana_figur", "d": 0.45, "acilis": [0.5, 2.6], "isik_a": 1.0},
+    {"resim": "gunana_on", "d": 0.95}
+   ],
+   "efektler": [
+    {"tur": "orgu", "kip": "akis", "d": 0.45, "z": 1, "koken": [1280, 570], "acilar": [-165, -130, -92, -52, -16], "uzunluk": 1150, "genislik": 30, "t0": 1.6, "buyume": 3.2, "gir": 0.8},
+    {"tur": "toz", "cesit": "altin", "d": 0.6, "sayi": 60, "alan": [300, 100, 2260, 1200], "hiz": [8, -24], "boyut": 4.5, "renk": [1.0, 0.86, 0.5, 0.9]},
+    {"tur": "suru", "d": 0.2, "sayi": 9, "alan": [0, 260, 2560, 520], "hiz": [70, -4], "boyut": 16, "t0": 3.0, "renk": [0.25, 0.15, 0.12, 0.6]}
+   ],
+   "yazi": [{"t": 2.8, "sure": 5.4, "metin": "Her sabah Gün Ana Kaf'ın ardından doğar,\nbeş örgüsünden tanı sökerdi."}],
+   "ses": [[1.6, "sin_parilti", -8.0]],
+   "vurus": [0.0]
+  },
+  {
+   "id": "toren",
+   "sure": 8.0,
+   "gecis": {"tur": "firca", "sure": 1.0},
+   "kamera": [[0, 1420, 1000, 1.22], [8.0, 1520, 960, 1.4]],
+   "odak": [[0, 1.3], [1.4, 1.3], [3.2, 0.55]],
+   "odak_guc": 16,
+   "katmanlar": [
+    {"resim": "toren_arka", "d": 0.2},
+    {"resim": "toren_bengu", "d": 0.55},
+    {"resim": "toren_on", "d": 1.3, "salinim": 3.0, "salinim_hiz": 0.9}
+   ],
+   "efektler": [
+    {"tur": "ates", "d": 0.5, "z": 0, "x": 1300, "y": 1200, "olcek": 1.05},
+    {"tur": "toz", "cesit": "kor", "d": 0.5, "sayi": 50, "alan": [1100, 500, 1520, 1190], "hiz": [12, -110], "boyut": 4.0, "renk": [1.0, 0.6, 0.25, 1.0]},
+    {"tur": "duman", "d": 0.45, "sayi": 6, "alan": [1000, 200, 1700, 900], "hiz": [12, -30], "boyut": 600, "renk": [0.1, 0.09, 0.1, 0.35]}
+   ],
+   "yazi": [{"t": 2.6, "sure": 4.6, "metin": "Tan ateşini bir alp beklerdi.\nAdı Bengü'ydü."}],
+   "ses": [[0.0, "sin_ates", -8.0], [0.5, "sin_davul", -4.0], [1.5, "sin_davul", -5.0], [2.5, "sin_davul", -4.0], [3.5, "sin_davul", -5.0], [4.5, "sin_davul", -3.0], [5.5, "sin_davul", -4.0], [6.5, "sin_davul", -3.0]],
+   "vurus": [0.5, 1.5, 2.5, 3.5, 4.5, 5.5, 6.5]
+  },
+  {
+   "id": "erlik",
+   "sure": 8.0,
+   "gecis": {"tur": "kesme", "sure": 0.2},
+   "kamera": [[0, 1280, 960, 1.0], [8.0, 1280, 760, 1.12]],
+   "sars": [[0.2, 16, 1.4], [3.0, 10, 1.0], [5.0, 6, 1.0]],
+   "flas": [[0.0, 0.6, 0.5, [0.8, 0.15, 0.08]]],
+   "katmanlar": [
+    {"resim": "erlik_arka", "d": 0.15},
+    {"resim": "erlik_figur", "d": 0.5, "anim": [[0, {"y": 520, "a": 0.0}], [0.8, {"a": 1.0}], [5.0, {"y": 0, "e": "o"}]]},
+    {"resim": "erlik_on", "d": 1.1}
+   ],
+   "efektler": [
+    {"tur": "zincir", "d": 0.8, "yol": [[1180, 1500], [1000, 1150], [700, 860], [300, 600], [-200, 420]], "t0": 2.0, "t1": 4.6, "halka": 92, "kalinlik": 15, "dalga": 34},
+    {"tur": "zincir", "d": 0.85, "yol": [[1400, 1500], [1620, 1120], [1950, 860], [2350, 640], [2800, 520]], "t0": 2.4, "t1": 5.2, "halka": 92, "kalinlik": 15, "dalga": 30},
+    {"tur": "duman", "d": 1.0, "sayi": 10, "alan": [0, 900, 2560, 1500], "hiz": [-20, -22], "boyut": 1000, "renk": [0.02, 0.018, 0.025, 0.7]},
+    {"tur": "toz", "cesit": "kor", "d": 0.7, "sayi": 40, "alan": [200, 500, 2360, 1440], "hiz": [6, -70], "boyut": 3.5, "renk": [1.0, 0.3, 0.12, 1.0]}
+   ],
+   "yazi": [{"t": 3.4, "sure": 4.0, "metin": "Bir gece, Erlik köklerden çıktı."}],
+   "ses": [[0.0, "sin_gumbur", -2.0], [0.9, "sin_erlik", -3.0], [2.0, "sin_zincir", -4.0], [2.6, "sin_zincir", -6.0, 0.85]],
+   "vurus": [0.0, 2.0]
+  },
+  {
+   "id": "kirki",
+   "sure": 6.5,
+   "gecis": {"tur": "yirtik", "sure": 0.7},
+   "kamera": [[0, 1340, 720, 1.04], [6.5, 1200, 730, 1.16]],
+   "flas": [[1.2, 0.16, 0.25, [1.0, 0.82, 0.5]], [2.0, 0.16, 0.25, [1.0, 0.82, 0.5]], [2.8, 0.16, 0.25, [1.0, 0.82, 0.5]], [3.6, 0.16, 0.25, [1.0, 0.82, 0.5]], [4.4, 0.26, 0.4, [1.0, 0.82, 0.5]]],
+   "sars": [[1.2, 6, 0.3], [2.0, 6, 0.3], [2.8, 6, 0.3], [3.6, 6, 0.3], [4.4, 10, 0.5]],
+   "katmanlar": [
+    {"resim": "kirki_arka", "d": 0.2},
+    {"resim": "kirki_alt", "d": 0.6, "z": 5, "anim": [[0, {"r": 9}], [1.05, {"r": 9}], [1.2, {"r": 0, "e": "i"}], [1.6, {"r": 8, "e": "o"}], [1.85, {"r": 8}], [2.0, {"r": 0, "e": "i"}], [2.4, {"r": 8, "e": "o"}], [2.65, {"r": 8}], [2.8, {"r": 0, "e": "i"}], [3.2, {"r": 8, "e": "o"}], [3.45, {"r": 8}], [3.6, {"r": 0, "e": "i"}], [4.0, {"r": 9, "e": "o"}], [4.25, {"r": 9}], [4.4, {"r": 0, "e": "i"}]]},
+    {"resim": "kirki_ust", "d": 0.6, "z": 7, "anim": [[0, {"r": -9}], [1.05, {"r": -9}], [1.2, {"r": 0, "e": "i"}], [1.6, {"r": -8, "e": "o"}], [1.85, {"r": -8}], [2.0, {"r": 0, "e": "i"}], [2.4, {"r": -8, "e": "o"}], [2.65, {"r": -8}], [2.8, {"r": 0, "e": "i"}], [3.2, {"r": -8, "e": "o"}], [3.45, {"r": -8}], [3.6, {"r": 0, "e": "i"}], [4.0, {"r": -9, "e": "o"}], [4.25, {"r": -9}], [4.4, {"r": 0, "e": "i"}]]}
+   ],
+   "efektler": [
+    {"tur": "orgu", "kip": "kes", "d": 0.6, "z": 6, "ys": [690, 725, 760, 795, 830], "x_bas": 2800, "x_son": 520, "kes_x": 1180, "kesimler": [1.2, 2.0, 2.8, 3.6, 4.4], "genislik": 26, "dalga": 46, "t0": 0.0, "buyume": 0.9},
+    {"tur": "toz", "cesit": "kul", "d": 1.2, "sayi": 30, "alan": [0, 0, 2560, 1440], "hiz": [-30, 40], "boyut": 7, "renk": [0.6, 0.55, 0.5, 0.5]}
+   ],
+   "yazi": [{"t": 4.5, "sure": 1.8, "metin": "Kara kırkısıyla beş örgüyü kesti.", "hiz": 40}],
+   "ses": [[1.2, "sin_makas", -2.0], [2.0, "sin_makas", -2.0, 1.05], [2.8, "sin_makas", -2.0, 0.95], [3.6, "sin_makas", -2.0, 1.1], [4.4, "sin_makas", 0.0, 0.85]],
+   "vurus": [1.2, 2.0, 2.8, 3.6, 4.4]
+  },
+  {
+   "id": "zincir",
+   "sure": 7.5,
+   "gecis": {"tur": "murekkep", "sure": 1.2},
+   "kamera": [[0, 1280, 640, 1.12], [7.5, 1280, 820, 1.04]],
+   "katmanlar": [
+    {"resim": "zincir_arka", "d": 0.2},
+    {"resim": "zincir_gunana", "d": 0.5, "anim": [[0, {"y": -60, "a": 1.0}], [1.5, {"y": 0}], [7.5, {"y": 560, "a": 0.35, "e": "i"}]]},
+    {"resim": "zincir_on", "d": 1.2, "bulanik": 4.0}
+   ],
+   "efektler": [
+    {"tur": "zincir", "d": 0.55, "yol": [[900, 1550], [1050, 1150], [1200, 860], [1290, 620]], "t0": 0.4, "t1": 2.4, "halka": 70, "kalinlik": 12, "dalga": 16},
+    {"tur": "zincir", "d": 0.55, "yol": [[1700, 1550], [1520, 1180], [1380, 900], [1270, 660]], "t0": 0.8, "t1": 2.8, "halka": 70, "kalinlik": 12, "dalga": 16},
+    {"tur": "toz", "cesit": "kul", "d": 0.9, "sayi": 60, "alan": [0, -100, 2560, 1440], "hiz": [10, 60], "boyut": 6, "renk": [0.5, 0.48, 0.46, 0.7]}
+   ],
+   "yazi": [{"t": 2.2, "sure": 4.6, "metin": "Gün Ana'yı dokuz gecenin zinciriyle\nyerin dibine bağladı."}],
+   "ses": [[0.4, "sin_zincir", -4.0], [1.0, "sin_zincir", -6.0, 0.9], [3.0, "sin_gumbur", -8.0]],
+   "vurus": [0.4]
+  },
+  {
+   "id": "dusus",
+   "sure": 7.0,
+   "gecis": {"tur": "firca", "sure": 0.9},
+   "kamera": [[0, 1280, 620, 1.12], [7.0, 1280, 860, 1.22]],
+   "katmanlar": [
+    {"resim": "dusus_arka", "d": 0.2},
+    {"resim": "dusus_bengu", "d": 0.6, "anim": [[0, {"y": -620, "r": 148}], [7.0, {"y": 560, "r": 212, "e": "lin"}]]},
+    {"resim": "dusus_on", "d": 1.3, "bulanik": 6.0}
+   ],
+   "efektler": [
+    {"tur": "toz", "cesit": "kul", "d": 0.8, "sayi": 90, "alan": [0, -100, 2560, 1540], "hiz": [24, -150], "boyut": 6, "renk": [0.25, 0.24, 0.25, 0.8]},
+    {"tur": "toz", "cesit": "kul", "d": 1.5, "sayi": 20, "alan": [0, -100, 2560, 1540], "hiz": [40, -260], "boyut": 14, "renk": [0.1, 0.1, 0.1, 0.7]},
+    {"tur": "toz", "cesit": "kor", "d": 0.5, "sayi": 18, "alan": [900, 1000, 1500, 1440], "hiz": [6, -50], "boyut": 3.0, "renk": [1.0, 0.4, 0.15, 0.8]}
+   ],
+   "yazi": [{"t": 2.0, "sure": 4.4, "metin": "Ateşi bekleyen sendin, Bengü.\nDüştün."}],
+   "ses": [[0.0, "sin_dusus", -3.0]],
+   "vurus": []
+  },
+  {
+   "id": "umay",
+   "sure": 9.0,
+   "gecis": {"tur": "beyaz", "sure": 1.4},
+   "bant": 1.0,
+   "kamera": [[0, 1280, 860, 1.12], [9.0, 1280, 720, 1.02]],
+   "katmanlar": [
+    {"resim": "umay_arka", "d": 0.15},
+    {"resim": "umay_yuz", "d": 0.35, "acilis": [2.6, 5.6], "a": 0.9},
+    {"resim": "umay_kanat_sol", "d": 0.6, "anim": [[0, {"r": 38, "a": 0.0}], [1.2, {"a": 1.0}], [5.2, {"r": 0, "e": "io"}]]},
+    {"resim": "umay_kanat_sag", "d": 0.6, "anim": [[0, {"r": -38, "a": 0.0}], [1.2, {"a": 1.0}], [5.2, {"r": 0, "e": "io"}]]}
+   ],
+   "efektler": [
+    {"tur": "kus", "d": 0.6, "z": 40, "yol": [[0, 1240, 1480], [1.8, 1150, 1140], [3.4, 1380, 900], [5.0, 1280, 760], [9.0, 1280, 740]], "boyut": 58, "cirpma": 8.0},
+    {"tur": "toz", "cesit": "tuy", "d": 0.8, "sayi": 16, "alan": [200, -100, 2360, 1440], "hiz": [-14, 50], "boyut": 22, "renk": [0.4, 0.62, 0.66, 0.8], "t0": 4.6},
+    {"tur": "toz", "cesit": "altin", "d": 0.5, "sayi": 50, "alan": [600, 300, 1960, 1300], "hiz": [0, -30], "boyut": 4.0, "renk": [1.0, 0.88, 0.55, 0.9]}
+   ],
+   "yazi": [
+    {"t": 1.0, "sure": 3.2, "metin": "Ruhun kuş olup dala konacaktı."},
+    {"t": 5.2, "sure": 3.4, "metin": "«Kardeşimin ışığını geri getir.»", "stil": "soz", "renk": [1.0, 0.9, 0.7]}
+   ],
+   "ses": [[0.4, "sin_kus", -6.0], [2.2, "sin_kus", -8.0, 1.1], [4.4, "sin_kanat", -3.0]],
+   "vurus": [5.2]
+  },
+  {
+   "id": "yol",
+   "sure": 8.0,
+   "gecis": {"tur": "murekkep", "sure": 1.4},
+   "kamera": [[0, 1760, 360, 1.3], [8.0, 1280, 840, 1.1]],
+   "odak": [[0, 1.2], [4.0, 0.6]],
+   "katmanlar": [
+    {"resim": "yol_arka", "d": 0.15},
+    {"resim": "yol_bengu", "d": 0.6},
+    {"resim": "yol_on", "d": 1.2}
+   ],
+   "efektler": [
+    {"tur": "duman", "d": 0.5, "sayi": 8, "alan": [0, 1080, 2560, 1500], "hiz": [20, 0], "boyut": 800, "renk": [0.6, 0.62, 0.7, 0.13]},
+    {"tur": "toz", "cesit": "altin", "d": 0.6, "sayi": 30, "alan": [1000, 800, 1560, 1440], "hiz": [0, -20], "boyut": 3.5, "renk": [1.0, 0.8, 0.5, 0.8]},
+    {"tur": "isik", "d": 0.2, "koken": [1900, 260], "acilar": [108, 116, 124, 131], "uzunluk": 1500, "genislik": 2.5, "renk": [0.7, 0.78, 1.0, 0.12]}
+   ],
+   "yazi": [{"t": 2.4, "sure": 5.2, "metin": "O günden beri güneş doğmaz.\nBeş örgü, beş bekçi. Yol aşağı iner."}],
+   "ses": [[0.0, "sin_ruzgar", -9.0, 0.9]],
+   "vurus": [0.0, 4.0]
+  },
+  {
+   "id": "baslik",
+   "sure": 9.5,
+   "gecis": {"tur": "murekkep", "sure": 1.6},
+   "bant": 0.0,
+   "kenar": 0.25,
+   "kamera": [[0, 1280, 720, 1.1], [9.5, 1280, 720, 1.0]],
+   "katmanlar": [
+    {"resim": "baslik_arka", "d": 0.1},
+    {"resim": "baslik_enso", "d": 0.3, "kip": 2, "enso_a0": -2.45, "acilis": [1.3, 3.0], "isik_a": 1.0},
+    {"resim": "baslik_yazi", "d": 0.3, "kip": 1, "acilis": [0.6, 2.2]},
+    {"resim": "baslik_muhur", "d": 0.3, "anim": [[0, {"s": 1.8, "a": 0.0}], [3.1, {"s": 1.8, "a": 0.0}], [3.3, {"s": 1.0, "a": 1.0, "e": "i"}]]}
+   ],
+   "efektler": [
+    {"tur": "damla", "d": 0.3, "liste": [[0.55, 760, 860, 60], [0.62, 1960, 560, 36], [0.7, 1700, 940, 24], [3.3, 2058, 978, 140]], "renk": [0.04, 0.035, 0.05, 0.6]},
+    {"tur": "toz", "cesit": "altin", "d": 0.4, "sayi": 50, "alan": [400, 200, 2160, 1240], "hiz": [6, -18], "boyut": 4.0, "renk": [0.95, 0.7, 0.3, 0.9], "t0": 1.4}
+   ],
+   "yazi": [{"t": 3.8, "sure": 5.0, "metin": "Gün Ana'nın Beş Örgüsü", "stil": "soz", "renk": [0.12, 0.1, 0.1], "boy": 22}],
+   "ses": [[0.6, "sin_vurus", 0.0], [3.3, "sin_muhur", -4.0]],
+   "vurus": [0.6]
+  }
+ ]
+}

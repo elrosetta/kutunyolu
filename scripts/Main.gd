@@ -183,6 +183,14 @@ func _ready() -> void:
 		hud.mode = "title"
 		get_tree().paused = true
 		Ses.music("baslik")
+	for arg in OS.get_cmdline_user_args():
+		if String(arg).begins_with("--sinema_kayit="):
+			# v43 sinema kaydı / önizleme: --sinema_kayit=<ad> [--write-movie x.avi --fixed-fps 30]: oynatır, bitince çıkar
+			var sk := String(arg).trim_prefix("--sinema_kayit=")
+			hud.mode = "sinema"
+			get_tree().paused = true
+			sinema = Sinema.oynat(self, sk, Sinema.ornek_degisken(sk))
+			sinema.bitti.connect(func() -> void: get_tree().quit())
 
 
 ## v32: test / çekim bayraklarından biri varsa koşu doğrudan 1. derinlikte başlar (eski davranış; testler ve bot bölümü
@@ -445,6 +453,7 @@ func _build_hub() -> void:
 	level.slot_requested.connect(_on_slot_request)   # v24: Demirci'nin dövdüğü eşya yurtta alınır (yuva seçimi)
 	hud.level = level
 	hud._card_t = 99.0
+	HikayeSahne.yoldas(level)   # v43: yeni örgüyle Umay'ın anısı
 
 
 func _next_level() -> void:
@@ -477,6 +486,7 @@ func _build_konak() -> void:
 	level.scroll_requested.connect(_on_scroll)
 	hud.level = level
 	hud._card_t = 0.0
+	HikayeSahne.yoldas(level)   # v43: Umay'ın anısı, Ozan'ın bölüm dizesi
 
 
 func _to_konak() -> void:
@@ -733,6 +743,8 @@ func _sanat_sec(i: int) -> void:
 
 
 func _on_died() -> void:
+	if level and not level.hub and not level.konak:
+		Hikaye.olum_isaretle(String(level.biome.get("id", "")))   # v43: biyomdaki ilk ölüm satırı
 	var saved := Game.lose_run_kut()
 	hud.flash_msg = ("Ruh Düğümü %d Kut kurtardı." % saved) if saved > 0 else ""
 	hud.mode = "dead"
@@ -1073,10 +1085,40 @@ func _giris_oynat(ilk: bool) -> void:
 			_start_play())
 
 
-func hikaye_orgu_alindi(bid: String, _yeni: bool) -> void:
-	## GunParcasi: örgü alındı. Erlik'in Altın Örgüsü (tan henüz sökmediyse) görüm bitince son sinemayı başlatır.
-	if bid == "erlik_han" and not Hikaye.safak():
+func hikaye_sinema(k: String, deg := {}, sonra := Callable()) -> Sinema:
+	## v43 oyun içi kısa sinema (boss kartı, örgü sahnesi, bölüm açılışı; Sinema.gd motoru): ağaç durur, bitince oyuna
+	## dönülür. Başka bir sinema sürüyorsa oynamaz (null).
+	if sinema != null or not Sinema.var_mi(k):
+		return null
+	hud.mode = "sinema"
+	get_tree().paused = true
+	sinema = Sinema.oynat(self, k, deg)
+	sinema.bitti.connect(func() -> void:
+		sinema = null
+		_start_play()
+		if sonra.is_valid():
+			sonra.call())
+	return sinema
+
+
+func hikaye_orgu_alindi(bid: String, yeni: bool) -> bool:
+	## GunParcasi: örgü alındı. v43: ilk kez alındıysa örgü sahnesi (data/sinema/orgu_sahne.json; örgü Gün Ana'ya akar,
+	## beş yuvadan biri dolar), bitince HUD'da Gün Örgüleri göstergesi; Erlik'in Altın Örgüsü sahneden sonra son sinemayı
+	## başlatır. true: sahne oynadı (GunParcasi ayrıca görüm göstermez).
+	var sira := Hikaye.ORGU_SIRA.find(bid)
+	var son := bid == "erlik_han" and not Hikaye.safak()
+	if yeni:
+		var dolu: Array = (Game.meta.get("gun_parca", []) as Array).filter(func(x: Variant) -> bool: return String(x) != bid)
+		var s := hikaye_sinema("orgu_sahne", Sinema.orgu_degisken(bid, dolu), func() -> void:
+			OrguGosterge.bildir(sira)
+			if son:
+				get_tree().create_timer(0.8, false).timeout.connect(hikaye_son))
+		if s != null:
+			return true
+	OrguGosterge.bildir(sira)
+	if son:
 		get_tree().create_timer(6.5, false).timeout.connect(hikaye_son)
+	return false
 
 
 func hikaye_son() -> void:

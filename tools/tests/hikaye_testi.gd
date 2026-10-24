@@ -1,10 +1,12 @@
 extends Node
-## v42 Güneş Ana hikâyesi testi / çekimi:
+## v42 Güneş Ana hikâyesi testi / çekimi (v43: sinematik motoru ve öne çıkan hikâye):
 ##   godot --path . --quit-after 99999 -- --hikaye_test [--hikaye_cikti=<mutlak klasör>] [--pencere=1920x1080 --grafik=2]
-## Sırayla: açılış sineması (6 panel), bölüm görümü + bölüm sahnesi (bitig taşı okunur), hikâye odası görümü, beş boss'un
-## Gün Örgüsü (düşer → oyuncuya akar → kalıcı kayıt + görüm + ufuk ısınır), yurtta altın yapraklar (3 örgü) ve tan
-## sökmüş yurt, son sineması + jenerik, konakta yoldaşlar ve hizmet ekranları (Umay / Ozan / Demirci / Alp Ata / Usta).
-## Headless'ta çekim atlanır, denetimler yine çalışır. Kalıcı kaydın hikâye alanları test sonunda geri yazılır.
+## Sırayla: açılış sineması (10 çekim: katmanlar, canlı öğeler, iki çekimin kare şeridi), boss kartı, örgü sahnesi,
+## bölüm açılışı sineması (biyom ufku), bölüm görümü + bölüm sahnesi (bitig taşı okunur), hikâye odası görümü, olay
+## görümleri (can, boss kapısı; dövüşte beklenir), beş boss'un kartı + Bengü ↔ bekçi atışması + Gün Örgüsü (düşer →
+## oyuncuya akar → kalıcı kayıt + örgü sahnesi + gösterge), yurtta altın yapraklar (3 örgü) ve tan sökmüş yurt, son
+## sineması + jenerik, Gün Örgüleri göstergesi (duraklatma / HUD), konakta yoldaşlar (Umay'ın anısı, Ozan'ın dizesi) ve
+## hizmet ekranları. Headless'ta çekim atlanır, denetimler yine çalışır. Kalıcı kaydın hikâye alanları sonunda geri yazılır.
 
 var main: Node
 var _ok := 0
@@ -20,7 +22,7 @@ func _ready() -> void:
 			_out = String(a).trim_prefix("--hikaye_cikti=")
 	if _out != "":
 		DirAccess.make_dir_recursive_absolute(_out)
-	for k in ["gun_parca", "gorumler", "giris_izlendi", "son_izlendi", "kut_bank", "runs", "wins"]:
+	for k in ["gun_parca", "gorumler", "giris_izlendi", "son_izlendi", "kut_bank", "runs", "wins", "boss_kart", "umay_ani", "ozan_dize", "olum_biyom"]:
 		_yedek[k] = Game.meta.get(k)
 	_run.call_deferred()
 
@@ -81,11 +83,15 @@ func _meta_kur(parca: Array, son := false) -> void:
 func _run() -> void:
 	await _frames(4)
 	_meta_kur([])
-	await _sinema("giris", 6)
+	await _sinema("giris", 10)
+	await _kartlar()
+	await _acilis()
 	await _bolum()
+	await _olaylar()
 	await _orguler()
 	await _yurt()
 	await _sinema("son", 5)
+	await _gosterge()
 	await _konak()
 	# kalıcı kaydı geri yaz
 	for k in _yedek:
@@ -98,28 +104,49 @@ func _run() -> void:
 	get_tree().quit()
 
 
-# ------------------------------------------------------------------ sinema
+# ------------------------------------------------------------------ sinema (v43 motoru)
+const SERIT := {"kirki": [0.9, 1.15, 1.3, 1.7, 2.05, 4.55], "umay": [0.6, 2.0, 3.4, 4.6, 5.4, 7.2], "sonkir": [2.2, 2.62, 2.75, 3.1, 3.8, 5.5]}
+
+
 func _sinema(tur: String, beklenen: int) -> void:
 	get_tree().paused = true
 	main.hud.mode = "sinema"
 	var s: Sinema = Sinema.oynat(main, tur)
 	await _frames(3)
-	_check(s.paneller.size() == beklenen, "%s sineması %d panel (%d)" % [tur, beklenen, s.paneller.size()])
-	var dokular := 0
-	for k in s.paneller.size():
-		await _frames(1)
-		if s._ust.texture != null:
-			dokular += 1
-		# panel tam açılsın, yazı bitsin
-		s.t = Sinema.YAZI_GECIKME + float(s._harf_sayi()) / Sinema.HARF_HIZ + 0.6
-		await _sn(0.35)
-		await _cek("%s_%d" % [tur, k + 1])
-		if k == 0:
-			# ara kare: panel mürekkeple belirirken (ilk panel, yarı yolda)
-			pass
-		s._sonraki()
-	_check(dokular == beklenen, "%s panellerinin dokuları yüklü (%d / %d)" % [tur, dokular, beklenen])
+	_check(s.cekimler.size() == beklenen, "%s sineması %d çekim (%d)" % [tur, beklenen, s.cekimler.size()])
+	var top := s.toplam_sure()
+	if tur == "giris":
+		_check(top >= 60.0 and top <= 90.0, "açılış süresi 60-90 sn (%.1f)" % top)
+		_check(s._muzik.stream != null, "açılış müziği yüklü (sinema_giris)")
+	var katman := 0
+	var efekt := 0
+	var eksik := 0
+	for k in s.cekimler.size():
+		var c: Dictionary = s.cekimler[k]
+		s.git(s.cekim_basi(k) + float(c.get("sure", 6.0)) * float(c.get("cek_an", 0.62)))
+		await _frames(2)
+		for o in s._cur.get("oge", []):
+			if o["tur"] == "katman":
+				katman += 1
+				if (o["sprite"] as Sprite2D).texture == null:
+					eksik += 1
+			else:
+				efekt += 1
+		await _sn(0.3)
+		await _cek("%s_%02d_%s" % [tur, k + 1, String(c.get("id", ""))])
+		var sid := String(c.get("id", ""))
+		if SERIT.has(sid):
+			var n := 0
+			for tt in SERIT[sid]:
+				s.git(s.cekim_basi(k) + float(tt))
+				await _frames(2)
+				await _cek("%s_serit_%s_%d" % [tur, sid, n])
+				n += 1
+	_check(eksik == 0 and katman >= beklenen * 2, "%s: katman dokuları yüklü (%d katman, %d eksik)" % [tur, katman, eksik])
+	_check(efekt >= beklenen, "%s: canlı öğeler kuruldu (%d)" % [tur, efekt])
 	if tur == "son":
+		s.git(top - 0.05)
+		await _sn(0.5)
 		_check(s._jenerik, "son: jenerik başladı")
 		s._jt = 5.2
 		await _sn(0.3)
@@ -127,15 +154,63 @@ func _sinema(tur: String, beklenen: int) -> void:
 	var bitti := [false]
 	s.bitti.connect(func() -> void: bitti[0] = true)
 	s._bitir()
-	await _sn(2.0)
+	await _sn(1.4)
 	_check(bitti[0] and not is_instance_valid(s), "%s sineması bitti sinyali, düğüm silindi" % tur)
 	main._start_play()
+
+
+func _kartlar() -> void:
+	## Boss kartı (saydam), örgü sahnesi: yer tutucular dolar, çekim kurulur
+	for bid in Hikaye.ORGU_SIRA:
+		var s: Sinema = Sinema.oynat(main, "boss_kart", Sinema.boss_degisken(bid))
+		await _frames(2)
+		var y: Array = s.cekimler[0].get("yazi", [])
+		_check(y.size() > 0 and String(y[0]["metin"]) == Hikaye.boss_ad(bid), "boss kartı %s: ad «%s», söz yerinde" % [bid, String(y[0]["metin"]) if y.size() > 0 else "-"])
+		if bid == "kara_boru_han" or bid == "erlik_han":
+			s.git(2.0)
+			await _sn(0.3)
+			await _cek("boss_kart_%s" % bid)
+		s._bitir()
+		await _sn(0.9)
+	var s2: Sinema = Sinema.oynat(main, "orgu_sahne", Sinema.orgu_degisken("sahmeran", ["kara_boru_han", "tepegoz"]))
+	await _frames(2)
+	var ef_ok := false
+	for o in s2._cur.get("oge", []):
+		if o["tur"] == "efekt" and String((o["efekt"] as SinemaEfekt).tur) == "yuvalar":
+			ef_ok = int((o["efekt"] as SinemaEfekt).d.get("yeni", -1)) == 2
+	_check(ef_ok, "örgü sahnesi: yuvalar (Gök Örgü 3. yuvaya dolar)")
+	for tt in [1.2, 3.6, 5.6]:
+		s2.git(tt)
+		await _sn(0.25)
+		await _cek("orgu_sahne_%d" % int(tt * 10))
+	s2._bitir()
+	await _sn(0.9)
+
+
+func _acilis() -> void:
+	## Bölüm açılışı: biyomun paralaks ufku (isteğe bağlı katmanlar) + bölüm başlığı; oyunda ilk girişte kendiliğinden
+	for bm in ["otuken", "bozkir", "sahmeran", "kaf", "tamu"]:
+		var s: Sinema = Sinema.oynat(main, "bolum_acilis", Sinema.bolum_degisken(bm))
+		await _frames(2)
+		var n := 0
+		for o in s._cur.get("oge", []):
+			if o["tur"] == "katman":
+				n += 1
+		_check(n >= 6, "bölüm açılışı %s: %d ufuk katmanı" % [bm, n])
+		if bm == "otuken" or bm == "kaf":
+			for tt in [1.6, 4.0, 6.6]:
+				s.git(tt)
+				await _sn(0.25)
+				await _cek("bolum_acilis_%s_%d" % [bm, int(tt * 10)])
+		s._bitir()
+		await _sn(0.9)
 
 
 # ------------------------------------------------------------------ bölüm: görüm, sahne, hikâye odası
 func _bolum() -> void:
 	Game.new_run()
 	Game.run["depth"] = 1
+	Sinema.oyun_ici_zorla = true
 	main._build_level()
 	main._start_play()
 	await _frames(5)
@@ -147,6 +222,24 @@ func _bolum() -> void:
 	_check(hs != null, "bölümde HikayeSahne kuruldu")
 	if hs == null:
 		return
+	# v43: ilk girişte bölüm açılışı sineması; biyom görümü onun içinde okunur (ayrı görüm oynamaz)
+	await _sn(0.8)
+	_check(hs.acilis_oynadi and main.sinema != null and main.sinema.ad == "bolum_acilis", "Ötüken'e ilk giriş: bölüm açılışı sineması oynadı")
+	_check(Hikaye.gorum_goruldu("acilis:otuken"), "bölüm açılışı kalıcı kayda işlendi")
+	if main.sinema != null:
+		main.sinema._bitir()
+	await _sn(1.2)
+	Sinema.oyun_ici_zorla = false
+	_check(get_tree().paused == false and main.hud.mode == "play", "açılıştan sonra oyun sürüyor")
+	# eski v42 akışı (afiş + görüm) için görüm kaydını sil ve aynı bölümü yeniden kur
+	Game.meta["gorumler"] = ["acilis:otuken"]
+	main._build_level()
+	main._start_play()
+	await _frames(5)
+	lv = main.level
+	for c in lv.get_children():
+		if c is HikayeSahne:
+			hs = c
 	_check(hs.sahne_kuruldu, "bölüm sahnesi (sahne_yeri) kuruldu: %s" % str(lv.sahne_yeri))
 	_check(hs.gorum_plan > 0.0, "Ötüken'e ilk giriş görümü planlandı")
 	var g0: int = Gorum.inst.gosterilen
@@ -209,6 +302,55 @@ func _bolum() -> void:
 		await _sn(5.0)
 
 
+# ------------------------------------------------------------------ v43 olay görümleri
+func _olaylar() -> void:
+	## can: canı azalınca (dövüş yokken); kapi: boss derinliğinde Kut Kapısı'na yaklaşınca. Koşu başına bir kez.
+	Game.new_run()
+	Game.run["depth"] = 2
+	main._build_level()
+	main._start_play()
+	await _frames(5)
+	var lv: Level = main.level
+	var hs: HikayeSahne = null
+	for c in lv.get_children():
+		if c is HikayeSahne:
+			hs = c
+	if hs == null:
+		_check(false, "olay: HikayeSahne yok")
+		return
+	await _sn(1.0)
+	# dövüş varken bekler: yakına düşman koy, canı düşür
+	for e in get_tree().get_nodes_in_group("dusman"):
+		if e is Node2D:
+			(e as Node2D).global_position = lv.player.global_position + Vector2(90, -10)
+			break
+	Game.run["hp"] = float(Game.run["max_hp"]) * 0.2
+	await _sn(1.2)
+	var dovus_var := hs._dovus(lv.player.global_position)
+	_check(not dovus_var or not ("can" in hs.olay_gosterilen), "olay: dövüşte görüm beklenir")
+	for e in get_tree().get_nodes_in_group("dusman"):
+		(e as Node).queue_free()
+	await _sn(1.6)
+	_check("can" in hs.olay_gosterilen, "olay görümü: can azalınca Gün Ana («%s»)" % Gorum.inst.son_metin)
+	await _cek("olay_can")
+	Game.run["hp"] = float(Game.run["max_hp"])
+	await _sn(5.5)
+	lv.player.global_position = lv.exit_pos + Vector2(-140, -10)
+	lv.player.velocity = Vector2.ZERO
+	await _sn(1.6)
+	_check("kapi" in hs.olay_gosterilen, "olay görümü: boss kapısına yaklaşınca («%s»)" % Gorum.inst.son_metin)
+	await _sn(5.0)
+	var n := hs.olay_gosterilen.size()
+	Game.run["hp"] = float(Game.run["max_hp"]) * 0.2
+	await _sn(1.5)
+	_check(hs.olay_gosterilen.size() == n, "olay görümleri koşu başına bir kez")
+	Game.run["hp"] = float(Game.run["max_hp"])
+	# biyomdaki ilk ölüm satırı
+	Game.meta["olum_biyom"] = []
+	Hikaye.olum_isaretle("otuken")
+	_check(Hikaye.olum_satiri().contains("Külün"), "ilk ölüm satırı (Ötüken): «%s»" % Hikaye.olum_satiri())
+
+
 # ------------------------------------------------------------------ boss örgüleri
 func _orguler() -> void:
 	_meta_kur([])
@@ -218,8 +360,20 @@ func _orguler() -> void:
 		Game.run["depth"] = int(depths[bid])
 		main._build_boss(bid)
 		main._start_play()
-		var soz_ok: bool = await _bekle_metin(Hikaye.boss_soz(bid, "once"), 4.0)
-		_check(soz_ok, "%s kükreyince sözü: «%s»" % [bid, Gorum.inst.son_metin])
+		# v43: kükreyişten sonra boss kartı, kart bitince Bengü ↔ bekçi atışması
+		var kart_ok := false
+		for w in 20:
+			await _sn(0.2)
+			if main.sinema != null and main.sinema.ad == "boss_kart":
+				kart_ok = true
+				break
+		_check(kart_ok, "%s: boss kartı oynadı" % bid)
+		if kart_ok:
+			main.sinema._bitir()
+		var soz_ok: bool = await _bekle_metin(Hikaye.boss_soz(bid, "bengu"), 5.0)
+		_check(soz_ok, "%s: Bengü'nün sözü: «%s»" % [bid, Gorum.inst.son_metin])
+		var yanit_ok: bool = await _bekle_metin(Hikaye.boss_soz(bid, "yanit"), 6.0)
+		_check(yanit_ok, "%s: bekçinin cevabı: «%s»" % [bid, Gorum.inst.son_metin])
 		var lv: Level = main.level
 		var b: Enemy = lv.boss
 		lv.player.global_position = Vector2(b.global_position.x - 120.0, lv.player.global_position.y)
@@ -232,15 +386,28 @@ func _orguler() -> void:
 			if c is GunParcasi:
 				gp = c
 		_check(gp != null, "%s: Gün Örgüsü düştü (%s)" % [bid, String(Hikaye.orgu(bid).get("ad", ""))])
-		var gor_ok: bool = await _bekle_metin(String(Hikaye.orgu(bid).get("gorum", "")), 8.0)
+		var sahne_ok := false
+		for w in 50:
+			await _sn(0.2)
+			if main.sinema != null and main.sinema.ad == "orgu_sahne":
+				sahne_ok = true
+				break
 		_check(Hikaye.parca_var(bid) and Hikaye.parca_sayi() == n0 + 1, "%s: örgü alındı, kalıcı kayıt %d örgü" % [bid, Hikaye.parca_sayi()])
-		_check(gor_ok, "%s: örgü görümü oynadı (son: «%s», sıra %d, şimdiki %s)" % [bid, Gorum.inst.son_metin, Gorum.inst._kuyruk.size(), str(Gorum.inst._cur.get("tur", "-"))])
-		await _sn(1.6)
+		_check(sahne_ok, "%s: örgü sahnesi oynadı (%s)" % [bid, String(Hikaye.orgu(bid).get("ad", ""))])
+		if sahne_ok:
+			await _sn(3.4)
+			if bid == "kara_boru_han":
+				await _cek("orgu_sahne_oyun_%s" % bid)
+			main.sinema._bitir()
+			await _sn(1.0)
+		var bs_ok: bool = await _bekle_metin(Hikaye.boss_soz(bid, "bengu_sonra"), 6.0)
+		_check(bs_ok, "%s: devrilince Bengü'nün cevabı: «%s»" % [bid, Gorum.inst.son_metin])
+		_check(OrguGosterge.gecen() < 9.0, "%s: Gün Örgüleri göstergesi HUD'da belirdi" % bid)
 		await _cek("orgu_%s" % bid)
 		if bid == "erlik_han":
-			# son sineması kendiliğinden başlar (6,5 sn sonra)
-			await _sn(6.0)
-			_check(main.sinema != null, "Erlik'in Altın Örgüsü son sinemasını başlattı")
+			# son sineması örgü sahnesinden sonra kendiliğinden başlar
+			await _sn(1.4)
+			_check(main.sinema != null and main.sinema.ad == "son", "Erlik'in Altın Örgüsü son sinemasını başlattı")
 			if main.sinema != null:
 				main.sinema._bitir()
 				await _sn(1.2)
@@ -270,9 +437,29 @@ func _yurt() -> void:
 		await _cek(String(durum[2]))
 
 
+# ------------------------------------------------------------------ v43 Gün Örgüleri göstergesi
+func _gosterge() -> void:
+	_meta_kur(["kara_boru_han", "tepegoz", "sahmeran"])
+	Game.new_run()
+	Game.run["depth"] = 5
+	main._build_level()
+	main._start_play()
+	await _sn(1.0)
+	OrguGosterge.bildir(2)
+	await _sn(0.8)
+	await _cek("orgu_gosterge_hud")
+	get_tree().paused = true
+	await _sn(0.3)
+	await _cek("orgu_gosterge_duraklat")
+	_check(OrguGosterge.gecen() < 2.0, "Gün Örgüleri göstergesi: HUD ve duraklatma ekranında")
+	main._start_play()
+
+
 # ------------------------------------------------------------------ konak
 func _konak() -> void:
 	_meta_kur(["kara_boru_han", "tepegoz"])
+	Game.meta["umay_ani"] = 1
+	Game.meta["ozan_dize"] = []
 	Game.new_run()
 	Game.run["depth"] = 3
 	Game.run["gold"] = 400
@@ -281,6 +468,14 @@ func _konak() -> void:
 	main._start_play()
 	await _frames(5)
 	var lv: Level = main.level
+	# v43: ikinci örgüyle Umay'ın anısı, yeni bölümün Ozan dizesi (kalıcı, bir kez)
+	var ani: Array = Data.story["olay"]["umay_ani"]
+	var ani_ok: bool = await _bekle_metin(String(ani[1]), 5.0)
+	_check(ani_ok and int(Game.meta.get("umay_ani", 0)) == 2, "konak: Umay'ın kız kardeş anısı («%s»)" % Gorum.inst.son_metin)
+	await _cek("konak_umay_ani")
+	var bm := String(lv.biome.get("id", ""))
+	var dize_ok: bool = await _bekle_metin(String(Data.story["olay"]["ozan_dize"].get(bm, "-")), 14.0)
+	_check(dize_ok and bm in Game.meta.get("ozan_dize", []), "konak: Ozan'ın %s dizesi" % bm)
 	var ids: Array = []
 	for n in lv.npcs:
 		ids.append(String(n.id))

@@ -149,12 +149,29 @@ static func soz(npc_id: String, salt := 0, konak := false) -> String:
 
 static func olum_satiri() -> String:
 	var salt := int(Game.meta.get("runs", 0))
+	# v43: bu biyomdaki ilk ölüm: Gün Ana'nın biyoma özgü sözü (Main._on_died işaretler)
+	var ilk := String(Game.run.get("olum_ilk", ""))
+	if ilk != "":
+		var ol: Dictionary = _s().get("olay", {}).get("olum", {})
+		if ol.has(ilk):
+			return "Gün Ana: «%s»" % String(ol[ilk])
 	if safak():
 		return _sec(_s().get("olum_safak", []), salt)
 	var o: Array = _s().get("olum", [])
 	if o.size() > asama():
 		return _sec(o[asama()], salt)
 	return _sec(_s().get("death_lines", []), salt)
+
+
+static func olum_isaretle(biyom: String) -> void:
+	## v43: biyomdaki ilk ölüm (kalıcı "olum_biyom"); bu koşunun ölüm ekranı Gün Ana'nın biyom sözünü gösterir
+	var a: Array = Game.meta.get("olum_biyom", []) if Game.meta.get("olum_biyom") is Array else []
+	if biyom == "" or biyom in a:
+		return
+	a.append(biyom)
+	Game.meta["olum_biyom"] = a
+	Game.run["olum_ilk"] = biyom
+	Game.save_meta()
 
 
 static func ozan_sayfalari() -> Array:

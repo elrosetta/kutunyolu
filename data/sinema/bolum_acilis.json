@@ -1,0 +1,36 @@
+{
+ "_not": "v43 bölüm açılışı (8,5 sn): biyomun paralaks ufkunda kamera kayar, bölüm başlığı + epigraf + Gün Ana'nın sesi. degisken: biyom, no, bolum, epigraf, gorum. İsteğe bağlı katmanlar biyomda yoksa atlanır.",
+ "acilis": 0.8,
+ "bant": 1.0,
+ "cekimler": [
+  {
+   "id": "ufuk",
+   "sure": 8.5,
+   "kamera": [[0, 900, 720, 1.08], [8.5, 1660, 720, 1.0, "lin"]],
+   "katmanlar": [
+    {"resim": "res://assets/bg/{biyom}_v2_0_sky.png", "d": 0.0, "ofs": [0, 0], "olcek": 1.3334},
+    {"resim": "res://assets/bg/{biyom}_v2_0b_aurora.png", "d": 0.04, "ofs": [-1280, 0], "olcek": 1.3334, "istege_bagli": true},
+    {"resim": "res://assets/bg/{biyom}_v2_0b_shafts.png", "d": 0.04, "ofs": [-1280, 0], "olcek": 1.3334, "istege_bagli": true},
+    {"resim": "res://assets/bg/{biyom}_v2_1_far.png", "d": 0.1, "ofs": [-1280, 0], "olcek": 1.3334, "istege_bagli": true},
+    {"resim": "res://assets/bg/{biyom}_v2_2_farmid.png", "d": 0.2, "ofs": [-1280, 0], "olcek": 1.3334, "istege_bagli": true},
+    {"resim": "res://assets/bg/{biyom}_v2_2b_haze.png", "d": 0.28, "ofs": [-1280, 0], "olcek": 1.3334, "istege_bagli": true},
+    {"resim": "res://assets/bg/{biyom}_v2_3_mid.png", "d": 0.4, "ofs": [-1280, 0], "olcek": 1.3334, "istege_bagli": true},
+    {"resim": "res://assets/bg/{biyom}_v2_4_fog.png", "d": 0.5, "ofs": [-1280, 0], "olcek": 1.3334, "istege_bagli": true},
+    {"resim": "res://assets/bg/{biyom}_v2_5_shafts.png", "d": 0.55, "ofs": [-500, 0], "olcek": 1.3334, "istege_bagli": true},
+    {"resim": "res://assets/bg/{biyom}_v2_6_near.png", "d": 0.75, "ofs": [-1280, 0], "olcek": 1.3334, "istege_bagli": true},
+    {"resim": "res://assets/bg/{biyom}_v2_fg_top.png", "d": 1.2, "ofs": [-1280, 0], "olcek": 1.3334, "hiza": "ust", "istege_bagli": true, "bulanik": 3.0},
+    {"resim": "res://assets/bg/{biyom}_v2_fg_bottom.png", "d": 1.2, "ofs": [-1280, 0], "olcek": 1.3334, "hiza": "alt", "istege_bagli": true, "bulanik": 3.0},
+    {"resim": "res://assets/bg/{biyom}_v2_fg_grass.png", "d": 1.25, "ofs": [-1280, 0], "olcek": 1.3334, "hiza": "alt", "istege_bagli": true, "bulanik": 3.0}
+   ],
+   "efektler": [
+    {"tur": "toz", "cesit": "altin", "d": 0.6, "sayi": 40, "alan": [0, 200, 2560, 1300], "hiz": [10, -20], "boyut": 4.0, "renk": [1.0, 0.84, 0.5, 0.7]}
+   ],
+   "yazi": [
+    {"t": 0.8, "sure": 4.6, "metin": "{bolum}", "stil": "bolum", "ust": "{no}"},
+    {"t": 1.8, "sure": 3.6, "metin": "«{epigraf}»", "stil": "soz", "boy": 16, "hiz": 50},
+    {"t": 5.6, "sure": 2.6, "metin": "{gorum}", "stil": "anlati", "renk": [1.0, 0.85, 0.6], "hiz": 45}
+   ],
+   "ses": [[0.0, "sin_ruzgar", -10.0], [0.8, "sin_parilti", -12.0, 0.8]]
+  }
+ ]
+}
