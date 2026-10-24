@@ -1845,6 +1845,8 @@ func _physics_process_ic(delta: float) -> void:
 	# v27 savaş sanatı (T / LT): süren sanat hareketi ve saldırıyı kendisi yönetir
 	if sanat.tick(delta):
 		return
+	if _tirman_tick(delta):
+		return   # v43 tırmanma (zincir / ip merdiven / kök-sarmaşık)
 
 	var dir := Input.get_axis("sol", "sag")
 	_resolve_roles()
@@ -1865,6 +1867,7 @@ func _physics_process_ic(delta: float) -> void:
 	if not is_on_floor():
 		_fall_peak = maxf(_fall_peak, velocity.y)
 		_air_top = minf(_air_top, global_position.y)
+	_ruzgar_tick(delta)   # v43 Kaf rüzgâr bacası
 	if is_on_floor():
 		coyote = float(FLOW["coyote"])
 		air_jumps = 2 if Game.has_lutuf("umay") else 1
@@ -2305,6 +2308,10 @@ func _on_land() -> void:
 	var f := _fall_peak
 	_fall_peak = 0.0
 	last_fall_h = global_position.y - _air_top
+	# v43 yumuşak iniş (saman / kar / yaprak / su / kül yığını): yüksek düşüş sersemletmez
+	if level != null and level.has_method("yumusak_at") and level.yumusak_at(global_position) and last_fall_h > 90.0:
+		_yumusak_inis()
+		return
 	# v34: çok yüksekten normal düşüş (Kahraman İnişi yapmadan) kısa sersemletir; daha da yüksekte az hasar
 	if last_fall_h > float(HERO["stun_h"]) and f >= MAX_FALL - 1.0 and atk.is_empty() and roll_t <= 0.0 and not dead:
 		var big := last_fall_h > float(HERO["dmg_h"])
@@ -6595,3 +6602,133 @@ func _end_don() -> void:
 	if don.anim:
 		FX.ghost(don.anim.base, Color(DonForm.COL, 0.5), 0.35)
 	Ses.play("don_bitis", -2.0)
+
+
+# ================================================================== v43 TIRMANMA (ky-harita43)
+## Zincir / ip merdiven / kök-sarmaşık yüzeyleri (Level.tirman_at): yüzeyin önünde yukarı (havada aşağı da) basınca
+## tutunulur; yukarı / aşağı tırmanılır (TIRMAN_HIZ), zıpla ile yön tuşu yönüne sıçranır (aşağı + zıpla: bırakır),
+## yuvarlanma / saldırı / darbe bırakır, yüzeyin tepesine varınca kenara sıçranır, dibe inince bırakılır. Tırmanırken
+## tek yönlü platformlar geçilir. Animasyon: "tirman" (tırmanırken) / "tirman_bekle" (asılı dururken) satırları varsa
+## (ky-bengu43), yoksa sıçrama kareleri. Erişim modeli (LevelGen._moves) tırmanmayı varsaymaz: her tırmanılır yüzeyin
+## yanında zıplanabilir tutamaklar vardır (bot zıplar).
+const TIRMAN_HIZ := 118.0
+const TIRMAN_CD := 0.22
+var tirman := false
+var _tir_rect := Rect2()
+var _tir_cd := 0.0
+var _tir_adim := 0.0
+
+
+func _tirman_tick(delta: float) -> bool:
+	_tir_cd -= delta
+	if level == null or not level.has_method("tirman_at"):
+		return false
+	if not tirman:
+		if _tir_cd > 0.0 or roll_t > 0.0 or not atk.is_empty() or hero_t >= 0.0 or wolf_t > 0.0 or don_on or hurt_t > 0.0 				or aim_t >= 0.0 or block_t >= 0.0 or drink_t > 0.0 or grabbed_by != null:
+			return false
+		var up := Input.is_action_pressed("yukari")
+		var down := Input.is_action_pressed("asagi") and not is_on_floor()
+		if not (up or down):
+			return false
+		var r: Rect2 = level.tirman_at(center())
+		if r.size == Vector2.ZERO:
+			return false
+		if up and is_on_floor() and global_position.y <= r.position.y + 8.0:
+			return false   # yüzeyin tepesinde duruyor (yukarı: Kut Taşı / kapı etkileşimi)
+		tirman = true
+		_tir_rect = r
+		velocity = Vector2.ZERO
+		jumping = false
+		air_jumps = 2 if Game.has_lutuf("umay") else 1
+		_set_crouch(false)
+		_cancel_attack(false)
+		Ses.play("inis_1", -14.0, 1.3)
+	var r2: Rect2 = level.tirman_at(center(), 16.0)
+	if r2.size == Vector2.ZERO:
+		_tirman_birak()
+		return false
+	_tir_rect = r2
+	var v := Input.get_axis("yukari", "asagi")
+	var dir := Input.get_axis("sol", "sag")
+	if Input.is_action_just_pressed("zipla"):
+		_tirman_birak()
+		if v > 0.0 and dir == 0.0:
+			velocity = Vector2(0.0, 60.0)   # aşağı + zıpla: bırak
+		else:
+			if dir != 0.0:
+				facing = int(signf(dir))
+			velocity = Vector2(dir * RUN * 0.95, JUMP_V * 0.88)
+			jumping = true
+			Ses.play("inis_1", -12.0, 1.5)
+		return false
+	if Input.is_action_just_pressed("yuvarlan") or (mel_act != "" and Input.is_action_just_pressed(mel_act)) or hurt_t > 0.0 or grabbed_by != null:
+		_tirman_birak()
+		return false
+	var cx := _tir_rect.get_center().x
+	global_position.x = move_toward(global_position.x, cx, 260.0 * delta)
+	velocity = Vector2(0.0, v * TIRMAN_HIZ)
+	set_collision_mask_value(4, false)   # tek yönlü platformlar (basamak, raf, kapak) içinden geçilir
+	move_and_slide()
+	if v < 0.0 and global_position.y < _tir_rect.position.y + 6.0:
+		# tepeye varıldı: kenara sıçra (üst tabana / kapağa iner)
+		_tirman_birak()
+		velocity = Vector2(facing * RUN * 0.35, JUMP_V * 0.72)
+		return true
+	if v > 0.0 and (is_on_floor() or global_position.y > _tir_rect.end.y + 2.0):
+		_tirman_birak()
+		return true
+	# görünüm: tırmanma satırları (yoksa sıçrama kareleri)
+	for a in [arm_root, arm_root_b]:
+		if a != null:
+			a.visible = false
+	if v != 0.0:
+		_tir_adim += delta
+		if anim.has_anim("tirman"):
+			anim.play("tirman")
+			anim.speed = 1.0
+		else:
+			anim.show_frame("jump", int(_tir_adim / 0.16) % 2)
+		if fmod(_tir_adim, 0.32) < delta:
+			Ses.play("inis_1", -22.0, 1.6)
+	else:
+		if anim.has_anim("tirman_bekle"):
+			anim.play("tirman_bekle")
+		else:
+			anim.show_frame("jump", 0)
+	anim.set_facing(facing)
+	_feel(delta, 0.0)
+	return true
+
+
+func _tirman_birak() -> void:
+	tirman = false
+	_tir_cd = TIRMAN_CD
+	set_collision_mask_value(4, true)
+	for a in [arm_root, arm_root_b]:
+		if a != null:
+			a.visible = true
+	_air_top = global_position.y
+	coyote = 0.0
+
+
+func _ruzgar_tick(delta: float) -> void:
+	## v43 Kaf rüzgâr bacası: içindeyken yukarı esinti (zıpla / yukarı basılıysa yükseltir, değilse düşüşü yavaşlatır)
+	if level == null or not level.has_method("ruzgar_at") or is_on_floor() or not level.ruzgar_at(center()):
+		return
+	if Input.is_action_pressed("zipla") or Input.is_action_pressed("yukari"):
+		velocity.y = move_toward(velocity.y, -300.0, 2600.0 * delta)
+	else:
+		velocity.y = minf(velocity.y, 110.0)
+	_air_top = global_position.y
+	air_jumps = maxi(air_jumps, 1)
+
+
+func _yumusak_inis() -> void:
+	## v43: yumuşak yığına iniş: sersemleme / hasar yok, yumuşak ezilme ve toz
+	_fall_peak = 0.0
+	vis_scale = Vector2(1.18, 0.84)
+	land_t = 0.08
+	FX.dust(global_position, Vector2.UP, 6, 0.3)
+	Ses.play("inis_1", -8.0, 0.8)
+	if atk.is_empty():
+		anim.play("land", true)

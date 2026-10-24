@@ -77,6 +77,7 @@ func _run() -> void:
 		_p("SONUC %s%s" % ["GECTI" if _fail.is_empty() else "KALDI", "" if _fail.is_empty() else " (" + ", ".join(_fail) + ")"])
 		get_tree().quit()
 		return
+	_sablon_denetim()   # v43 el yapımı oda şablonları
 	_izgara(int(_arg_or("--harita_tohum", "12")))
 	await _bolumler(int(_arg_or("--harita_bolum", "6")))
 	await _merak_oyun()
@@ -282,6 +283,7 @@ func _izgara(n_seed: int) -> void:
 	var d_max := 0
 	var d_sersem := 0
 	var d_sersem_lv := 0
+	var v43 := {"n": 0, "kap_top": 0.0, "cesit_top": 0.0, "simge": 0, "gecit": {}, "t_oda": 0.0, "t_gecit": 0.0, "imza_oda": {}, "imza_gecit": {}, "n_oda": 0, "n_gecit": 0, "sablon": {}, "kor": 0.0, "kor_n": 0, "gecit_cesit": 0.0, "koridor_h": {}, "tavan": {}}
 	var ot := {"n": 0, "yer": 0, "dort": 0, "uc": 0, "erisim": 0, "kapi_yakin": 0, "uzak_top": 0.0, "yakin_top": 0.0, "oda2": 0, "par_top": 0.0, "par_min": 999.0, "par_max": 0.0, "yol_top": 0.0, "yolsuz": 0, "tur": {}}   # v42 Otağ Yeri
 	for bcfg in biyomlar:
 		var style: String = String(bcfg["id"])
@@ -332,6 +334,7 @@ func _izgara(n_seed: int) -> void:
 			var rk := float(n_reach) / maxf(1.0, float(n_stand))
 			r["_d"] = dpt
 			_otag_olc(ot, r, g, W, H, rs)   # v42
+			_v43_olc(v43, r, g, W, H, style, k)   # v43 şablon kapsamı, geçit türleri, tekrar puanı
 			reach_min = minf(reach_min, rk)
 			var lo := 999
 			var hi := 0
@@ -460,6 +463,7 @@ func _izgara(n_seed: int) -> void:
 	_check(cikmaz_min >= 2, "her bölümde en az 2 çıkmaz ödül odası (en az %d)" % cikmaz_min)
 	_check(dikey_min >= 1, "düz olmayan türlerde ana yol en az bir kat iner / çıkar (en az %d)" % dikey_min)
 	_otag_rapor(ot)   # v42
+	_v43_rapor(v43, tot)
 	_check(reach_min >= 0.85, "ayakta durma hücrelerinin en az %%85'i girişten ulaşılır (en az %%%.1f; kalanı yüksek cep / sarkıt üstü)" % (100.0 * reach_min))
 	# v41 bölüm türleri: tür başına sayı ve ana yol dikeyliği; düz bölüm oranı; koşu benzetimi (art arda 3 kuralı)
 	var n_duz := 0
@@ -1049,6 +1053,8 @@ func _ekran_kur() -> void:
 			await _ekran_dusus()
 		"merak":
 			await _ekran_merak()
+		"gecit":
+			await _ekran_gecit()
 	get_tree().quit()
 
 
@@ -1508,6 +1514,7 @@ func _otag_olc(ot: Dictionary, r: Dictionary, g: PackedByteArray, W: int, H: int
 			hepsi_erisir = false
 		if absi(x - ex.x) < 5 and absi(yy - ex.y) < 4:
 			ot["kapi_yakin"] = int(ot["kapi_yakin"]) + 1
+			print("[harita] otağ kapı dibinde: tür=%s çıkış=%s yer=%s oda=%s" % [String(r.get("tur", "")), str(ex), str(Vector2i(x, yy)), str(r["rooms"][int(y["oda"])].get("tpl", {}).get("ad", r["rooms"][int(y["oda"])]["role"]))])
 	if hepsi_erisir:
 		ot["erisim"] = int(ot["erisim"]) + 1
 	ot["uzak_top"] = float(ot["uzak_top"]) + uzak
@@ -1548,3 +1555,406 @@ func _otag_rapor(ot: Dictionary) -> void:
 	_check(float(ot["dort"]) >= 0.9 * n, "bölümlerin en az %%90'ında Han Otağı'na da yer (%d/%d)" % [int(ot["dort"]), int(ot["n"])])
 	_check(int(ot["erisim"]) == int(ot["n"]), "her otağın kapısı girişten erişilir (%d/%d)" % [int(ot["erisim"]), int(ot["n"])])
 	_check(int(ot["kapi_yakin"]) == 0, "Kut Kapısı önü (5 karo) boş (%d otağ dipte)" % int(ot["kapi_yakin"]))
+
+
+# ------------------------------------------------------------------ v43 el yapımı odalar ve geçitler
+func _sablon_denetim() -> void:
+	## Her şablon (ve aynası) yalıtılmış ızgarada: kapı / kuyu yuvalarından birbirine gidiş-dönüş (erişim modeli),
+	## baş boşluğu onarımı gerekmiyor (yazar kurala uymuş), ganimet işaretleri erişilir, ayakta durma hücrelerinin
+	## çoğu erişilir. Hatalı şablon üretimde yine onarılır ama yazara bildirilir.
+	var liste := OdaSablon.liste()
+	_p("SABLON yüklendi=%d (aynalı %d) dosya hatası=%d %s" % [liste.size(), OdaSablon.hepsi().size(), OdaSablon.hatalar.size(), ", ".join(OdaSablon.hatalar)])
+	var bozuk := 0
+	var uyari := 0
+	var say := {"L": 0, "R": 0, "T": 0, "B": 0, "simge": 0, "genis": 0, "gok": 0}
+	var biy := {}
+	for t in liste:
+		for k in ["L", "R"]:
+			if int(t[k]) >= 0:
+				say[k] += 1
+		if not (t["T"] as Array).is_empty():
+			say["T"] += 1
+		if not (t["B"] as Array).is_empty():
+			say["B"] += 1
+		if bool(t["simge"]):
+			say["simge"] += 1
+		if int(t["w"]) > 20:
+			say["genis"] += 1
+		if bool(t["gok"]):
+			say["gok"] += 1
+		for b in t["biyom"]:
+			biy[b] = int(biy.get(b, 0)) + 1
+	_p("SABLON yuvalar: %s biyom: %s" % [str(say), str(biy)])
+	for t in OdaSablon.hepsi():
+		var r := sablon_dogrula(t)
+		if not bool(r["ok"]):
+			bozuk += 1
+			_p("  SABLON BOZUK %s%s: %s" % [t["ad"], " (ayna)" if bool(t["ayna"]) else "", r["neden"]])
+		elif String(r["uyari"]) != "":
+			uyari += 1
+			if not bool(t["ayna"]):
+				_p("  SABLON uyarı %s: %s" % [t["ad"], r["uyari"]])
+	_check(OdaSablon.hatalar.is_empty() and liste.size() >= 40, "en az 40 el yapımı şablon yüklendi (%d)" % liste.size())
+	_check(bozuk == 0, "her şablonda yuvalar arası gidiş-dönüş ve baş boşluğu (%d bozuk, %d uyarı)" % [bozuk, uyari])
+
+
+static func sablon_dogrula(t: Dictionary) -> Dictionary:
+	var w := int(t["w"])
+	var h := int(t["h"])
+	var ox := 7
+	var oy := 5
+	var GW := w + 14
+	var GH := h + 10
+	var g := PackedByteArray()
+	g.resize(GW * GH)
+	g.fill(1)
+	var rows: Array = t["rows"]
+	for y in h:
+		for x in w:
+			var c := String(rows[y])[x]
+			g[(oy + y) * GW + ox + x] = OdaSablon.hucre(c)
+	var hedef: Array = []   # [ad, x, y]
+	if int(t["L"]) >= 0:
+		var ly := oy + int(t["L"])
+		for x in range(1, ox):
+			for y in range(ly - 3, ly + 1):
+				g[y * GW + x] = 0
+		hedef.append(["L", 2, ly])
+	if int(t["R"]) >= 0:
+		var ry := oy + int(t["R"])
+		for x in range(ox + w, GW - 1):
+			for y in range(ry - 3, ry + 1):
+				g[y * GW + x] = 0
+		hedef.append(["R", GW - 3, ry])
+	for k in t["T"]:
+		var mx := ox + (int(k[0]) + int(k[1])) / 2
+		var y := oy
+		while y < GH - 1 and g[y * GW + mx] != 0:
+			y += 1
+		while y < GH - 1 and g[(y + 1) * GW + mx] == 0:
+			y += 1
+		hedef.append(["T", mx, y])
+	for k in t["B"]:
+		var mx2 := ox + (int(k[0]) + int(k[1])) / 2
+		hedef.append(["B", mx2, oy + int(k[2]) - 1])
+	var neden: Array = []
+	var uyari: Array = []
+	if hedef.is_empty():
+		return {"ok": false, "neden": "yuva yok", "uyari": ""}
+	var rsb := LevelGen.reach_from(g, GW, GH, int(hedef[0][1]), int(hedef[0][2]))
+	var gc := g.duplicate()
+	LevelGen._open_headroom(gc, GW, GH, LevelGen.BAS_BOSLUGU)
+	var acilan := 0
+	var nerede: Array = []
+	for i in gc.size():
+		if gc[i] != g[i]:
+			# yalnızca erişilen bir ayakta durma hücresinin baş boşluğu sayılır (erişilmez cep tepeleri üretimde açılır)
+			var ix := i % GW
+			var iy := i / GW
+			if (iy + 1 < GH and rsb[(iy + 1) * GW + ix] == 1) or (iy + 2 < GH and rsb[(iy + 2) * GW + ix] == 1):
+				acilan += 1
+				if nerede.size() < 4:
+					nerede.append("%d,%d" % [ix - ox, iy - oy])
+	if acilan > 0:
+		neden.append("baş boşluğu %d karo (%s)" % [acilan, " ".join(nerede)])
+	for a in hedef:
+		var rs := LevelGen.reach_from(g, GW, GH, int(a[1]), int(a[2]))
+		for b in hedef:
+			if a == b:
+				continue
+			if rs[int(b[2]) * GW + int(b[1])] == 0:
+				neden.append("%s -> %s yok" % [a[0], b[0]])
+	var rs0 := LevelGen.reach_from(g, GW, GH, int(hedef[0][1]), int(hedef[0][2]))
+	var gh := LevelGen._haz_as_air(g)
+	var n_st := 0
+	var n_er := 0
+	for y in range(oy, oy + h):
+		for x in range(ox, ox + w):
+			if LevelGen._standable(gh, x, y, GW, GH) and g[(y + 1) * GW + x] != 3:
+				n_st += 1
+				if rs0[y * GW + x] == 1:
+					n_er += 1
+	for m in t["isaret"]:
+		var mx3 := ox + int(m[1])
+		var my3 := oy + int(m[2])
+		if String(m[0]) == "$":
+			var ok := false
+			for dy in range(0, 4):
+				if rs0[(my3 + dy) * GW + mx3] == 1:
+					ok = true
+					break
+			if not ok:
+				neden.append("ganimet erişilmez (%d,%d)" % [int(m[1]), int(m[2])])
+		elif String(m[0]) == "g" and not LevelGen._standable(gh, mx3, my3, GW, GH):
+			uyari.append("g havada (%d,%d)" % [int(m[1]), int(m[2])])
+	var oran := float(n_er) / maxf(1.0, float(n_st))
+	if oran < 0.85:
+		uyari.append("erişilen ayakta durma %%%.0f" % (oran * 100.0))
+	return {"ok": neden.is_empty(), "neden": "; ".join(neden), "uyari": "; ".join(uyari), "oran": oran}
+
+
+static func oda_imza(g: PackedByteArray, W: int, H: int, rm: Dictionary) -> String:
+	## Odanın biçim imzası: oyulmuş alan 8 x 4 bloğa indirgenir (blokta katı payı yüksekse 1); dikdörtgen kutular aynı
+	## imzayı verir
+	var x0 := int(rm["ix0"])
+	var x1 := int(rm["ix1"])
+	var y0 := int(rm["iy0"])
+	var y1 := int(rm["iy1"])
+	var s := ""
+	for by in 4:
+		for bx in 8:
+			var a := x0 + (x1 - x0 + 1) * bx / 8
+			var b := x0 + (x1 - x0 + 1) * (bx + 1) / 8
+			var c := y0 + (y1 - y0 + 1) * by / 4
+			var d := y0 + (y1 - y0 + 1) * (by + 1) / 4
+			var n := 0
+			var k := 0
+			for y in range(c, maxi(c + 1, d)):
+				for x in range(a, maxi(a + 1, b)):
+					n += 1
+					var v := LevelGen._cell(g, x, y, W, H)
+					if v == 1:
+						k += 2
+					elif v == 2 or v == 3:
+						k += 1
+			s += "1" if float(k) > 0.7 * float(n) else "0"
+	return s
+
+
+static func gecit_imza(g: PackedByteArray, W: int, H: int, x0: int, x1: int, ya: int, yb: int) -> String:
+	## Dikey geçidin biçim imzası: genişlik + geçidin 6 yatay dilimindeki katı / platform deseni
+	var s := "%d:" % (x1 - x0 + 1)
+	for k in 6:
+		var y := ya + (yb - ya) * k / 6
+		for yy in range(y, mini(yb, y + maxi(1, (yb - ya) / 6))):
+			for x in range(x0, x1 + 1):
+				var v := LevelGen._cell(g, x, yy, W, H)
+				s += "#" if v == 1 else ("-" if v == 2 else ".")
+		s += "|"
+	return s
+
+
+func _v43_olc(v: Dictionary, r: Dictionary, g: PackedByteArray, W: int, H: int, style: String, k: int) -> void:
+	var m: Dictionary = r["metrics"]
+	v["n"] = int(v["n"]) + 1
+	v["kap_top"] = float(v["kap_top"]) + float(m.get("sablon_oda", 0)) / maxf(1.0, float(m.get("sablon_aday", 1)))
+	v["cesit_top"] = float(v["cesit_top"]) + float(m.get("sablon_cesit", 0))
+	v["simge"] = int(v["simge"]) + int(m.get("simge", 0))
+	v["gecit_cesit"] = float(v["gecit_cesit"]) + float(m.get("gecit_cesit", 0))
+	var gt: Dictionary = m.get("gecit_tur", {})
+	for t in gt:
+		v["gecit"][t] = int(v["gecit"].get(t, 0)) + int(gt[t])
+	var oi := {}
+	var no := 0
+	for rm in r["rooms"]:
+		if rm["role"] == "yok":
+			continue
+		no += 1
+		var s := oda_imza(g, W, H, rm)
+		oi[s] = true
+		v["imza_oda"][s] = true
+		if rm.has("tpl"):
+			v["sablon"][String(rm["tpl"]["ad"])] = int(v["sablon"].get(String(rm["tpl"]["ad"]), 0)) + 1
+		if rm.has("tavan_bicim"):
+			v["tavan"][String(rm["tavan_bicim"])] = int(v["tavan"].get(String(rm["tavan_bicim"]), 0)) + 1
+	var gi := {}
+	var ng := 0
+	for d in r["doors"]:
+		if d["kind"] == "sil":
+			continue
+		if d["dir"] == "h":
+			v["koridor_h"][int(d.get("h", 4))] = int(v["koridor_h"].get(int(d.get("h", 4)), 0)) + 1
+			continue
+		ng += 1
+		var gw := int(d.get("gw", 6))
+		var s2 := gecit_imza(g, W, H, int(d["x"]), int(d["x"]) + gw - 1, int(d["y"]), int(d.get("y2", int(d["y"]) + 10)))
+		gi[s2] = true
+		v["imza_gecit"][s2] = true
+		if not d.has("gecit_veri"):
+			v["gecit"]["kuyu"] = int(v["gecit"].get("kuyu", 0)) + 1
+	v["n_oda"] = int(v["n_oda"]) + no
+	v["n_gecit"] = int(v["n_gecit"]) + ng
+	v["t_oda"] = float(v["t_oda"]) + (1.0 - float(oi.size()) / maxf(1.0, float(no)))
+	v["t_gecit"] = float(v["t_gecit"]) + ((1.0 - float(gi.size()) / float(ng)) if ng > 0 else 0.0)
+	var png := _arg_or("--harita_png", "")
+	if png != "" and k < 2:
+		DirAccess.make_dir_recursive_absolute(png)
+		izgara_png(r, g, W, H, png.path_join("izgara_%s_%s_%d.png" % [style, String(r.get("tur", "")), k]))
+
+
+func _v43_rapor(v: Dictionary, tot: int) -> void:
+	var n := maxf(1.0, float(v["n"]))
+	var gs := ""
+	var gtop := 0
+	for t in v["gecit"]:
+		gtop += int(v["gecit"][t])
+	var keys: Array = v["gecit"].keys()
+	keys.sort()
+	for t in keys:
+		gs += "%s:%d (%%%.0f) " % [t, int(v["gecit"][t]), 100.0 * float(v["gecit"][t]) / maxf(1.0, float(gtop))]
+	_p("V43 şablon kapsamı (ana yol + dal odaları) ort=%%%.0f, bölüm başına ayrı şablon=%.1f, simge %d/%d bölüm, kullanılan şablon=%d/%d" % [
+		100.0 * float(v["kap_top"]) / n, float(v["cesit_top"]) / n, int(v["simge"]), int(v["n"]), (v["sablon"] as Dictionary).size(), OdaSablon.liste().size()])
+	_p("V43 geçit türleri: %s| bölüm başına ayrı tür=%.2f" % [gs, float(v["gecit_cesit"]) / n])
+	_p("V43 tekrar puanı (bölüm içi aynı biçim oranı; 0 hepsi farklı, 1 hepsi aynı): oda=%.2f geçit=%.2f | %d bölümde ayrı oda biçimi %d/%d, ayrı geçit biçimi %d/%d" % [
+		float(v["t_oda"]) / n, float(v["t_gecit"]) / n, int(v["n"]), (v["imza_oda"] as Dictionary).size(), int(v["n_oda"]), (v["imza_gecit"] as Dictionary).size(), int(v["n_gecit"])])
+	_p("V43 koridor yükseklikleri %s, tavan biçimleri %s" % [str(v["koridor_h"]), str(v["tavan"])])
+	if not LevelGen.sablon_kapali and not OS.get_cmdline_user_args().has("--sablon_yok") and _arg_or("--harita_tur", "") != "eski":
+		_check(float(v["kap_top"]) / n >= 0.5, "şablon kapsamı en az %%50 (%%%.0f)" % (100.0 * float(v["kap_top"]) / n))
+		_check(float(v["t_gecit"]) / n <= 0.35, "dikey geçitler birbirinin aynısı değil (tekrar %.2f)" % (float(v["t_gecit"]) / n))
+
+
+static func izgara_png(r: Dictionary, g: PackedByteArray, W: int, H: int, path: String) -> void:
+	## Üretici dökümü: katı mürekkep, hava parşömen, platform kahve, tehlike kızıl; şablon odaları renk tonlu, geçit
+	## türleri renkli çerçeve, simge sarı kare
+	var b: Rect2i = r["bounds"]
+	var k := 6
+	var img := Image.create(b.size.x * k, b.size.y * k, false, Image.FORMAT_RGB8)
+	var tint := {}
+	for rm in r["rooms"]:
+		if rm.has("tpl"):
+			var hsh := absi(String(rm["tpl"]["ad"]).hash())
+			var col := Color.from_hsv(float(hsh % 360) / 360.0, 0.28, 1.0)
+			for x in range(int(rm["ix0"]), int(rm["ix1"]) + 1):
+				for y in range(int(rm["iy0"]) - 1, int(rm["iy1"]) + 1):
+					tint[y * W + x] = col
+	var gcol := {"zincir": Color(0.55, 0.6, 0.7), "ip": Color(0.85, 0.65, 0.3), "kok": Color(0.35, 0.7, 0.3), "merdiven": Color(0.75, 0.72, 0.65),
+		"cikinti": Color(0.5, 0.75, 0.9), "ruzgar": Color(0.7, 0.95, 1.0), "iskele": Color(0.8, 0.5, 0.25), "dusus": Color(0.95, 0.4, 0.6)}
+	for y in range(b.position.y, b.end.y):
+		for x in range(b.position.x, b.end.x):
+			var v := g[y * W + x]
+			var c := Color(0.12, 0.1, 0.09)
+			if v == 0:
+				c = Color(0.93, 0.87, 0.72)
+				if tint.has(y * W + x):
+					c = c * (tint[y * W + x] as Color)
+			elif v == 2:
+				c = Color(0.55, 0.36, 0.18)
+			elif v == 3:
+				c = Color(0.85, 0.15, 0.1)
+			img.fill_rect(Rect2i((x - b.position.x) * k, (y - b.position.y) * k, k, k), c)
+	for gv in r.get("gecitler", []):
+		var c2: Color = gcol.get(String(gv["tip"]), Color.WHITE)
+		var rx := Rect2i((int(gv["x0"]) - b.position.x) * k, (int(gv["ust"]) - b.position.y) * k, (int(gv["x1"]) - int(gv["x0"]) + 1) * k, (int(gv["alt"]) - int(gv["ust"])) * k)
+		for t in 2:
+			img.fill_rect(Rect2i(rx.position.x + t, rx.position.y, 1, rx.size.y), c2)
+			img.fill_rect(Rect2i(rx.end.x - 1 - t, rx.position.y, 1, rx.size.y), c2)
+		for tr in gv["tirman"]:
+			var tx := int((float(tr[0]) + float(tr[2])) * 0.5 * k) - b.position.x * k
+			img.fill_rect(Rect2i(tx - 1, (int(tr[1]) - b.position.y) * k, 2, maxi(1, (int(tr[3]) - int(tr[1])) * k)), c2.darkened(0.3))
+	var pr: Dictionary = r.get("propler", {})
+	for s in pr.get("simge", []):
+		img.fill_rect(Rect2i((int(s[0]) - b.position.x) * k - 4, (int(s[1]) - b.position.y) * k - 4, 9, 9), Color(1.0, 0.85, 0.1))
+	for t3 in pr.get("tirman", []):
+		var tx3 := int((float(t3[0]) + float(t3[2])) * 0.5 * k) - b.position.x * k
+		img.fill_rect(Rect2i(tx3 - 1, (int(t3[1]) - b.position.y) * k, 2, maxi(1, (int(t3[3]) - int(t3[1])) * k)), Color(0.3, 0.3, 0.35))
+	img.save_png(path)
+
+
+func _ekran_gecit() -> void:
+	## v43 çekim: her geçit türü oyun içinde (tırmanılan türlerde oyuncu tırmanırken), yumuşak iniş, simge odaları
+	var plan := {"zincir": [9, "inis"], "kok": [1, "inis"], "ip": [3, "inis"], "merdiven": [9, "kale"], "cikinti": [7, "magara"],
+		"ruzgar": [7, "magara"], "iskele": [3, "inis"], "dusus": [1, "inis"]}
+	var tek := _arg_or("--gecit_tip", "")
+	for tip in plan:
+		if tek != "" and tip != tek:
+			continue
+		var d: int = int(plan[tip][0])
+		var bulundu := false
+		for k in 24:
+			LevelGen.zorla_tur = String(plan[tip][1]) if k < 16 else ""
+			var lv := _build(d + (k % 2 if d < 9 else 0), 7100 + k * 17 + d)
+			LevelGen.zorla_tur = ""
+			var hedef: Dictionary = {}
+			for gv in lv.gecitler:
+				if String(gv["tip"]) == tip and int(gv["alt"]) - int(gv["ust"]) >= 9:
+					hedef = gv
+					break
+			if hedef.is_empty():
+				continue
+			bulundu = true
+			main._start_play()
+			main.hud._card_t = 100.0
+			await _phys(80)   # bölüm açılış perdesi
+			var pl: Node = lv.player
+			_clear_foes(lv, Vector2.ZERO, 99999.0)
+			var TS := float(Level.TS)
+			var ln: Array = hedef["lane"]
+			if not (hedef["tirman"] as Array).is_empty():
+				var tr: Array = hedef["tirman"][0]
+				pl.global_position = Vector2((float(tr[0]) + float(tr[2])) * 0.5 * TS, float(int(hedef["alt"])) * TS - 1.0)
+				pl.velocity = Vector2.ZERO
+				Game.camera.snap()
+				await _phys(20)
+				Input.action_press("yukari")
+				await _phys(int(clampf((float(int(hedef["alt"]) - int(hedef["ust"])) * TS * 0.55) / 118.0 * 60.0, 20.0, 120.0)))
+				Input.action_release("yukari")
+				await _phys(6)
+				_p("gecit %s tırmanıyor=%s" % [tip, str(pl.tirman)])
+			elif tip == "ruzgar" or tip == "dusus":
+				pl.global_position = Vector2((float(ln[0]) + float(ln[1]) + 1.0) * 0.5 * TS, float(int(hedef["ust"]) + 3) * TS)
+				pl.velocity = Vector2.ZERO
+				Game.camera.snap()
+				if tip == "ruzgar":
+					Input.action_press("zipla")
+					await _phys(18)
+					Input.action_release("zipla")
+				else:
+					await _phys(14)
+			else:
+				# geçidin ortasındaki bir basamağın / sahanlığın üstü (geçidin içi görünsün)
+				var adaylar: Array = hedef["basamak"] if not (hedef["basamak"] as Array).is_empty() else hedef["kati"]
+				var orta := (int(hedef["ust"]) + int(hedef["alt"])) / 2
+				var kp: Array = [int(hedef["x0"]), int(hedef["ust"])]
+				var en := 999
+				for c in adaylar:
+					if lv.cell(int(c[0]), int(c[1]) - 1) == 0 and absi(int(c[1]) - orta) < en:
+						en = absi(int(c[1]) - orta)
+						kp = c
+				pl.global_position = Vector2((float(int(kp[0])) + 0.5) * TS, float(int(kp[1])) * TS - 1.0)
+				pl.velocity = Vector2.ZERO
+				Game.camera.snap()
+				await _phys(30)
+			await _snap("gecit_%s_%s_d%d" % [tip, String(lv.biome.get("id", "?")), int(Game.run.get("depth", d))])
+			if tip == "dusus":
+				var t := 0
+				while t < 120 and not pl.is_on_floor():
+					await _phys(1)
+					t += 1
+				await _phys(2)
+				await _snap("gecit_yumusak_inis_%s" % String(lv.biome.get("id", "?")))
+			main._start_play()
+			await _phys(2)
+			break
+		if not bulundu:
+			_p("gecit %s bulunamadı" % tip)
+	# simge (sahne parçası) odaları
+	if tek == "" or tek == "simge":
+		for d in [1, 3, 5, 7, 9]:
+			for k in 20:
+				var lv2 := _build(d, 7700 + k * 23 + d)
+				var sim: Array = lv2.propler.get("simge", [])
+				var simr := String(lv2._gen.get("simge", ""))
+				if simr == "":
+					continue
+				main._start_play()
+				main.hud._card_t = 100.0
+				await _phys(80)
+				_clear_foes(lv2, Vector2.ZERO, 99999.0)
+				var rm: Dictionary = {}
+				for r in lv2.rooms:
+					if r.has("tpl") and String(r["tpl"]["ad"]) == simr:
+						rm = r
+				var px := (int(rm["ix0"]) + int(rm["ix1"])) / 2
+				var st := LevelGen._floor_spot(lv2.grid, Level.W, Level.H, rm, px)
+				lv2.player.global_position = Vector2(st.x * Level.TS + Level.TS / 2.0, (st.y + 1) * Level.TS - 1)
+				Game.camera.snap()
+				await _phys(30)
+				await _snap("simge_%s_%s" % [String(lv2.biome.get("id", "?")), simr])
+				main._start_play()
+				await _phys(2)
+				break
+
+
+func _ekran_izgara() -> void:
+	## v43: üretici dökümleri (önce / sonra karşılaştırması için --sablon_yok ile de): biyom başına 2 bölüm
+	pass
