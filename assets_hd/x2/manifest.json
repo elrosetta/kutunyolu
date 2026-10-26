@@ -827,6 +827,66 @@
   "decor/kule_dikme_v2.webp",
   "869ff250ce1b4127638121d7dfa4aa2e"
  ],
+ "decor/kup_a_arka_v2.png": [
+  128,
+  160,
+  "decor/kup_a_arka_v2.webp",
+  "78cd7d477e35ef8883ed459ed72f7472"
+ ],
+ "decor/kup_a_on_v2.png": [
+  136,
+  176,
+  "decor/kup_a_on_v2.webp",
+  "f0eb273b861c27044f3772f69c056c38"
+ ],
+ "decor/kup_b_arka_v2.png": [
+  128,
+  160,
+  "decor/kup_b_arka_v2.webp",
+  "89a330481efb3a25260e437eaaac3d11"
+ ],
+ "decor/kup_b_on_v2.png": [
+  136,
+  176,
+  "decor/kup_b_on_v2.webp",
+  "609d023de71198232883fb78d464aa37"
+ ],
+ "decor/kup_c_arka_v2.png": [
+  128,
+  160,
+  "decor/kup_c_arka_v2.webp",
+  "9b3057042fb95ddd20ac67c70553342b"
+ ],
+ "decor/kup_c_on_v2.png": [
+  136,
+  176,
+  "decor/kup_c_on_v2.webp",
+  "ce5f97844bdb66083cb6861e94f5c56a"
+ ],
+ "decor/kup_duvar_v2.png": [
+  1664,
+  944,
+  "decor/kup_duvar_v2.webp",
+  "68a32103fe931262f2becfd21b152e81"
+ ],
+ "decor/kup_muhur_catlak_v2.png": [
+  48,
+  56,
+  "decor/kup_muhur_catlak_v2.webp",
+  "42f0ada329b5635cad5d1944a1f2fbf5"
+ ],
+ "decor/kup_muhur_v2.png": [
+  48,
+  56,
+  "decor/kup_muhur_v2.webp",
+  "e99862ef6626307ba439fc1a0b0115e5"
+ ],
+ "decor/kup_parsomen_v2.png": [
+  64,
+  40,
+  "decor/kup_parsomen_v2.webp",
+  "557a6156dc5e59e180b4c040b0b2af37"
+ ],
  "decor/kut_kapi_arka_v2.png": [
   392,
   416,

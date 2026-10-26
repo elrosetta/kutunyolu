@@ -36,6 +36,7 @@ func _ready() -> void:
 			_ekran = String(arg).trim_prefix("--ekran=")
 			auto_test = false
 	_test_kipi = _test_bayragi()
+	Kupler.devre_disi = _test_kipi and not OS.get_cmdline_user_args().has("--kavanoz")   # v44: test koşuları seçimsiz
 	_new_run()
 	if OS.get_cmdline_user_args().has("--yurt") and not (level and level.hub):
 		_build_hub()  # yurt testi: doğrudan Ulu Kayın'da başla
@@ -113,6 +114,11 @@ func _ready() -> void:
 		var hk: Node = load("res://tools/tests/hikaye_testi.gd").new()
 		hk.set("main", self)
 		add_child(hk)
+	if OS.get_cmdline_user_args().has("--kavanoz"):
+		# v44 silah küpleri testi (tools/tests/kavanoz_testi.gd): durumlar, başlangıç silahı, Rastgele küp, sayaç, uyanış
+		var kv: Node = load("res://tools/tests/kavanoz_testi.gd").new()
+		kv.set("main", self)
+		add_child(kv)
 	if OS.get_cmdline_user_args().has("--sanat"):
 		# v27 savaş sanatları testi (tools/tests/sanat_testi.gd): bedel, bekleme, isabet, sınıf kuralı, kilit ve kayıt
 		var sat: Node = load("res://tools/tests/sanat_testi.gd").new()
@@ -418,8 +424,12 @@ func _demirci_ac(id: String) -> bool:
 	## Parşömeni aç (Kut bankasından). v24: açılan eşya HEMEN verilir: koşu başı gücünde (kademe 0) normal düşüş gibi
 	## rastgele yuvarlanır (malzeme, nadirlik, hasar, ek özellik, unsur) ve oyuncunun önüne bırakılır; düşme havuzuna da
 	## girer (Game.unlock). Kart Demirci ekranında gösterilir (hud.demirci_son).
+	var kup_once := Kupler.durum(id)
 	if not Game.unlock(id):
 		return false
+	Kupler.kesfet(id, kup_once)   # v44: küpü açılır; yurttaysa bir sonraki görünüşünde uyanır
+	if level and level.get("kup_galeri") != null:
+		level.kup_galeri.acildi(id)
 	var it := ItemGen.roll(id, 0)
 	hud.demirci_son = it
 	if level and level.player:
@@ -558,6 +568,10 @@ func _on_npc(id: String) -> void:
 		"alp_ata":
 			Ses.play("npc_2")
 			_open_sanat(true)
+		"kupler":   # v44 Ata Kurganı: küpleri gez (KupGaleri; oyun durur)
+			Ses.play("ui_ac")
+			level.kup_galeri.gez_ac()
+			hud.mode = "kupler"
 		"usta":
 			_usta_ac()
 
@@ -911,6 +925,30 @@ func _unhandled_input(event: InputEvent) -> void:
 					Ses.play("ui_sec", 0.0, 0.7)
 				hud.flash_t = 2.0
 			elif go or event.is_action_pressed("duraklat") or event.is_action_pressed("yuvarlan"):
+				_start_play()
+		"kupler":
+			# v44 silah küpleri: ok tuşları / WASD gez, Boşluk / Enter / J başlangıç silahı, Esc / L çık
+			var kg: KupGaleri = level.kup_galeri if level else null
+			if kg == null:
+				_start_play()
+				return
+			if event.is_action_pressed("sol"):
+				kg.gez_tasi(-1, 0)
+			elif event.is_action_pressed("sag"):
+				kg.gez_tasi(1, 0)
+			elif event.is_action_pressed("yukari"):
+				kg.gez_tasi(0, -1)
+			elif event.is_action_pressed("asagi"):
+				kg.gez_tasi(0, 1)
+			elif go or event.is_action_pressed("saldiri1"):
+				var r := kg.sec_secili()
+				if r != "":
+					var kid: String = kg.kupler[kg.secili]["id"]
+					hud.flash_msg = ("Başlangıç silahı: %s. Bu koşu ve sonrakiler onunla başlar." % kg.kup_adi(kid)) if r == "secildi" else "Seçim kalktı: varsayılan başlangıç silahı."
+					hud.flash_t = 3.0
+			elif event.is_action_pressed("duraklat") or event.is_action_pressed("yuvarlan"):
+				kg.gez_kapat()
+				Ses.play("ui_gez")
 				_start_play()
 		"tuccar":
 			# v24 pazar: W/S (A/D) satır, Boşluk / Enter onay (iki adım), Esc / L onayı geri alır ya da ayrılır

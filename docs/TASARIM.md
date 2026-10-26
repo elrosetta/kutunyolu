@@ -7865,3 +7865,86 @@ CIKIS, d3 84 sn'de BOLUM_SONU; `--piksel_tara` TOPLAM 0; `--perf` gezinti ort 6,
 * `--harita --harita_fizik --fizik_bolum=20` tek süreçte ~70 dk sürer (bölüm başına ~3,5 dk): parçalara bölünerek koşulmalı.
 * Çekimlerde `_clear_foes` tamgalı avı da kaldırdığı için "Avcı mührü çatladı" yazısı görünür (çekim yan etkisi).
 * Bu dosya HEAD'de LF satır sonlu (v43-sinema43 birleştirmesi CRLF'yi LF'ye çevirmiş); bu bölüm aynı biçimde eklendi.
+
+## v44: Silah küpleri (Ata Kurganı)
+
+İstek: "Açtığımız silahlar Dead Cells'teki kavanozlar gibi başlangıçta görünsün." Dead Cells'te başlangıç bölgesinin yanındaki
+odada açılan her eşya zincirlere asılı cam şişelerde süzülür; başlangıç silahı da açılanlar arasından gelir. Kut'un Yolu'nda
+koşu Ulu Kayın yurdunda başladığı için koleksiyon yurdun girişine, Bengü'nün uyandığı yerin hemen arkasına kondu.
+
+### Tasarım
+
+* **Ata Kurganı duvarı** (`kup_duvar`, `tools/artgen/kup_ink.py`): Pazırık kurganlarının karaçam kütüklü mezar odası. Yarı
+  gömülü otlu höyük, koyu kütük duvar (küpler öne çıksın), dört karaçam raf, oyma dikmeler ve koçboynuzlu başlıklar,
+  kızıl keçe kuşak, altın kenarlı baş tahtası ("ATA KURGANI · SİLAH KÜPLERİ" ve "Açılan silahlar N/54" oyunda yazılır).
+  14 sütun x 4 raf; yurdun eski giriş süsleri (tuğ, kandil, dikili taşlar, iki balbal) ve kandil ışığı kaldırıldı, yerine
+  duvar boyunca üç yumuşak firuze ışık (`Level._place_hub` tek blok; Kut Kapısı ve NPC'ler yerinde).
+* **Küpler**: her silah (46) ve kalkan (8) için bir cam küp + en sonda "Ata'nın Zarı" (Rastgele). Sınıflara göre gruplu
+  (`data/kupler.json` "siniflar": kılıç ve balta, çift el, kamçı, ağır, mızrak, yay, atma, kam aleti, kalkan). Üç biçim:
+  omuzlu ruh kavanozu, keçe kapaklı (kılıç / çift / kamçı); geniş karınlı tunç kulplu küp (ağır, kalkan); ince uzun tüp,
+  kızıl kapaklı (mızrak, yay, atma, kam aleti). Her küp iki sprite: arka (cam iç yüzü + Kut sıvısı, ışıma dokusu) ve ön (cam
+  konturu, parlama şeritleri, tunç halkalar, kapak); silah ikisinin arasında `weapons_v2` atlasından çizilir (sığacak boyda,
+  yatay silahlar ucu yukarı hafif eğik), böylece camın içinde süzülür. Küp başına bir düğüm + 5-6 sprite; süzülme ve
+  ışıma nefesi tek döngüde ve yalnızca duvar kadrajdayken.
+* **Durumlar** (`Kupler.durum`): `kilitli` (bulanık sıvının sönük ışığı önünde kara gölge, çatlak balmumu tamga mühür, kart
+  "???" + nereden çıktığı: "Koşularda N. derinlikten sonra bulunur" / "Parşömeni N. derinlikten sonra düşer; Demirci açar"),
+  `parsomen` (parşömeni bulundu: soluk mavi biçim, küpe bağlı dürülü parşömen, kart + "Demirci Kam Kuzgun X Kut'a açar"),
+  `acik` (renkli silah, Kut ışıması, yavaş süzülme; mühür kırık), yeni (kıvılcım + camın önünde "YENİ", kartı 0,9 sn
+  görülünce söner). "Açık" sayılan: temel eşyalar (`Game.BASE_UNLOCKED`), Demirci'de açılanlar ve bir koşuda en az bir kez
+  kuşanılanlar (`meta.kup.kesif`, `Level.equip`). Temel eşyalar düşme havuzunda baştan olsa da küpleri ele geçince dolar:
+  koleksiyon oynadıkça büyür (eski kayıtlarda temel 5 + Demirci'de açılanlar açık başlar).
+* **Uyanış** (açılma anı): Demirci'nin açtığı ya da koşuda ilk kez kuşanılan silahın küpü yurtta ilk görüldüğünde eski
+  hâlinde bekler, sonra 1,6 sn'lik canlandırma: mühür titrer, kırılır (Kut halkası + kıvılcım + ses), silah karanlıktan
+  renge döner, ışıma parlayıp oturur, silahın adı yükselir, YENİ belirir (`meta.kup.uyandi`: bir kez).
+
+### Etkileşim
+
+* Duvarın önünde yürürken oyuncunun sütunundaki küp (satır: en son gezilen, ilk açılışta alt raf) köşe ayraçlarıyla
+  vurgulanır; sağda eşya kartı (`HUD._draw_card`, yerdeki eşyayla aynı kart; kilitli küpte küçük "???" kartı), altında
+  durum notu, "Açılan silahlar N/54" ve sıradaki eşik. Küpün üstünde "W Küpleri gez".
+* **W**: gezme kipi (`hud.mode "kupler"`, oyun durur): ok tuşları / WASD imleç (sütunlar sarar), **Boşluk / Enter / J**:
+  açık küpü **başlangıç silahı** yap, Esc / L: çık (W gezerken yukarı ok olduğu için seçim Boşluk'ta).
+* Başlangıç silahı iki yuvalı: yakın dövüş (`melee`) ve ikincil (`second`: yay, atma, kam aleti, kalkan; `Player.is_second_item`).
+  Seçim kalıcı (`meta.kup.secim`); yurtta koşu henüz başlamadığı için seçilen silah hemen kuşanılır ve sonraki koşular da
+  onunla başlar (`Game.new_run` → `Kupler.baslangic`). Aynı küp yeniden seçilirse varsayılana döner (Alp Kılıcı / Türk Yayı).
+  Seçili küplerin rafında altın tamga. Başlangıç eşyası eskisi gibi kademe 0 demir sıradan; Umay "Demirci Dostu" seçilen
+  silaha da uygulanır (kademe 1 tunç nadir). Test / çekim kipinde (`Kupler.devre_disi`) seçim ve eşik ödülleri uygulanmaz.
+* **Ata'nın Zarı** (Rastgele küp, 10 açık küpte uyanır): açık küplerden rastgele bir yakın dövüş silahı, nadirlik +1 (bir ek
+  özellik). Her koşuda yeniden zar atılır.
+
+### Eşikler (data/kupler.json; açık küp sayısında, kalıcı)
+
+| Küp | Ödül |
+|-----|------|
+| 10 | Ata'nın Zarı (Rastgele küp) açılır |
+| 20 | Kurgan Akçesi: koşuya +25 altın |
+| 30 | Ataların Soluğu: en yüksek can +%5 |
+| 40 | Kurgan Akçesi II: +25 altın daha (toplam 50) |
+| 50 | Altın Kurgan: küplerin ışığı altına döner (yalnızca görünüm) |
+
+Denge: altın Umay'ın Ata Kesesi'nin (60 / 120) yarısından az, can Kayın Özü'nün (+%10 / seviye) yarısı; ilk eşik güç değil
+seçenek verir. 54 küpten 50'si yalnızca birkaç düzine koşuda dolar (gelişmiş silahlar parşömen + Kut ister).
+
+### Dosyalar
+
+`scripts/core/Kupler.gd` (kayıt, durum, seçim, eşikler), `scripts/world/KupGaleri.gd` (duvar, küpler, uyanış, gezme, HUD
+kartı), `data/kupler.json`, `tools/artgen/kup_ink.py` (+ `export_sus.py --kupler`; `assets/decor/kup_*_v2.png`,
+`sus_v2.json`, HD `assets_hd/x2/decor/kup_*_v2.webp` + manifest), `tools/tests/kavanoz_testi.gd`. Kancalar: `Level.gd`
+(`kup_galeri`, `_place_hub` giriş bloğu, yurtta W, `equip` keşfi, `_hub_lights` eski kandil ışığı), `Main.gd`
+(`Kupler.devre_disi`, `--kavanoz`, `_on_npc "kupler"`, `_unhandled_input "kupler"`, `_demirci_ac`), `Game.new_run` (tek satır),
+`HUD._draw_ic` (tek satır).
+
+### Testler
+
+`--yurt --kavanoz` SONUC GECTI (durumlar, sayaç, sıra, yürürken vurgu, yeni + uyanış + YENİ sönmesi, seçim → yurttaki yuva +
+sonraki koşu, ikincil yuva, kilitli seçilemez, varsayılana dönüş, devre_disi, Demirci Dostu, Rastgele kilit / açılış /
+nadirlik / çeşit, 20 ve 30 eşikleri, Demirci açılışı, koşuda ilk kuşanma, Kut Kapısı → 1. derinlik seçilen silahla);
+`--yurt --yurt-tur` dört yoldaş, Kut Kapısı 19,3 sn (duvar yolu kesmez); `--konak --muhur=0` GECTI; `--otomatik --derinlik=1
+--muhur=0 --fixed-fps 60` hatasız; `--piksel_tara --otomatik --derinlik=3` TOPLAM 0. Betik hatası 0.
+
+### Görseller (docs/v44/kavanoz/)
+
+`duvar.png` (karışık durumlar, tüm duvar), `yakin.png` (yakın çekim + kilitli küp kartı), `gez.png` (gezme kipi, açık küp
+kartı, imleç, alt ipucu), `uyanis_serit.png` (uyanış canlandırması, 8 kare), `kosu.png` (seçilen kargı + akıncı yayıyla
+1. derinlik). Çekim kipleri: `--yurt --kavanoz --kavanoz_ekran=duvar|yakin|gez|uyanis|kosu --goruntu=... --bekle=16`. Yurdun
+gece / sabah ışığı kalıcı kayıttaki hikâye ilerlemesine bağlı (çekimler iki ışıkta da alındı).

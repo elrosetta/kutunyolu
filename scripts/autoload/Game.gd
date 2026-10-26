@@ -341,6 +341,7 @@ func new_run() -> void:
 		"kills": 0, "time": 0.0, "tier": 0, "depth": 1, "scrolls": 0, "lutuf": [], "boss_done": [],
 		"adlar": [], "destan": [], "dstat": {},
 	}
+	Kupler.baslangic(run, umay_level("silah") > 0)   # v44: Ata Kurganı'nda seçilen başlangıç silahı ve küp eşikleri
 
 
 func umay_level(id: String) -> int:

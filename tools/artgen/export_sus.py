@@ -11,6 +11,7 @@ Kullanım:  python export_sus.py                 (hepsi)
            python export_sus.py --usta          v32 konak ateşi + Bengisu'nun tezgâhı assets/decor/{konak_ates,usta_tezgah}_v2.png
            python export_sus.py --hikaye        v42 anlatı sahnesi süsleri (güneş sunağı, bitig taşı, zincirli kuş, tan halkası,
                                                 altın yaprak) assets/decor/<ad>_v2.png (hikaye_sus.py)
+           python export_sus.py --kupler        v44 Ata Kurganı silah küpleri (duvar, küp arka/ön, mühür, parşömen) assets/decor/kup_*_v2.png (kup_ink.py)
 Hepsi yordamsal (skia-python + numpy), dışarıdan doku yok. Her PNG için mipmap'li .import yazılır; oyunda doğrusal süzgeç.
 Süs meta biçimi decor_v2.json ile aynı ("size", "origin" doku pikseli, "texel" doku pikseli / dünya birimi, "glow");
 Level._decor_v2 her iki dosyayı okur (biyom süsleri decor_v2.json'da, bunlar sus_v2.json'da: dosya çakışması olmaz).
@@ -145,6 +146,18 @@ def export_hikaye(only=None):
     write_meta(meta)
 
 
+def export_kupler(only=None):
+    """v44 Ata Kurganı / Silah Küpleri (kup_ink.py; sus_v2.json)."""
+    import kup_ink as KI
+    meta = load_meta()
+    for n, fn in KI.ALL.items():
+        if only and n not in only:
+            continue
+        put_decor(meta, n, fn())
+        print('   ', n, flush=True)
+    write_meta(meta)
+
+
 def export_atlas():
     import sus_ink as S
     S.export_atlas(save, to8, A)
@@ -182,6 +195,8 @@ def main():
         export_usta(rest)
     if every or '--hikaye' in args:
         export_hikaye(rest)
+    if every or '--kupler' in args:
+        export_kupler(rest)
 
 
 if __name__ == '__main__':

@@ -435,6 +435,8 @@ func _draw_ic() -> void:
 	if _card_t < _kart_sure() and mode == "play" and not paused_play:
 		_draw_banner(vp)
 	_draw_hud(_hud_vp())
+	if level.get("kup_galeri") != null and (mode == "kupler" or (mode == "play" and not paused_play)):
+		level.kup_galeri.hud_ciz(self, _hud_vp())   # v44: silah küpünün kartı / gezme ipuçları
 	vp = _menu_vp()
 	match mode:
 		"dead":

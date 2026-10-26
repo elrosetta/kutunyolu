@@ -103,6 +103,120 @@
   "texel": 4.0,
   "glow": true
  },
+ "kup_a_arka_v2": {
+  "size": [
+   128,
+   160
+  ],
+  "origin": [
+   64,
+   148
+  ],
+  "texel": 4.0,
+  "glow": true
+ },
+ "kup_a_on_v2": {
+  "size": [
+   136,
+   176
+  ],
+  "origin": [
+   68,
+   156
+  ],
+  "texel": 4.0
+ },
+ "kup_b_arka_v2": {
+  "size": [
+   128,
+   160
+  ],
+  "origin": [
+   64,
+   148
+  ],
+  "texel": 4.0,
+  "glow": true
+ },
+ "kup_b_on_v2": {
+  "size": [
+   136,
+   176
+  ],
+  "origin": [
+   68,
+   156
+  ],
+  "texel": 4.0
+ },
+ "kup_c_arka_v2": {
+  "size": [
+   128,
+   160
+  ],
+  "origin": [
+   64,
+   148
+  ],
+  "texel": 4.0,
+  "glow": true
+ },
+ "kup_c_on_v2": {
+  "size": [
+   136,
+   176
+  ],
+  "origin": [
+   68,
+   156
+  ],
+  "texel": 4.0
+ },
+ "kup_duvar_v2": {
+  "size": [
+   1664,
+   944
+  ],
+  "origin": [
+   32,
+   888
+  ],
+  "texel": 4.0,
+  "glow": true
+ },
+ "kup_muhur_catlak_v2": {
+  "size": [
+   48,
+   56
+  ],
+  "origin": [
+   24,
+   12
+  ],
+  "texel": 4.0
+ },
+ "kup_muhur_v2": {
+  "size": [
+   48,
+   56
+  ],
+  "origin": [
+   24,
+   12
+  ],
+  "texel": 4.0
+ },
+ "kup_parsomen_v2": {
+  "size": [
+   64,
+   40
+  ],
+  "origin": [
+   32,
+   20
+  ],
+  "texel": 4.0
+ },
  "kut_kapi_arka_v2": {
   "size": [
    392,

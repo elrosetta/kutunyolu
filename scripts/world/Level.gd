@@ -72,6 +72,7 @@ var biome: Dictionary = {}
 var art: Dictionary = {}
 var exit_pos := Vector2.ZERO
 var hub := false
+var kup_galeri: KupGaleri   # v44: yurdun girişindeki Ata Kurganı / Silah Küpleri (KupGaleri.gd)
 var konak := false        # v32: derinlikler arası gezgin konak (Bengisu Usta, Umay Ocağı, bazen Bezirgân)
 var konak_ates := Vector2.ZERO   # v32: Umay Ocağı (konak ateşi): yanından geçince taşınan Kut Umay'a ulaşır
 var _ocak_done := false
@@ -915,12 +916,10 @@ func _place_hub() -> void:
 		var cx := int(float(r[1]))
 		for x in range(cx - 2, cx + 3):
 			overlay.erase_cell(Vector2i(x, surface_y(x) - 1))
-	# --- giriş: tuğ, kandil, dikili taşlar, balballar
-	_hub_prop("yh_tug_m", 2.6, -3)
-	_hub_prop("yh_kandil", 7.6, -1)
-	_hub_prop("yh_kurgan", 10.5, -4)
-	_hub_prop("yh_balbal_1", 14.2, -2)
-	_hub_prop("yh_balbal_2", 15.6, -3, true)
+	# --- giriş: v44 Ata Kurganı / Silah Küpleri (eski tuğ, kandil, dikili taşlar ve balballar yerine; KupGaleri.gd)
+	kup_galeri = KupGaleri.new()
+	add_child(kup_galeri)
+	kup_galeri.kur(self, 22.0, surface_y(2) * TS)
 	# --- Umay köşesi
 	_hub_prop("yh_kayin", 24.6, -6)
 	_hub_prop("yh_pinar", 19.6, -4)
@@ -1081,7 +1080,6 @@ func _hub_lights() -> void:
 	## Sıcak (ateş, fener) / soğuk (kut, pınar) ışık karşıtlığı. Işık sayısı düşük tutulur: yakın kaynaklar
 	## tek ışıkta birleşir, fenerlerin parıltısı ışık değil ışıma dokusudur.
 	var warm := Color(1.0, 0.6, 0.28)
-	_hub_fire(_hub_px(7.6, -52), warm, 170.0, 1.1)
 	for tx in [27.0, 59.2]:
 		_hub_fire(_hub_px(tx, -24), warm, 190.0, 1.25)
 	# otağ: iki kandil ve kapıdan sızan altın ışık tek ışıkta
@@ -3498,6 +3496,8 @@ func equip(p: Pickup, slot := "") -> void:
 		slot = natural_slot(it)
 	var old: Dictionary = Game.run["slots"].get(slot, {})
 	Game.run["slots"][slot] = it
+	if Kupler.kesfet(String(it.get("id", ""))) and kup_galeri != null:
+		kup_galeri.acildi(String(it["id"]))   # v44: ilk kez kuşanılan silahın küpü açılır
 	var rcol := Color.from_string(Data.items["rarities"][it["rarity"]]["color"], Color.WHITE)
 	FX.text(player.center() + Vector2(0, -30), it["name"], rcol, 8)
 	FX.ring(player.center(), 20, rcol, 0.25)
@@ -4001,6 +4001,8 @@ func _process_ic(_delta: float) -> void:
 			if n and tap:
 				n.talk()
 				npc_requested.emit(n.id)
+			elif tap and kup_galeri != null and kup_galeri.yakin:
+				npc_requested.emit("kupler")   # v44: silah küplerini gez (Main._on_npc)
 			elif tap and bezirgan != null and bezirgan.near:
 				bezirgan.talk()
 				tuccar_requested.emit()

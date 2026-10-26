@@ -1,0 +1,21 @@
+{
+ "_not": "v44 Ata Kurganı / Silah Küpleri (scripts/core/Kupler.gd, scripts/world/KupGaleri.gd). Her silah ve kalkan için bir küp. 'acik' sayılan: temel eşyalar (Game.BASE_UNLOCKED), Demirci'de açılanlar ve koşuda en az bir kez kuşanılanlar. Eşikler açılan küp sayısında bir kez kazanılır; ödüller koşu başında (Kupler.baslangic). Denge: altın ve can küçük tutuldu (Umay Ana'nın 'Ata Kesesi' 60 / 120 altın, 'Kayın Özü' +%10 / seviye); Rastgele küp seçimi oyuncunun en iyi silahından güçlü değildir, yalnızca nadirlik +1 (bir ek özellik).",
+ "siniflar": [
+  ["slash", "Kılıç ve balta", "a"],
+  ["dual", "Çift el", "a"],
+  ["whip", "Kamçı", "a"],
+  ["heavy", "Ağır", "b"],
+  ["thrust", "Mızrak", "c"],
+  ["bow", "Yay", "c"],
+  ["throw", "Atma", "c"],
+  ["magic", "Kam aleti", "c"],
+  ["shield", "Kalkan", "b"]
+ ],
+ "esikler": [
+  {"n": 10, "id": "rastgele", "ad": "Ata'nın Zarı", "desc": "Rastgele küp açılır: koşuya açık küplerden rastgele bir yakın dövüş silahıyla, bir kademe nadir başla."},
+  {"n": 20, "id": "altin", "v": 25, "ad": "Kurgan Akçesi", "desc": "Koşuya +25 altınla başla."},
+  {"n": 30, "id": "can", "v": 0.05, "ad": "Ataların Soluğu", "desc": "En yüksek can +%5."},
+  {"n": 40, "id": "altin", "v": 25, "ad": "Kurgan Akçesi II", "desc": "Koşuya +25 altın daha."},
+  {"n": 50, "id": "altin_isik", "ad": "Altın Kurgan", "desc": "Küplerin Kut ışığı altına döner (görünüm)."}
+ ]
+}
