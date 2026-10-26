@@ -161,6 +161,8 @@ func _acilis_akisi() -> void:
 			s._bitir()
 			await _sn(1.4)
 		_check(main.hud.mode == "zafer", "zafer özeti açıldı (%s)" % main.hud.mode)
+		var mb: Dictionary = DerinlikUI.son_ozet.get("mb", {})   # v44 birleştirme: tek özet (KosuOzet) mühür bilgisini taşır
+		_check(bool(DerinlikUI.son_ozet.get("zafer", false)) and int(mb.get("n", -1)) == n and int(mb.get("yeni", -1)) == n + 1, "koşu özeti zaferi ve mühür bilgisini taşıyor (%s → %s)" % [MuhurYolu.ad(n), MuhurYolu.ad(int(mb.get("yeni", -1)))])
 		if n == 2:
 			await _sn(0.4)
 			await _cek("zafer_ozeti")

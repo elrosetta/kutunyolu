@@ -4,7 +4,8 @@ extends RefCounted
 ##   * "muhur"  Mühür Taşı ekranı: solda altı mühür (açık / kilitli, zafer imi, en iyi süre), sağda seçilenin kuralları
 ##              (birikimli), zorluk sayıları, ödülleri (Kut / altın / nadirlik / emanet / ilk zafer / süs) ve kaydı.
 ##              Kilitli mühür de gösterilir (ne getireceği görünsün): "Erlik'i <önceki> ile yen".
-##   * "zafer"  Erlik devrildikten sonra koşu özeti: mühür, süre / rekor, ilk zafer Kut'u, açılan mühür, emanet, süs.
+##   * zafer özeti v44 birleştirmesinde DerinlikUI.ciz_ozet'e taşındı (koşu özeti + _ozet_muhur: mühür, süre / rekor,
+##     ilk zafer Kut'u, açılan mühür, emanet, süs).
 ##   * HUD: sağ üstte, yer adının solunda koşunun mühür damgası (renkli yuvarlak mühür + Roma rakamı).
 
 const SATIR_H := 34.0
@@ -22,11 +23,6 @@ static func ac(main: Node) -> void:
 
 static func girdi(main: Node, event: InputEvent, go: bool) -> void:
 	var hud: Node = main.hud
-	if hud.mode == "zafer":
-		if go or event.is_action_pressed("duraklat"):
-			Ses.play("ui_onay")
-			main._zafer_bitir()
-		return
 	if event.is_action_pressed("yukari"):
 		hud.sel = posmod(int(hud.sel) - 1, MuhurYolu.EN_COK + 1)
 		Ses.play("ui_gez")
@@ -174,41 +170,6 @@ static func ciz(h: Control, vp: Vector2) -> void:
 
 static func _f(v: float) -> String:
 	return ItemGen.fmt(v)
-
-
-# ------------------------------------------------------------------ zafer özeti
-static func zafer(h: Control, vp: Vector2) -> void:
-	h._dim(vp, 0.8, Color(0.06, 0.035, 0.015))
-	var e: float = h._ease_open()
-	var R: Dictionary = Game.run
-	var n := Zorluk.muhur()
-	var col := MuhurYolu.renk(n)
-	h._title(vp, 60, "TAN YİNE SÖKTÜ", Color(1.0, 0.82, 0.45), "«%s»" % MuhurYolu.satir("zafer", int(MuhurYolu.kayit(n).get("zafer", 0))))
-	h._run_tiles(vp, 118.0, Color(1.0, 0.8, 0.45), e)
-	var lines: Array = []
-	var kr := MuhurYolu.kayit(n)
-	lines.append([("%s · %d. zafer" % [MuhurYolu.ad(n), int(kr.get("zafer", 0))]), col.lerp(PixUI.TEXT, 0.3)])
-	var sure := float(R.get("time", 0.0))
-	var rek := "  ·  YENİ REKOR (önceki %s)" % MuhurYolu.sure_yazi(float(R.get("zafer_eski", 0.0))) if bool(R.get("zafer_rekor", false)) else ""
-	lines.append(["Süre %s  ·  bu mührün en iyisi %s%s" % [MuhurYolu.sure_yazi(sure), MuhurYolu.sure_yazi(float(kr.get("en_iyi", 0.0))), rek], PixUI.TEXT])
-	if int(R.get("ilk_zafer_kut", 0)) > 0:
-		lines.append(["İlk zafer: %d Kut Umay'a ulaştı" % int(R["ilk_zafer_kut"]), PixUI.KUT])
-	var yeni := int(R.get("muhur_yeni", -1))
-	if yeni > 0:
-		lines.append(["Zincirden bir halka: %s açıldı — %s" % [MuhurYolu.ad(yeni), MuhurYolu.kural_ad(yeni)], MuhurYolu.renk(yeni)])
-		var em := MuhurYolu.emanet_def(String(R.get("yeni_emanet", "")))
-		if not em.is_empty():
-			lines.append(["Emanet açıldı: %s (%s ve üstünde düşer)" % [String(em.get("ad", "")), MuhurYolu.ad(yeni)], PixUI.GOLD])
-	if bool(R.get("zafer_ilk", false)) and n > 0:
-		lines.append(["Bengü'ye süs: %s" % MuhurYolu.SUS_AD[n], col])
-	var pw := 440.0
-	var y := 166.0 + (1.0 - e) * 10.0
-	PixUI.panel(h, Rect2((vp.x - pw) / 2.0, y, pw, 10.0 + lines.size() * 12.0), col.darkened(0.35))
-	for i in lines.size():
-		PixUI.text(h, Vector2(0, y + 5 + i * 12.0), String(lines[i][0]), lines[i][1], 1, HORIZONTAL_ALIGNMENT_CENTER, vp.x, 0)
-	InkUI.orkhon(h, Rect2(vp.x * 0.5 - 90, y + 16.0 + lines.size() * 12.0, 180, 10), Color(1.0, 0.8, 0.45, 0.3 * e))
-	h._hint(vp, [["Boşluk", "Ulu Kayın'a dön"]], y + 34.0 + lines.size() * 12.0)
-	h._reveal(vp)
 
 
 # ------------------------------------------------------------------ HUD mühür damgası

@@ -8068,3 +8068,199 @@ hatası headless sahte doku (`Ses.gd:112`, önceden var).
   alanına dokunulmadı).
 * Kalkanlı damga ön / arka ayrımı vuruşun `dir`'ine bakar (balbal siperiyle aynı kural); yön vermeyen vuruşlar ön sayılır.
 * Bu bölüm LF satır sonuyla eklendi (dosyanın kendi biçimi).
+
+## v44: Damgalar, Destan kodeksi, koşu özeti ve başarımlar
+
+İstek: "Oyunda bir şey eksik, tam doyamıyorum. İstediğin her şeyi yapabilirsin."
+
+### Teşhis (özet; tam metin scratch_v44/derinlik/TESHIS.md)
+
+Anlık dövüş (vuruş hissi, kan, ses, kritik, kombo, sanatlar) olgun; eksik olan **koşu yayı** ve **koşular arası yay**.
+Dead Cells (mutasyonlar, bestiary, ölüm ekranı), Hades (boon'lar, Codex) ve Slay the Spire (kalıntılar, istatistik,
+başarımlar) ile karşılaştırınca en büyük boşluklar:
+
+1. **Yapı / karar katmanı yok**: koşunun kimliği silah + tomar rengi + nakıştan (hepsi SnH) ibaret; nasıl oynadığını
+   değiştiren pasif seçim yok. Lütuflar rastgele verilir (seçim yok) ve konakta söner. Konak bir alışveriş molası.
+2. **Koşu sonu tartısı zayıf**: ölüm ekranı dört karo; neyle öldüğün, en iyi vuruşun, kurduğun yapı, rekor kırıp
+   kırmadığın görünmüyor. Zaferde (Erlik) hiç özet yok.
+3. **Koleksiyon / bilgi hedefi yok**: 60+ yaratık, 6 boss, 67 eşya, görümler bir yerde birikmiyor; zaaf öğrenilemiyor.
+4. **Uzun vadeli küçük hedefler yok** (Ad Koyma dışında).
+
+Yapılanlar birbirini besler: Damga kodekse girer, başarımlar Damga / kodeks / rekorlara bağlanır, özet koşu sonunda
+hepsini gösterir.
+
+### Damgalar (`scripts/core/Damga.gd`, `scripts/world/DamgaTasi.gd`, `DerinlikUI.ciz_damga`)
+
+Her konakta Bengisu Usta'nın tezgâhı ile Demirci arasında (konak.json `genel.damga`, varsayılan 39,4. karo) **Damga
+Taşı** durur (dikili taş; çerçevesinde sunulan üç tamga sırayla parlar). W: Damga ekranı (oyun durur): üç kart
+(tamga mührü, ad, ongun rengi ve üslup, etki, söz, UYUM / NADİR / YENİ rozetleri), A/D seç, Boşluk vur, **R:
+Bengisu yeniden oysun** (30 x `Pazar.derinlik_k` altın, her oymada x1,5), Esc ayrıl. Bir konakta bir Damga; vurulunca
+kartın üstüne kızıl "VURULDU" mührü basılır. Teklif konak tohumuyla (aynı tohum aynı teklif), sahip olunmayanlardan,
+nadirler 0,35 ağırlıkla, Erlik Mührü ile Börü Yası aynı teklifte olmaz.
+
+**Yuvalar** meta ile açılır: 1; Kara Börü Han bir kez devrilince 2; Şahmeran Ana devrilince 3 (eski kayıt: örgü ya da en
+derin 3 / 7). Yuva doluyken Boşluk "hangi Damga silinsin?" sorar (A/D, Boşluk). **Uyum**: Damganın ongun rengindeki tomar
+en önde (eşitlik dahil, en az 1) ise sayısal etkisi x1,25 (`Damga.k`); kartta "UYUM x1,25" ya da "Bozkurt önde olunca
+x1,25", HUD'da halkası nabız atar.
+
+| Damga | renk | etki | üslup |
+|---|---|---|---|
+| Kurt İzi | Bozkurt | öldürünce 3 sn koşu hızı +%30, hasar +%15 | öldür, koş, yine öldür |
+| Kartal Gözü | Kartal | uzak kritik nişanlar; o düşmana sıradaki yakın vuruş +%45 | uzaktan nişanla, yakından bitir |
+| Ayı Postu | Ayı | can %40 altında alınan hasar -%30 | dar boğazda direnen |
+| Od Tamgası | Bozkurt | yanana +%20; yanarken ölen ateşi çevresine sıçratır | yangın yayan |
+| Kam Tamgası | Kartal | her öldürme sanat beklemesini 1 sn (seçkinde 4) kısaltır | sanat ardına sanat |
+| Börü Yası (nadir) | Ayı | koşuda bir kez ölümcül darbede %30 canla diril | ikinci can |
+| Usul Tamgası | Kartal | usulde isabet canın %1'i (saniyede en çok %3) | ritimle yaşayan |
+| Tulga Tamgası | Ayı | savuşturma sonrası 3 sn +%30, sıradaki vuruş kesin kritik | karşıla, sonra ez |
+| Yel Tamgası | Bozkurt | yuvarlandıktan sonraki 1 sn +%35 | kaç ve sok |
+| Kan Tamgası | Bozkurt | kanayana +%20; kanayanı öldürünce %2 can | kanatıp beslenen |
+| Ayaz Tamgası | Kartal | %10 dondurma; donmuş / sersem düşmana +%25 | dondur, parçala |
+| Ata Kesesi | renksiz | altın taneleri +%40; seçkin +4 altın | kervanın dostu |
+| Kut Tamgası | renksiz | Kut gücü %40 hızlı; seçkin +25 Kut gücü | Bozkurt'a koşan |
+| Tengri Tamgası | Kartal | kritik yakındakine şimşekle sıçrar (%35) | kritik zinciri |
+| Umay Tamgası | Ayı | şişe +%40; içince 2 sn alınan hasar yarıya | dayanıklı |
+| Sürü Tamgası | Bozkurt | yakındaki her düşman +%6 hasar (en çok +%30) | kalabalıkta coşan |
+| Demir Tamgası | Ayı | azami can +%20 (silinince geri alınır) | demir gövde |
+| Erlik Mührü (nadir) | renksiz | hasar +%40, alınan hasar +%25 | lanetli güç |
+| Okçu Tamgası | Kartal | uzak vuruşlar +%25 | uzaktan avlayan |
+| Balbal Tamgası | Ayı | seçkin / bosslara +%15, onlardan -%15 | dev avcısı |
+
+Kancalar tek satır: `Player._deal` (`Damga.hasar_k`, `vurus_sonra`), `Player.take_hit` (`alinan_k`, `olumcul`), koşu hızı
+(`hiz_k`), `add_kut` (`kut_k`), `_drink` (`sise_k`, `icti`), `_parry` (`savusturma`), `Level.on_enemy_died` (`oldurme`),
+Pickup altını (`altin_k`). HUD'da can / lütufların altında yuva halkaları (etkin tamga renkli, boş yuva soluk);
+duraklatmada adlarıyla; konak öğretici kartı Damga Taşı'nı anar. Görseller `tools/artgen/ui_ink44.py`:
+`assets/ui/ink/damga44.png` (20 tamga, 128 px hücre: kurt izi, kartal gözü, ayı pençesi, od, kam davulu, ay ve kurt,
+usul tokmakları, tulga, yel, kan, ayaz, kese, kut sarmalı, Tengri şimşeği, Umay kuşu, sürü, örs, Erlik'in ters çatalı,
+Kayı yayı, balbal), `damga_tasi.png` (dikili taş); HD x2 `assets_hd/x2/ui/ink/*.webp` (manifest). Bot (`--otomatik`)
+konakta teklifin ilk Damgasını vurur (`[otomatik] DAMGA ...`).
+
+### Ozan'ın Destanı (kodeks; `scripts/core/Kodeks.gd`, `DerinlikUI.ciz_kodeks`)
+
+Ozan'da (yurt + konak) **R**, duraklatmada ve ölüm / zafer özetinde **C** açar. Sekmeler E/R: **Yaratıklar** (58
+sayfa; yaratığın kendi mürekkep çiziminden portre (`Kodeks.portre`: idle ilk karesi, boş kenar kırpılır, biyom tonu),
+söz, devrilen / seni devirdi, **5 öldürmede zaaf** (yapay zekâ türüne göre 33 zaaf + 5 boss zaafı; boss 1 öldürmede),
+15 öldürmede can / hasar / hız), **Silahlar** (67 eşya: görülen / açılan / parşömen bekleyen, bu silahla devrilen,
+kritik koşulu; ky-kavanoz44'ün kavanoz verisi varsa `meta.kavanoz` yalnızca okunur), **Damgalar** (görülen / vurulan,
+etki, üslup, uyum), **Destan** (5 Gün örgüsü, 5 görüm, 15 taş yazıt; parşömen sayfada Alegreya), **Başarımlar**,
+**Rekorlar**. Sağ üstte tamamlanma halkası: yaratık %35, zaaf %15, silah %20, Damga %10, destan %10, başarım %10.
+Kayıt `meta.kodeks` (y / s / d / dg / seckin / surum 44; göçte açılmış silahlar görülmüş sayılır).
+
+### Koşu özeti ve rekorlar (`scripts/core/KosuOzet.gd`, `DerinlikUI.ciz_ozet`)
+
+Ölüm ekranı ("RUH KUŞUN DALA KONMADI") ve **zafer ekranı** ("TAN SÖKTÜ", son sinemadan sonra yurtta) aynı sayfa:
+karolar (derinlik, süre, düşman, altın), **SENİ DEVİREN** (son vuranın portresi, kaç kez devirdiği, zaafı yazılı mı),
+**KOŞUNUN TARTISI** (verilen / alınan hasar, en ağır vuruş ve silahı, en yüksek kombo, seçkin, Kut, sınav mührü · otağ,
+tomar), **AV DEFTERİ** (türlere göre ilk 6), alt şeritte Damgalar, silahlar, yitik Kut / banka; kırılan rekorlarda kızıl
+**REKOR** mührü ve "YENİ REKOR" satırı (ilk koşuda mühür yok). Kalıcı: `meta.rekor` (en derin, en çok öldürme, en
+yüksek kombo, en ağır vuruş, en çok hasar, en hızlı zafer), `meta.rekor_m["<mühür>"]`, `meta.gecmis` (son 12 koşu:
+derinlik sütunları, Damga tamgaları). Rekor sayfası ky-ngp44'ün `meta.muhur_kayit` alanını (varsa) kademe tablosuna
+katar. Öldürücü darbenin artığı alınan hasara sayılmaz.
+
+### Destan Başarıları (`scripts/core/Basarim.gd`)
+
+25 başarım (İlk Kan, Yüz / Bin Baş, beş boss, 5. / 10. derinlik, İlk / Üç Tamga, Ongun Uyumu, Tamga Bilgesi, Destan
+Kombosu, Dağ Yaran, Seçkin Avcısı, Zaaf Bilgini, Ozan'ın Tam Destanı, Yel Gibi, Çıplak Yiğit, Dokunulmaz, Sartak'ın
+Dostu, Ad Sahibi, Yarı Destan). Rozet: kızıl yuvarlak mühür üstünde mürekkep simge. Açılınca sağ üstte **bildirim**
+(kayan panel, mühür basılır, "DESTAN BAŞARISI", ödül). Ödüller: **HUD çerçeve rengi** (9 renk; Kodeks > Başarımlar'da
+Boşluk ile seçilir; HUD'da kilim şeridi ve Damga halkaları), **Ozan dizesi** (Ozan ekranında döner) ya da **Kut**.
+Göçte eski kaydın hak ettikleri sessizce açılır. Kayıt `meta.basarim` {id: unix zamanı}, `meta.hud_renk`.
+
+### Test
+
+* `-- --damga` (72 denetim), `--kodeks` (26), `--ozet` (21), `--basarim` (22): `tools/tests/derinlik44_testi.gd`,
+  `[v44] SONUC GECTI`. Her Damganın etkisi gerçek yaratıklarla, Player.take_hit / _deal / add_kut kancaları, yuvalar,
+  yeniden oyma, ekran girdisi; gerçek öldürme → kodeks / av defteri, zaaf eşikleri, göç; ölüm akışı → özet, rekor,
+  Mühür kademesi, zafer; başarım ödülleri, renk seçimi, bildirim kuyruğu, sessiz göç.
+* `--kayit=user://...json`: testler / çekimler kalıcı kaydı ayrı dosyaya yazar (gerçek kayda dokunulmaz).
+* Gerileme: `--konak` GECTI, `--yurt --yurt-tur` (dört NPC, kapı), `--dovus --boss --kontrol` (TAKILMA=0, basılmamış 0),
+  `--sanat --boss --muhur=0` GECTI, `--otomatik --derinlik=1/3 --muhur=0 --fixed-fps 60` (bot konakta Damga vurur),
+  `--piksel_tara --otomatik --derinlik=3` TOPLAM 0. Betik hatası 0.
+* Çekim: `--derinlik_ekran=damga | damga_vur | damga_dunya | hud | toast | kodeks_yaratik | kodeks_silah | kodeks_damga |
+  kodeks_destan | kodeks_basarim | rekor | ozet | zafer` (`--pencere=1920x1080 --grafik=2 --bekle=16 --goruntu=...`).
+  Görseller `docs/v44/derinlik/`.
+
+### Sonraki adaylar
+
+Lütuf sunağını 2'den 1 seçimli yapmak; Günün Yolu (tohumlu günlük koşu) ve yerel skor tablosu; aynı renkte iki Damga
+için ikili uyum bonusları.
+
+## v44 birleştirme denetimi
+
+`v44-derinlik44` (Damgalar, Ozan'ın Destanı, koşu özeti / rekorlar, Destan Başarıları) `main`e (v44-kavanoz44 +
+v44-ngp44) birleştirildi. Çakışmalar (TASARIM.md, Main.gd, Game.gd, HUD.gd, Pickup.gd) iki özelliği de tutarak çözüldü:
+
+* `Game.new_run`: `Kupler.baslangic` (başlangıç silahı) ve `Damga.kosu_basi` birlikte; `meta_hazirla` sırası
+  `MuhurYolu` → `Kodeks` / rekor → `Basarim` (başarım göçü mühür kayıtlarını görür).
+* `Pickup`: altın tanesi `MuhurYolu.altin(Pazar.altin_tane())` x Ata Kesesi; Kut tanesi `MuhurYolu.kut_tane()` hem
+  koşuya hem özetin `kut_kazanc`ına aynı değerle yazılır.
+* HUD menü kipleri birleşti (`muhur`, `damga`, `kodeks`, `zafer`); ölüm sayfası DerinlikUI'nin koşu özeti.
+
+### Tek zafer akışı
+
+Erlik devrilir → (ilk kez: son sineması) / (Beşinci Mühürde ilk zafer: gerçek son) → (yeni mühür açıldıysa: tören
+kartı; ilk zaferde tören yurtta, taşta) → **tek zafer özeti** → Boşluk → sabah yurdu (`Main._zafer_bitir`).
+
+* Özet `Main._zafer_ozet`te kurulur: Kut bankaya, `DerinlikUI.ozet_kur(true)` (KosuOzet.bitir koşu başına bir kez),
+  `hud.mode = "zafer"`. Son sinemasının sonu da artık `_zafer(true)` → `_zafer_ozet` (eskiden özet atlanıp doğrudan
+  yurda geçiliyordu; derinlik44'ün hikaye_son kancası ve yurtta açılan ikinci özet kaldırıldı).
+* MuhurUI'nin ayrı zafer ekranı kaldırıldı; satırları (mühür ve zafer sayısı, en iyi süre / YENİ REKOR, ilk zafer Kut'u,
+  açılan mühür, emaneti, Bengü'nün süsü) özetin sol panelinde, Erlik portresinin altında (`DerinlikUI._ozet_muhur`).
+  Veri koşu bitince `KosuOzet.muhur_bilgi` ile özete (`ozet.mb`) donar; özet yeni koşudan sonra da doğru çizilir.
+  Başlık: mühürsüz ilk zaferde "TAN SÖKTÜ", sonrakilerde "TAN YİNE SÖKTÜ" + story.json `muhur_yolu.zafer` satırı.
+* Ölüm sayfası: bilgi şeridine koşunun mührü ve o mühürdeki en derin (`MuhurYolu.kayit`).
+
+### Tek defter
+
+* Mühür başına en derin / zafer / en iyi süre yalnızca `Game.meta.muhur_kayit`te (`MuhurYolu.kayit(n)`); `rekor_m`
+  artık yalnızca orada olmayanları tutar (öldürme, kombo, en ağır vuruş, verilen hasar). Rekor sayfasının "KUT MÜHRÜNE
+  GÖRE" tablosu derin / zafer sütunlarını `kayit`ten okur (zafer: sayı · en iyi süre).
+* `meta.wins` yalnızca `Level._on_boss_died`da artar; `KosuOzet.bitir(true)` ikinci kez saymıyordu düzeltildi.
+
+### Kodeks ↔ silah küpleri
+
+`Kodeks.kavanozda(id)` = `Kupler.durum(id) == "acik"` (derinlik44 var olmayan `meta.kavanoz` anahtarını arıyordu).
+Silah sayfasında durum küp duvarıyla aynı ("küpü açık / parşömen bekliyor / küpü kilitli"), alt satırda "Ata Kurganı
+n / 54 küp" (`Kupler.acilan / toplam`, duvarın başlığıyla aynı sayı). Kalkanlar küpte; teçhizat küpsüz.
+
+### Başarımlar (25 → 32)
+
+| Kimlik | Ad | Koşul | Ödül |
+|---|---|---|---|
+| ilk_muhur | Zincirden İlk Halka | ilk mühür açıldı (Erlik'i yen) | 25 Kut |
+| bes_muhur | Beş Mühürlü | Beşinci Mühürde zafer | çerçeve "Sabah ışığı" |
+| gercek_son | Zincirin Sonu | gerçek son | Ozan dizesi |
+| emanet | Emanetçi | bir mühür emaneti eline geçti | 20 Kut |
+| kup10 / kup30 | Küp Dolduran / Kurgan Bekçisi | 10 / 30 küp | 15 / 30 Kut |
+| kup_hepsi | Atalar Kurganı Dolu | bütün küpler | çerçeve "Kurgan tuncu" |
+
+Denetim kayıttan (`bitis`, `goc`, `kodeks`, `kup` (Kupler.kesfet yeni küp), `emanet` (MuhurYolu.emanet_bulundu));
+öldürme olayında bakılmaz. Eski kayıtlar göçte sessizce açar.
+
+### Damga × Mühür
+
+* Ad çakışması: nadir Damga "Erlik Mührü" → **"Erlik Halkası"** (kimlik `erlik_muhru` kayıt uyumu için aynı). Mühür
+  yolunun II. kuralı "Erlik Damgası" (seçkinlerin Öfkeli / Kalkanlı / Bölünen damgası) oyuncunun Damgalarıyla ad
+  paylaşıyor; ekranlarda ayrı yerde (Mühür Taşı kuralı / düşman üstü) göründüğü için bu sürümde dokunulmadı (aday: "Erlik
+  Nişanı").
+* Börü Yası (koşuda bir diriliş, canın %30'u) ile Umay'ın dirilişi (`revive`, %50) üst üste biner: önce Börü Yası.
+  Mühür V'te tek şişe ve x1,55 hasarla iki diriliş güçlü ama bir Damga yuvası ve nadir teklif bedeli var; değiştirilmedi.
+  Erlik Halkası (alınan +%25) Mühür V'te (x1,55) x1,94 alınan hasar demek: bilinçli lanet, uyarı metni yeterli.
+* Ata Kesesi (+%40 altın) mühürün altın çarpanıyla çarpılır (toplanmaz).
+
+### Konak yerleşimi
+
+Bengisu Usta · Damga Taşı (39,4) · Demirci · at · Alp Ata çakışmasız (`ekran/konak_damga_tasi.jpg`); Umay, ocak,
+Ozan solda; Bezirgân kervanı sağda. `--hikaye_test`in "konak yoldaşlarının sözü" denetimi Damga Taşı'nı yoldaş
+saymaz.
+
+### Gerileme (headless, betik hatası 0)
+
+`--ngp` 116/116 (özetin mühür bilgisi denetimi eklendi), `--yurt --kavanoz` GECTI, `--damga` 72, `--kodeks` 26,
+`--ozet` 22, `--basarim` 27 (yeni mühür / küp başarımları dahil) GECTI, `--hikaye_test` 102/102 (gerçek kayıtla; boş
+kayıtla Erlik dövüşünde zayıf Bengü ölebiliyor, test kayda bağlı), `--konak` GECTI, `--yurt --yurt-tur` (beş durak,
+kapı 20,9 sn), `--otag --muhur=0` GECTI, `--harita --harita_tohum=24` GECTI, `--dovus --boss --kontrol` TAKILMA=0
+basılmamış 0, `--sanat --boss --muhur=0` GECTI, `--boss=erlik_han --muhur=0` temiz, `--otomatik --derinlik=1/3
+--muhur=0 --fixed-fps 60` temiz (bot konakta Damga vurur), `--piksel_tara --otomatik --derinlik=3` TOPLAM 0.
+
+* Bu bölüm LF satır sonuyla eklendi (dosyanın kendi biçimi).

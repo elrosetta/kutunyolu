@@ -316,6 +316,7 @@ static func emanet_bulundu(it: Dictionary) -> void:
 		b.append(id)
 		Game.meta["muhur_emanet_bulunan"] = b
 		Game.save_meta()
+		Basarim.olay("emanet")   # v44 birleştirme: Emanetçi başarımı
 
 
 static func emanet_satir(it: Dictionary) -> String:

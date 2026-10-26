@@ -126,6 +126,8 @@ static func kesfet(id: String, once := "") -> bool:
 		if n0 < int(e["n"]) and acilan() >= int(e["n"]) and String(e["id"]) == "rastgele" and not (RASTGELE in k["yeni"]):
 			(k["yeni"] as Array).append(RASTGELE)
 	Game.save_meta()
+	if yeni:
+		Basarim.olay("kup")   # v44 birleştirme: küp başarımları
 	return yeni
 
 

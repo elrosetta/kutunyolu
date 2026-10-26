@@ -2,7 +2,9 @@ extends Node
 ## Oyun durumu: giriş haritası, koşu (run) verisi, kalıcı kayıt (kilitler, parşömenler, Kut bankası),
 ## kamera sarsıntısı/itişi, vuruş duraklaması ve ağır çekim.
 
-const SAVE_PATH := "user://kayit.json"
+const SAVE_PATH_VARSAYILAN := "user://kayit.json"
+## v44: test / çekim kalıcı kaydı ayrı dosyaya yazabilir (--kayit=user://test.json): gerçek kayda dokunulmaz
+var SAVE_PATH := SAVE_PATH_VARSAYILAN
 const LAYER_WORLD := 1
 const LAYER_PLAYER := 2
 const LAYER_ENEMY := 4
@@ -97,6 +99,9 @@ func _ready() -> void:
 	_movie = Engine.get_write_movie_path() != ""
 	_movie_clock = Time.get_ticks_msec() / 1000.0
 	_setup_input()
+	for arg in OS.get_cmdline_user_args():
+		if String(arg).begins_with("--kayit="):
+			SAVE_PATH = String(arg).trim_prefix("--kayit=")
 	load_meta()
 	_on_yukle_baslat()
 
@@ -340,8 +345,10 @@ func new_run() -> void:
 		"slots": {"melee": start_melee, "second": start_bow, "g1": start_bomb, "g2": {}},
 		"kills": 0, "time": 0.0, "tier": 0, "depth": 1, "scrolls": 0, "lutuf": [], "boss_done": [],
 		"adlar": [], "destan": [], "dstat": {},
+		"damga": [], "oz": {},   # v44 Damgalar, koşu özeti (Damga.gd, KosuOzet.gd)
 	}
 	Kupler.baslangic(run, umay_level("silah") > 0)   # v44: Ata Kurganı'nda seçilen başlangıç silahı ve küp eşikleri
+	Damga.kosu_basi()
 
 
 func umay_level(id: String) -> int:
@@ -537,6 +544,10 @@ func load_meta() -> void:
 			meta.merge(d, true)
 	Hikaye.meta_hazirla()   # v42: hikâye alanları (gun_parca, gorumler, giris_izlendi, son_izlendi) varsayılan / göç
 	MuhurYolu.meta_hazirla()   # v44: mühür yolu kayıtları (muhur_kayit, emanetler, süs, gerçek son) varsayılan / göç
+	Kodeks.meta_hazirla()   # v44: Ozan'ın Destanı (kodeks), rekorlar, başarımlar: varsayılan / göç
+	if not (meta.get("rekor") is Dictionary):
+		meta["rekor"] = {"derinlik": float(meta.get("best_depth", 1))} if int(meta.get("runs", 0)) > 0 else {}
+	Basarim.meta_hazirla()
 
 
 func save_meta() -> void:
@@ -592,3 +603,5 @@ func _setup_input() -> void:
 	_bind("ayarlar", [KEY_TAB, KEY_O], -1, [JOY_BUTTON_GUIDE])
 	# v32 harita: M (oyun kolunda sağ çubuk basışı Kut'ta; harita için D-pad aşağı uzun basış yok: yalnızca klavye)
 	_bind("harita", [KEY_M])
+	# v44 Ozan'ın Destanı (kodeks): C (duraklatmada ve Ozan'da; Ozan ekranında R de açar)
+	_bind("kodeks", [KEY_C])

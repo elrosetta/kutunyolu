@@ -732,6 +732,7 @@ func build_konak(seed_value: int) -> void:
 	_build_particles()
 	_build_overlay_fx()
 	Usta.yeni_konak(seed_value)
+	Damga.yeni_konak(seed_value)   # v44: Damga Taşı'nın üç tamgası (konak tohumuyla)
 	Ses.music(String(G.get("muzik", "yurt")))
 	Perde.acilis("konak")   # v40: sıcak amber solma
 	print("[konak] derinlik=%d biyom=%s tohum=%d bezirgan=%d" % [int(Game.run.get("depth", 1)), String(biome.get("id", "")), seed_value, 1 if bezirgan else 0])
@@ -804,6 +805,7 @@ func _place_konak(G: Dictionary, B: Dictionary) -> void:
 	actors.add_child(n)
 	npcs.append(n)
 	_konak_yoldaslar(G)   # v42: Umay Ana, Ozan, Demirci, Alp Ata kervanla
+	DamgaTasi.kur(self, float(G.get("damga", 39.4)))   # v44: Bengisu'nun Damga Taşı (Usta ile Demirci arasında)
 	# Bezirgân: bir önceki derinlikte pazar çıkmadıysa kervan konağa gelir
 	if not bool(Game.run.get("bezirgan_gordu", false)) or Level.bezirgan_zorla:
 		var bx := int(G.get("bezirgan", 47))
@@ -3615,6 +3617,11 @@ func spawn_roots(pos: Vector2, dmg: float, source: Node) -> void:
 
 
 func on_enemy_died(e: Enemy) -> void:
+	# v44: Ozan'ın Destanı (kodeks), koşu özeti, Damga öldürme etkileri, başarımlar
+	Kodeks.oldur(e)
+	KosuOzet.oldur(e)
+	Damga.oldurme(self, e)
+	Basarim.olay("boss" if e.is_boss else "oldurme")
 	if e == boss and e != null:
 		_on_boss_died(e)
 		return
@@ -4145,6 +4152,7 @@ func otag_gir(o: Otag) -> bool:
 		FX.text(o.global_position + Vector2(0, -78), "Otağ boş", Color(0.8, 0.76, 0.7), 8)
 		return false
 	o.alindi = true
+	KosuOzet.otag()   # v44
 	var d2 := int(Game.run.get("depth", 1))
 	var od := Sinav.odul(o.tur, d2, int(Game.run.get("tier", 0)), rng)
 	if o.tur != "han" and sinav.hepsi() and not _han_otagi_var() and not _han_verildi:

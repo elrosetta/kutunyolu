@@ -1991,6 +1991,18 @@
   "ui/ink/band.webp",
   "14f26807e90a644a445da72131799878"
  ],
+ "ui/ink/damga44.png": [
+  2560,
+  128,
+  "ui/ink/damga44.webp",
+  "fa188f7cee396080ef19dffe0de472f5"
+ ],
+ "ui/ink/damga_tasi.png": [
+  192,
+  320,
+  "ui/ink/damga_tasi.webp",
+  "abd9ddf05dec067e0557fd5b96d18d4f"
+ ],
  "ui/ink/enso.png": [
   256,
   256,

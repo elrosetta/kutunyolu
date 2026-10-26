@@ -194,6 +194,7 @@ func _ready() -> void:
 		hud.mode = "title"
 		get_tree().paused = true
 		Ses.music("baslik")
+	_v44_test()
 	for arg in OS.get_cmdline_user_args():
 		if String(arg).begins_with("--sinema_kayit="):
 			# v43 sinema kaydı / önizleme: --sinema_kayit=<ad> [--write-movie x.avi --fixed-fps 30]: oynatır, bitince çıkar
@@ -202,6 +203,20 @@ func _ready() -> void:
 			get_tree().paused = true
 			sinema = Sinema.oynat(self, sk, Sinema.ornek_degisken(sk))
 			sinema.bitti.connect(func() -> void: get_tree().quit())
+
+
+## v44 testleri / çekimleri (tools/tests/derinlik44_testi.gd): --damga, --kodeks, --ozet, --basarim, --derinlik_ekran=<ad>.
+## TEST_BAYRAKLARI'na girmez (koşu yurtta kurulur, test kendi bölümünü / konağını kurar); oyun kipinde başlar.
+func _v44_test() -> void:
+	for arg in OS.get_cmdline_user_args():
+		var a := String(arg)
+		if a in ["--damga", "--kodeks", "--ozet", "--basarim"] or a.begins_with("--derinlik_ekran="):
+			var dt: Node = load("res://tools/tests/derinlik44_testi.gd").new()
+			dt.set("main", self)
+			add_child(dt)
+			hud.mode = "play"
+			get_tree().paused = false
+			return
 
 
 ## v32: test / çekim bayraklarından biri varsa koşu doğrudan 1. derinlikte başlar (eski davranış; testler ve bot bölümü
@@ -513,6 +528,10 @@ func _to_konak() -> void:
 	Game.save_meta()
 	_build_konak()
 	_start_play()
+	# v44 başarımlar (konak: Yel Gibi, Çıplak Yiğit, Dokunulmaz); bölümde alınan hasar sıfırlanır
+	var oz44: Dictionary = Game.run.get("oz", {})
+	Basarim.olay("konak", {"hasarsiz": float(oz44.get("bolum_alinan", 1.0)) <= 0.0 and int(Game.run.get("kills", 0)) > 0})
+	oz44["bolum_alinan"] = 0.0
 	var heal := int(round(float(Game.run.get("hp", 0.0)) - hp0))
 	hud.flash_msg = "Konak: can +%d, şişeler doldu. Kut'u ocağa, silahını Bengisu Usta'ya götür; kapı derine indirir." % heal
 	hud.flash_t = 5.0
@@ -586,6 +605,8 @@ func _on_npc(id: String) -> void:
 			MuhurUI.ac(self)   # v44 Mühür Taşı: mühür seçimi
 		"usta":
 			_usta_ac()
+		"damga":
+			DerinlikUI.damga_ac(self)   # v44 Damga Taşı
 
 
 # ------------------------------------------------------------------ v32 Bengisu Usta (konak)
@@ -773,6 +794,8 @@ func _on_died() -> void:
 		Hikaye.olum_isaretle(String(level.biome.get("id", "")))   # v43: biyomdaki ilk ölüm satırı
 	MuhurYolu.olum()   # v44: bu mührün en derin kaydı
 	var saved := Game.lose_run_kut()
+	KosuOzet.olum(String(level.biome.get("id", "")) if level else "")   # v44: ölüm nedeni (kodeks: seni devirdi)
+	DerinlikUI.ozet_kur(false)   # v44 koşu özeti ve rekorlar
 	hud.flash_msg = ("Ruh Düğümü %d Kut kurtardı." % saved) if saved > 0 else ""
 	hud.mode = "dead"
 	Ses.music("baslik", 2.5)
@@ -845,10 +868,12 @@ func _apply_scroll(sel: int) -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
+	if DerinlikUI.girdi(self, event):
+		return   # v44: Damga Taşı, Ozan'ın Destanı, zafer özeti (ve ölüm / Ozan / duraklatmadan C)
 	var go: bool = event.is_action_pressed("zipla") or (event is InputEventKey and event.pressed and event.physical_keycode == KEY_ENTER)
 	match hud.mode:
-		"muhur", "zafer":
-			MuhurUI.girdi(self, event, go)   # v44 Mühür yolu
+		"muhur":
+			MuhurUI.girdi(self, event, go)   # v44 Mühür yolu (zafer özeti DerinlikUI.girdi'de)
 		"ayarlar":
 			var n: int = Ayarlar.rows().size()
 			if event.is_action_pressed("yukari"):
@@ -1201,6 +1226,8 @@ func _zafer(son_sonrasi := false) -> void:
 	## Erlik devrildi ve kapıdan geçildi (ya da son sineması bitti). İlk kez (tan sökmeden) önce son sineması oynar, o
 	## bitince buraya döner ve doğrudan sabah yurduna geçilir (Mühür Taşı'nda ilk mührün töreni). Sonraki zaferlerde:
 	## [gerçek son (Beşinci Mühürde ilk zafer)] → [mühür töreni kartı (yeni mühür açıldıysa)] → zafer özeti → yurt.
+	## v44 birleştirme: zafer özeti tek: DerinlikUI.ciz_ozet (koşu özeti + mühür satırları); ilk zaferde son sinemasından
+	## sonra da aynı özet açılır (tören kartı orada yok: ilk mührün töreni yurtta, taşta oynar).
 	if not son_sonrasi and not Hikaye.safak():
 		if sinema == null:
 			hikaye_son()
@@ -1209,7 +1236,7 @@ func _zafer(son_sonrasi := false) -> void:
 		return
 	_zafer_son = son_sonrasi
 	if son_sonrasi:
-		_zafer_bitir()
+		_zafer_ozet()
 		return
 	if bool(Game.run.get("gercek_son_bekliyor", false)) and Sinema.var_mi("gercek_son"):
 		Game.run["gercek_son_bekliyor"] = false
@@ -1240,7 +1267,10 @@ func _zafer_toren() -> void:
 
 
 func _zafer_ozet() -> void:
+	## Zafer özeti (her zaferde bir kez): Kut bankaya, koşu özeti / rekorlar (KosuOzet.bitir koşu başına bir kez çalışır)
 	Gorum.temizle()
+	Game.bank_run_kut()
+	DerinlikUI.ozet_kur(true)
 	hud.mode = "zafer"
 	hud.open_anim()
 	get_tree().paused = true
@@ -1259,7 +1289,7 @@ func _zafer_bitir() -> void:
 	if _zafer_son:
 		hud.flash_msg = "Tan söktü. Ulu Kayın sabah ışığında; gece yine gelecek, yol yine aşağı iner."
 	elif yeni > 0:
-		hud.flash_msg = "%s Mühür Taşı'nda. Erlik bu gece daha güçlü gelecek." % MuhurYolu.ad(yeni)
+		hud.flash_msg = "Taşa %s basıldı. Erlik bu gece daha güçlü gelecek." % MuhurYolu.ad(yeni)   # v44 birleştirme: "Mühür Mühür" tekrarı
 	else:
 		hud.flash_msg = "Tan yine söktü. Mühür Taşı yeni bir gece bekliyor."
 	hud.flash_t = 6.0
@@ -1684,6 +1714,19 @@ func _physics_process_ic(delta: float) -> void:
 			_start_play()
 			return
 		"sanat":
+			_start_play()
+			return
+		"damga":
+			# v44 bot: teklifin ilk Damgası (yuva doluysa en eski silinir), sonra yola
+			var tk: Array = Damga.teklif()
+			if not tk.is_empty() and not Damga.secildi():
+				var et: Array = Damga.etkin()
+				var r44 := Damga.al(String(tk[0]), String(et[0]) if et.size() >= Damga.yuva() and not et.is_empty() else "")
+				print("[otomatik] DAMGA derinlik=%d %s" % [int(Game.run.get("depth", 1)), String(r44.get("msg", ""))])
+			DerinlikUI.damga_sonuc = ""
+			_start_play()
+			return
+		"kodeks", "zafer":
 			_start_play()
 			return
 		"umay":

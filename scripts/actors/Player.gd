@@ -1425,6 +1425,9 @@ func on_equip() -> void:
 	_heavy_armed = false
 	_resolve_roles()
 	_yay_uclari_hazirla()
+	if not Game.run.is_empty():
+		for sk in ["melee", "second", "g1", "g2"]:
+			KosuOzet.silah(Game.run["slots"].get(sk, {}))   # v44: koşu özeti silahları, kodeks (görüldü)
 
 
 func _yay_uclari_hazirla() -> void:
@@ -1464,6 +1467,7 @@ func add_kut(v: float) -> void:
 	if Game.has_lutuf("kayra"):
 		m *= 2.0
 	m *= 1.0 + 0.2 * Game.umay_level("kut_hizi")
+	m *= Damga.kut_k()   # v44 Kut Tamgası
 	kut = minf(100.0, kut + v * m)
 
 
@@ -2077,7 +2081,7 @@ func _physics_process_ic(delta: float) -> void:
 		_kut_power()
 
 	# yatay hareket
-	var spd := RUN * (1.15 if spirit_t > 0.0 else 1.0)
+	var spd := RUN * (1.15 if spirit_t > 0.0 else 1.0) * Damga.hiz_k()   # v44 Kurt İzi
 	if sprint and dir != 0:
 		spd *= 1.55
 	var target := dir * spd
@@ -3307,6 +3311,7 @@ func combo_add(e: Node) -> void:
 	combo_n += 1
 	combo_t = 2.4 * (1.5 if Adlar.earned("kanturali") else 1.0)
 	combo_best = maxi(combo_best, combo_n)
+	KosuOzet.kombo(combo_n)   # v44 rekor
 	var r := 0
 	for i in COMBO_RANKS.size():
 		if combo_n >= int(COMBO_RANKS[i][0]):
@@ -4931,6 +4936,8 @@ func _deal(e: Node, base: float, it: Dictionary, opts: Dictionary = {}) -> void:
 	var krit_serbest := false   # v23: beceri koşulu (yuvarlanma sonrası kesinler): kosul_bekleme uygulanmaz
 	if Game.has_lutuf("erlik"):
 		d *= 1.35
+	opts["damga_usul"] = on_beat
+	d *= Damga.hasar_k(self, e, opts)   # v44 Damgalar (Kurt İzi, nişan, Od, Yel, Kan, Ayaz, Sürü, Erlik, Okçu, Balbal, Tulga)
 	match mech:
 		"ucuncu_vurus":
 			if opts.get("last", false):
@@ -5162,6 +5169,8 @@ func _deal(e: Node, base: float, it: Dictionary, opts: Dictionary = {}) -> void:
 	Unsur.after_hit(self, e, it, opts, d, killed)   # v20 unsur: tutuşma, ayaz yükü, şimşek, töz, kök
 	Silah27.after_deal(self, e, it, opts, d, killed)   # v27 Tengri Bağı: bağlılara hasar payı
 	sanat.on_deal(e, d, killed, opts)   # v27: Alp Nişanı kazancı
+	Damga.vurus_sonra(self, e, it, opts, d, killed)   # v44: nişan, usul şifası, Tengri şimşeği
+	KosuOzet.vurus(d, it, killed)   # v44 koşu özeti: verilen hasar, en ağır vuruş, silahın öldürmesi (kodeks)
 	if killed:
 		# v12 destanlar: yayla kesilenler, tek savuruşta üç
 		if opts.get("ok", false):
@@ -5467,7 +5476,8 @@ func _drink() -> void:
 	Ses.play("sise", -3.0)
 	_cancel_attack(false)
 	_end_trail()
-	heal(max_hp() * Zorluk.sise_sifa())   # v22: şişe payı data/zorluk.json
+	heal(max_hp() * Zorluk.sise_sifa() * Damga.sise_k())   # v22: şişe payı data/zorluk.json (v44: Umay Tamgası)
+	Damga.icti()
 	FX.anim("radiant_heal", global_position, 0.0, 1.0, Color(0.6, 1.0, 0.8), true, false, self)
 	FX.soul(center(), Color(0.5, 1.0, 0.8), 12)
 
@@ -6049,6 +6059,7 @@ func take_hit(dmg: float, from: Node, projectile: Node = null, forced := false) 
 	dmg *= 1.0 - minf(0.3, 0.03 * float(Game.run["ongun"]["ayi"]))
 	if Game.has_lutuf("yer_sub"):
 		dmg *= 0.75
+	dmg *= Damga.alinan_k(self, from)   # v44: Ayı Postu, Umay, Erlik Halkası, Balbal
 	if wolf_t > 0.0:
 		dmg *= 0.6
 		wolf_atk = {}
@@ -6073,6 +6084,7 @@ func take_hit(dmg: float, from: Node, projectile: Node = null, forced := false) 
 		FX.text(center() + Vector2(0, -56), "DELİ DUMRUL AZRAİL'E DİRENDİ!", Color(1.0, 0.5, 0.4), 10)
 		FX.ring(center(), 64, Color(1.0, 0.45, 0.35), 0.5)
 		Game.slowmo(0.25, 0.6)
+	KosuOzet.hasar_al(dmg, from if from != null else projectile)   # v44: alınan hasar, son vuran (ölüm nedeni)
 	Game.run["hp"] = float(Game.run["hp"]) - dmg
 	kz_lose()   # v20: hasar Kızışmayı söndürür
 	# v15 süper zırh: ağır savuruş sürerken hasar alınır ama savuruş kesilmez, geri itme / sarsılma yok
@@ -6117,6 +6129,8 @@ func take_hit(dmg: float, from: Node, projectile: Node = null, forced := false) 
 		if slot(s).get("flaw", "") == "lanetli":
 			kut *= 0.5
 	if float(Game.run["hp"]) <= 0.0:
+		if Damga.olumcul(self):
+			return true   # v44 Börü Yası: koşuda bir kez dirilir
 		if revive:
 			revive = false
 			Game.run["hp"] = max_hp() * 0.5
@@ -6134,6 +6148,7 @@ func take_hit(dmg: float, from: Node, projectile: Node = null, forced := false) 
 
 func _parry(sh: Dictionary, from: Node, projectile: Node) -> void:
 	inv_t = 0.25
+	Damga.savusturma(self)   # v44 Tulga Tamgası
 	Game.hitstop(0.1)
 	Game.slowmo(0.3, 0.25)
 	Game.shake(3.0)

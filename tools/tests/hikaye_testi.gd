@@ -414,6 +414,11 @@ func _orguler() -> void:
 			if main.sinema != null:
 				main.sinema._bitir()
 				await _sn(1.2)
+			# v44 birleştirme: son sinemasından sonra tek zafer özeti (DerinlikUI), Boşluk ile sabah yurdu
+			_check(main.hud.mode == "zafer" and bool(DerinlikUI.son_ozet.get("zafer", false)), "son: ardından zafer özeti (%s)" % main.hud.mode)
+			if main.hud.mode == "zafer":
+				main._zafer_bitir()
+				await _sn(0.6)
 			_check(Hikaye.safak() and main.level.hub, "son: tan söktü, yeni koşu sabah yurdunda")
 			_meta_kur(Hikaye.ORGU_SIRA.duplicate(), false)
 		else:
@@ -486,10 +491,14 @@ func _konak() -> void:
 		_check(want in ids, "konakta %s var" % want)
 	_check(lv.bezirgan != null, "konakta Bezirgân (zorla)")
 	var sozlu := 0
+	var yoldas := 0
 	for n in lv.npcs:
+		if n is DamgaTasi:
+			continue   # v44 birleştirme: Damga Taşı yoldaş değil (sözü yok; tamgası parlar)
+		yoldas += 1
 		if String(n.soz) != "":
 			sozlu += 1
-	_check(sozlu == lv.npcs.size(), "konak yoldaşlarının hepsinin hikâye sözü var (%d)" % sozlu)
+	_check(sozlu == yoldas, "konak yoldaşlarının hepsinin hikâye sözü var (%d / %d)" % [sozlu, yoldas])
 	# ateş başı çekimi: oyuncu ocak ile Ozan arasında
 	lv.player.global_position = lv._hub_px(22.0, -4.0) + Vector2(60, 0)
 	await _sn(1.5)

@@ -56,7 +56,7 @@ const TUT := {
 	# v27 savaş sanatları
 	"sanat": [[["T", "savaş sanatı"], ["Esc → T", "sanat seç"]], "Alp Nişanı hazır: T ile kuşandığın savaş sanatını kullan (sağ altta tamga ve taneler). Nişan isabetle, öldürerek, çarpışma ve kusursuz kaçışla dolar. Yeni sanatları yurtta Alp Ata öğretir; Sanat Tomarları da bulunur."],
 	# v32 konak
-	"konak": [[["W", "ocak / usta"]], "Konak: kervan seninle yol alıyor. Umay Ana ocağın başında (Kut armağanları), Ozan destanı anlatır, Demirci parşömen döver, Alp Ata sanat öğretir. Ateşin yanından geçince taşıdığın Kut Umay'a ulaşır. Bengisu Usta altınla silahına nakış (ek özellik) vurur, nakışları yeniden döver, unsur aşılar, kaliteyi yükseltir; Kut Mührü ucuz bir kumardır. Sağdaki kapı derine indirir."],
+	"konak": [[["W", "ocak / usta"]], "Konak: kervan seninle yol alıyor. Umay Ana ocağın başında (Kut armağanları), Ozan destanı anlatır, Demirci parşömen döver, Alp Ata sanat öğretir. Ateşin yanından geçince taşıdığın Kut Umay'a ulaşır. Bengisu Usta altınla silahına nakış (ek özellik) vurur, nakışları yeniden döver, unsur aşılar, kaliteyi yükseltir; Kut Mührü ucuz bir kumardır. Damga Taşı'nda üç tamgadan birini vur: koşu boyu seninle kalır. Sağdaki kapı derine indirir."],
 	# v32 harita ve Kut Taşı
 	# v34 Kahraman İnişi
 	"kahraman": [[["S+Boşluk", "havada: kahraman inişi"]], "Kahraman İnişi: havadayken S'ye basılı tutup Boşluk'a bas. Yere çakılır, çevredeki düşmanları şok dalgasıyla sersemletip savurursun; ne kadar yüksekten, o kadar güçlü. Çok yüksekten öylece düşersen kısa sersemlersin, inişle hiç sersemlemezsin."],
@@ -103,7 +103,7 @@ func _process_ic(delta: float) -> void:
 	_tut_tick(delta)
 	usta_damga_t += delta
 	if mode != _last_mode:
-		if mode in ["tilsim", "slot", "umay", "demirci", "ozan", "dead", "done", "ad", "tuccar", "sanat", "usta", "ayarlar", "harita", "muhur", "zafer"]:
+		if mode in ["tilsim", "slot", "umay", "demirci", "ozan", "dead", "done", "ad", "tuccar", "sanat", "usta", "ayarlar", "harita", "muhur", "damga", "kodeks", "zafer"]:
 			_open_t = 0.0
 		if mode == "play" and _last_mode != "" and _last_mode != "title":
 			_open_t = 0.0   # v40: menüden oyuna dönüşte de kısa fırça perdesi (HUD.paused dalında çizilir)
@@ -393,9 +393,11 @@ func _draw() -> void:
 	if Prof.on:
 		var t0 := Time.get_ticks_usec()
 		_draw_ic()
+		DerinlikUI.toast(self, _menu_vp())   # v44 başarım bildirimi
 		Prof.ekle(&"hud_ciz", t0)
 		return
 	_draw_ic()
+	DerinlikUI.toast(self, _menu_vp())   # v44 başarım bildirimi
 
 
 func _draw_ic() -> void:
@@ -424,6 +426,10 @@ func _draw_ic() -> void:
 		"ozan":
 			_draw_ozan(vp)
 			return
+		"kodeks":
+			if Game.run.is_empty() or level == null or level.player == null:
+				DerinlikUI.ciz_kodeks(self, vp)   # v44 Ozan'ın Destanı (oyun dışı)
+				return
 		"ad":
 			_draw_ad(vp)
 			return
@@ -451,6 +457,12 @@ func _draw_ic() -> void:
 			_draw_tuccar(vp)
 		"usta":
 			_draw_usta(vp)
+		"damga":
+			DerinlikUI.ciz_damga(self, vp)   # v44 Damga Taşı
+		"kodeks":
+			DerinlikUI.ciz_kodeks(self, vp)   # v44 Ozan'ın Destanı
+		"zafer":
+			DerinlikUI.ciz_ozet(self, vp, true)   # v44 zafer özeti
 		"sanat":
 			_draw_sanat(vp)
 		"harita":
@@ -458,8 +470,6 @@ func _draw_ic() -> void:
 			_reveal(vp)
 		"muhur":
 			MuhurUI.ciz(self, vp)   # v44 Mühür Taşı: mühür seçimi
-		"zafer":
-			MuhurUI.zafer(self, vp)   # v44 Erlik devrildi: koşu özeti
 		"play":
 			if get_tree().paused:
 				_draw_pause(vp)
@@ -595,6 +605,10 @@ func _draw_hud(vp: Vector2) -> void:
 			draw_circle(Vector2(lx + 5, ly + 6), 2.0, lc, true, -1.0, true)
 			PixUI.text(self, Vector2(lx + 9, ly + 1), String(l[0]), lc.lightened(0.2), 1, HORIZONTAL_ALIGNMENT_LEFT, -1.0, 0)
 			lx += w2 + 3.0
+	# ---- v44 etkin Damgalar (lütufların altında) ve seçili HUD çerçeve rengi (başarım ödülü)
+	if String(Game.meta.get("hud_renk", "")) != "":
+		InkUI.kilim(self, Rect2(bx, y3 + 12.0, 132.0, 2.2), Color(Basarim.hud_renk(), 0.8))
+	DerinlikUI.hud(self, bx, y3 + 17.0 + (15.0 if not lut.is_empty() else 0.0), _t)
 	# ---- sağ üst: biyom, derinlik, süre
 	var place: String = ("Ulu Kayın Yurdu") if level.hub else (("Konak · " if level.konak else "") + String(level.biome.get("name", "Kararan Ötüken")))
 	var tm0 := float(R["time"])
@@ -1102,23 +1116,9 @@ func _run_tiles(vp: Vector2, y: float, col: Color, a: float) -> void:
 
 
 func _draw_dead(vp: Vector2) -> void:
-	_dim(vp, 0.76, Color(0.05, 0.01, 0.03))
-	var e := _ease_open()
-	InkHUD.dead_backdrop(self, vp, e)
-	_title(vp, 70, "RUH KUŞUN DALA KONMADI", Color(1.0, 0.55, 0.45), Hikaye.olum_satiri())   # v42: ilerlemeye göre
-	var R: Dictionary = Game.run
-	_run_tiles(vp, 128.0, Color(1.0, 0.6, 0.5), e)
-	# koşunun parşömeni: yitik Kut, banka, bekleyen parşömen, en derin
-	var pw := 400.0
-	var y := 176.0 + (1.0 - e) * 10.0
-	var lines := ["Taşıdığın %d Kut yitti. %s" % [int(R.get("kut_lost", 0)), flash_msg],
-		"Kut bankası %d   ·   bekleyen parşömen %d   ·   en derin %d. derinlik   ·   %s" % [int(Game.meta.get("kut_bank", 0)), Game.meta.get("blueprints", []).size(), int(Game.meta.get("best_depth", 1)), MuhurYolu.ad(Zorluk.muhur())]]   # v44: koşunun mührü
-	PixUI.panel(self, Rect2((vp.x - pw) / 2.0, y, pw, 34), Color(1.0, 0.45, 0.4).darkened(0.3))
-	PixUI.text(self, Vector2(0, y + 6), lines[0], Color(0.6, 0.95, 1.0), 1, HORIZONTAL_ALIGNMENT_CENTER, vp.x)
-	PixUI.text(self, Vector2(0, y + 18), lines[1], PixUI.DIM, 1, HORIZONTAL_ALIGNMENT_CENTER, vp.x, 0)
-	InkUI.orkhon(self, Rect2(vp.x * 0.5 - 90, y + 40, 180, 10), Color(1.0, 0.55, 0.45, 0.3 * e))
-	_hint(vp, [["Boşluk", "yeniden doğ"]], 236.0)
-	_reveal(vp)
+	## v44: koşu özeti (ölüm nedeni portresiyle, koşunun tartısı, av defteri, Damgalar, rekor mühürleri): DerinlikUI.
+	## Eski sayfadaki bilgiler (yitik Kut, Ruh Düğümü, banka, ölüm satırı) özetin alt şeridinde ve başlığında.
+	DerinlikUI.ciz_ozet(self, vp, false)
 
 
 func _draw_done(vp: Vector2) -> void:
@@ -1177,7 +1177,16 @@ func _draw_pause(vp: Vector2) -> void:
 	PixUI.text(self, Vector2(x, yy + 2), "en çok %%%d" % int(Player.HIZ["cap"]), PixUI.DIM, 1, HORIZONTAL_ALIGNMENT_RIGHT, pw - 14, 0)
 	# v23 tuşlar: yan teçhizat E / R, etkileşim W / ↑ dokunuşu (v25: kam transı T kaldırıldı)
 	_hint(vp, [["J/K", "silahlar"], ["E/R", "teçhizat"], ["W", "al / konuş"], ["T", "sanat"], ["G", "don"], ["Q", "şişe"], ["M", "harita"]], 252.0)
-	_hint(vp, [["Esc", "devam et"], ["T", "savaş sanatları"], ["Tab", "ayarlar"]])
+	_hint(vp, [["Esc", "devam et"], ["T", "savaş sanatları"], ["C", "Ozan'ın Destanı"], ["Tab", "ayarlar"]])
+	# v44: etkin Damgalar
+	var dm: Array = Damga.etkin()
+	if not dm.is_empty():
+		var dx := (vp.x - pw) / 2.0 + 8.0
+		for id in dm:
+			var dc := Damga.renk(String(id))
+			DerinlikUI.tamga(self, String(id), Vector2(dx + 6.0, 95.0), 13.0, dc)
+			PixUI.text(self, Vector2(dx + 14.0, 90.0), Damga.ad(String(id)) + (" ·uyum" if Damga.uyum(String(id)) else ""), dc.lightened(0.2), 1, HORIZONTAL_ALIGNMENT_LEFT, -1.0, 1)
+			dx += 26.0 + PixUI.width(Damga.ad(String(id)) + (" ·uyum" if Damga.uyum(String(id)) else ""))
 	_reveal(vp)
 
 
@@ -1297,7 +1306,10 @@ func _draw_ozan(vp: Vector2) -> void:
 	var R: Dictionary = Game.run
 	var tm := float(R.get("time", 0.0))
 	PixUI.text(self, Vector2(0, vp.y - 44), "Sayfa %d / %d  ·  Bu koşu: %d. derinlik  ·  %d düşman  ·  %d:%02d  ·  en derin: %d  ·  örgü %d / 5" % [mini(ozan_i + 1, pages.size()), pages.size(), int(R.get("depth", 1)), int(R.get("kills", 0)), int(tm) / 60, int(tm) % 60, int(Game.meta.get("best_depth", 1)), Hikaye.parca_sayi()], PixUI.DIM, 1, HORIZONTAL_ALIGNMENT_CENTER, vp.x)
-	_hint(vp, [["Boşluk", "sonraki sayfa"], ["E", "açılış destanını dinle"], ["Esc", "ayrıl"]])
+	var dz: Array = Basarim.ozan_dizeleri()   # v44: başarım ödülü dizeler
+	if not dz.is_empty():
+		PixUI.text(self, Vector2(0, vp.y - 58), String(dz[int(_t / 6.0) % dz.size()]), Color(PixUI.GOLD, 0.8), 1, HORIZONTAL_ALIGNMENT_CENTER, vp.x)
+	_hint(vp, [["Boşluk", "sonraki sayfa"], ["E", "açılış destanını dinle"], ["R", "Ozan'ın Destanı"], ["Esc", "ayrıl"]])
 	_reveal(vp)
 
 
