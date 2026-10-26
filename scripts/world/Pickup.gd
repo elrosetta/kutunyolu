@@ -259,12 +259,14 @@ func _physics_process_ic(delta: float) -> void:
 				return
 			if kind == "gold":
 				var gv := Pazar.altin_tane()   # v24: tane değeri derinlikle büyür (data/tuccar.json "altin")
+				gv = int(round(float(gv) * Damga.altin_k()))   # v44 Ata Kesesi
 				Game.run["gold"] = int(Game.run["gold"]) + gv
 				Game.run["altin_kazanc"] = int(Game.run.get("altin_kazanc", 0)) + gv   # ölçüm (tuccar_testi, otomatik)
 				FX.burst(global_position, Color(1.0, 0.85, 0.4), 3, 40, 0.25, 0.14, 0, true)
 				Ses.play("altin", -8.0, 1.0 + 0.04 * (int(Game.run["gold"]) % 5), 0.03, 0.04)
 			else:
 				Game.run["kut"] = int(Game.run["kut"]) + 1
+				Game.run["kut_kazanc"] = int(Game.run.get("kut_kazanc", 0)) + 1   # v44 koşu özeti
 				pl.add_kut(2.0)
 				FX.burst(global_position, Color(0.5, 0.95, 1.0), 4, 50, 0.3, 0.16, 0, true)
 				FX.ring(global_position, 10, Color(0.6, 0.95, 1.0), 0.18)

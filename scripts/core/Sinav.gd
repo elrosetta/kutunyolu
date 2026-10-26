@@ -151,6 +151,7 @@ func kazan(k: String) -> void:
 		return
 	durum[k] = 1
 	olaylar.append([k, "damga", Game.clock()])
+	KosuOzet.sinav()   # v44 koşu özeti
 	var rek: Dictionary = Game.meta.get("sinav", {})
 	rek["muhur"] = int(rek.get("muhur", 0)) + 1
 	Game.meta["sinav"] = rek
