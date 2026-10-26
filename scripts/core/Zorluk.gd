@@ -104,8 +104,8 @@ static func saldirganlik(d := -1) -> float:
 
 
 static func hazirlik(d := -1) -> float:
-	## Hazırlık (uyarı) süresinin kısalma hızı; okunurluk için en çok %15
-	return _arr("hazirlik", d)
+	## Hazırlık (uyarı) süresinin kısalma hızı; okunurluk için en çok %15. v44: Birinci Mühürden "Kısa Uyarı" x1,1
+	return _arr("hazirlik", d) * MuhurYolu.hazirlik_k()
 
 
 static func yogunluk(d := -1) -> int:

@@ -536,6 +536,7 @@ func load_meta() -> void:
 		if d is Dictionary:
 			meta.merge(d, true)
 	Hikaye.meta_hazirla()   # v42: hikâye alanları (gun_parca, gorumler, giris_izlendi, son_izlendi) varsayılan / göç
+	MuhurYolu.meta_hazirla()   # v44: mühür yolu kayıtları (muhur_kayit, emanetler, süs, gerçek son) varsayılan / göç
 
 
 func save_meta() -> void:

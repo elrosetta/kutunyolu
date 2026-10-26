@@ -355,6 +355,8 @@ func apply_curse() -> void:
 func take_hit(d: float, opts: Dictionary) -> bool:
 	if dead:
 		return false
+	if has_meta("muhur_damga"):
+		d = (get_meta("muhur_damga") as MuhurDamga).hasar(d, opts)   # v44 Kalkanlı damga: önden gelen vuruş kesilir
 	if cursed_t > 0.0:
 		d *= 1.25
 	if armor_break > 0:
@@ -602,6 +604,8 @@ func _poise_n() -> int:
 
 func _die(dir := 1.0, kb := 100.0, crit := false) -> void:
 	dead = true
+	if has_meta("muhur_damga"):
+		(get_meta("muhur_damga") as MuhurDamga).oldu()   # v44: Bölünen yavrular, Tamu bekçisinin patlaması
 	remove_from_group("dusman")
 	_drop_token()
 	if grab_target and is_instance_valid(grab_target) and "grabbed_by" in grab_target and grab_target.grabbed_by == self:
