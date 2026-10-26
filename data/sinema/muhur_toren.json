@@ -1,0 +1,47 @@
+{
+ "_not": "v44 mühür töreni (≈10 sn): Erlik'in zinciri kırılır, avuçta bir halka kalır; halka Kut Mührü olur, Mühür Taşı'nın beş yuvasından biri dolar. degisken (MuhurYolu.toren_degisken): ad, roma, kural, soz (Umay), renk, sira (0-4), dolu, hx (yeni yuvanın x'i), emanet.",
+ "acilis": 0.4,
+ "tane": 0.02,
+ "bant": 1.0,
+ "cekimler": [
+  {
+   "id": "halka",
+   "sure": 4.4,
+   "zemin": [0.035, 0.028, 0.032, 1.0],
+   "kenar": 0.5,
+   "kamera": [[0, 1280, 720, 1.1], [1.5, 1280, 720, 1.16], [4.4, 1280, 720, 1.02, "o"]],
+   "sars": [[1.5, 14, 0.8]],
+   "flas": [[1.5, 0.45, 0.6, [1.0, 0.7, 0.45]]],
+   "katmanlar": [{"resim": "sonkir_arka", "d": 0.2}],
+   "efektler": [
+    {"tur": "zincir", "d": 0.6, "yol": [[-200, 740], [700, 690], [1280, 720], [1860, 690], [2760, 740]], "t0": -1.0, "t1": 0.0, "halka": 100, "kalinlik": 18, "dalga": 6, "kir": 1.5, "kir_u": 0.5, "renk": [0.42, 0.38, 0.4, 1.0]},
+    {"tur": "halka", "d": 0.6, "liste": [[1.5, 1280, 720, 1100], [1.62, 1280, 720, 600]]},
+    {"tur": "toz", "cesit": "kor", "d": 0.8, "sayi": 60, "alan": [600, 300, 1960, 1100], "hiz": [0, -50], "boyut": 4.0, "renk": "{renk}", "t0": 1.5, "gir": 0.2}
+   ],
+   "yazi": [{"t": 2.0, "sure": 2.2, "metin": "Erlik'in zincirinden\nbir halka kaldı avucunda."}],
+   "ses": [[0.0, "sin_zincir", -8.0, 0.8], [1.4, "sin_kirilma", -3.0]],
+   "vurus": [1.5]
+  },
+  {
+   "id": "muhur",
+   "sure": 6.0,
+   "gecis": {"tur": "murekkep", "sure": 1.0},
+   "zemin": [0.03, 0.026, 0.032, 1.0],
+   "kenar": 0.5,
+   "kamera": [[0, 1280, 760, 1.06], [6.0, 1280, 720, 1.0]],
+   "katmanlar": [{"resim": "kart_bant", "d": 0.15, "acilis": [0.0, 0.6]}],
+   "efektler": [
+    {"tur": "yuvalar", "d": 0.0, "z": 9, "y": 1180, "dolu": "{dolu}", "yeni": "{sira}", "t_yeni": 1.2},
+    {"tur": "halka", "d": 0.0, "liste": [[1.2, "{hx}", 1180, 260], [1.32, "{hx}", 1180, 140]]},
+    {"tur": "toz", "cesit": "altin", "d": 0.4, "sayi": 50, "alan": [500, 300, 2060, 1200], "hiz": [0, -30], "boyut": 4.0, "renk": "{renk}", "t0": 1.2}
+   ],
+   "yazi": [
+    {"t": 0.2, "sure": 5.4, "metin": "{ad}", "stil": "ad", "alt": "{roma}. KUT MÜHRÜ"},
+    {"t": 1.4, "sure": 4.2, "metin": "{kural}", "stil": "soz", "boy": 15, "hiz": 70, "renk": [1.0, 0.82, 0.62]},
+    {"t": 2.6, "sure": 3.2, "metin": "Umay Ana: «{soz}»", "boy": 17, "hiz": 50, "renk": [0.7, 0.95, 0.9]}
+   ],
+   "ses": [[1.1, "sin_muhur", -2.0], [1.3, "sin_parilti", -8.0]],
+   "vurus": [1.2]
+  }
+ ]
+}

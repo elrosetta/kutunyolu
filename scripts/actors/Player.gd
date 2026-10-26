@@ -1226,6 +1226,7 @@ func _ready() -> void:
 	# v20: uzun saç (verlet zinciri, çalışma zamanında mürekkep şeridi; yalnızca stil v2): gövdenin arkası + önü
 	sac = BenguSac.ekle(anim, self)
 	kusak = BenguKusak.ekle(anim, self)
+	MuhurYolu.sus_uygula(self)   # v44: mühür yolunda kazanılan örgü süsü (şolpı rengi, Tan tamgası)
 	anim.finished.connect(_on_anim_finished)
 	Silah27.attach(self)   # v27 yeni silahların durumu ve çizimi (scripts/core/Silah27.gd)
 	_yay_uclari_hazirla()

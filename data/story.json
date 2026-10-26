@@ -269,5 +269,43 @@
    "kaf": "Kaf Dağı boş beşik sallar, sarı örgü yedi boyunda; Gün Ana üşür yer altında, kızı gelir dağ yolunda.",
    "tamu": "Dokuz gece, dokuz halka, Erlik sayar kendi yasını; Bengü sayar birer birer, sabah kırar zincir pasını."
   }
+ },
+ "muhur_yolu": {
+  "_not": "v44 Mühür yolu (NG+; scripts/core/MuhurYolu.gd, docs/HIKAYE.md 'Mühür yolu'). Tan söktükten sonra Erlik ölmez, her gece yeniden gelir; her zaferde zincirinden bir halka kalır, Umay onu Mühür Taşı'na Kut Mührü olarak basar. toren: n. mühür basılınca Umay (taşta ve tören kartında) · tas / tas_bos: taşın sözü · ekran: taş ekranının alt yazısı · zafer: zafer özeti · gercek_son: gerçek son sinemasının satırları (data/sinema/gercek_son.json).",
+  "toren": [
+   "Al mühür. Ablamın ilk örgüsünün rengi. Erlik bu gece daha erken uyanacak, yavrum.",
+   "Ak mühür. Bekçilerine damga vurdu Erlik; sen de onun zincirine vurdun.",
+   "Gök mühür. Sis inecek, taşlar sönecek. Yolu ayağın bilsin.",
+   "Sarı mühür. Tamu'nun bekçileri yukarı çıkıyor. Ocağı ben tutarım; sen kapıyı.",
+   "Altın mühür. Beşi de taşta. Bu gece Erlik bütün zinciriyle gelecek."
+  ],
+  "tas_bos": [
+   "Beş yuva, hepsi boş. Erlik'in zinciri kırılmadan taşa mühür basılmaz.",
+   "Taş bekliyor. Tan sökünce Erlik'in bir halkası sana kalacak."
+  ],
+  "tas": [
+   "Her mühür bir gece daha karanlık, bir sabah daha sıcak.",
+   "Erlik ölmez; her gece biraz daha güçlü gelir. Sen de öyle.",
+   "Taşa dokun: hangi geceye ineceğini sen seç.",
+   "Mühürler örgü renginde. Gün Ana her birinde bir sabah saklıyor."
+  ],
+  "ekran": [
+   "Erlik her gece yeniden gelir. Hangi geceye ineceksin, tan bekçisi?",
+   "Mühür ne kadar derinse gece o kadar uzun; ama sabah da o kadar parlak.",
+   "Ulu Kayın hatırlar: her mühür bir halka, her halka bir zafer."
+  ],
+  "zafer": [
+   "Gece yine geldi, yine geçti. Erlik zincirini topluyor.",
+   "Bir halka daha. Erlik'in elinde dokuzdan az kaldı.",
+   "Gün Ana: «Seni yine gördüm, kızım. Her sabah daha erken.»",
+   "Erlik: «Yarın gece yine geleceğim.» Gelsin."
+  ],
+  "gercek_son": [
+   "Beş gece indin. Beş kez döndün.",
+   "Dokuz halkanın beşi artık senin mührün.",
+   "Gün Ana: «Erlik ölmez, kızım. Ama gece artık seni tanıyor; adını anınca susuyor.»",
+   "Gün Ana: «Taşına adını kazıdım: Bengü. Eskilerin dilinde sonsuz demek. Nöbet senin, ateş ikimizin.»",
+   "Mühür Taşı bengü taş oldu. Gece yine gelecek; sabah da."
+  ]
  }
 }

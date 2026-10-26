@@ -84,7 +84,8 @@ func random_drop(tier: int) -> Dictionary:
 		ws = []
 		for id in ids:
 			ws.append(1.0)
-	return roll(_wpick(pool, ws), tier)
+	# v44 Mühür yolu: nadirlik zarı mühür kadar ileri, nadirlik tabanı, kademe eki (mühürsüzde -1: eski zar)
+	return roll(_wpick(pool, ws), clampi(tier + MuhurYolu.kademe_ek(), 0, 8), "", MuhurYolu.nadirlik_zar(tier))
 
 
 func tuccar_drop(tier: int, rar_t: int, cat := "") -> Dictionary:
@@ -283,6 +284,8 @@ func aff(it: Dictionary, aid: String) -> float:
 
 
 func item_name(it: Dictionary) -> String:
+	if it.has("emanet_ad"):
+		return String(it["emanet_ad"])   # v44 mühür emaneti: sabit ad
 	var pre := ""
 	if it["affixes"].size() > 0:
 		pre = affix_def(it["affixes"][0]["id"]).get("adj", "") + " "
@@ -301,6 +304,8 @@ func fmt(v: float) -> String:
 func describe(it: Dictionary) -> Array:
 	var base := Data.find_item(it["id"])
 	var lines: Array = []
+	if it.has("emanet"):
+		lines.append(MuhurYolu.emanet_satir(it))   # v44
 	if base.has("mech"):
 		lines.append(String(base["mech"]["desc"]).replace("{v}", fmt(it.get("mech_v", 0.0))))
 	elif base.has("desc"):

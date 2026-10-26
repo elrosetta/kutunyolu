@@ -7865,3 +7865,123 @@ CIKIS, d3 84 sn'de BOLUM_SONU; `--piksel_tara` TOPLAM 0; `--perf` gezinti ort 6,
 * `--harita --harita_fizik --fizik_bolum=20` tek süreçte ~70 dk sürer (bölüm başına ~3,5 dk): parçalara bölünerek koşulmalı.
 * Çekimlerde `_clear_foes` tamgalı avı da kaldırdığı için "Avcı mührü çatladı" yazısı görünür (çekim yan etkisi).
 * Bu dosya HEAD'de LF satır sonlu (v43-sinema43 birleştirmesi CRLF'yi LF'ye çevirmiş); bu bölüm aynı biçimde eklendi.
+
+## v44: Mühür yolu (NG+)
+
+Kullanıcı: "Oyuncuyu yeni oyun+'a İTEN mekanikler olsun; bitirdikçe zorlaşsın... oyunda bir şey eksik." Eksik olan:
+v22'nin Kut Mühürleri vardı ama yalnızca Ayarlar'da bir satırdı, her mühür aynı sayıların büyüğüydü, ödülü yoktu ve tan
+söktükten sonra Erlik'i yenmek koşuyu BİTİRMİYORDU (kapı 11. derinliğe, sonsuz Tamu'ya iniyordu). Dead Cells "Boss Cell"
+(her hücre bir kural ekler, ödül olarak daha iyi düşüş ve hücreye özgü planlar), Hades "Heat / Pact of Punishment"
+(kuralı okunan, adı olan cezalar; ısıya bağlı ödül), Slay the Spire "Ascension" (birikimli tek kural, bir sonrakini
+açmak için şimdikini bitir) incelendi; üçünün ortak gücü: (1) her basamak tek, adı olan, okunur bir KURAL; (2) açılış
+bir törendir; (3) ödül hem güç hem kimliktir (kozmetik, kayıt, son).
+
+### Döngü
+
+1. Erlik Han devrilir → `MuhurYolu.zafer`: mührün zafer sayısı, en iyi süre (rekor), ilk zaferde Umay'a Kut, koşunun
+   mührü açılmış en yüksekse bir sonraki mühür açılır (`Zorluk.on_final_boss`) ve emaneti açılır; Beşinci Mühürde ilk
+   zafer gerçek sonu bekletir. Arenada "ZİNCİRDEN BİR HALKA: <MÜHÜR>" / "YENİ REKOR".
+2. Erlik arenasının kapısı artık **koşuyu zaferle bitirir** (`Main._zafer`): ilk kez (tan sökmeden) son sineması, sonra
+   doğrudan sabah yurdu; sonraki zaferlerde [gerçek son] → [mühür töreni kartı] → zafer özeti → yurt.
+3. Yurtta **Mühür Taşı** (`scripts/world/MuhurTasi.gd`, Kut Kapısı'nın 6,4 karo solunda, kırık güneş sunağının üstünde
+   dikili taş): beş yuva. Açılan mühür yuvaya basılır (taşın töreni: mühür gökten dönerek iner, mürekkep halkası, ışık,
+   Umay'ın sözü; `Game.meta.muhur_toren`), o mühürde zafer varsa altın kenar; seçili mühür etrafında dönen fırça yayı.
+   W: **mühür seçim ekranı** (`scripts/ui/MuhurUI.gd`). Seçim yurttaki koşuya hemen uygulanır (şişe), Kut Kapısı'ndan
+   geçince kesinleşir ve deneme sayılır (`MuhurYolu.kosu_basla`). Ayarlar'daki eski "Kut Mührü" satırı da çalışır.
+4. HUD sağ üstte yer adının solunda koşunun mührü (mühür renginde yuvarlak mühür + Roma rakamı); ölüm ekranında mühür adı.
+
+### Mühürler (kurallar birikir; sayılar v22 tablosuyla aynı)
+
+Beş mühür Gün Ana'nın beş örgüsünün rengini taşır (al, ak, gök, sarı, altın; `MuhurYolu.RENK`).
+
+| Mühür | Kural (yeni) | Kuralın işi | Zorluk (v22) | Ödül |
+|---|---|---|---|---|
+| 0 Mühürsüz | — | — | ×1 | taban |
+| I Birinci (al) | **Kısa Uyarı** | hazırlık (telegraf) süreleri ×1,1 hızlı (`Zorluk.hazirlik`) | can/hasar ×1,1, +1 yoğunluk | Kut ×1,15, altın ×1,1, nadirlik zarı +1 sütun, ilk zafer 120 Kut, emanet **Tan Kılıcı**, süs Al şolpı |
+| II İkinci (ak) | **Erlik Damgası** | her seçkine bir damga: **Öfkeli** (hız ×1,22, saldırganlık ×1,3, hazırlık ×1,15, kızıl hale), **Kalkanlı** (önden gelen vuruş ×0,35; 6 ön vuruşta kırılır, kırılınca 1,4 sn sersem — arkadan vur), **Bölünen** (ölünce %30 canlı iki küçük gölge yavru) | ×1,2, +1 seçkin, şişe -1, şifa ×0,85 | Kut ×1,3, altın ×1,2, nadirlik +2, seçkinden en az Nadir, Han Otağı +1 Kut Tomarı, ilk zafer 160, emanet **Halka Pençesi**, süs Ak şolpı |
+| III Üçüncü (gök) | **Erlik'in Sisi** | Kut Taşlarının yarısı söner (giriş / çıkış taşı hep yanar), harita görüş elipsi ×0,6 | ×1,35/1,3, öfkeli %15 | Kut ×1,45, altın ×1,3, nadirlik +2, **bütün düşüşler en az Nadir**, ilk zafer 200, emanet **Ayaz Örgüsü**, süs Gök şolpı |
+| IV Dördüncü (sarı) | **Tamu Bekçileri** | Tamu dışı bölümde en çok 2 sıradan yaratık **Tamu bekçisi** olur (kor kızılı mürekkep, kor kıvılcımları, can ×1,4; yeni hamle **kor yağmuru**: göğüste büyüyen kor halkasıyla 0,7 sn uyarı, sonra yay çizen üç kor; ölünce 0,55 sn sonra patlar; öldürene +4 Kut +6 altın); seçkinler **iki** damga taşır | ×1,5/1,42, +2 seçkin, şifa ×0,6, öfkeli %25 | Kut ×1,6, altın ×1,4, nadirlik +3, seçkinden en az Destansı, düşüş kademesi +1, Han Otağı %50 emanet, ilk zafer 250, emanet **Tamu Çekici**, süs Sarı şolpı |
+| V Beşinci (altın) | **Zincir Evresi** | her boss canının %40'ında Erlik'in zincirini çağırır (`MuhurEvre.gd`): "<AD> · ZİNCİR EVRESİ", gökten omuzlarına iki zincir bağlanır, saldırganlık ×1,15; her 3,4 sn oyuncunun yerine ve yanına kızıl uyarı çizgisi (0,85 sn), sonra kara zincir iner (bossun vuruşunun %80'i); canın %20'sinde üç zincir, daha sık | ×1,65/1,55, +3 yoğunluk, şişe -2 (en az 1), şifa ×0,5, öfkeli %35 | Kut ×1,8, altın ×1,5, bossdan en az Destansı, Han Otağı kesin emanet, ilk zafer 320, emanet **Gün Yayı**, süs **Tan tamgası**, **gerçek son** |
+
+Değerler: `data/zorluk.json` "muhur_kural" (hazirlik / damga / sis / tasi / tamu / tamu_sans / evre), "muhur_odul" (kut /
+altin / nadir / nadir_taban / seckin_taban / boss_taban / kademe / han_tomar / han_emanet / ilk_zafer / emanet), "damgalar",
+"emanetler". Denge: kurallar sayı değil okunurluk sınar (uyarı hâlâ ≥ %85, kalkanın çaresi var, bekçinin atışı uyarılı,
+zincirin yeri önceden çizilir); ödüller yalnızca o mühürde geçerli, mühürsüz oyun değişmedi (`--otomatik --muhur=0`).
+
+### Emanetler (mühür başına bir silah)
+
+Var olan silahın Efsanevi, kalitesi %100, adı / malzemesi / unsuru / ek özellikleri sabit çeşitlemesi (çizim aynı; kartta
+"◆ <Mühür> emaneti: <söz>"; `ItemGen.item_name` / `describe` emanet_ad'ı tanır). Mührü açılınca açılır, **yalnızca o
+mühürde ve üstündeki** koşularda düşer: koşunun ilk bekçisinden kesin (önce henüz bulunmamışı), sonraki bekçilerden %25,
+IV+ Han Otağı'ndan. Ele geçince `muhur_emanet_bulunan`.
+
+| Emanet | Taban | Malzeme / unsur | Ekler |
+|---|---|---|---|
+| Tan Kılıcı (I) | Ulu Kılıç | Od taşı / od | hasar +34, yakma %30, tam canda +40 |
+| Halka Pençesi (II) | Kurt Pençeleri | Kara taş / kam | kanatma %36, saldırı hızı +14, seçkine +50 |
+| Ayaz Örgüsü (III) | Ay Palası | Ayaz / ayaz | dondurma %14, kritik hasarı +70, havada +45 |
+| Tamu Çekici (IV) | Kor Çekici | Od taşı / od | patlama 45, bossa +30, alan +45 |
+| Gün Yayı (V) | Akıncı Yayı | Gök demiri / yıldırım | zincir 3, kritik +6, delme 2 |
+
+### Bengü'nün süsü
+
+O mühürde Erlik yenilince kalıcı: örgünün şolpıları ve halkası mührün renginde (`MuhurYolu.sus_uygula` → BenguSac
+`bead_col` / `band_col`); Beşinci Mühürde **Tan tamgası**: sırtında nefes alan altın güneş tamgası, dönen ince ışınlar,
+sıcak ışık (`MuhurTamga.gd`). Taş ekranında E ile açık süsler arasında döner (`muhur_sus`, -1: en yüksek zafer).
+
+### Tören ve son (Sinema.gd motoru)
+
+* `data/sinema/muhur_toren.json` (≈10 sn): Erlik'in zinciri kırılır, "Erlik'in zincirinden bir halka kaldı avucunda.";
+  mürekkep geçişiyle beş yuva, yenisi kendi renginde dolar, halka; mühür adı fırçayla, "<Roma>. KUT MÜHRÜ", kural ve
+  Umay'ın sözü (`story.json` muhur_yolu.toren).
+* `data/sinema/gercek_son.json` (≈40 sn, beş çekim): beş yuva dolar ("Beş gece indin. Beş kez döndün.") → zincirin
+  beş halkası ("Dokuz halkanın beşi artık senin mührün.") → Gün Ana: «Erlik ölmez, kızım. Ama gece artık seni tanıyor;
+  adını anınca susuyor.» → tan: «Taşına adını kazıdım: Bengü. Eskilerin dilinde sonsuz demek. Nöbet senin, ateş
+  ikimizin.» → "Mühür Taşı bengü taş oldu. Gece yine gelecek; sabah da." (bengü taş: Orhun yazıtlarının kendine verdiği
+  ad). Bir kez (`gercek_son`).
+
+### Kalıcı kayıt (göçlü: `MuhurYolu.meta_hazirla`, `Game.load_meta`)
+
+`muhur_kayit {"0".."5": {deneme, zafer, en_iyi (sn), en_derin}}` — kayıt / başarım ekranları buradan okur
+(`MuhurYolu.kayit(n)`, `zafer_var(n)`, `en_yuksek_zafer()`); `muhur_emanet`, `muhur_emanet_bulunan`, `muhur_sus`,
+`gercek_son`, `muhur_toren`, `muhur_surum` 44. v44 öncesi kayıt: açılmış mühürlerin altı zafer sayılır, emanetleri verilir.
+Okuma arayüzü (başka sistemler için): `Zorluk.muhur()` (koşunun), `Zorluk.muhur_acik()`, `Zorluk.muhur_secili()`,
+`MuhurYolu.kural(n)`, `odul(n)`, `renk(n)`, `ad(n)`, `emanet_havuz()`.
+
+### Kancalar (dokunulan dosyalar)
+
+Level (`spawn_enemy` → `MuhurYolu.dogdu`, `build_boss` → `boss_kur`, `_kut_taslari` → `tasi_yanar`, `_place_hub` →
+`MuhurTasi.kur`, `_on_boss_died` → `boss_esya` / `zafer`, seçkin düşüşü → `seckin_esya`, `equip` → `emanet_bulundu`),
+Enemy (`take_hit` / `_die` başında damga), Zorluk.hazirlik, Harita (`_sis`), Pickup (Kut / altın çarpanı), ItemGen
+(`random_drop` nadirlik zarı, emanet adı / satırı), Sinav (Han ödülü), Game.load_meta, Player (süs), Main (taş, girdi,
+zafer akışı, `--ngp`), HUD (ekranlar, mühür damgası, ölüm satırı).
+
+### Test
+
+`godot --path . --quit-after 99999 -- --ngp [--ngp_cikti=<klasör> --pencere=1920x1080 --grafik=2]`
+(`tools/tests/ngp_testi.gd`, kalıcı kaydı yedekleyip geri yazar): kayıt göçü; 0..4. mühürde Erlik → bir sonraki açılır,
+takılı gelir, emanet, zafer / rekor kaydı, ilk zafer Kut'u, tören kartı, zafer özeti, yurtta taşın töreni; taş ekranı
+(seçim, şişe, Esc, kapıda deneme); I hazırlık ×1,1; II tek damga, Kalkanlı önden ×0,35 / arkadan ×1, kırılma, Bölünen iki
+yavru; III görüş ×0,6, taşlar 2/4 (mühürsüz 4/4); IV bekçi en çok 2, iki damga, kor yağmuru; V evre %40'a dek uyur, sonra
+zincir iner (mühürsüzde evre yok); nadirlik tabanı, Kut ×1,8, altın ×1,5, ilk bekçiden emanet, mühre göre emanet havuzu,
+Han Otağı; süs (Sarı şolpı rengi, Tan tamgası, döndürme); gerçek son bir kez, rekor. Sonuç: **111 OK, 0 HATA**.
+
+Regresyon (headless, betik hatası 0): `--ngp` 111/111; `--boss=erlik_han --muhur=0` ve `--muhur=5` temiz; `--otomatik
+--derinlik=1/3 --muhur=0 --fixed-fps 60 --quit-after 9000` (d1 BOLUM_SONU → konak, d3 BOLUM_SONU) ve `--muhur=3` (d3
+BOLUM_SONU, d4'te bot öldü: mühürlü zorluk); `--konak` GECTI; `--yurt --yurt-tur` (beş durak, Mühür Taşı dahil, kapı
+20,9 sn); `--hikaye_test` 101/101; `--otag --muhur=0` GECTI; `--piksel_tara --otomatik --derinlik=3` TOPLAM 0. Tek motor
+hatası headless sahte doku (`Ses.gd:112`, önceden var).
+
+### Görseller (docs/v44/ngp/, 1920x1080 `--grafik=2`)
+
+`tas_bes_muhur.jpg` / `tas_yakin.jpg` (beş mühürlü taş, Umay'ın sözü), `tas_toren_inis.jpg` (mühür yuvasına iniyor),
+`tas_ekrani_3.jpg` / `tas_ekrani_5.jpg` (seçim ekranı), `toren_1_halka.jpg` / `toren_2_muhur.jpg` (tören kartı),
+`zafer_ozeti.jpg`, `tamu_bekcisi_hazirlik.jpg` / `tamu_bekcisi_kor.jpg` (IV), `zincir_evresi_uyari.jpg` /
+`zincir_evresi_inis.jpg` (V, Tepegöz), `bengu_tan_tamgasi*.jpg` (süs), `gercek_son_*.jpg`.
+
+### Bilinen
+
+* Mühür Taşı Kut Kapısı'nın solunda kazan ile kapı arasında; iki balbal süsünün önüne düşer (yurt dolu; Demirci / kavanoz
+  alanına dokunulmadı).
+* Kalkanlı damga ön / arka ayrımı vuruşun `dir`'ine bakar (balbal siperiyle aynı kural); yön vermeyen vuruşlar ön sayılır.
+* Bu bölüm LF satır sonuyla eklendi (dosyanın kendi biçimi).

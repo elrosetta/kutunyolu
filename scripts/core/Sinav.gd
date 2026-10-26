@@ -237,6 +237,7 @@ static func odul(k: String, d: int, tier: int, rng: RandomNumberGenerator) -> Di
 			o["kut"] = 6
 			var it := ItemGen.tuccar_drop(tier + 1, tier + 4, "weapons" if rng.randf() < 0.7 else "")
 			o["items"].append(ItemGen.roll(String(it["id"]), tier + 1, "", 3))
+			MuhurYolu.han_odul(o, tier, rng)   # v44 Mühür yolu: ek tomar, Kut çarpanı, emanet olasılığı
 	return o
 
 

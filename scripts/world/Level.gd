@@ -277,6 +277,7 @@ func build_boss(seed_value: int, bid_boss: String) -> void:
 	boss.level = self
 	boss.position = Vector2(bx * TS, surface_y(bx) * TS - 1)
 	actors.add_child(boss)
+	MuhurYolu.boss_kur(self, boss)   # v44 Beşinci Mühür: Zincir evresi
 	exit_pos = Vector2(78 * TS, surface_y(78) * TS)
 	_build_particles()
 	_build_overlay_fx()
@@ -983,6 +984,7 @@ func _place_hub() -> void:
 		portal.z_index = -1
 		portal.reparent(decor_root)
 	add_light(exit_pos + Vector2(0, -60), Color(0.45, 0.9, 1.0), 260.0, 1.4, decor_root)
+	MuhurTasi.kur(self, float(ex) - 6.4)   # v44 Mühür yolu: beş yuvalı Mühür Taşı (mühür seçimi, tören)
 
 
 func _hub_px(tx: float, dy := 0.0) -> Vector2:
@@ -3212,6 +3214,7 @@ func spawn_enemy(kind: String, pos: Vector2, is_elite := false, is_ofkeli := fal
 			spawn_moved += 1
 		e.position = q
 	actors.add_child(e)
+	MuhurYolu.dogdu(self, e)   # v44 Mühür yolu: Erlik damgası (seçkin), Tamu bekçisi, Zincir evresi
 	return e
 
 
@@ -3498,6 +3501,7 @@ func equip(p: Pickup, slot := "") -> void:
 		slot = natural_slot(it)
 	var old: Dictionary = Game.run["slots"].get(slot, {})
 	Game.run["slots"][slot] = it
+	MuhurYolu.emanet_bulundu(it)   # v44: mühür emaneti ilk kez ele geçti (kalıcı)
 	var rcol := Color.from_string(Data.items["rarities"][it["rarity"]]["color"], Color.WHITE)
 	FX.text(player.center() + Vector2(0, -30), it["name"], rcol, 8)
 	FX.ring(player.center(), 20, rcol, 0.25)
@@ -3630,7 +3634,7 @@ func on_enemy_died(e: Enemy) -> void:
 	for i in (4 if e.elite else 1) + (1 if randf() < 0.3 else 0):
 		drop_orb("kut", e.center())
 	if e.elite or randf() < 0.025:   # v23: sıradan düşmandan eşya %4 -> %2,5 (iyi eşya seyrek)
-		drop_item(ItemGen.random_drop(int(Game.run.get("tier", 0)) + (1 if e.elite else 0)), e.center() + Vector2(0, -10))
+		drop_item(MuhurYolu.seckin_esya(int(Game.run.get("tier", 0)) + 1) if e.elite else ItemGen.random_drop(int(Game.run.get("tier", 0))), e.center() + Vector2(0, -10))   # v44: seçkinde mühür nadirlik tabanı
 	if e.elite or randf() < Zorluk.sifa_dusme():
 		drop_orb("sifa", e.center() + Vector2(0, -6))
 	# parşömen: açılmamış bir eşyanın tarifi (seçkinlerden kesin, diğerlerinden seyrek)
@@ -3681,7 +3685,7 @@ func _on_boss_died(e: Enemy) -> void:
 	for i in 10:
 		drop_orb("kut", e.center())
 	drop_orb("sifa", e.center() + Vector2(-20, -10))
-	drop_item(ItemGen.random_drop(int(Game.run.get("tier", 0)) + 1), e.center() + Vector2(30, -10))   # v23: +2 -> +1
+	drop_item(MuhurYolu.boss_esya(int(Game.run.get("tier", 0)) + 1), e.center() + Vector2(30, -10))   # v23: +2 -> +1; v44: mühür emaneti / nadirlik tabanı
 	drop_scroll(e.global_position + Vector2(-34, 0))   # v23: boss bir Kut Tomarı bırakır (zorluk.json tomar.boss)
 	var locked := ItemGen.locked_implemented()
 	if not locked.is_empty():
@@ -3696,8 +3700,8 @@ func _on_boss_died(e: Enemy) -> void:
 		Game.save_meta()
 		FX.text(e.center() + Vector2(0, -e.size.y - 44), "GÜNEŞ YENİDEN DOĞUYOR", Color(1.0, 0.95, 0.6), 16)
 		# v22 Kut Mühürleri: son boss bir sonraki zorluk kademesini açar (bir sonraki koşuda takılı gelir)
-		if Zorluk.on_final_boss():
-			FX.text(e.center() + Vector2(0, -e.size.y - 66), "YENİ KUT MÜHRÜ: %s" % Zorluk.muhur_adi(Zorluk.muhur_acik()).to_upper(), Color(0.95, 0.5, 0.35), 12)
+		# v44 Mühür yolu: zafer kaydı, rekor, ilk zafer Kut'u, yeni mühür + emanet, gerçek son (MuhurYolu.zafer)
+		MuhurYolu.zafer(self, e)
 	HikayeSahne.boss_dustu(self, e)   # v42: son söz + Gün Örgüsü
 	boss = null
 	boss_died.emit()
@@ -3825,10 +3829,14 @@ func _kut_taslari() -> void:
 	harita = Harita.new()
 	harita.setup(self)
 	var i := 0
+	var gi := -1
 	for c in _gen.get("tasi", []):
 		var cell_v: Vector2i = c
 		var rm := room_at(cell_v.x, cell_v.y)
 		var rol := String(rm.get("role", "ana"))
+		gi += 1
+		if not MuhurYolu.tasi_yanar(gi, rol):
+			continue   # v44 Üçüncü Mühür (Erlik'in Sisi): taşların yarısı söner
 		var ad := "Kavşak Taşı"
 		match rol:
 			"giris":

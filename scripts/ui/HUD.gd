@@ -103,7 +103,7 @@ func _process_ic(delta: float) -> void:
 	_tut_tick(delta)
 	usta_damga_t += delta
 	if mode != _last_mode:
-		if mode in ["tilsim", "slot", "umay", "demirci", "ozan", "dead", "done", "ad", "tuccar", "sanat", "usta", "ayarlar", "harita"]:
+		if mode in ["tilsim", "slot", "umay", "demirci", "ozan", "dead", "done", "ad", "tuccar", "sanat", "usta", "ayarlar", "harita", "muhur", "zafer"]:
 			_open_t = 0.0
 		if mode == "play" and _last_mode != "" and _last_mode != "title":
 			_open_t = 0.0   # v40: menüden oyuna dönüşte de kısa fırça perdesi (HUD.paused dalında çizilir)
@@ -454,6 +454,10 @@ func _draw_ic() -> void:
 		"harita":
 			HaritaUI.full(self, vp, level, sel, _t, float(level.isin_t))   # v32 tam ekran harita
 			_reveal(vp)
+		"muhur":
+			MuhurUI.ciz(self, vp)   # v44 Mühür Taşı: mühür seçimi
+		"zafer":
+			MuhurUI.zafer(self, vp)   # v44 Erlik devrildi: koşu özeti
 		"play":
 			if get_tree().paused:
 				_draw_pause(vp)
@@ -593,7 +597,9 @@ func _draw_hud(vp: Vector2) -> void:
 	var place: String = ("Ulu Kayın Yurdu") if level.hub else (("Konak · " if level.konak else "") + String(level.biome.get("name", "Kararan Ötüken")))
 	var tm0 := float(R["time"])
 	var mh := ("%d. mühür · " % Zorluk.muhur()) if Zorluk.muhur() > 0 else ""   # v22 Kut Mührü
-	InkHUD.place(self, vp, place, "%s%d. derinlik · %d:%02d · %d" % [mh, int(R.get("depth", 1)), int(tm0 / 60.0), int(tm0) % 60, int(R["kills"])], PixUI.GOLD if not level.hub else Color(0.6, 1.0, 1.0))
+	var pinfo := "%s%d. derinlik · %d:%02d · %d" % [mh, int(R.get("depth", 1)), int(tm0 / 60.0), int(tm0) % 60, int(R["kills"])]
+	InkHUD.place(self, vp, place, pinfo, PixUI.GOLD if not level.hub else Color(0.6, 1.0, 1.0))
+	MuhurUI.hud(self, vp, place, pinfo)   # v44 Mühür yolu: koşunun mühür damgası
 	_draw_sinav(vp)   # v42 sınav mühürleri
 	# ---- v32 küçük harita (sağ alt; parşömen, sis, Kut Taşları): dövüşü kalabalıklaştırmasın diye boss / yurtta yok
 	if mode == "play" and not get_tree().paused and level.get("harita") != null and not level.hub and level.boss_id == "":
@@ -1104,7 +1110,7 @@ func _draw_dead(vp: Vector2) -> void:
 	var pw := 400.0
 	var y := 176.0 + (1.0 - e) * 10.0
 	var lines := ["Taşıdığın %d Kut yitti. %s" % [int(R.get("kut_lost", 0)), flash_msg],
-		"Kut bankası %d   ·   bekleyen parşömen %d   ·   en derin %d. derinlik" % [int(Game.meta.get("kut_bank", 0)), Game.meta.get("blueprints", []).size(), int(Game.meta.get("best_depth", 1))]]
+		"Kut bankası %d   ·   bekleyen parşömen %d   ·   en derin %d. derinlik   ·   %s" % [int(Game.meta.get("kut_bank", 0)), Game.meta.get("blueprints", []).size(), int(Game.meta.get("best_depth", 1)), MuhurYolu.ad(Zorluk.muhur())]]   # v44: koşunun mührü
 	PixUI.panel(self, Rect2((vp.x - pw) / 2.0, y, pw, 34), Color(1.0, 0.45, 0.4).darkened(0.3))
 	PixUI.text(self, Vector2(0, y + 6), lines[0], Color(0.6, 0.95, 1.0), 1, HORIZONTAL_ALIGNMENT_CENTER, vp.x)
 	PixUI.text(self, Vector2(0, y + 18), lines[1], PixUI.DIM, 1, HORIZONTAL_ALIGNMENT_CENTER, vp.x, 0)

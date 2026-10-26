@@ -153,3 +153,24 @@ Ulu Kayın (Bai-Terek), Gün Ana / Ay Ata, Ülgen ve Erlik kardeşliği, Umay'ı
 balbal, bitig taşı (kaya yazıtı), dilek çaputu, kurgan, Kaf Dağı (dünyanın kıyısı), Tamu, dokuz (Erlik'in sayısı), beş
 renk (yönlerin renkleri), örgü (kadın gücü, bağ, bekleyiş). Kaçınılanlar: «seçilmiş kahraman», kehanet, kötülüğün
 sonsuza dek yenilmesi. Bengü seçilmedi; nöbetteydi.
+
+## Mühür yolu (v44, yeni oyun+)
+
+Tan söktü ama Erlik'in son sözü yalan değildi: gece her akşam gelir. Erlik ölmez; her gece biraz daha güçlü döner.
+Bengü onu her yenişinde avucunda dokuz gecenin zincirinden **bir halka** kalır. Umay o halkayı Ulu Kayın'ın dibindeki
+**Mühür Taşı**'na bir Kut Mührü olarak basar. Beş yuva, beş mühür; her mühür Gün Ana'nın bir örgüsünün rengini taşır
+(al, ak, gök, sarı, altın). Mühür ne kadar derinse gece o kadar uzun: Erlik bekçilerine damga vurur, sis indirir,
+Tamu'nun bekçilerini yukarı salar, sonunda bütün zinciriyle gelir. Bengü de her mühürle örgüsüne o rengin şolpısını takar.
+
+Umay mührü basarken (bir kez, her mühürde):
+1. Al mühür. Ablamın ilk örgüsünün rengi. Erlik bu gece daha erken uyanacak, yavrum.
+2. Ak mühür. Bekçilerine damga vurdu Erlik; sen de onun zincirine vurdun.
+3. Gök mühür. Sis inecek, taşlar sönecek. Yolu ayağın bilsin.
+4. Sarı mühür. Tamu'nun bekçileri yukarı çıkıyor. Ocağı ben tutarım; sen kapıyı.
+5. Altın mühür. Beşi de taşta. Bu gece Erlik bütün zinciriyle gelecek.
+
+**Gerçek son** (Beşinci Mühürde ilk zafer): *Beş gece indin. Beş kez döndün.* — *Dokuz halkanın beşi artık senin
+mührün.* — Gün Ana: «Erlik ölmez, kızım. Ama gece artık seni tanıyor; adını anınca susuyor.» — «Taşına adını kazıdım:
+Bengü. Eskilerin dilinde sonsuz demek. Nöbet senin, ateş ikimizin.» — *Mühür Taşı bengü taş oldu. Gece yine gelecek;
+sabah da.* (Bengü taş: Orhun yazıtlarının kendine verdiği ad; «bengü» sonsuz demektir.) Kötülük yine yenilmez; ama
+artık nöbetçinin adı bir taşta yazılı.

@@ -113,6 +113,11 @@ func _ready() -> void:
 		var hk: Node = load("res://tools/tests/hikaye_testi.gd").new()
 		hk.set("main", self)
 		add_child(hk)
+	if OS.get_cmdline_user_args().has("--ngp"):
+		# v44 Mühür yolu testi / çekimi (tools/tests/ngp_testi.gd): açılış, taş, kurallar, ödüller, süs, gerçek son
+		var ng: Node = load("res://tools/tests/ngp_testi.gd").new()
+		ng.set("main", self)
+		add_child(ng)
 	if OS.get_cmdline_user_args().has("--sanat"):
 		# v27 savaş sanatları testi (tools/tests/sanat_testi.gd): bedel, bekleme, isabet, sınıf kuralı, kilit ve kayıt
 		var sat: Node = load("res://tools/tests/sanat_testi.gd").new()
@@ -176,7 +181,7 @@ func _ready() -> void:
 			_build_boss("kara_boru_han")
 		elif String(arg).begins_with("--boss="):
 			_build_boss(String(arg).trim_prefix("--boss="))
-	if auto_test or showcase or _ekran != "" or firca or sus or bengu_t or OS.get_cmdline_user_args().has("--mekanik") or OS.get_cmdline_user_args().has("--dovus") or OS.get_cmdline_user_args().has("--yay") or OS.get_cmdline_user_args().has("--unsur") or OS.get_cmdline_user_args().has("--denge") or OS.get_cmdline_user_args().has("--tomar") or OS.get_cmdline_user_args().has("--zeka") or OS.get_cmdline_user_args().has("--tuccar") or OS.get_cmdline_user_args().has("--harita") or OS.get_cmdline_user_args().has("--sanat") or OS.get_cmdline_user_args().has("--konak") or OS.get_cmdline_user_args().has("--isinlan") or OS.get_cmdline_user_args().has("--vahset") or OS.get_cmdline_user_args().has("--perf") or OS.get_cmdline_user_args().has("--otag") or OS.get_cmdline_user_args().has("--hikaye_test"):
+	if auto_test or showcase or _ekran != "" or firca or sus or bengu_t or OS.get_cmdline_user_args().has("--mekanik") or OS.get_cmdline_user_args().has("--dovus") or OS.get_cmdline_user_args().has("--yay") or OS.get_cmdline_user_args().has("--unsur") or OS.get_cmdline_user_args().has("--denge") or OS.get_cmdline_user_args().has("--tomar") or OS.get_cmdline_user_args().has("--zeka") or OS.get_cmdline_user_args().has("--tuccar") or OS.get_cmdline_user_args().has("--harita") or OS.get_cmdline_user_args().has("--sanat") or OS.get_cmdline_user_args().has("--konak") or OS.get_cmdline_user_args().has("--isinlan") or OS.get_cmdline_user_args().has("--vahset") or OS.get_cmdline_user_args().has("--perf") or OS.get_cmdline_user_args().has("--otag") or OS.get_cmdline_user_args().has("--hikaye_test") or OS.get_cmdline_user_args().has("--ngp"):
 		hud.mode = "play"
 		get_tree().paused = false
 	else:
@@ -198,7 +203,7 @@ func _ready() -> void:
 var _test_kipi := false
 const TEST_BAYRAKLARI := ["--otomatik", "--sahne", "--savurus", "--ekran=", "--firca", "--fx_vitrin=", "--sus=", "--bengu", "--mekanik",
 	"--dovus", "--yay", "--unsur", "--denge", "--tomar", "--zeka", "--tuccar", "--harita", "--sanat", "--yaratik", "--silah27",
-	"--boss", "--piksel_tara", "--konak", "--isinlan", "--arayuz=", "--vahset", "--perf", "--otag", "--hikaye_test"]
+	"--boss", "--piksel_tara", "--konak", "--isinlan", "--arayuz=", "--vahset", "--perf", "--otag", "--hikaye_test", "--ngp"]
 
 
 func _test_bayragi() -> bool:
@@ -510,6 +515,8 @@ func _to_konak() -> void:
 func _on_finished() -> void:
 	if level and (level.hub or level.konak):
 		# yurttan 1. derinliğe / konaktan sıradaki derinliğe (derinlik Game.run'da hazır)
+		if level.hub:
+			MuhurYolu.kosu_basla()   # v44: koşunun mührü kesinleşir (Mühür Taşı'nda seçilen), deneme sayılır
 		_build_level()
 		_start_play()
 		return
@@ -522,6 +529,9 @@ func _on_finished() -> void:
 			_start_play()
 			Game.run["lutuf"] = Game.run.get("lutuf", [])
 			return
+	if level and level.boss_id == "erlik_han" and bool(Game.run.get("zafer", false)) and not auto_test:
+		_zafer()   # v44 Mühür yolu: Erlik devrildi; koşu zaferle biter (tören, özet, yurt)
+		return
 	if auto_test:
 		_bot_report("BOLUM_SONU")   # v32: bot da konaktan geçer (kapı → konak → Usta → kapı)
 	elif showcase:
@@ -558,6 +568,8 @@ func _on_npc(id: String) -> void:
 		"alp_ata":
 			Ses.play("npc_2")
 			_open_sanat(true)
+		"muhur_tasi":
+			MuhurUI.ac(self)   # v44 Mühür Taşı: mühür seçimi
 		"usta":
 			_usta_ac()
 
@@ -745,6 +757,7 @@ func _sanat_sec(i: int) -> void:
 func _on_died() -> void:
 	if level and not level.hub and not level.konak:
 		Hikaye.olum_isaretle(String(level.biome.get("id", "")))   # v43: biyomdaki ilk ölüm satırı
+	MuhurYolu.olum()   # v44: bu mührün en derin kaydı
 	var saved := Game.lose_run_kut()
 	hud.flash_msg = ("Ruh Düğümü %d Kut kurtardı." % saved) if saved > 0 else ""
 	hud.mode = "dead"
@@ -820,6 +833,8 @@ func _apply_scroll(sel: int) -> void:
 func _unhandled_input(event: InputEvent) -> void:
 	var go: bool = event.is_action_pressed("zipla") or (event is InputEventKey and event.pressed and event.physical_keycode == KEY_ENTER)
 	match hud.mode:
+		"muhur", "zafer":
+			MuhurUI.girdi(self, event, go)   # v44 Mühür yolu
 		"ayarlar":
 			var n: int = Ayarlar.rows().size()
 			if event.is_action_pressed("yukari"):
@@ -1136,15 +1151,80 @@ func hikaye_son() -> void:
 	sinema.bitti.connect(func() -> void:
 		sinema = null
 		Game.meta["son_izlendi"] = true
-		Game.bank_run_kut()
 		Game.save_meta()
-		Game.new_run()
-		Game.meta["runs"] = int(Game.meta.get("runs", 0)) + 1
+		_zafer(true))   # v44: koşu zaferle biter; yeni koşu sabah yurdunda, Mühür Taşı'nda ilk mühür töreni
+
+
+# ------------------------------------------------------------------ v44 Mühür yolu: zafer
+var _zafer_son := false
+
+
+func _zafer(son_sonrasi := false) -> void:
+	## Erlik devrildi ve kapıdan geçildi (ya da son sineması bitti). İlk kez (tan sökmeden) önce son sineması oynar, o
+	## bitince buraya döner ve doğrudan sabah yurduna geçilir (Mühür Taşı'nda ilk mührün töreni). Sonraki zaferlerde:
+	## [gerçek son (Beşinci Mühürde ilk zafer)] → [mühür töreni kartı (yeni mühür açıldıysa)] → zafer özeti → yurt.
+	if not son_sonrasi and not Hikaye.safak():
+		if sinema == null:
+			hikaye_son()
+		else:
+			sinema.bitti.connect(func() -> void: get_tree().create_timer(0.2, false).timeout.connect(hikaye_son), CONNECT_ONE_SHOT)
+		return
+	_zafer_son = son_sonrasi
+	if son_sonrasi:
+		_zafer_bitir()
+		return
+	if bool(Game.run.get("gercek_son_bekliyor", false)) and Sinema.var_mi("gercek_son"):
+		Game.run["gercek_son_bekliyor"] = false
+		Game.meta["gercek_son"] = true
 		Game.save_meta()
-		_build_hub()
-		_start_play()
+		hud.mode = "sinema"
+		get_tree().paused = true
+		sinema = Sinema.oynat(self, "gercek_son", {})
+		sinema.bitti.connect(func() -> void:
+			sinema = null
+			_zafer_toren())
+		return
+	_zafer_toren()
+
+
+func _zafer_toren() -> void:
+	var yeni := int(Game.run.get("muhur_yeni", -1))
+	if yeni > 0 and Sinema.var_mi("muhur_toren") and not bool(Game.run.get("toren_oynadi", false)):
+		Game.run["toren_oynadi"] = true
+		hud.mode = "sinema"
+		get_tree().paused = true
+		sinema = Sinema.oynat(self, "muhur_toren", MuhurYolu.toren_degisken(yeni))
+		sinema.bitti.connect(func() -> void:
+			sinema = null
+			_zafer_ozet())
+		return
+	_zafer_ozet()
+
+
+func _zafer_ozet() -> void:
+	Gorum.temizle()
+	hud.mode = "zafer"
+	hud.open_anim()
+	get_tree().paused = true
+	Ses.play("acilis", -4.0)
+
+
+func _zafer_bitir() -> void:
+	## Koşu zaferle biter: Kut bankaya, yeni koşu yurtta (yeni mühür takılı gelir; taşta tören)
+	var yeni := int(Game.run.get("muhur_yeni", -1))
+	Game.bank_run_kut()
+	Game.new_run()
+	Game.meta["runs"] = int(Game.meta.get("runs", 0)) + 1
+	Game.save_meta()
+	_build_hub()
+	_start_play()
+	if _zafer_son:
 		hud.flash_msg = "Tan söktü. Ulu Kayın sabah ışığında; gece yine gelecek, yol yine aşağı iner."
-		hud.flash_t = 6.0)
+	elif yeni > 0:
+		hud.flash_msg = "%s Mühür Taşı'nda. Erlik bu gece daha güçlü gelecek." % MuhurYolu.ad(yeni)
+	else:
+		hud.flash_msg = "Tan yine söktü. Mühür Taşı yeni bir gece bekliyor."
+	hud.flash_t = 6.0
 
 
 func _after_intro() -> void:

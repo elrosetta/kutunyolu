@@ -27,10 +27,12 @@ var tasi: Array = []      # {cell: Vector2i, ad: String, oda: int, bulundu: bool
 var _t := 0.3
 var _last := Vector2i(-99, -99)
 var _dirty := false
+var _sis := 1.0           # v44 Üçüncü Mühür (Erlik'in Sisi): görüş elipsi çarpanı (MuhurYolu.sis_k)
 
 
 func setup(lv: Node) -> void:
 	level = lv
+	_sis = MuhurYolu.sis_k()
 	W = lv.W
 	H = lv.H
 	seen.resize(W * H)
@@ -103,8 +105,8 @@ func reveal(c: Vector2i) -> void:
 			var n: Vector2i = p + o
 			if n.x < 1 or n.x >= W - 1 or n.y < 1 or n.y >= H - 1 or vis.has(n):
 				continue
-			var dx := float(n.x - c.x) / RX
-			var dy := float(n.y - c.y) / RY
+			var dx := float(n.x - c.x) / (RX * _sis)
+			var dy := float(n.y - c.y) / (RY * _sis)
 			if dx * dx + dy * dy > 1.0:
 				continue
 			vis[n] = true

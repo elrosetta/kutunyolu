@@ -92,5 +92,42 @@
 		"hiz": 1.2,
 		"hazirlik": 1.2,
 		"saldirganlik": 1.25
+	},
+	"muhur_kural": {
+		"_not": "v44 Mühür yolu (NG+; scripts/core/MuhurYolu.gd): her mühür sayıların üstüne bir KURAL ekler; kurallar birikir (üst mühür alttakileri de taşır). hazirlik: hazırlık süresi çarpanı (Zorluk.hazirlik) · damga: seçkin başına Erlik damgası (Öfkeli / Kalkanlı / Bölünen; MuhurDamga.gd) · sis: harita görüş yarıçapı çarpanı · tasi: yanık kalan Kut Taşı payı (giriş ve çıkış taşı hep yanar) · tamu: Tamu dışı bölümde en çok Tamu bekçisi · tamu_sans: sıradan yaratığın bekçiye dönme olasılığı · evre: bosslar bu can payında Zincir evresine girer (MuhurEvre.gd)",
+		"liste": [
+			{"id": "", "ad": "", "desc": "Kut'un ilk yolu. Kural yok."},
+			{"id": "uyari", "ad": "Kısa Uyarı", "desc": "Yaratıkların hazırlığı %10 kısa: uyarıyı daha erken oku.", "hazirlik": 1.1},
+			{"id": "damga", "ad": "Erlik Damgası", "desc": "Her seçkin bir damga taşır: Öfkeli, Kalkanlı ya da Bölünen.", "hazirlik": 1.1, "damga": 1},
+			{"id": "sis", "ad": "Erlik'in Sisi", "desc": "Kut Taşlarının yarısı söner, harita sisi daha dar açılır.", "hazirlik": 1.1, "damga": 1, "sis": 0.6, "tasi": 0.5},
+			{"id": "tamu", "ad": "Tamu Bekçileri", "desc": "Tamu'nun bekçileri yukarı çıktı: kor saçan, ölünce patlayan bekçiler gezer. Seçkinler iki damga taşır.", "hazirlik": 1.1, "damga": 2, "sis": 0.6, "tasi": 0.5, "tamu": 2, "tamu_sans": 0.16},
+			{"id": "evre", "ad": "Zincir Evresi", "desc": "Bekçiler canının %40'ında Erlik'in zincirini çağırır: gökten zincir iner.", "hazirlik": 1.1, "damga": 2, "sis": 0.6, "tasi": 0.5, "tamu": 2, "tamu_sans": 0.16, "evre": 0.4}
+		]
+	},
+	"muhur_odul": {
+		"_not": "v44 mühür ödülleri (birikmez, her mühür kendi satırı): kut / altin: toplanan Kut tanesi ve altın çarpanı · nadir: düşme nadirlik zarı kaç kademe sütunu ileri · nadir_taban: düşen eşyanın en düşük nadirliği (0 Sıradan, 1 Nadir, 2 Destansı) · seckin_taban / boss_taban: seçkin / boss düşüşünde en düşük nadirlik · kademe: düşme kademesi eki · han_tomar: Han Otağı ek Kut Tomarı · han_emanet: Han Otağı eşyasının emanet olma olasılığı · ilk_zafer: o mühürde Erlik'i ilk yenişte Umay'a giden Kut · emanet: mühür açılınca açılan emanet (yalnızca o mühürde ve üstünde düşer)",
+		"liste": [
+			{"kut": 1.0, "altin": 1.0, "nadir": 0, "ilk_zafer": 0},
+			{"kut": 1.15, "altin": 1.1, "nadir": 1, "ilk_zafer": 120, "emanet": "tan_kilici"},
+			{"kut": 1.3, "altin": 1.2, "nadir": 2, "seckin_taban": 1, "han_tomar": 1, "ilk_zafer": 160, "emanet": "halka_pencesi"},
+			{"kut": 1.45, "altin": 1.3, "nadir": 2, "nadir_taban": 1, "seckin_taban": 1, "han_tomar": 1, "ilk_zafer": 200, "emanet": "ayaz_orgusu"},
+			{"kut": 1.6, "altin": 1.4, "nadir": 3, "nadir_taban": 1, "seckin_taban": 2, "kademe": 1, "han_tomar": 1, "han_emanet": 0.5, "ilk_zafer": 250, "emanet": "tamu_cekici"},
+			{"kut": 1.8, "altin": 1.5, "nadir": 3, "nadir_taban": 1, "seckin_taban": 2, "boss_taban": 2, "kademe": 1, "han_tomar": 1, "han_emanet": 1.0, "ilk_zafer": 320, "emanet": "gun_yayi"}
+		]
+	},
+	"emanetler": {
+		"_not": "v44 mühür emanetleri: var olan silahın Efsanevi, adı ve ek özellikleri sabit çeşitlemesi (esya: taban silah; ek: [özellik, değer] olağan aralığın üstünde; unsur zorunlu). Mührü açılınca açılır; o mühürde ve üstündeki koşularda ilk bekçiden kesin, sonra bekçilerden %25 düşer",
+		"tan_kilici": {"muhur": 1, "ad": "Tan Kılıcı", "esya": "ulu_kilic", "malzeme": "od_tasi", "unsur": "od", "ek": [["hasar", 34], ["yanma", 30], ["tam_can", 40]], "soz": "Söndüğü gece tan ateşinden kalan son közle dövüldü."},
+		"halka_pencesi": {"muhur": 2, "ad": "Halka Pençesi", "esya": "kurt_pencesi", "malzeme": "kara_tas", "unsur": "kam", "ek": [["kanama", 36], ["hiz", 14], ["seckin", 50]], "soz": "Erlik'in zincirinden kopan halka bükülüp pençe oldu."},
+		"ayaz_orgusu": {"muhur": 3, "ad": "Ayaz Örgüsü", "esya": "ay_palasi", "malzeme": "ayaz", "unsur": "ayaz", "ek": [["dondurma", 14], ["krit_hasar", 70], ["hava", 45]], "soz": "Gök örgünün soğuğu Şahmeran'ın aynasında bilendi."},
+		"tamu_cekici": {"muhur": 4, "ad": "Tamu Çekici", "esya": "kor_cekici", "malzeme": "od_tasi", "unsur": "od", "ek": [["patlama", 45], ["boss", 30], ["genis", 45]], "soz": "Tamu bekçisinin örsünden çalındı; hâlâ sıcak."},
+		"gun_yayi": {"muhur": 5, "ad": "Gün Yayı", "esya": "akinci_yayi", "malzeme": "gok_demiri", "unsur": "yildirim", "ek": [["zincir", 3], ["krit_sans", 6], ["delme", 2]], "soz": "Gün Ana'nın beşinci ışını kirişe gerildi."}
+	},
+	"damgalar": {
+		"_not": "v44 Erlik damgaları (İkinci Mühürden; MuhurDamga.gd). ofkeli: hız / saldırganlık / hazırlık çarpanı · kalkanli: önden gelen vuruşa hasar çarpanı, kırılana dek kaç ön vuruş (arkadan vuruş tam işler; kırılınca sersemler) · bolunen: ölünce kaç yavru, yavrunun can payı ve boyu · tamu: Tamu bekçisi can / hasar çarpanı, kor atışı arası (sn), hazırlık (sn), ölüm patlaması gecikmesi",
+		"ofkeli": {"hiz": 1.22, "saldirganlik": 1.3, "hazirlik": 1.15},
+		"kalkanli": {"hasar": 0.35, "vurus": 6, "sersem": 1.4},
+		"bolunen": {"yavru": 2, "can": 0.3, "boy": 0.72},
+		"tamu": {"can": 1.4, "hasar": 1.15, "atis": [3.6, 5.2], "hazirlik": 0.7, "kor_hasar": 0.6, "patlama": 0.55}
 	}
 }
